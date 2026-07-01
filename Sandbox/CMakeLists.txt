@@ -1,12 +1,31 @@
 set(SANDBOX_NAME FoxFire_Sandbox)
 
 file(GLOB SOURCES src/modules/*/*/*.cpp)
-add_executable(${SANDBOX_NAME} src/main.cpp ${SOURCES})
+add_executable(${SANDBOX_NAME} src/Entry.cpp ${SOURCES})
+
+add_library(FoxFire_Entry
+        STATIC
+        ../Engine/src/IEntry.cpp
+)
+
+target_link_libraries(FoxFire_Entry
+        PUBLIC
+        FoxFire_Engine
+)
 
 target_link_libraries(${SANDBOX_NAME}
         PRIVATE
+        FoxFire_Entry
         FoxFire_Engine
 )
+
+if(WIN32 AND MINGW)
+    target_link_options(${SANDBOX_NAME}
+            PRIVATE
+            -static-libgcc
+            -static-libstdc++
+    )
+endif()
 
 set_target_properties(${SANDBOX_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${FOXFIRE_OUTPUT_DIR}

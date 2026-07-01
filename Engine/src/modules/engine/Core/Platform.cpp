@@ -75,7 +75,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
     return DefWindowProcA(hwnd, msg, wParam, lParam);
 };
 
-Platform::Platform(const std::string &applicationName, const int x, const int y, const int width, const int height)
+Platform::Platform(const String &applicationName, const int x, const int y, const int width, const int height)
     : platformState{}
 {
     platformState.unknownState = malloc( sizeof(InternalState) );
@@ -169,7 +169,7 @@ void Platform::printConsoleMessage(const char* message, const unsigned char colo
 
     OutputDebugStringA(message);
 
-    std::cout << message << std::endl;
+    cout << message << endl;
 }
 
 void Platform::printConsoleError(const char *message, const unsigned char color) {
@@ -181,7 +181,7 @@ void Platform::printConsoleError(const char *message, const unsigned char color)
 
     OutputDebugStringA(message);
 
-    std::cerr << message << std::endl;
+    cerr << message << endl;
 
     if (color == 0) exit(-1);
 }
@@ -248,29 +248,29 @@ struct InternalState {
     }
 
 void Platform::printConsoleMessage(const char *message, const unsigned char color) {
-        std::string output;
+        String output;
 
         if (!(color > 4 || color < 0)) {
             const char* colors[] = {"0;41", "1;31", "1;33", "1;32", "1;34"};
-            output = "\033[" + std::string(colors[color]) + "m" + message + "\033[0m";
+            output = "\033[" + String(colors[color]) + "m" + message + "\033[0m";
         } else {
             output = message;
         }
 
-        std::cout << output <<std::endl;
+        cout << output << endl;
 }
 
 void Platform::printConsoleError(const char *message, unsigned char color) {
-        std::string output;
+        String output;
 
         if (!(color > 4 || color < 0)) {
             const char* colors[] = {"0;41", "1;31", "1;33", "1;32", "1;34"};
-            output = "\033[" + std::string(colors[color]) + "m" + message + "\033[0m";
+            output = "\033[" + String(colors[color]) + "m" + message + "\033[0m";
         } else {
             output = message;
         }
 
-        std::cout << output <<std::endl;
+        cerr << output << endl;
 
         if (color == 0) exit(-1);
 }

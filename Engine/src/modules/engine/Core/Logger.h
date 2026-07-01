@@ -1,6 +1,7 @@
 #pragma once
 #include <foxfire_export.h>
-#include <string>
+
+#include "src/defines.h"
 
 //Enable or disable debug messages depending on the type of release
 #define ENABLE_DEBUG_LOGGING 1
@@ -20,11 +21,11 @@ public:
     static void cleanup();
 
     //log a message to console
-    static void log(LogLevel level,const std::string &message);
+    static void log(LogLevel level,const String &message);
 
-    static void logFatal(const std::string &message) {log(FATAL, message);}
-    static void logError(const std::string &message) {log(SEVERE, message);}
-    static void logWarn(const std::string &message) {log(WARN, message);}
-    static void logInfo(const std::string &message) {log(INFO, message);}
-    static void logDebug(const std::string &message);
+    static void logFatal(const String &message) {log(FATAL, message);}
+    static void logError(const String &message) {log(SEVERE, message);}
+    static void logWarn(const String &message) {log(WARN, message);}
+    static void logInfo(const String &message) {log(INFO, message);}
+    static void logDebug(const String &message);
 };

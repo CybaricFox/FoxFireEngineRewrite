@@ -1,6 +1,8 @@
 //Detects supported platforms
 
 #pragma once
+#include <iostream>
+#include <string>
 
 //Windows
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
@@ -21,3 +23,8 @@
 #else
     #error "This platform is not supported!"
 #endif
+
+using String = std::string;
+using std::cout;
+using std::endl;
+using std::cerr;

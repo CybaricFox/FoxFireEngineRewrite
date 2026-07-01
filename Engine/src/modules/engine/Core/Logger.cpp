@@ -4,9 +4,8 @@
 
 #include "Logger.h"
 
-#include <ostream>
-
 #include "Platform.h"
+#include "src/defines.h"
 
 void Logger::initializeFile() {
 
@@ -16,8 +15,8 @@ void Logger::cleanup() {
 
 }
 
-void Logger::log(const LogLevel level, const std::string &message) {
-    const std::string levelString[5] = {"[FATAL]: ", "[SEVERE]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: "};
+void Logger::log(const LogLevel level, const String &message) {
+    const String levelString[5] = {"[FATAL]: ", "[SEVERE]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: "};
 
     if (level < WARN) {
         Platform::printConsoleError((levelString[level] + message).c_str(), level);
@@ -26,7 +25,7 @@ void Logger::log(const LogLevel level, const std::string &message) {
     }
 }
 
-void Logger::logDebug(const std::string &message) {
+void Logger::logDebug(const String &message) {
     if constexpr (ENABLE_DEBUG_LOGGING == 1) {
         log(DEBUG, message);
     }

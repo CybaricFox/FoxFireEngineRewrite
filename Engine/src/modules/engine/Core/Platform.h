@@ -1,5 +1,6 @@
 #pragma once
-#include <string>
+
+#include "src/defines.h"
 
 class Platform {
 private:
@@ -8,7 +9,7 @@ private:
     };
 
 public:
-    Platform(const std::string &applicationName, int x, int y, int width, int height);
+    Platform(const String &applicationName, int x, int y, int width, int height);
     ~Platform();
 
     static void printConsoleMessage(const char *message, unsigned char color);
