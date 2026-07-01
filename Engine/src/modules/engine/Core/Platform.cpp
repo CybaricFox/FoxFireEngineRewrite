@@ -5,10 +5,10 @@
 #include "Platform.h"
 #include "src/defines.h"
 
-#if FOXFIRE_PLATFORM_WINDOWS == 1
-
 #include <iostream>
 #include <ostream>
+
+#if FOXFIRE_PLATFORM_WINDOWS == 1
 
 #include "windows.h"
 #include "windowsx.h"
@@ -197,6 +197,8 @@ Platform::~Platform() {
         DestroyWindow(state->hwnd);
         state->hwnd = nullptr;
     }
+
+    free(platformState.unknownState);
 }
 
 //Tells the platform to process the windows messages to OS.
@@ -214,10 +216,213 @@ bool Platform::processMessages() {
 
 
 #if FOXFIRE_PLATFORM_LINUX == 1
-    Platform::~Platform(){};
+#include <xcb/xcb.h>
+#include <X11/Xlib.h>
+#include <X11/Xlib-xcb.h>
+#include <sys/time.h>
 
-    Platform::Platform(PlatformState *state, std::string applicationName, int x, int y, int width, int height) {
+#if _POSIX_C_SOURCE >= 199309L
+    #include <ctime>
+#else
+    #include <unistd.h>
+#endif
 
+struct InternalState {
+    Display* display;
+    xcb_connection_t* connection;
+    xcb_window_t window;
+    xcb_screen_t* screen;
+    xcb_atom_t wm_protocols;
+    xcb_atom_t wm_delete_win;
+};
+
+    Platform::~Platform() {
+        const InternalState* castedState = static_cast<InternalState *>(platformState.unknownState);
+
+        //Turn on repeating keys since this seems to toggle it in the os itself
+        XAutoRepeatOn(castedState->display);
+
+        xcb_destroy_window(castedState->connection, castedState->window);
+
+        free(platformState.unknownState);
+    }
+
+void Platform::printConsoleMessage(const char *message, const unsigned char color) {
+        std::string output;
+
+        if (!(color > 4 || color < 0)) {
+            const char* colors[] = {"0;41", "1;31", "1;33", "1;32", "1;34"};
+            output = "\033[" + std::string(colors[color]) + "m" + message + "\033[0m";
+        } else {
+            output = message;
+        }
+
+        std::cout << output <<std::endl;
+}
+
+void Platform::printConsoleError(const char *message, unsigned char color) {
+        std::string output;
+
+        if (!(color > 4 || color < 0)) {
+            const char* colors[] = {"0;41", "1;31", "1;33", "1;32", "1;34"};
+            output = "\033[" + std::string(colors[color]) + "m" + message + "\033[0m";
+        } else {
+            output = message;
+        }
+
+        std::cout << output <<std::endl;
+
+        if (color == 0) exit(-1);
+}
+
+bool Platform::processMessages() {
+        const auto state = static_cast<InternalState *>(platformState.unknownState);
+
+        xcb_generic_event_t* event;
+        xcb_client_message_event_t* message;
+        bool quitFlag = false;
+
+        //Poll events until null is returned
+        while (event != nullptr) {
+            event = xcb_poll_for_event(state->connection);
+            if (event == nullptr) break;
+
+            //input events
+            switch (event->response_type & ~0x80) {
+                case XCB_KEY_PRESS:
+                case XCB_KEY_RELEASE: {
+                    break;
+                }
+                case XCB_BUTTON_PRESS:
+                case XCB_BUTTON_RELEASE: {
+                    break;
+                }
+                case XCB_MOTION_NOTIFY: {
+                    break;
+                }
+                case XCB_CONFIGURE_NOTIFY: {
+                    break;
+                }
+                case XCB_CLIENT_MESSAGE: {
+                    message = reinterpret_cast<xcb_client_message_event_t *>(event);
+                    //Close window
+                    if (message->data.data32[0] == state->wm_delete_win) {
+                        quitFlag = true;
+                    }
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+
+            free(event);
+        }
+
+        return !quitFlag;
+}
+
+float Platform::getAbsoluteTime() const {
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        return now.tv_sec + now.tv_nsec * 0.000000001;
+}
+
+Platform::Platform(const std::string& applicationName, const int x, const int y, const int width, const int height)
+        : platformState{}
+    {
+        platformState.unknownState = malloc(sizeof(InternalState));
+        const auto castedState = static_cast<InternalState *>(platformState.unknownState);
+
+        castedState->display = XOpenDisplay(nullptr);
+
+        //Turn off repeating keys
+        XAutoRepeatOff(castedState->display);
+
+        castedState->connection = XGetXCBConnection(castedState->display);
+
+        if (xcb_connection_has_error(castedState->connection)) {
+            printConsoleError("Failed to connect to X server via XCB", 0);
+        }
+
+        //Data from server
+        const struct xcb_setup_t* setup = xcb_get_setup(castedState->connection);
+
+        //Loop through screens
+        xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
+        int screen = 0;
+        for (int i = screen; i > 0; i--) {
+            xcb_screen_next(&iter);
+        }
+
+        //Assign screens
+        castedState->screen = iter.data;
+
+        castedState->window = xcb_generate_id(castedState->connection);
+
+        //Register events
+        //Fills background color
+        constexpr unsigned int eventMask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+        //Keyboard and mouse
+        constexpr unsigned int eventValues = XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
+                                             XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
+                                             XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_POINTER_MOTION |
+                                             XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+        //Background color, followed by events
+        const unsigned int values[] = {castedState->screen->black_pixel, eventValues};
+
+        //Create the window
+        xcb_void_cookie_t cookie = xcb_create_window(
+            castedState->connection,
+            XCB_COPY_FROM_PARENT,
+            castedState->window,
+            castedState->screen->root,
+            x,
+            y,
+            width,
+            height,
+            0,
+            XCB_WINDOW_CLASS_INPUT_OUTPUT,
+            castedState->screen->root_visual,
+            eventMask,
+            values
+            );
+
+        //Change the title
+        xcb_change_property(
+            castedState->connection,
+            XCB_PROP_MODE_REPLACE,
+            castedState->window,
+            XCB_ATOM_WM_NAME,
+            XCB_ATOM_STRING,
+            8,
+            applicationName.length(),
+            applicationName.c_str()
+        );
+
+        const xcb_intern_atom_cookie_t deleteCookie = xcb_intern_atom(castedState->connection, 0, 16, "WM_DELETE_WINDOW");
+        const xcb_intern_atom_cookie_t protocolCookie = xcb_intern_atom(castedState->connection, 0, 12, "WM_PROTOCOLS");
+        const xcb_intern_atom_reply_t* deleteReply = xcb_intern_atom_reply(castedState->connection, deleteCookie, nullptr);
+        const xcb_intern_atom_reply_t* protocolReply = xcb_intern_atom_reply(castedState->connection, protocolCookie, nullptr);
+        castedState->wm_delete_win = deleteReply->atom;
+        castedState->wm_protocols = protocolReply->atom;
+
+        xcb_change_property(
+            castedState->connection,
+            XCB_PROP_MODE_REPLACE,
+            castedState->window,
+            protocolReply->atom,
+            4,
+            32,
+            1,
+            &deleteReply->atom
+        );
+
+        xcb_map_window(castedState->connection, castedState->window);
+
+        if (const int streamResult = xcb_flush(castedState->connection); streamResult <= 0) {
+            printConsoleError(("Failed to flush XCB connection" + std::to_string(streamResult)).c_str(), 0);
+        }
     }
 
 
