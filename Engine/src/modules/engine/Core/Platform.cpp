@@ -8,6 +8,46 @@
 #include <iostream>
 #include <ostream>
 
+struct KeyState {
+    Buttons button;
+    Keys key;
+    bool bIsPressed;
+};
+struct MouseState {
+    short x;
+    short y;
+    char z;
+};
+
+std::vector<KeyState> keyInputs{};
+std::vector<MouseState> mouseInputs{};
+
+void Platform::processInputs(IInputSystem &inputSystem) {
+    for (const KeyState& input : keyInputs) {
+        if (input.key == MAX_KEYS) {
+            inputSystem.processButton(input.button, input.bIsPressed);
+        } else {
+            inputSystem.processKey(input.key, input.bIsPressed);
+        }
+    }
+    keyInputs.clear();
+
+    for (const MouseState& mouse : mouseInputs) {
+        if (mouse.z != 0) {
+            inputSystem.processMouseScroll(mouse.z);
+        } else {
+            inputSystem.processMouseMove(mouse.x, mouse.y);
+        }
+    }
+    mouseInputs.clear();
+}
+
+Platform::Platform()
+    : platformState{}
+{
+
+}
+
 #if FOXFIRE_PLATFORM_WINDOWS == 1
 
 #include "windows.h"
@@ -44,18 +84,23 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
         case WM_KEYUP:
         case WM_SYSKEYUP: {
             bool pressed = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
+            auto key = static_cast<Keys>(wParam);
+            keyInputs.emplace_back(MAX_BUTTONS, key, pressed);
             break;
         }
         case WM_MOUSEMOVE: {
             int xPos = GET_X_LPARAM(lParam);
             int yPos = GET_Y_LPARAM(lParam);
+            mouseInputs.emplace_back(xPos, yPos, 0);
             break;
         }
         case WM_MOUSEWHEEL: {
             //Sets the mousewheel value to 1(UP) or -1(DOWN)
-            if (int zDelta = GET_WHEEL_DELTA_WPARAM(wParam); zDelta != 0) {
+            int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+            if (zDelta != 0) {
                 zDelta = zDelta < 0 ? -1 : 1;
             }
+            mouseInputs.emplace_back(0, 0, zDelta);
             break;
         }
         case WM_LBUTTONDOWN:
@@ -65,6 +110,26 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
         case WM_MBUTTONUP:
         case WM_RBUTTONUP:  {
             bool pressed = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN;
+            Buttons mouseButton = MAX_BUTTONS;
+            switch (msg) {
+                case WM_LBUTTONDOWN:
+                case WM_LBUTTONUP:
+                    mouseButton = BUTTON_LEFT;
+                    break;
+                case WM_MBUTTONDOWN:
+                case WM_MBUTTONUP:
+                    mouseButton = BUTTON_MIDDLE;
+                    break;
+                case WM_RBUTTONDOWN:
+                case WM_RBUTTONUP:
+                    mouseButton = BUTTON_RIGHT;
+                    break;
+                default:
+                    break;
+            }
+            if (mouseButton != MAX_BUTTONS) {
+                keyInputs.emplace_back(mouseButton, MAX_KEYS, pressed);
+            }
             break;
         }
         default:
@@ -75,9 +140,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
     return DefWindowProcA(hwnd, msg, wParam, lParam);
 };
 
-Platform::Platform(const String &applicationName, const int x, const int y, const int width, const int height)
-    : platformState{}
-{
+bool Platform::initialize(const String &applicationName, int x, int y, int width, int height) {
     platformState.unknownState = malloc( sizeof(InternalState) );
     const auto castedState = static_cast<InternalState*>(platformState.unknownState);
 
@@ -98,6 +161,7 @@ Platform::Platform(const String &applicationName, const int x, const int y, cons
     if (!RegisterClassA(&wc)) {
         MessageBoxA(nullptr, "Failed to register window!", "Error!", MB_ICONEXCLAMATION | MB_OK);
         printConsoleError("Failed to register window!", 0);
+        return false;
     }
 
     int windowX = x;
@@ -142,9 +206,10 @@ Platform::Platform(const String &applicationName, const int x, const int y, cons
     if (handle == nullptr) {
         MessageBoxA(nullptr, "Failed to create window!", "Error!", MB_ICONEXCLAMATION | MB_OK);
         printConsoleError("Failed to create window!", 0);
-    } else {
-        castedState->hwnd = handle;
+        return false;
     }
+
+    castedState->hwnd = handle;
 
     //Whether to allow user input
     constexpr bool bAcceptInput = true;
@@ -158,6 +223,8 @@ Platform::Platform(const String &applicationName, const int x, const int y, cons
     QueryPerformanceFrequency(&frequency);
     clockFrequency = 1 / frequency.QuadPart;
     QueryPerformanceCounter(&startTime);
+
+    return true;
 }
 
 void Platform::printConsoleMessage(const char* message, const unsigned char color) {
@@ -182,8 +249,6 @@ void Platform::printConsoleError(const char *message, const unsigned char color)
     OutputDebugStringA(message);
 
     cerr << message << endl;
-
-    if (color == 0) exit(-1);
 }
 
 float Platform::getAbsoluteTime() const {

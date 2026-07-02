@@ -6,23 +6,25 @@
 
 #include "src/modules/engine/Core/Logger.h"
 
+FoxFire_InputSystem Game::inputSystem{};
 
-bool Game::initialize(IGame *instance) {
-    Logger::logDebug("Initializing...");
+bool Game::initialize(GameInstance *instance) {
+    Logger::logDebug("Initializing Application");
+
     return true;
 }
 
-bool Game::update(IGame *instance, float deltaTime) {
-    //Logger::logDebug("Updating...");
+bool Game::update(GameInstance *instance, float deltaTime) {
+    //Logger::logDebug("Updating Application");
     return true;
 }
 
-bool Game::render(IGame *instance, float deltaTime) {
-    //Logger::logDebug("Rendering...");
+bool Game::render(GameInstance *instance, float deltaTime) {
+    //Logger::logDebug("Rendering Application");
     return true;
 }
 
-bool Game::resize(IGame *instance, unsigned int width, unsigned int height) {
-    Logger::logDebug("Resizing...");
+bool Game::resize(GameInstance *instance, unsigned int width, unsigned int height) {
+    Logger::logDebug("Resizing Application");
     return true;
 }

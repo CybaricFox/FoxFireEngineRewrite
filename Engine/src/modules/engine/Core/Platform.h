@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineEvents.h"
+#include "IInputSystem.h"
 #include "src/defines.h"
 
 class Platform {
@@ -9,7 +11,7 @@ private:
     };
 
 public:
-    Platform(const String &applicationName, int x, int y, int width, int height);
+    Platform();
     ~Platform();
 
     static void printConsoleMessage(const char *message, unsigned char color);
@@ -18,8 +20,13 @@ public:
 
     [[nodiscard]] float getAbsoluteTime() const;
 
+    void processInputs(IInputSystem& inputSystem);
+
+    bool initialize(const String &applicationName, int x, int y, int width, int height);
+
 private:
     PlatformState platformState;
+
 };
 
 
