@@ -5,7 +5,7 @@
 #include "FF_Memory.h"
 
 #include <cstring>
-#include <format>
+#include <iomanip>
 
 #include "Logger.h"
 
@@ -79,7 +79,9 @@ String FF_Memory::getMemoryUsage() {
             amount = memoryData.taggedAllocations[i];
         }
 
-        outString.append(std::format("{}: {:.2f}{}\n", getStringFromTag(i), amount, unit));
+        std::ostringstream oss;
+        oss << getStringFromTag(i) << ": "<< std::fixed << std::setprecision(2) << amount << unit<< "\n";
+        outString.append(oss.str());
     }
 
     return outString;
