@@ -1,15 +1,14 @@
 #pragma once
 
-#include "EngineEvents.h"
-#include "IInputSystem.h"
+#include "../Input/EngineEvents.h"
+#include "../Input/IInputSystem.h"
 #include "src/defines.h"
 
-class Platform {
-private:
-    struct PlatformState {
-        void* unknownState;
-    };
+struct PlatformState {
+    void* unknownState;
+};
 
+class Platform {
 public:
     Platform();
     ~Platform();
@@ -18,11 +17,15 @@ public:
     static void printConsoleError(const char *message, unsigned char color);
     bool processMessages();
 
-    [[nodiscard]] float getAbsoluteTime() const;
+    [[nodiscard]] double getAbsoluteTime() const;
 
     void processInputs(IInputSystem& inputSystem);
 
     bool initialize(const String &applicationName, int x, int y, int width, int height);
+
+    void ff_sleep(unsigned long ms);
+
+    PlatformState* getPlatformState() {return &platformState;}
 
 private:
     PlatformState platformState;

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "EngineEvents.h"
-#include "FF_Memory.h"
+#include "../Library/FF_Memory.h"
 #include "foxfire_export.h"
 
 enum Buttons{
@@ -47,7 +47,7 @@ protected:
 public:
     ~IInputSystem();
 
-    void update(float deltaTime, FF_Memory& ff_memory);
+    void update(double deltaTime, FF_Memory& ff_memory);
     void initialize(FF_Memory& ff_memory);
 
     void processKey(Keys key, bool bIsPressed);

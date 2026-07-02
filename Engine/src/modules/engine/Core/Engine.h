@@ -1,35 +1,51 @@
 #pragma once
 
-#include "FF_Memory.h"
+#include "../Library/Clock.h"
+#include "../Library/FF_Memory.h"
 #include "Platform.h"
 #include "GameInstance.h"
 #include "foxfire_export.h"
-#include "IInputSystem.h"
+#include "../Input/IInputSystem.h"
+#include "src/modules/engine/Renderer/Renderer.h"
+#include "src/modules/engine/Renderer/RendererBackend.h"
 
-class Engine {
+class FOXFIRE_API Engine {
 private:
+    //Handles advanced memory allocation
+    FF_Memory ff_memory{};
+    //Frontend Rendering
+    Renderer renderer{};
+    //Calculates system time
+    Clock clock{};
+
     //Handles the OS
     Platform* platform;
-    //Handles advanced memory allocation
-    FF_Memory* ff_memory;
-    //Handle Input
-    IInputSystem* inputSystem;
-
+    //Backend Renderer
+    RendererBackend* backend;
+    //Holds config data
     GameInstance* gameInstance;
+
     bool bIsRunning = false;
     bool bIsPaused = false;
     bool bIsInitialized = false;
     short width;
     short height;
-    float lastTime;
-
-    void startup();
-    void run();
+    double lastTime;
 
 protected:
-    FOXFIRE_API void quit(EngineInputContext context);
+    //Handle Input
+    IInputSystem* inputSystem;
+
+    void quit(EngineInputContext context);
+    virtual void startup();
+    void run();
+    void resize(unsigned int width, unsigned int height);
+    bool update (float deltaTime);
+    bool render(float deltaTime);
 
 public:
-    explicit FOXFIRE_API Engine(GameInstance& instance, FF_Memory& mainMemory);
-    FOXFIRE_API ~Engine();
+    Engine(GameInstance *instance, unsigned long stateSize);
+    virtual ~Engine();
+
+    void initialize(GameInstance& instance);
 };

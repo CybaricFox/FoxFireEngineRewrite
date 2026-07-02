@@ -4,7 +4,7 @@
 
 #include "Logger.h"
 
-#include "Platform.h"
+#include "../Core/Platform.h"
 #include "src/defines.h"
 
 void Logger::initializeFile() {

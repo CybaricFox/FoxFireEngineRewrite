@@ -9,7 +9,7 @@ enum MemoryTag {
     MAX_TAGS
 };
 
-class FOXFIRE_API FF_Memory {
+class FF_Memory {
 private:
     struct MemoryBlock {
         unsigned long totalAllocated;

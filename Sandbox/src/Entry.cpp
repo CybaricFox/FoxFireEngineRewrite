@@ -1,24 +1,22 @@
 #include <cstdlib>
 
 #include "src/modules/engine/Core/GameInstance.h"
+#include "../../Engine/src/modules/engine/Library/FF_Memory.h"
+#include "src/modules/engine/Core/Engine.h"
+
 #include "modules/game/Game/Game.h"
-#include "src/modules/engine/Core/FF_Memory.h"
-#include "../../Engine/src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
 
 //Function that creates the game on the engine side
-void createGame(GameInstance* instance, FF_Memory& ff_memory) {
+void createGame(GameInstance* instance, Engine*& engine) {
     instance->config.startingX = 100;
     instance->config.startingY = 100;
     instance->config.startingWidth = 1280;
     instance->config.startingHeight = 720;
     instance->config.appName = "FoxFire Engine Sandbox";
 
-    instance->initialize = Game::initialize;
-    instance->update = Game::update;
-    instance->render = Game::render;
-    instance->resize = Game::resize;
+    instance->config.gameVersionMajor = 0;
+    instance->config.gameVersionMinor = 0;
+    instance->config.gameVersionPatch = 0;
 
-    instance->inputSystem = &Game::inputSystem;
-
-    instance->state = ff_memory.ff_allocate(sizeof(GameState), GAME);
+    engine = new Game(instance, sizeof(GameState));
 }

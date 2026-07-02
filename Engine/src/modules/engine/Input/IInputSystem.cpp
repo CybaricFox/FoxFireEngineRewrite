@@ -4,7 +4,7 @@
 
 #include "IInputSystem.h"
 
-#include "Logger.h"
+#include "../Library/Logger.h"
 
 bool IInputSystem::isKeyDown(const Keys key) {
     if (!bIsInitialized) return false;
@@ -72,7 +72,7 @@ IInputSystem::~IInputSystem() {
     bIsInitialized = false;
 }
 
-void IInputSystem::update(float deltaTime, FF_Memory& ff_memory) {
+void IInputSystem::update(double deltaTime, FF_Memory& ff_memory) {
     if (!bIsInitialized) {
         return;
     }

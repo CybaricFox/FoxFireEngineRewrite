@@ -4,27 +4,20 @@
 
 #include "Game.h"
 
-#include "src/modules/engine/Core/Logger.h"
+#include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
 
-FoxFire_InputSystem Game::inputSystem{};
-
-bool Game::initialize(GameInstance *instance) {
-    Logger::logDebug("Initializing Application");
-
-    return true;
+Game::Game(GameInstance *instance, const unsigned long size)
+    : Engine(instance, size)
+{
+    inputSystem = new FoxFire_InputSystem();
 }
 
-bool Game::update(GameInstance *instance, float deltaTime) {
-    //Logger::logDebug("Updating Application");
-    return true;
+Game::~Game() {
+    Engine::~Engine();
 }
 
-bool Game::render(GameInstance *instance, float deltaTime) {
-    //Logger::logDebug("Rendering Application");
-    return true;
-}
+void Game::startup() {
+    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {quit(context);}, "Engine.quit", KEY_ESCAPE);
 
-bool Game::resize(GameInstance *instance, unsigned int width, unsigned int height) {
-    Logger::logDebug("Resizing Application");
-    return true;
+    Engine::startup();
 }

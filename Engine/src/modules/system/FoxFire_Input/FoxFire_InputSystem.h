@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "src/modules/engine/Core/IInputSystem.h"
+#include "../../engine/Input/IInputSystem.h"
 
 class FOXFIRE_API FoxFire_InputSystem : public IInputSystem {
 

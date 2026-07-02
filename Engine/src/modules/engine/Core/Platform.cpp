@@ -5,7 +5,7 @@
 #include "Platform.h"
 #include "src/defines.h"
 
-#include "Logger.h"
+#include "../Library/Logger.h"
 
 #include <iostream>
 #include <ostream>
@@ -60,7 +60,7 @@ struct InternalState {
     HWND hwnd;
 };
 
-static float clockFrequency;
+static double clockFrequency = 0;
 static LARGE_INTEGER startTime;
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wParam, LPARAM lParam) {
@@ -223,10 +223,14 @@ bool Platform::initialize(const String &applicationName, int x, int y, int width
     //Setup clock
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
-    clockFrequency = 1 / frequency.QuadPart;
+    clockFrequency = 1.0 / static_cast<double>(frequency.QuadPart);
     QueryPerformanceCounter(&startTime);
 
     return true;
+}
+
+void Platform::ff_sleep(const unsigned long ms) {
+    Sleep(ms);
 }
 
 void Platform::printConsoleMessage(const char* message, const unsigned char color) {
@@ -253,10 +257,10 @@ void Platform::printConsoleError(const char *message, const unsigned char color)
     cerr << message << endl;
 }
 
-float Platform::getAbsoluteTime() const {
+double Platform::getAbsoluteTime() const {
     LARGE_INTEGER currentTime;
     QueryPerformanceCounter(&currentTime);
-    return currentTime.QuadPart * clockFrequency;
+    return clockFrequency * static_cast<double>(currentTime.QuadPart);
 }
 
 Platform::~Platform() {
@@ -696,6 +700,20 @@ float Platform::getAbsoluteTime() const {
         clock_gettime(CLOCK_MONOTONIC, &now);
         return now.tv_sec + now.tv_nsec * 0.000000001;
 }
+
+void ff_sleep(unsigned long ms) {
+#if _POSIX_C_SOURCE >= 199309L
+        struct timespec ts;
+        ts.tv_sec = ms / 1000;
+        ts.tv_nsec = (ms % 1000) * 1000 * 1000;
+        nanosleep(&ts, 0);
+#else
+        if (ms >= 1000) {
+            sleep(ms / 1000);
+        }
+        usleep((ms % 1000) * 1000);
+#endif
+        }
 
 bool Platform::initialize(const String &applicationName, int x, int y, int width, int height) {
         platformState.unknownState = malloc(sizeof(InternalState));

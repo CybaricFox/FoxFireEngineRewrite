@@ -3,7 +3,6 @@
 #include <string>
 #include "../../../defines.h"
 #include "foxfire_export.h"
-#include "IInputSystem.h"
 
 struct GameConfig {
     String appName;
@@ -11,16 +10,16 @@ struct GameConfig {
     short startingY;
     short startingWidth;
     short startingHeight;
+
+    int gameVersionMajor;
+    int gameVersionMinor;
+    int gameVersionPatch;
 };
 
 struct FOXFIRE_API GameInstance {
     GameConfig config;
-    IInputSystem* inputSystem;
 
-    bool (*initialize)(GameInstance* instance);
-    bool (*update)(GameInstance* instance, float deltaTime);
-    bool (*render)(GameInstance* instance, float deltaTime);
-    bool (*resize)(GameInstance* instance, unsigned int width, unsigned int height);
+    //Game State
     void* state;
 
     ~GameInstance() {
