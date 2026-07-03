@@ -15,7 +15,7 @@ private:
     bool endFrame(float deltaTime, RendererBackend* backend);
 
 public:
-    bool initialize(const String& appName, Platform* platform, RendererBackend*& backend, const GameInstance *gameInstance, FF_Memory* ff_memory);
+    bool initialize(const String& appName, Platform* platform, RendererBackend*& backend, const GameInstance *gameInstance);
     ~Renderer();
 
     bool drawFrame(const RenderPacket *packet, RendererBackend *backend);

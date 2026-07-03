@@ -19,16 +19,14 @@ private:
 
     static MemoryBlock memoryData;
 
-    String getStringFromTag(unsigned long tag);
+    static String getStringFromTag(unsigned long tag);
 
 public:
-    FF_Memory();
-    ~FF_Memory();
-
-    void* ff_allocate(unsigned long size, MemoryTag tag);
-    void ff_free(void* block, unsigned long size, MemoryTag tag);
-    void* ff_clear(void* block, unsigned long size);
-    void* ff_copy(void* destination, const void* source, unsigned long size);
-    void* ff_set(void* destination, int value, unsigned long size);
-    String getMemoryUsage();
+    static void* ff_allocate(unsigned long size, MemoryTag tag);
+    static void ff_free(void* block, unsigned long size, MemoryTag tag);
+    static void* ff_clear(void* block, unsigned long size);
+    static void* ff_copy(void* destination, const void* source, unsigned long size);
+    static void* ff_set(void* destination, int value, unsigned long size);
+    static String getMemoryUsage();
+    static void initialize();
 };

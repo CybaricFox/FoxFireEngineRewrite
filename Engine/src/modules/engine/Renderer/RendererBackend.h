@@ -31,7 +31,7 @@ public:
 
     static RendererBackend* create(RendererBackendType type, PlatformState* newPlatformState, const GameInstance *gameInstance);
 
-    virtual bool initialize(String appName, Platform* platform, FF_Memory* ff_memory);
+    virtual bool initialize(String appName, Platform* platform);
     bool beginFrame(float deltaTime);
     bool endFrame(float deltaTime);
 

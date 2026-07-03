@@ -35,6 +35,9 @@ struct VulkanContext {
     VkPhysicalDeviceProperties physicalDeviceProperties;
     VkPhysicalDeviceFeatures physicalDeviceFeatures;
     VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
+    VkQueue graphicsQueue;
+    VkQueue presentQueue;
+    VkQueue transferQueue;
 
 #if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -71,11 +74,10 @@ private:
         const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
         void* userData);
 
-    bool createDevice(FF_Memory* ff_memory);
-    void destroyDevice();
+    bool createDevice();
     bool createSurface(Platform* platform);
 
-    bool selectPhysicalDevice(FF_Memory* ff_memory);
+    bool selectPhysicalDevice();
 
     bool physicalDeviceMeetsRequirements(
         VkPhysicalDevice physicalDevice,
@@ -84,9 +86,9 @@ private:
         const VkPhysicalDeviceFeatures *deviceFeatures,
         const PhysicalDeviceRequirements *requirements,
         VulkanPhysicalDeviceFamilyInfo *physicalDeviceFamilyInfo,
-        VulkanSwapChainSupportInfo *swapChainSupport, FF_Memory *ff_memory);
+        VulkanSwapChainSupportInfo *swapChainSupport);
 
-    void querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo* swapChainSupportInfo, FF_Memory* ff_memory);
+    void querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo* swapChainSupportInfo);
 
 public:
     ~VulkanBackend() override;
@@ -94,7 +96,7 @@ public:
 
     static void vulkanCheck(VkResult result);
 
-    bool initialize(String appName, Platform *platform, FF_Memory* ff_memory) override;
+    bool initialize(String appName, Platform *platform) override;
 
     void setVersion(const GameInstance* gameInstance);
 };

@@ -28,7 +28,7 @@ void Engine::startup()
     bIsInitialized = true;
 
     //Start renderer
-    if (!renderer.initialize(gameInstance->config.appName, platform, backend, gameInstance, &ff_memory)) {
+    if (!renderer.initialize(gameInstance->config.appName, platform, backend, gameInstance)) {
         Logger::logFatal("Failed to initialize renderer!");
         return;
     }
@@ -49,7 +49,7 @@ void Engine::run() {
     int fps = 0;
     float deltaCount = 0;
 
-    Logger::logInfo(ff_memory.getMemoryUsage());
+    Logger::logInfo(FF_Memory::getMemoryUsage());
 
     while (bIsRunning) {
         if (!platform->processMessages()) {
@@ -97,7 +97,7 @@ void Engine::run() {
 
             //Handle input at the end
             platform->processInputs(*inputSystem);
-            inputSystem->update(deltaTime, ff_memory);
+            inputSystem->update(deltaTime);
 
             //Update last time
             lastTime = currentTime;
@@ -128,7 +128,7 @@ bool Engine::render(float deltaTime) {
 }
 
 Engine::Engine(GameInstance *instance, const unsigned long stateSize) {
-    instance->state = ff_memory.ff_allocate(stateSize, GAME);
+    instance->state = FF_Memory::ff_allocate(stateSize, GAME);
 }
 
 void Engine::quit(const EngineInputContext context) {
@@ -147,7 +147,7 @@ void Engine::initialize(GameInstance &instance) {
     Logger::logInfo("Initializing Game");
 
     gameInstance = &instance;
-    inputSystem->initialize(ff_memory);
+    inputSystem->initialize();
     platform = new Platform{};
 
     startup();

@@ -11,8 +11,6 @@
 
 class FOXFIRE_API Engine {
 private:
-    //Handles advanced memory allocation
-    FF_Memory ff_memory{};
     //Frontend Rendering
     Renderer renderer{};
     //Calculates system time

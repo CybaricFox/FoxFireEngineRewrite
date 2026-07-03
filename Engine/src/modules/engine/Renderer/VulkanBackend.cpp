@@ -35,10 +35,64 @@ VkBool32 VulkanBackend::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT mes
     return VK_FALSE;
 }
 
-bool VulkanBackend::createDevice(FF_Memory* ff_memory) {
-    if (!selectPhysicalDevice(ff_memory)) {
+bool VulkanBackend::createDevice() {
+    if (!selectPhysicalDevice()) {
         return false;
     }
+
+    Logger::logInfo("Creating logical device.");
+    bool presentSharesGraphicsQueue = vulkanContext.graphicsQueueIndex == vulkanContext.presentQueueIndex;
+    bool transferSharesGraphicsQueue = vulkanContext.graphicsQueueIndex == vulkanContext.transferQueueIndex;
+    unsigned int indexCount = 1;
+
+    if (!presentSharesGraphicsQueue) {
+        indexCount++;
+    }
+    if (!transferSharesGraphicsQueue) {
+        indexCount++;
+    }
+    unsigned int indices[indexCount];
+    unsigned char index = 0;
+    indices[index++] = vulkanContext.graphicsQueueIndex;
+    if (!presentSharesGraphicsQueue) {
+        indices[index++] = vulkanContext.presentQueueIndex;
+    }
+    if (!transferSharesGraphicsQueue) {
+        indices[index++] = vulkanContext.transferQueueIndex;
+    }
+
+    VkDeviceQueueCreateInfo queueCreateInfos[indexCount];
+    for (unsigned int i = 0; i < indexCount; i++) {
+        queueCreateInfos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfos[i].queueFamilyIndex = indices[i];
+        queueCreateInfos[i].queueCount = 1;
+        if (indices[i] == vulkanContext.graphicsQueueIndex) {
+            queueCreateInfos[i].queueCount = 2;
+        }
+        queueCreateInfos[i].flags = 0;
+        queueCreateInfos[i].pNext = nullptr;
+        float queuePriority = 1.0f;
+        queueCreateInfos[i].pQueuePriorities = &queuePriority;
+    }
+
+    VkPhysicalDeviceFeatures deviceFeatures{};
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
+
+    VkDeviceCreateInfo createInfo{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    createInfo.queueCreateInfoCount = indexCount;
+    createInfo.pQueueCreateInfos = queueCreateInfos;
+    createInfo.pEnabledFeatures = &deviceFeatures;
+    createInfo.enabledExtensionCount = 1;
+    const auto extensionNames = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+    createInfo.ppEnabledExtensionNames = &extensionNames;
+
+    vulkanCheck(vkCreateDevice(vulkanContext.physicalDevice, &createInfo, nullptr, &vulkanContext.logicalDevice));
+    Logger::logInfo("Vulkan logical device created.");
+
+    vkGetDeviceQueue(vulkanContext.logicalDevice, vulkanContext.graphicsQueueIndex, 0, &vulkanContext.graphicsQueue);
+    vkGetDeviceQueue(vulkanContext.logicalDevice, vulkanContext.presentQueueIndex, 0, &vulkanContext.presentQueue);
+    vkGetDeviceQueue(vulkanContext.logicalDevice, vulkanContext.transferQueueIndex, 0, &vulkanContext.transferQueue);
+    Logger::logInfo("Vulkan queues obtained.");
 
     return true;
 }
@@ -47,7 +101,7 @@ bool VulkanBackend::createSurface(Platform* platform) {
     return platform->createSurface();
 }
 
-bool VulkanBackend::selectPhysicalDevice(FF_Memory* ff_memory) {
+bool VulkanBackend::selectPhysicalDevice() {
     unsigned int deviceCount = 0;
     vulkanCheck(vkEnumeratePhysicalDevices(vulkanContext.instance, &deviceCount, nullptr));
     if (deviceCount == 0) {
@@ -86,8 +140,7 @@ bool VulkanBackend::selectPhysicalDevice(FF_Memory* ff_memory) {
             &deviceFeatures,
             &requirements,
             &familyInfo,
-            &vulkanContext.swapChainSupportInfo,
-            ff_memory
+            &vulkanContext.swapChainSupportInfo
             );
 
         if (result) {
@@ -162,7 +215,7 @@ bool VulkanBackend::selectPhysicalDevice(FF_Memory* ff_memory) {
 bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface,
     const VkPhysicalDeviceProperties *deviceProperties, const VkPhysicalDeviceFeatures *deviceFeatures,
     const PhysicalDeviceRequirements *requirements, VulkanPhysicalDeviceFamilyInfo *physicalDeviceFamilyInfo,
-    VulkanSwapChainSupportInfo *swapChainSupport, FF_Memory* ff_memory) {
+    VulkanSwapChainSupportInfo *swapChainSupport) {
     physicalDeviceFamilyInfo->graphicsFamily = -1;
     physicalDeviceFamilyInfo->presentFamily = -1;
     physicalDeviceFamilyInfo->computeFamily = -1;
@@ -242,14 +295,14 @@ bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDev
         Logger::logDebug("Transfer family index: " + std::to_string(physicalDeviceFamilyInfo->transferFamily));
         Logger::logDebug("Compute family index: " + std::to_string(physicalDeviceFamilyInfo->computeFamily));
 
-        querySwapChainSupport(physicalDevice, surface, swapChainSupport, ff_memory);
+        querySwapChainSupport(physicalDevice, surface, swapChainSupport);
 
         if (swapChainSupport->formatCount < 1 || swapChainSupport->presentCount < 1) {
             if (swapChainSupport->formats) {
-                ff_memory->ff_free(swapChainSupport->formats, sizeof(VkSurfaceFormatKHR) * swapChainSupport->formatCount, RENDER);
+                FF_Memory::ff_free(swapChainSupport->formats, sizeof(VkSurfaceFormatKHR) * swapChainSupport->formatCount, RENDER);
             }
             if (swapChainSupport->presentModes) {
-                ff_memory->ff_free(swapChainSupport->presentModes, sizeof(VkPresentModeKHR) * swapChainSupport->presentCount, RENDER);
+                FF_Memory::ff_free(swapChainSupport->presentModes, sizeof(VkPresentModeKHR) * swapChainSupport->presentCount, RENDER);
             }
             Logger::logInfo("Nevermind, Swap chain is not supported by this device. Skipping to next device.");
             return false;
@@ -260,7 +313,7 @@ bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDev
             VkExtensionProperties *availableExtensions = nullptr;
             vulkanCheck(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr));
             if (extensionCount != 0) {
-                availableExtensions = static_cast<VkExtensionProperties *>(ff_memory->ff_allocate(sizeof(VkExtensionProperties) * extensionCount, RENDER));
+                availableExtensions = static_cast<VkExtensionProperties *>(FF_Memory::ff_allocate(sizeof(VkExtensionProperties) * extensionCount, RENDER));
                 vulkanCheck(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions));
                 for (const char* extension : requirements->extensionNames) {
                     bool found = false;
@@ -273,12 +326,12 @@ bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDev
 
                     if (!found) {
                         Logger::logInfo(String(extension) + " not found. Skipping device.");
-                        ff_memory->ff_free(availableExtensions, sizeof(VkExtensionProperties) * extensionCount, RENDER);
+                        FF_Memory::ff_free(availableExtensions, sizeof(VkExtensionProperties) * extensionCount, RENDER);
                         return false;
                     }
                 }
             }
-            ff_memory->ff_free(availableExtensions, sizeof(VkExtensionProperties) * extensionCount, RENDER);
+            FF_Memory::ff_free(availableExtensions, sizeof(VkExtensionProperties) * extensionCount, RENDER);
         }
 
         if (requirements->samplerAnisotrophy && !deviceFeatures->samplerAnisotropy) {
@@ -292,13 +345,13 @@ bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDev
     return false;
 }
 
-void VulkanBackend::querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo *swapChainSupportInfo, FF_Memory* ff_memory) {
+void VulkanBackend::querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo *swapChainSupportInfo) {
     vulkanCheck(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &swapChainSupportInfo->capabilities));
 
     vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &swapChainSupportInfo->formatCount, nullptr));
     if (swapChainSupportInfo->formatCount != 0) {
         if (!swapChainSupportInfo->formats) {
-            swapChainSupportInfo->formats = static_cast<VkSurfaceFormatKHR*>(ff_memory->ff_allocate(sizeof(VkSurfaceFormatKHR) * swapChainSupportInfo->formatCount, RENDER));
+            swapChainSupportInfo->formats = static_cast<VkSurfaceFormatKHR*>(FF_Memory::ff_allocate(sizeof(VkSurfaceFormatKHR) * swapChainSupportInfo->formatCount, RENDER));
         }
         vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &swapChainSupportInfo->formatCount, swapChainSupportInfo->formats));
     }
@@ -306,13 +359,43 @@ void VulkanBackend::querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSur
     vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &swapChainSupportInfo->presentCount, nullptr));
     if (swapChainSupportInfo->presentCount != 0) {
         if (!swapChainSupportInfo->presentModes) {
-            swapChainSupportInfo->presentModes = static_cast<VkPresentModeKHR *>(ff_memory->ff_allocate(sizeof(VkPresentModeKHR) * swapChainSupportInfo->presentCount, RENDER));
+            swapChainSupportInfo->presentModes = static_cast<VkPresentModeKHR *>(FF_Memory::ff_allocate(sizeof(VkPresentModeKHR) * swapChainSupportInfo->presentCount, RENDER));
         }
         vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &swapChainSupportInfo->presentCount, swapChainSupportInfo->presentModes));
     }
 }
 
 VulkanBackend::~VulkanBackend() {
+    Logger::logInfo("Releasing Vulkan device resources");
+    vulkanContext.graphicsQueue = nullptr;
+    vulkanContext.presentQueue = nullptr;
+    vulkanContext.transferQueue = nullptr;
+
+    if (vulkanContext.logicalDevice) {
+        vkDestroyDevice(vulkanContext.logicalDevice, nullptr);
+        vulkanContext.logicalDevice = nullptr;
+    }
+
+    vulkanContext.physicalDevice = nullptr;
+
+    if (vulkanContext.swapChainSupportInfo.formats) {
+        FF_Memory::ff_free(vulkanContext.swapChainSupportInfo.formats, sizeof(VkSurfaceFormatKHR) * vulkanContext.swapChainSupportInfo.formatCount, RENDER);
+        vulkanContext.swapChainSupportInfo.formats = nullptr;
+        vulkanContext.swapChainSupportInfo.formatCount = 0;
+    }
+
+    if (vulkanContext.swapChainSupportInfo.presentModes) {
+        FF_Memory::ff_free(vulkanContext.swapChainSupportInfo.presentModes, sizeof(VkPresentModeKHR) * vulkanContext.swapChainSupportInfo.presentCount, RENDER);
+        vulkanContext.swapChainSupportInfo.presentModes = nullptr;
+        vulkanContext.swapChainSupportInfo.presentCount = 0;
+    }
+
+    FF_Memory::ff_clear(&vulkanContext.swapChainSupportInfo.capabilities, sizeof(vulkanContext.swapChainSupportInfo.capabilities));
+
+    vulkanContext.graphicsQueueIndex = -1;
+    vulkanContext.presentQueueIndex = -1;
+    vulkanContext.transferQueueIndex = -1;
+
     Logger::logDebug("Destroying Vulkan debugger.");
     if (vulkanContext.debugMessenger) {
         const auto function = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(vulkanContext.instance, "vkDestroyDebugUtilsMessengerEXT"));
@@ -330,7 +413,7 @@ void VulkanBackend::vulkanCheck(VkResult result) {
     assert(result == VK_SUCCESS);
 }
 
-bool VulkanBackend::initialize(const String appName, Platform* platform, FF_Memory* ff_memory) {
+bool VulkanBackend::initialize(const String appName, Platform* platform) {
     VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     appInfo.apiVersion = VK_API_VERSION_1_2;
     appInfo.pApplicationName = appName.c_str();
@@ -418,13 +501,13 @@ bool VulkanBackend::initialize(const String appName, Platform* platform, FF_Memo
     Logger::logDebug("Created Vulkan surface successfully.");
 
     //Create device
-    if (!createDevice(ff_memory)) {
+    if (!createDevice()) {
         Logger::logFatal("Failed to create Vulkan device.");
         return false;
     }
 
     Logger::logInfo("Vulkan renderer initialized");
-    return RendererBackend::initialize(appName, platform, ff_memory);
+    return RendererBackend::initialize(appName, platform);
 }
 
 void VulkanBackend::setVersion(const GameInstance *gameInstance) {

@@ -47,8 +47,8 @@ protected:
 public:
     ~IInputSystem();
 
-    void update(double deltaTime, FF_Memory& ff_memory);
-    void initialize(FF_Memory& ff_memory);
+    void update(double deltaTime);
+    void initialize();
 
     void processKey(Keys key, bool bIsPressed);
     void processButton(Buttons button, bool bIsPressed);

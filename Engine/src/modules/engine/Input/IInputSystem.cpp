@@ -72,21 +72,21 @@ IInputSystem::~IInputSystem() {
     bIsInitialized = false;
 }
 
-void IInputSystem::update(double deltaTime, FF_Memory& ff_memory) {
+void IInputSystem::update(double deltaTime) {
     if (!bIsInitialized) {
         return;
     }
 
     //copy current states to previous states
-    ff_memory.ff_copy(previousKeyboardState, keyboardState, sizeof(keyboardState));
-    ff_memory.ff_copy(previousMouseButtons, mouseButtons, sizeof(mouseButtons));
+    FF_Memory::ff_copy(previousKeyboardState, keyboardState, sizeof(keyboardState));
+    FF_Memory::ff_copy(previousMouseButtons, mouseButtons, sizeof(mouseButtons));
 }
 
-void IInputSystem::initialize(FF_Memory &ff_memory) {
-    ff_memory.ff_clear(keyboardState, sizeof(keyboardState));
-    ff_memory.ff_clear(previousKeyboardState, sizeof(previousKeyboardState));
-    ff_memory.ff_clear(mouseButtons, sizeof(mouseButtons));
-    ff_memory.ff_clear(previousMouseButtons, sizeof(previousMouseButtons));
+void IInputSystem::initialize() {
+    FF_Memory::ff_clear(keyboardState, sizeof(keyboardState));
+    FF_Memory::ff_clear(previousKeyboardState, sizeof(previousKeyboardState));
+    FF_Memory::ff_clear(mouseButtons, sizeof(mouseButtons));
+    FF_Memory::ff_clear(previousMouseButtons, sizeof(previousMouseButtons));
 
     bIsInitialized = true;
     Logger::logInfo("Input subsystem initialized!");

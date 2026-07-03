@@ -20,15 +20,6 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
     }
 }
 
-FF_Memory::FF_Memory()
-{
-    ff_clear(&memoryData, sizeof(memoryData));
-}
-
-FF_Memory::~FF_Memory() {
-
-}
-
 void FF_Memory::ff_free(void *block, const unsigned long size, const MemoryTag tag) {
     if (tag == UNKNOWN) {
         Logger::logWarn("Free called with Unknown tag. Add a tag for this allocation!");
@@ -98,6 +89,10 @@ String FF_Memory::getMemoryUsage() {
     }
 
     return outString;
+}
+
+void FF_Memory::initialize() {
+    ff_clear(&memoryData, sizeof(memoryData));
 }
 
 void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag) {
