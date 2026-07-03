@@ -27,11 +27,11 @@ protected:
     RendererBackend() = default;
 
 public:
-    ~RendererBackend();
+    virtual ~RendererBackend();
 
     static RendererBackend* create(RendererBackendType type, PlatformState* newPlatformState, const GameInstance *gameInstance);
 
-    virtual bool initialize(String appName, PlatformState* newPlatformState);
+    virtual bool initialize(String appName, Platform* platform, FF_Memory* ff_memory);
     bool beginFrame(float deltaTime);
     bool endFrame(float deltaTime);
 

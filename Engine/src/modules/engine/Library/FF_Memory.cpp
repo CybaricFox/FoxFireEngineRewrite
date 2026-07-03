@@ -15,6 +15,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
     switch (tag) {
         case 0: return "UNKNOWN";
         case 1: return "GAME";
+        case 2: return "RENDER";
         default: return " ";
     }
 }
@@ -33,9 +34,21 @@ void FF_Memory::ff_free(void *block, const unsigned long size, const MemoryTag t
         Logger::logWarn("Free called with Unknown tag. Add a tag for this allocation!");
     }
 
+    if (memoryData.taggedAllocations[tag] < size) {
+        Logger::logError(
+            "Memory underflow detected for tag " +
+            std::string(getStringFromTag(tag)) +
+            ". Current: " + std::to_string(memoryData.taggedAllocations[tag]) +
+            ", freeing: " + std::to_string(size)
+        );
+        memoryData.totalAllocated -= memoryData.taggedAllocations[tag];
+        memoryData.taggedAllocations[tag] = 0;
+        free(block);
+        return;
+    }
+
     memoryData.totalAllocated -= size;
     memoryData.taggedAllocations[tag] -= size;
-
     free(block);
 }
 
@@ -57,26 +70,26 @@ String FF_Memory::getMemoryUsage() {
     constexpr unsigned long mb = 1024 * 1024;
     constexpr unsigned long kb = 1024;
 
-    const String title = "System memory usage (tagged):\n";
+    const String title = "Tracked system memory usage (tagged):\n";
     String outString{};
     outString.append(title);
 
     for (unsigned int i = 0; i < MAX_TAGS; i++) {
         char unit[3] = "XB";
-        float amount = 1;
+        float amount = 0.0f;
         if (memoryData.taggedAllocations[i] > gb) {
             unit[0] = 'G';
-            amount = memoryData.taggedAllocations[i] / gb;
+            amount = static_cast<float>(memoryData.taggedAllocations[i]) / static_cast<float>(gb);
         } else if (memoryData.taggedAllocations[i] > mb) {
             unit[0] = 'M';
-            amount = memoryData.taggedAllocations[i] / mb;
+            amount = static_cast<float>(memoryData.taggedAllocations[i]) / mb;
         } else if (memoryData.taggedAllocations[i] > kb) {
             unit[0] = 'K';
-            amount = memoryData.taggedAllocations[i] / kb;
+            amount = static_cast<float>(memoryData.taggedAllocations[i]) / kb;
         } else {
             unit[0] = 'B';
             unit[1] = 0;
-            amount = memoryData.taggedAllocations[i];
+            amount = static_cast<float>(memoryData.taggedAllocations[i]);
         }
 
         std::ostringstream oss;

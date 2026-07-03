@@ -28,7 +28,7 @@ void Engine::startup()
     bIsInitialized = true;
 
     //Start renderer
-    if (!renderer.initialize(gameInstance->config.appName, platform->getPlatformState(), backend, gameInstance)) {
+    if (!renderer.initialize(gameInstance->config.appName, platform, backend, gameInstance, &ff_memory)) {
         Logger::logFatal("Failed to initialize renderer!");
         return;
     }
@@ -45,6 +45,9 @@ void Engine::run() {
     double runTime = 0;
     unsigned char frameCount = 0;
     constexpr double targetTime = 1.0f / 60;
+
+    int fps = 0;
+    float deltaCount = 0;
 
     Logger::logInfo(ff_memory.getMemoryUsage());
 
@@ -98,6 +101,15 @@ void Engine::run() {
 
             //Update last time
             lastTime = currentTime;
+
+            if (deltaCount >= 1) {
+                Logger::logInfo("FPS: " + std::to_string(fps));
+                fps = 0;
+                deltaCount = 0;
+            } else {
+                fps++;
+                deltaCount += static_cast<float>(deltaTime);
+            }
         }
     }
 
@@ -143,7 +155,9 @@ void Engine::initialize(GameInstance &instance) {
 
 Engine::~Engine() {
     bIsRunning = false;
-    delete inputSystem;
-    delete platform;
+
+    //Destroy resources in opposite order of creation
     delete backend;
+    delete platform;
+    delete inputSystem;
 }

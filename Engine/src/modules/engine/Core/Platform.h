@@ -25,7 +25,11 @@ public:
 
     void ff_sleep(unsigned long ms);
 
+    void getRequiredExtensions(std::vector<const char*>& extensions);
+
     PlatformState* getPlatformState() {return &platformState;}
+
+    bool createSurface();
 
 private:
     PlatformState platformState;

@@ -10,7 +10,7 @@
 void RendererBackend::resize(short width, short height) {
 }
 
-bool RendererBackend::initialize(String appName, PlatformState *newPlatformState) {
+bool RendererBackend::initialize(String appName, Platform *platform, FF_Memory* ff_memory) {
     return true;
 }
 

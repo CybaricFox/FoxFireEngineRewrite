@@ -5,8 +5,6 @@
 #include "Platform.h"
 #include "src/defines.h"
 
-#include "../Library/Logger.h"
-
 #include <iostream>
 #include <ostream>
 
@@ -54,10 +52,14 @@ Platform::Platform()
 
 #include "windows.h"
 #include "windowsx.h"
+#include "src/modules/engine/Renderer/VulkanBackend.h"
+#include "vulkan/vulkan.h"
+#include "vulkan/vulkan_win32.h"
 
 struct InternalState {
     HINSTANCE instance;
     HWND hwnd;
+    VkSurfaceKHR surface;
 };
 
 static double clockFrequency = 0;
@@ -233,6 +235,27 @@ void Platform::ff_sleep(const unsigned long ms) {
     Sleep(ms);
 }
 
+void Platform::getRequiredExtensions(std::vector<const char*>& extensions) {
+    extensions.push_back("VK_KHR_win32_surface");
+}
+
+bool Platform::createSurface() {
+    VulkanContext* vulkanContext = &VulkanBackend::vulkanContext;
+    const auto state = static_cast<InternalState *>(platformState.unknownState);
+
+    VkWin32SurfaceCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
+    createInfo.hinstance = state->instance;
+    createInfo.hwnd = state->hwnd;
+
+    if (const VkResult result = vkCreateWin32SurfaceKHR(vulkanContext->instance, &createInfo, nullptr, &state->surface); result != VK_SUCCESS) {
+        printConsoleError("Failed to create Vulkan surface for windwos.", 0);
+        return false;
+    }
+
+    vulkanContext->surface = state->surface;
+    return true;
+}
+
 void Platform::printConsoleMessage(const char* message, const unsigned char color) {
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     if (!(color > 4 || color < 0)) {
@@ -300,6 +323,10 @@ bool Platform::processMessages() {
     #include <unistd.h>
 #endif
 
+#define VK_USE_PLATFORM_WIN32_KHR
+#include <vulkan/vulkan.h>
+#include "src/modules/engine/Renderer/VulkanBackend.h"
+
 struct InternalState {
     Display* display;
     xcb_connection_t* connection;
@@ -307,6 +334,7 @@ struct InternalState {
     xcb_screen_t* screen;
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_win;
+    VkSurfaceKHR surface;
 };
 
     Platform::~Platform() {
@@ -345,6 +373,23 @@ void Platform::printConsoleError(const char *message, unsigned char color) {
 
         cerr << output << endl;
 }
+
+bool Platform::createSurface() {
+        VulkanContext* vulkanContext = &VulkanBackend::vulkanContext;
+        const auto state = static_cast<InternalState *>(platformState.unknownState);
+
+        VkXcbSurfaceCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR};
+        createInfo.connection = state->instance;
+        createInfo.window = state->window;
+
+        if (const VkResult result = vkCreateXcbSurfaceKHR(vulkanContext->instance, &createInfo, nullptr, &state->surface); result != VK_SUCCESS) {
+            printConsoleError("Failed to create Vulkan surface for linux.", 0);
+            return false;
+        }
+
+        vulkanContext->surface = state->surface;
+        return true;
+    }
 
 Keys translateKeycode(unsigned int keyCode) {
         switch (keyCode) {
@@ -694,6 +739,10 @@ bool Platform::processMessages() {
 
         return !quitFlag;
 }
+
+void Platform::getRequiredExtensions(std::vector<const char*>& extensions) {
+        extensions.push_back("VK_KHR_xcb_surface");
+    }
 
 float Platform::getAbsoluteTime() const {
         struct timespec now;

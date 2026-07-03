@@ -14,5 +14,7 @@ int main() {
         engine->initialize(instance);
     }
 
+    delete engine;
+
     return 0;
 }

@@ -13,7 +13,7 @@ Game::Game(GameInstance *instance, const unsigned long size)
 }
 
 Game::~Game() {
-    Engine::~Engine();
+
 }
 
 void Game::startup() {
