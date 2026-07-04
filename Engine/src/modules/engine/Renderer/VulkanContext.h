@@ -4,7 +4,17 @@
 
 #pragma once
 #include <vulkan/vulkan.h>
+
 #include "src/modules/engine/Library/Logger.h"
+
+enum VulkanState {
+    READY,
+    RECORDING,
+    IN_RENDER_PASS,
+    RECORDING_ENDED,
+    SUBMITTED,
+    NOT_ALLOCATED
+};
 
 struct VulkanSwapChainSupportInfo {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -48,6 +58,21 @@ struct VulkanSwapchain {
     VulkanImage depthAttachment;
 };
 
+struct VulkanRenderpass {
+    VkRenderPass handle;
+    float x;
+    float y;
+    float w;
+    float h;
+    float r;
+    float g;
+    float b;
+    float a;
+    float depth;
+    unsigned int stencil;
+    VulkanState state;
+};
+
 class VulkanContext {
 private:
     VkInstance instance;
@@ -60,6 +85,7 @@ private:
     bool bRecreateSwapchain;
     VulkanDevice device;
     VulkanSwapchain swapchain;
+    VulkanRenderpass renderpass;
 
 #if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -75,8 +101,10 @@ public:
     VkInstance* getInstance() {return &instance;}
     unsigned int* getFrameBufferWidth() { return &frameBufferWidth; }
     unsigned int* getFrameBufferHeight() { return &frameBufferHeight; }
+    VulkanRenderpass* getRenderpass() { return &renderpass; }
 
     VkDebugUtilsMessengerEXT* getDebugMessenger() {return &debugMessenger;}
 
     void destroyContext();
+    void destroyRenderpass();
 };

@@ -391,6 +391,36 @@ bool VulkanBackend::detectDepthFormat() {
     return false;
 }
 
+void VulkanBackend::beginRenderpass(VulkanCommandBuffer *commandBuffer, const VkFramebuffer frameBuffer) {
+    VkRenderPassBeginInfo beginInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+    beginInfo.renderPass = vulkanContext.getRenderpass()->handle;
+    beginInfo.framebuffer = frameBuffer;
+    beginInfo.renderArea.offset.x = static_cast<int32_t>(vulkanContext.getRenderpass()->x);
+    beginInfo.renderArea.offset.y = static_cast<int32_t>(vulkanContext.getRenderpass()->y);
+    beginInfo.renderArea.extent.width = static_cast<int32_t>(vulkanContext.getRenderpass()->w);
+    beginInfo.renderArea.extent.height = static_cast<int32_t>(vulkanContext.getRenderpass()->h);
+
+    VkClearValue clearValues[2];
+    FF_Memory::ff_clear(clearValues, sizeof(VkClearValue) * 2);
+    clearValues[0].color.float32[0] = vulkanContext.getRenderpass()->r;
+    clearValues[0].color.float32[1] = vulkanContext.getRenderpass()->g;
+    clearValues[0].color.float32[2] = vulkanContext.getRenderpass()->b;
+    clearValues[0].color.float32[3] = vulkanContext.getRenderpass()->a;
+    clearValues[1].depthStencil.depth = vulkanContext.getRenderpass()->depth;
+    clearValues[1].depthStencil.stencil = vulkanContext.getRenderpass()->stencil;
+
+    beginInfo.clearValueCount = 2;
+    beginInfo.pClearValues = clearValues;
+
+    vkCmdBeginRenderPass(commandBuffer->handle, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    commandBuffer->state = IN_RENDER_PASS;
+}
+
+void VulkanBackend::endRenderpass(VulkanCommandBuffer *commandBuffer) {
+    vkCmdEndRenderPass(commandBuffer->handle);
+    commandBuffer->state = RECORDING;
+}
+
 bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface,
                                                     const VkPhysicalDeviceProperties *deviceProperties, const VkPhysicalDeviceFeatures *deviceFeatures,
                                                     const PhysicalDeviceRequirements *requirements, VulkanPhysicalDeviceFamilyInfo *physicalDeviceFamilyInfo,
@@ -622,7 +652,92 @@ void VulkanBackend::destroySwapchain() {
     vkDestroySwapchainKHR(vulkanContext.getDevice()->logicalDevice, vulkanContext.getSwapchain()->handle, nullptr);
 }
 
+void VulkanBackend::createRenderpass(float x, float y, float w, float h, float r, float g, float b, float a, float depth, unsigned int stencil) {
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+    unsigned int attachmentCount = 2;
+    VkAttachmentDescription attachments[attachmentCount];
+
+    //Color attachment
+    VkAttachmentDescription colorAttachment;
+    colorAttachment.format = vulkanContext.getSwapchain()->imageFormat.format;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    colorAttachment.flags = 0;
+
+    attachments[0] = colorAttachment;
+
+    VkAttachmentReference colorAttachmentReference;
+    colorAttachmentReference.attachment = 0;
+    colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentReference;
+
+    //Depth attachment
+    VkAttachmentDescription depthAttachment{};
+    depthAttachment.format = vulkanContext.getDevice()->depthFormat;
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    attachments[1] = depthAttachment;
+
+    VkAttachmentReference depthAttachmentReference;
+    depthAttachmentReference.attachment = 1;
+    depthAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    subpass.pDepthStencilAttachment = &depthAttachmentReference;
+
+    //Input from a shader
+    subpass.inputAttachmentCount = 0;
+    subpass.pInputAttachments = nullptr;
+
+    //Multisampling
+    subpass.pResolveAttachments = nullptr;
+
+    //Attachements not used in this subpass but are needed for the next subpass
+    subpass.preserveAttachmentCount = 0;
+    subpass.pResolveAttachments = nullptr;
+
+    //Dependencies for render pass
+    VkSubpassDependency dependency;
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dependencyFlags = 0;
+
+    //Create render pass
+    VkRenderPassCreateInfo renderPassCreateInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    renderPassCreateInfo.attachmentCount = attachmentCount;
+    renderPassCreateInfo.pAttachments = attachments;
+    renderPassCreateInfo.subpassCount = 1;
+    renderPassCreateInfo.pSubpasses = &subpass;
+    renderPassCreateInfo.dependencyCount = 1;
+    renderPassCreateInfo.pDependencies = &dependency;
+    renderPassCreateInfo.pNext = nullptr;
+    renderPassCreateInfo.flags = 0;
+
+    vulkanCheck(vkCreateRenderPass(vulkanContext.getDevice()->logicalDevice, &renderPassCreateInfo, nullptr, &vulkanContext.getRenderpass()->handle));
+}
+
 VulkanBackend::~VulkanBackend() {
+    Logger::logDebug("Destroying Renderpass.");
+    vulkanContext.destroyRenderpass();
+    Logger::logDebug("Destroying Swapchain.");
     destroySwapchain();
     vulkanContext.destroyContext();
 }
@@ -725,6 +840,8 @@ bool VulkanBackend::initialize(const String appName, Platform* platform) {
     }
 
     createSwapchain(*vulkanContext.getFrameBufferWidth(), *vulkanContext.getFrameBufferHeight());
+
+    createRenderpass(0, 0, static_cast<float>(*vulkanContext.getFrameBufferWidth()), static_cast<float>(*vulkanContext.getFrameBufferHeight()), 0, 0, 0.2f, 1, 1, 0);
 
     Logger::logInfo("Vulkan renderer initialized");
     return RendererBackend::initialize(appName, platform);

@@ -10,10 +10,6 @@
 #include "VulkanContext.h"
 #include "src/modules/engine/Core/GameInstance.h"
 
-enum VulkanTypes {
-
-};
-
 struct VulkanPhysicalDeviceFamilyInfo {
     unsigned int graphicsFamily;
     unsigned int presentFamily;
@@ -29,6 +25,11 @@ struct PhysicalDeviceRequirements {
     std::vector<const char*> extensionNames{};
     bool samplerAnisotrophy;
     bool discreteGPU;
+};
+
+struct VulkanCommandBuffer {
+    VkCommandBuffer handle;
+    VulkanState state;
 };
 
 class VulkanBackend final : public RendererBackend{
@@ -56,6 +57,9 @@ private:
     void querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo* swapChainSupportInfo);
     void createImageView(VkFormat format, VulkanImage* image, VkImageAspectFlags aspectFlags);
     void destroySwapchain();
+    void createRenderpass(float x, float y, float w, float h, float r, float g, float b, float a, float depth, unsigned int stencil);
+    void beginRenderpass(VulkanCommandBuffer* commandBuffer, VkFramebuffer frameBuffer);
+    void endRenderpass(VulkanCommandBuffer* commandBuffer);
 
     bool physicalDeviceMeetsRequirements(
         VkPhysicalDevice physicalDevice,
@@ -81,6 +85,7 @@ private:
 
 public:
     ~VulkanBackend() override;
+
     static VulkanContext vulkanContext;
 
     static void vulkanCheck(VkResult result);

@@ -22,19 +22,19 @@ int VulkanContext::findMemoryIndex(const int typeFilter, const unsigned int prop
 }
 
 void VulkanContext::destroyContext() {
-    Logger::logInfo("Releasing Vulkan device resources");
-
     FF_Memory::ff_clear(&device.swapChainSupportInfo.capabilities, sizeof(device.swapChainSupportInfo.capabilities));
 
     device.graphicsQueueIndex = -1;
     device.presentQueueIndex = -1;
     device.transferQueueIndex = -1;
 
+    Logger::logDebug("Destroying logical device.");
     if (device.logicalDevice) {
         vkDestroyDevice(device.logicalDevice, nullptr);
         device.logicalDevice = nullptr;
     }
 
+    Logger::logInfo("Releasing Vulkan device resources");
     device.graphicsQueue = nullptr;
     device.presentQueue = nullptr;
     device.transferQueue = nullptr;
@@ -64,4 +64,11 @@ void VulkanContext::destroyContext() {
 
     Logger::logDebug("Destroying Vulkan instance.");
     vkDestroyInstance(instance, nullptr);
+}
+
+void VulkanContext::destroyRenderpass() {
+    if (renderpass.handle) {
+        vkDestroyRenderPass(device.logicalDevice, renderpass.handle, nullptr);
+        renderpass.handle = nullptr;
+    }
 }
