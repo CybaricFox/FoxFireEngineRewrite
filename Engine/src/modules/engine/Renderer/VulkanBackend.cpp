@@ -97,6 +97,12 @@ bool VulkanBackend::createDevice() {
     vkGetDeviceQueue(vulkanContext.getDevice()->logicalDevice, vulkanContext.getDevice()->transferQueueIndex, 0, &vulkanContext.getDevice()->transferQueue);
     Logger::logInfo("Vulkan queues obtained.");
 
+    VkCommandPoolCreateInfo poolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    poolCreateInfo.queueFamilyIndex = vulkanContext.getDevice()->graphicsQueueIndex;
+    poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    vulkanCheck(vkCreateCommandPool(vulkanContext.getDevice()->logicalDevice, &poolCreateInfo, nullptr, &vulkanContext.getDevice()->commandPool));
+    Logger::logInfo("Graphics command pool created.");
+
     return true;
 }
 
@@ -421,6 +427,91 @@ void VulkanBackend::endRenderpass(VulkanCommandBuffer *commandBuffer) {
     commandBuffer->state = RECORDING;
 }
 
+void VulkanBackend::allocateCommandBuffer(const bool bIsPrimary, VulkanCommandBuffer *commandBuffer) {
+    FF_Memory::ff_clear(commandBuffer, sizeof(commandBuffer));
+
+    VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    allocateInfo.commandPool = vulkanContext.getDevice()->commandPool;
+    allocateInfo.level = bIsPrimary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+    allocateInfo.commandBufferCount = 1;
+    allocateInfo.pNext = nullptr;
+
+    commandBuffer->state = NOT_ALLOCATED;
+    vulkanCheck(vkAllocateCommandBuffers(vulkanContext.getDevice()->logicalDevice, &allocateInfo, &commandBuffer->handle));
+    commandBuffer->state = READY;
+}
+
+void VulkanBackend::freeCommandBuffer(VulkanCommandBuffer *commandBuffer) {
+    vkFreeCommandBuffers(vulkanContext.getDevice()->logicalDevice, vulkanContext.getDevice()->commandPool, 1, &commandBuffer->handle);
+    commandBuffer->handle = nullptr;
+    commandBuffer->state = NOT_ALLOCATED;
+}
+
+void VulkanBackend::beginCommandBuffer(VulkanCommandBuffer* commandBuffer, const bool bIsSingleUse, const bool bIsRenderpassContinue, const bool bIsConcurrent) {
+    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+
+    beginInfo.flags = 0;
+    if (bIsSingleUse) {
+        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    }
+    if (bIsRenderpassContinue) {
+        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+    }
+    if (bIsConcurrent) {
+        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    }
+
+    vulkanCheck(vkBeginCommandBuffer(commandBuffer->handle, &beginInfo));
+    commandBuffer->state = RECORDING;
+}
+
+void VulkanBackend::endCommandBuffer(VulkanCommandBuffer* commandBuffer) {
+    vulkanCheck(vkEndCommandBuffer(commandBuffer->handle));
+    commandBuffer->state = RECORDING_ENDED;
+}
+
+void VulkanBackend::updateSubmittedCommandBuffer(VulkanCommandBuffer *commandBuffer) {
+    commandBuffer->state = SUBMITTED;
+}
+
+void VulkanBackend::resetCommandBuffer(VulkanCommandBuffer *commandBuffer) {
+    commandBuffer->state = READY;
+}
+
+void VulkanBackend::allocateAndBeginSingleUseCommandBuffer(VulkanCommandBuffer *commandBuffer) {
+    allocateCommandBuffer(true, commandBuffer);
+    beginCommandBuffer(commandBuffer, true, false, false);
+}
+
+void VulkanBackend::endSingleUseCommandBuffer(VulkanCommandBuffer *commandBuffer, VkQueue queue) {
+    endCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer->handle;
+
+    vulkanCheck(vkQueueSubmit(queue, 1, &submitInfo, nullptr));
+
+    //Wait for queue to finish since there is no fence here
+    vulkanCheck(vkQueueWaitIdle(queue));
+
+    freeCommandBuffer(commandBuffer);
+}
+
+void VulkanBackend::allocateCommandBuffers() {
+    vulkanContext.createCommandBuffers();
+
+    for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
+        if (vulkanContext.getCommandBuffer(i)->handle) {
+            freeCommandBuffer(vulkanContext.getCommandBuffer(i));
+        }
+        FF_Memory::ff_clear(vulkanContext.getCommandBuffer(i), sizeof(VulkanCommandBuffer));
+        allocateCommandBuffer(true, vulkanContext.getCommandBuffer(i));
+    }
+
+    Logger::logInfo("Vulkan command buffers created and allocated.");
+}
+
 bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface,
                                                     const VkPhysicalDeviceProperties *deviceProperties, const VkPhysicalDeviceFeatures *deviceFeatures,
                                                     const PhysicalDeviceRequirements *requirements, VulkanPhysicalDeviceFamilyInfo *physicalDeviceFamilyInfo,
@@ -735,11 +826,21 @@ void VulkanBackend::createRenderpass(float x, float y, float w, float h, float r
 }
 
 VulkanBackend::~VulkanBackend() {
+    //Destroy command buffers
+    for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
+        if (vulkanContext.getCommandBuffer(i)->handle) {
+            freeCommandBuffer(vulkanContext.getCommandBuffer(i));
+            vulkanContext.getCommandBuffer(i)->handle = nullptr;
+        }
+    }
+    vulkanContext.destroyCommandBuffers();
+
     Logger::logDebug("Destroying Renderpass.");
     vulkanContext.destroyRenderpass();
     Logger::logDebug("Destroying Swapchain.");
     destroySwapchain();
     vulkanContext.destroyContext();
+    Logger::logInfo(FF_Memory::getMemoryUsage());
 }
 
 void VulkanBackend::vulkanCheck(VkResult result) {
@@ -842,6 +943,9 @@ bool VulkanBackend::initialize(const String appName, Platform* platform) {
     createSwapchain(*vulkanContext.getFrameBufferWidth(), *vulkanContext.getFrameBufferHeight());
 
     createRenderpass(0, 0, static_cast<float>(*vulkanContext.getFrameBufferWidth()), static_cast<float>(*vulkanContext.getFrameBufferHeight()), 0, 0, 0.2f, 1, 1, 0);
+
+    Logger::logDebug("Creating and allocating command buffers");
+    allocateCommandBuffers();
 
     Logger::logInfo("Vulkan renderer initialized");
     return RendererBackend::initialize(appName, platform);

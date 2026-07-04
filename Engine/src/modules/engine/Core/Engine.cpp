@@ -15,6 +15,8 @@ void Engine::startup()
 
     Logger::logInfo("Beginning startup sequence");
 
+    inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit(context);}, "Static.quit");
+
     resize(width, height);
 
     bIsRunning = true;

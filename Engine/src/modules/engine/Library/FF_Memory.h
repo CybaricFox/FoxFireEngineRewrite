@@ -7,6 +7,7 @@ enum MemoryTag {
     UNKNOWN,
     GAME,
     RENDER,
+    ARRAY,
     MAX_TAGS
 };
 

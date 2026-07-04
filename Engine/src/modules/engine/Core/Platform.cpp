@@ -72,7 +72,8 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
             //Tells to OS that erasing will be handled by the engine to prevent flickering
             return 1;
         case WM_CLOSE:
-            exit(0);
+            EngineEvents::callEvent(QUIT, EngineInputContext{});
+            return 1;
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;

@@ -38,6 +38,7 @@ struct VulkanDevice {
     VkPhysicalDeviceFeatures physicalDeviceFeatures;
     VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
     VkFormat depthFormat;
+    VkCommandPool commandPool;
 };
 
 struct VulkanImage {
@@ -73,6 +74,11 @@ struct VulkanRenderpass {
     VulkanState state;
 };
 
+struct VulkanCommandBuffer {
+    VkCommandBuffer handle;
+    VulkanState state;
+};
+
 class VulkanContext {
 private:
     VkInstance instance;
@@ -86,6 +92,7 @@ private:
     VulkanDevice device;
     VulkanSwapchain swapchain;
     VulkanRenderpass renderpass;
+    VulkanCommandBuffer* commandBuffers;
 
 #if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -102,9 +109,13 @@ public:
     unsigned int* getFrameBufferWidth() { return &frameBufferWidth; }
     unsigned int* getFrameBufferHeight() { return &frameBufferHeight; }
     VulkanRenderpass* getRenderpass() { return &renderpass; }
+    VulkanCommandBuffer* getCommandBuffers() const {return commandBuffers;}
+    VulkanCommandBuffer* getCommandBuffer(const unsigned int i) const {return &commandBuffers[i];}
 
     VkDebugUtilsMessengerEXT* getDebugMessenger() {return &debugMessenger;}
 
     void destroyContext();
     void destroyRenderpass();
+    void createCommandBuffers();
+    void destroyCommandBuffers();
 };

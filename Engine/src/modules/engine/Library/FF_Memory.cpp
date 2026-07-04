@@ -16,6 +16,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 0: return "UNKNOWN";
         case 1: return "GAME";
         case 2: return "RENDER";
+        case 3: return "ARRAY";
         default: return " ";
     }
 }

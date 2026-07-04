@@ -21,12 +21,30 @@ int VulkanContext::findMemoryIndex(const int typeFilter, const unsigned int prop
     return -1;
 }
 
+void VulkanContext::createCommandBuffers() {
+    if (!commandBuffers) {
+        commandBuffers = static_cast<VulkanCommandBuffer *>(FF_Memory::ff_allocate(sizeof(VulkanCommandBuffer) * swapchain.imageCount, ARRAY));
+        for (unsigned int i = 0; i < swapchain.imageCount; i++) {
+            FF_Memory::ff_clear(&commandBuffers[i], sizeof(VulkanCommandBuffer));
+        }
+    }
+}
+
+void VulkanContext::destroyCommandBuffers() {
+    FF_Memory::ff_free(commandBuffers, sizeof(VulkanCommandBuffer) * swapchain.imageCount, ARRAY);
+    commandBuffers = nullptr;
+    Logger::logInfo(FF_Memory::getMemoryUsage());
+}
+
 void VulkanContext::destroyContext() {
     FF_Memory::ff_clear(&device.swapChainSupportInfo.capabilities, sizeof(device.swapChainSupportInfo.capabilities));
 
     device.graphicsQueueIndex = -1;
     device.presentQueueIndex = -1;
     device.transferQueueIndex = -1;
+
+    Logger::logDebug("Destroying command pools.");
+    vkDestroyCommandPool(device.logicalDevice, device.commandPool, nullptr);
 
     Logger::logDebug("Destroying logical device.");
     if (device.logicalDevice) {
