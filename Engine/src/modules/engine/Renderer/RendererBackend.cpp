@@ -10,7 +10,7 @@
 void RendererBackend::resize(short width, short height) {
 }
 
-bool RendererBackend::initialize(String appName, Platform *platform) {
+bool RendererBackend::initialize(String appName, Platform *platform, unsigned int width, unsigned int height) {
     return true;
 }
 

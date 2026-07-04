@@ -64,6 +64,13 @@ private:
     void allocateAndBeginSingleUseCommandBuffer(VulkanCommandBuffer* commandBuffer);
     void endSingleUseCommandBuffer(VulkanCommandBuffer* commandBuffer, VkQueue queue);
     void allocateCommandBuffers();
+    void createFramebuffer(unsigned int width, unsigned int height, unsigned int attachmentCount, VkImageView* view, VulkanFramebuffer* framebuffer);
+    void regenerateFramebuffers();
+    void destroyFramebuffer(VulkanFramebuffer* framebuffer);
+    void createFence(bool bCreateSignaled, VulkanFence * fence);
+    void destroyFence(VulkanFence* fence);
+    bool waitForFence(VulkanFence* fence, unsigned long timeout);
+    void resetFence(VulkanFence* fence);
 
     bool physicalDeviceMeetsRequirements(
         VkPhysicalDevice physicalDevice,
@@ -91,10 +98,12 @@ public:
     ~VulkanBackend() override;
 
     static VulkanContext vulkanContext;
+    static unsigned int cachedWidth;
+    static unsigned int cachedHeight;
 
     static void vulkanCheck(VkResult result);
 
-    bool initialize(String appName, Platform *platform) override;
+    bool initialize(String appName, Platform *platform, unsigned int width, unsigned int height) override;
 
     void setVersion(const GameInstance* gameInstance);
 };

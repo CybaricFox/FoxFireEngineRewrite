@@ -30,7 +30,7 @@ void Engine::startup()
     bIsInitialized = true;
 
     //Start renderer
-    if (!renderer.initialize(gameInstance->config.appName, platform, backend, gameInstance)) {
+    if (!renderer.initialize(gameInstance->config.appName, platform, backend, gameInstance, width, height)) {
         Logger::logFatal("Failed to initialize renderer!");
         return;
     }
@@ -155,6 +155,11 @@ void Engine::initialize(GameInstance &instance) {
     startup();
 }
 
+void Engine::getFramebufferSize(unsigned int *bufferWidth, unsigned int *bufferHeight) const {
+    *bufferWidth = width;
+    *bufferHeight = height;
+}
+
 Engine::~Engine() {
     bIsRunning = false;
 
@@ -162,4 +167,6 @@ Engine::~Engine() {
     delete backend;
     delete platform;
     delete inputSystem;
+
+    Logger::logInfo(FF_Memory::getMemoryUsage());
 }

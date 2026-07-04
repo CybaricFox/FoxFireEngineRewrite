@@ -33,7 +33,22 @@ void VulkanContext::createCommandBuffers() {
 void VulkanContext::destroyCommandBuffers() {
     FF_Memory::ff_free(commandBuffers, sizeof(VulkanCommandBuffer) * swapchain.imageCount, ARRAY);
     commandBuffers = nullptr;
-    Logger::logInfo(FF_Memory::getMemoryUsage());
+}
+
+void VulkanContext::destroyFences() {
+    FF_Memory::ff_free(inFlightFences, sizeof(VulkanFence) * swapchain.maxFramesInFlight, ARRAY);
+    inFlightFences = nullptr;
+    FF_Memory::ff_free(imagesInFlight, sizeof(VulkanFence) * swapchain.imageCount, ARRAY);
+    imagesInFlight = nullptr;
+}
+
+void VulkanContext::createSyncObjects() {
+    imageAvailableSemaphores = static_cast<VkSemaphore *>(FF_Memory::ff_allocate(sizeof(VkSemaphore) * swapchain.maxFramesInFlight, ARRAY));
+    queueCompleteSemaphores = static_cast<VkSemaphore *>(FF_Memory::ff_allocate(sizeof(VkSemaphore) * swapchain.maxFramesInFlight, ARRAY));
+    inFlightFences = static_cast<VulkanFence *>(FF_Memory::ff_allocate(sizeof(VulkanFence) * swapchain.maxFramesInFlight, ARRAY));
+
+    //IF AN ERROR OCCURS, THIS MIGHT BE WHY. THIS SHOULD BE CALLED SEPERATELY FROM THE OTHERS.
+    imagesInFlight = static_cast<VulkanFence *>(FF_Memory::ff_allocate(sizeof(VulkanFence) * swapchain.imageCount, ARRAY));
 }
 
 void VulkanContext::destroyContext() {

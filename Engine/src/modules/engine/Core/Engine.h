@@ -25,8 +25,8 @@ private:
     bool bIsRunning = false;
     bool bIsPaused = false;
     bool bIsInitialized = false;
-    short width;
-    short height;
+    short width = 0;
+    short height = 0;
     double lastTime;
 
 protected:
@@ -45,4 +45,6 @@ public:
     virtual ~Engine();
 
     void initialize(GameInstance& instance);
+
+    void getFramebufferSize(unsigned int* bufferWidth, unsigned int* bufferHeight) const;
 };

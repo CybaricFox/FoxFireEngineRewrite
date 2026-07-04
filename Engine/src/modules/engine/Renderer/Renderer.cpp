@@ -30,7 +30,7 @@ bool Renderer::endFrame(const float deltaTime, RendererBackend* backend) {
     return result;
 }
 
-bool Renderer::initialize(const String &appName, Platform* platform, RendererBackend*& backend, const GameInstance *gameInstance) {
+bool Renderer::initialize(const String &appName, Platform* platform, RendererBackend*& backend, const GameInstance *gameInstance, const unsigned int width, const unsigned int height) {
     backend = RendererBackend::create(VULKAN, platform->getPlatformState(), gameInstance);
     if (backend == nullptr) {
         Logger::logFatal("Failed to create the backend renderer!");
@@ -38,7 +38,7 @@ bool Renderer::initialize(const String &appName, Platform* platform, RendererBac
     }
     backend->clearFrameNumber();
 
-    if (!backend->initialize(appName, platform)) {
+    if (!backend->initialize(appName, platform, width, height)) {
         Logger::logFatal("Renderer Backend failed to initialize!");
         return false;
     }

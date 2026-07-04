@@ -49,16 +49,6 @@ struct VulkanImage {
     unsigned int height;
 };
 
-struct VulkanSwapchain {
-    VkSurfaceFormatKHR imageFormat;
-    unsigned char maxFramesInFlight;
-    VkSwapchainKHR handle;
-    unsigned int imageCount;
-    VkImage* images;
-    VkImageView* imageViews;
-    VulkanImage depthAttachment;
-};
-
 struct VulkanRenderpass {
     VkRenderPass handle;
     float x;
@@ -74,9 +64,32 @@ struct VulkanRenderpass {
     VulkanState state;
 };
 
+struct VulkanFramebuffer {
+    VkFramebuffer handle;
+    unsigned int attachmentCount;
+    VkImageView* attachments;
+    VulkanRenderpass* renderpass;
+};
+
+struct VulkanSwapchain {
+    VkSurfaceFormatKHR imageFormat;
+    unsigned char maxFramesInFlight;
+    VkSwapchainKHR handle;
+    unsigned int imageCount;
+    VkImage* images;
+    VkImageView* imageViews;
+    VulkanImage depthAttachment;
+    VulkanFramebuffer* framebuffers;
+};
+
 struct VulkanCommandBuffer {
     VkCommandBuffer handle;
     VulkanState state;
+};
+
+struct VulkanFence {
+    VkFence handle;
+    bool bIsSignaled;
 };
 
 class VulkanContext {
@@ -93,6 +106,11 @@ private:
     VulkanSwapchain swapchain;
     VulkanRenderpass renderpass;
     VulkanCommandBuffer* commandBuffers;
+    VkSemaphore* imageAvailableSemaphores;
+    VkSemaphore* queueCompleteSemaphores;
+    unsigned int inFlightFenceCount;
+    VulkanFence* inFlightFences;
+    VulkanFence* imagesInFlight;
 
 #if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -111,6 +129,14 @@ public:
     VulkanRenderpass* getRenderpass() { return &renderpass; }
     VulkanCommandBuffer* getCommandBuffers() const {return commandBuffers;}
     VulkanCommandBuffer* getCommandBuffer(const unsigned int i) const {return &commandBuffers[i];}
+    VkSemaphore* getImageAvailableSemaphores() { return imageAvailableSemaphores; }
+    VkSemaphore* getQueueCompleteSemaphores() { return queueCompleteSemaphores; }
+    VulkanFence* getInFlightFences() { return inFlightFences; }
+    VulkanFence* getImagesInFlight() { return imagesInFlight; }
+
+    void setWidth(const unsigned int width) {frameBufferWidth = width;}
+    void setHeight(const unsigned int height) {frameBufferHeight = height;}
+    void createSyncObjects();
 
     VkDebugUtilsMessengerEXT* getDebugMessenger() {return &debugMessenger;}
 
@@ -118,4 +144,5 @@ public:
     void destroyRenderpass();
     void createCommandBuffers();
     void destroyCommandBuffers();
+    void destroyFences();
 };

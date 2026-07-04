@@ -12,6 +12,8 @@
 #include "../Library/Logger.h"
 
 VulkanContext VulkanBackend::vulkanContext{};
+unsigned int VulkanBackend::cachedWidth = 0;
+unsigned int VulkanBackend::cachedHeight = 0;
 
 VkBool32 VulkanBackend::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
@@ -362,7 +364,7 @@ bool VulkanBackend::swapchainAcquireNextImageIndex(const unsigned long timeout, 
     return true;
 }
 
-void VulkanBackend::presentSwapchain(VkSemaphore semaphore, unsigned int presentImageIndex) {
+void VulkanBackend::presentSwapchain(VkSemaphore semaphore, const unsigned int presentImageIndex) {
     VkPresentInfoKHR presentInfo{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &semaphore;
@@ -377,6 +379,9 @@ void VulkanBackend::presentSwapchain(VkSemaphore semaphore, unsigned int present
     } else if (result != VK_SUCCESS) {
         Logger::logFatal("Failed to present swapchain image!");
     }
+
+    //loop the current frame
+    *vulkanContext.getCurrentFrame() = (*vulkanContext.getCurrentFrame() + 1) % vulkanContext.getSwapchain()->maxFramesInFlight;
 }
 
 bool VulkanBackend::detectDepthFormat() {
@@ -511,6 +516,101 @@ void VulkanBackend::allocateCommandBuffers() {
 
     Logger::logInfo("Vulkan command buffers created and allocated.");
 }
+
+void VulkanBackend::createFramebuffer(const unsigned int width, const unsigned int height, unsigned int attachmentCount, VkImageView* view, VulkanFramebuffer *framebuffer) {
+    framebuffer->attachments = static_cast<VkImageView*>(FF_Memory::ff_allocate(sizeof(VkImageView) * attachmentCount, RENDER));
+    for (unsigned int i = 0; i < attachmentCount; i++) {
+        framebuffer->attachments[i] = view[i];
+    }
+
+    framebuffer->renderpass = vulkanContext.getRenderpass();
+    framebuffer->attachmentCount = attachmentCount;
+
+    VkFramebufferCreateInfo frameBufferCreateInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    frameBufferCreateInfo.renderPass = vulkanContext.getRenderpass()->handle;
+    frameBufferCreateInfo.attachmentCount = attachmentCount;
+    frameBufferCreateInfo.pAttachments = framebuffer->attachments;
+    frameBufferCreateInfo.width = width;
+    frameBufferCreateInfo.height = height;
+    frameBufferCreateInfo.layers = 1;
+
+    vulkanCheck(vkCreateFramebuffer(vulkanContext.getDevice()->logicalDevice, &frameBufferCreateInfo, nullptr, &framebuffer->handle));
+}
+
+void VulkanBackend::regenerateFramebuffers() {
+    for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
+        constexpr unsigned int attachmentCount = 2;
+        VkImageView attachments[]{vulkanContext.getSwapchain()->imageViews[i], vulkanContext.getSwapchain()->depthAttachment.view};
+
+        createFramebuffer(*vulkanContext.getFrameBufferWidth(), *vulkanContext.getFrameBufferHeight(), attachmentCount, attachments, &vulkanContext.getSwapchain()->framebuffers[i]);
+    }
+}
+
+void VulkanBackend::destroyFramebuffer(VulkanFramebuffer *framebuffer) {
+    //Destroy frame buffers
+    vkDestroyFramebuffer(vulkanContext.getDevice()->logicalDevice, framebuffer->handle, nullptr);
+    if (framebuffer->attachments) {
+        FF_Memory::ff_free(framebuffer->attachments, sizeof(VkImageView) * framebuffer->attachmentCount, RENDER);
+        framebuffer->attachments = nullptr;
+    }
+    framebuffer->handle = nullptr;
+    framebuffer->attachmentCount = 0;
+    framebuffer->renderpass = nullptr;
+}
+
+void VulkanBackend::createFence(bool bCreateSignaled, VulkanFence * fence) {
+    fence->bIsSignaled = bCreateSignaled;
+    VkFenceCreateInfo fenceCreateInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    if (fence->bIsSignaled) {
+        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    }
+    vulkanCheck(vkCreateFence(vulkanContext.getDevice()->logicalDevice, &fenceCreateInfo, nullptr, &fence->handle));
+}
+
+void VulkanBackend::destroyFence(VulkanFence *fence) {
+        if (fence->handle) {
+            vkDestroyFence(vulkanContext.getDevice()->logicalDevice, fence->handle, nullptr);
+            fence->handle = nullptr;
+        }
+    fence->bIsSignaled = false;
+}
+
+bool VulkanBackend::waitForFence(VulkanFence *fence, const unsigned long timeout) {
+    if (!fence->bIsSignaled) {
+        switch (vkWaitForFences(vulkanContext.getDevice()->logicalDevice, 1, &fence->handle, true, timeout)) {
+            case VK_SUCCESS:
+                fence->bIsSignaled = true;
+                return true;
+            case VK_TIMEOUT:
+                Logger::logWarn("Fence timed out.");
+                break;
+            case VK_ERROR_DEVICE_LOST:
+                Logger::logError("Fence lost device.");
+                break;
+            case VK_ERROR_OUT_OF_HOST_MEMORY:
+                Logger::logError("Fence ran out of host memory.");
+                break;
+            case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+                Logger::logError("Fence ran out of device memory.");
+                break;
+            default:
+                Logger::logError("Fence encountered an unknown error.");
+                break;
+        }
+    } else {
+        return true;
+    }
+
+    return false;
+}
+
+void VulkanBackend::resetFence(VulkanFence *fence) {
+    if (fence->bIsSignaled) {
+        vulkanCheck(vkResetFences(vulkanContext.getDevice()->logicalDevice, 1, &fence->handle));
+        fence->bIsSignaled = false;
+    }
+}
+
 
 bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface,
                                                     const VkPhysicalDeviceProperties *deviceProperties, const VkPhysicalDeviceFeatures *deviceFeatures,
@@ -826,6 +926,28 @@ void VulkanBackend::createRenderpass(float x, float y, float w, float h, float r
 }
 
 VulkanBackend::~VulkanBackend() {
+    vkDeviceWaitIdle(vulkanContext.getDevice()->logicalDevice);
+
+    Logger::logDebug("Destroying sync objects");
+    //Destroy sync objects
+    for (unsigned char i = 0; i < vulkanContext.getSwapchain()->maxFramesInFlight; i++) {
+        if (vulkanContext.getImageAvailableSemaphores()[i]) {
+            vkDestroySemaphore(vulkanContext.getDevice()->logicalDevice, vulkanContext.getImageAvailableSemaphores()[i], nullptr);
+            vulkanContext.getImageAvailableSemaphores()[i] = nullptr;
+        }
+        if (vulkanContext.getQueueCompleteSemaphores()[i]) {
+            vkDestroySemaphore(vulkanContext.getDevice()->logicalDevice, vulkanContext.getQueueCompleteSemaphores()[i], nullptr);
+            vulkanContext.getQueueCompleteSemaphores()[i] = nullptr;
+        }
+        destroyFence(&vulkanContext.getInFlightFences()[i]);
+    }
+    FF_Memory::ff_free(vulkanContext.getImageAvailableSemaphores(), sizeof(VkSemaphore) * vulkanContext.getSwapchain()->maxFramesInFlight, ARRAY);
+    *vulkanContext.getImageAvailableSemaphores() = nullptr;
+    FF_Memory::ff_free(vulkanContext.getQueueCompleteSemaphores(), sizeof(VkSemaphore) * vulkanContext.getSwapchain()->maxFramesInFlight, ARRAY);
+    *vulkanContext.getQueueCompleteSemaphores() = nullptr;
+    vulkanContext.destroyFences();
+
+    Logger::logDebug("Destroying command buffers.");
     //Destroy command buffers
     for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
         if (vulkanContext.getCommandBuffer(i)->handle) {
@@ -835,19 +957,32 @@ VulkanBackend::~VulkanBackend() {
     }
     vulkanContext.destroyCommandBuffers();
 
+    Logger::logDebug("Destroying frame buffers.");
+    for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
+        destroyFramebuffer(&vulkanContext.getSwapchain()->framebuffers[i]);
+    }
+
     Logger::logDebug("Destroying Renderpass.");
     vulkanContext.destroyRenderpass();
     Logger::logDebug("Destroying Swapchain.");
     destroySwapchain();
     vulkanContext.destroyContext();
-    Logger::logInfo(FF_Memory::getMemoryUsage());
 }
 
 void VulkanBackend::vulkanCheck(VkResult result) {
     assert(result == VK_SUCCESS);
 }
 
-bool VulkanBackend::initialize(const String appName, Platform* platform) {
+bool VulkanBackend::initialize(const String appName, Platform* platform, const unsigned int width, const unsigned int height) {
+    cachedWidth = width;
+    cachedHeight = height;
+
+    vulkanContext.setWidth(cachedWidth != 0 ? cachedWidth : 800);
+    vulkanContext.setHeight(cachedHeight != 0 ? cachedHeight : 600);
+
+    cachedWidth = 0;
+    cachedHeight = 0;
+
     VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     appInfo.apiVersion = VK_API_VERSION_1_2;
     appInfo.pApplicationName = appName.c_str();
@@ -910,7 +1045,7 @@ bool VulkanBackend::initialize(const String appName, Platform* platform) {
     createInfo.ppEnabledLayerNames = validationLayers.data();
 
     vulkanCheck(vkCreateInstance(&createInfo, nullptr, vulkanContext.getInstance()));
-    Logger::logDebug("Vulkan Instance Created Successfully.");
+    Logger::logInfo("Vulkan Instance Created Successfully.");
 
 #if ENABLE_DEBUG_LOGGING == true
     Logger::logDebug("Creating Vulkan debugger.");
@@ -927,12 +1062,12 @@ bool VulkanBackend::initialize(const String appName, Platform* platform) {
 #endif
 
     //Create surface
-    Logger::logDebug("Creating Vulkan surface.");
+    Logger::logInfo("Creating Vulkan surface.");
     if (!createSurface(platform)) {
         Logger::logFatal("Failed to create surface for Vulkan.");
         return false;
     }
-    Logger::logDebug("Created Vulkan surface successfully.");
+    Logger::logInfo("Created Vulkan surface successfully.");
 
     //Create device
     if (!createDevice()) {
@@ -944,11 +1079,30 @@ bool VulkanBackend::initialize(const String appName, Platform* platform) {
 
     createRenderpass(0, 0, static_cast<float>(*vulkanContext.getFrameBufferWidth()), static_cast<float>(*vulkanContext.getFrameBufferHeight()), 0, 0, 0.2f, 1, 1, 0);
 
-    Logger::logDebug("Creating and allocating command buffers");
+    vulkanContext.getSwapchain()->framebuffers = static_cast<VulkanFramebuffer *>(FF_Memory::ff_allocate(sizeof(VulkanFramebuffer) * vulkanContext.getSwapchain()->imageCount, ARRAY));
+    regenerateFramebuffers();
+
+    Logger::logInfo("Creating and allocating command buffers");
     allocateCommandBuffers();
 
+    //Sync objects
+    Logger::logInfo("Creating fences");
+    vulkanContext.createSyncObjects();
+
+    for (unsigned char i = 0; i < vulkanContext.getSwapchain()->maxFramesInFlight; i++) {
+        VkSemaphoreCreateInfo semCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        vkCreateSemaphore(vulkanContext.getDevice()->logicalDevice, &semCreateInfo, nullptr, &vulkanContext.getImageAvailableSemaphores()[i]);
+        vkCreateSemaphore(vulkanContext.getDevice()->logicalDevice, &semCreateInfo, nullptr, &vulkanContext.getQueueCompleteSemaphores()[i]);
+        createFence(true, &vulkanContext.getInFlightFences()[i]);
+    }
+
+    //Set initial state to 0. This is allocated in createSyncObject().
+    for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
+        FF_Memory::ff_clear(&vulkanContext.getImagesInFlight()[i], sizeof(VulkanFence));
+    }
+
     Logger::logInfo("Vulkan renderer initialized");
-    return RendererBackend::initialize(appName, platform);
+    return RendererBackend::initialize(appName, platform, width, height);
 }
 
 void VulkanBackend::setVersion(const GameInstance *gameInstance) {
