@@ -247,12 +247,12 @@ bool Platform::createSurface() {
     createInfo.hinstance = state->instance;
     createInfo.hwnd = state->hwnd;
 
-    if (const VkResult result = vkCreateWin32SurfaceKHR(vulkanContext->instance, &createInfo, nullptr, &state->surface); result != VK_SUCCESS) {
+    if (const VkResult result = vkCreateWin32SurfaceKHR(*vulkanContext->getInstance(), &createInfo, nullptr, &state->surface); result != VK_SUCCESS) {
         printConsoleError("Failed to create Vulkan surface for windwos.", 0);
         return false;
     }
 
-    vulkanContext->surface = state->surface;
+    *vulkanContext->getSurface() = state->surface;
     return true;
 }
 

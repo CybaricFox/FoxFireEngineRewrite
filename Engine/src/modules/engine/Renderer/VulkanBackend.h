@@ -6,42 +6,11 @@
 
 #include "RendererBackend.h"
 #include "src/modules/engine/Library/Logger.h"
-#include <vulkan/vulkan.h>
 
+#include "VulkanContext.h"
 #include "src/modules/engine/Core/GameInstance.h"
 
 enum VulkanTypes {
-
-};
-
-struct VulkanSwapChainSupportInfo {
-    VkSurfaceCapabilitiesKHR capabilities;
-    unsigned int formatCount;
-    VkSurfaceFormatKHR* formats;
-    unsigned int presentCount;
-    VkPresentModeKHR *presentModes;
-};
-
-struct VulkanContext {
-    VkInstance instance;
-    VkAllocationCallbacks allocator;
-    VkSurfaceKHR surface;
-    VkPhysicalDevice physicalDevice;
-    VkDevice logicalDevice;
-    VulkanSwapChainSupportInfo swapChainSupportInfo;
-    int graphicsQueueIndex;
-    int presentQueueIndex;
-    int transferQueueIndex;
-    VkPhysicalDeviceProperties physicalDeviceProperties;
-    VkPhysicalDeviceFeatures physicalDeviceFeatures;
-    VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
-    VkQueue transferQueue;
-
-#if ENABLE_DEBUG_LOGGING == true
-    VkDebugUtilsMessengerEXT debugMessenger;
-#endif
 
 };
 
@@ -76,8 +45,17 @@ private:
 
     bool createDevice();
     bool createSurface(Platform* platform);
-
+    void createSwapchain(unsigned int width, unsigned int height);
+    void recreateSwapchain(unsigned int width, unsigned int height);
     bool selectPhysicalDevice();
+    //Semaphore syncs between gpu threads
+    //Fence syncs between gpu and application
+    bool swapchainAcquireNextImageIndex(unsigned long timeout, VkSemaphore semaphore, VkFence fence, unsigned int* outImageIndex);
+    void presentSwapchain(VkSemaphore semaphore, unsigned int presentImageIndex);
+    bool detectDepthFormat();
+    void querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo* swapChainSupportInfo);
+    void createImageView(VkFormat format, VulkanImage* image, VkImageAspectFlags aspectFlags);
+    void destroySwapchain();
 
     bool physicalDeviceMeetsRequirements(
         VkPhysicalDevice physicalDevice,
@@ -88,7 +66,18 @@ private:
         VulkanPhysicalDeviceFamilyInfo *physicalDeviceFamilyInfo,
         VulkanSwapChainSupportInfo *swapChainSupport);
 
-    void querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo* swapChainSupportInfo);
+    void createImage(
+        VkImageType imageType,
+        unsigned int width,
+        unsigned int height,
+        VkFormat format,
+        VkImageTiling tiling,
+        VkImageUsageFlags usage,
+        VkMemoryPropertyFlags memoryPropertyFlags,
+        bool createView,
+        VkImageAspectFlags aspect,
+        VulkanImage* outImage
+        );
 
 public:
     ~VulkanBackend() override;
