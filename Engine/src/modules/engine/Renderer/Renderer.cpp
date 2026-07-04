@@ -7,7 +7,7 @@
 #include "../Library/Logger.h"
 
 bool Renderer::drawFrame(const RenderPacket *packet, RendererBackend *backend) {
-    if (!beginFrame(packet->deltaTime, backend)) {
+    if (beginFrame(packet->deltaTime, backend)) {
         if (!endFrame(packet->deltaTime, backend)) {
             Logger::logFatal("Failed to end frame!");
             return false;
@@ -17,7 +17,12 @@ bool Renderer::drawFrame(const RenderPacket *packet, RendererBackend *backend) {
     return true;
 }
 
-void Renderer::onResize(short width, short height) {
+void Renderer::onResize(const unsigned short width, const unsigned short height, RendererBackend* backend) {
+    if (backend) {
+        backend->resize(width, height);
+    } else {
+        Logger::logWarn("Backend cannot resize because it does not exist.");
+    }
 }
 
 bool Renderer::beginFrame(const float deltaTime, RendererBackend* backend) {

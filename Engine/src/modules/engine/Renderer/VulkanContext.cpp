@@ -44,11 +44,17 @@ void VulkanContext::destroyFences() {
 
 void VulkanContext::createSyncObjects() {
     imageAvailableSemaphores = static_cast<VkSemaphore *>(FF_Memory::ff_allocate(sizeof(VkSemaphore) * swapchain.maxFramesInFlight, ARRAY));
-    queueCompleteSemaphores = static_cast<VkSemaphore *>(FF_Memory::ff_allocate(sizeof(VkSemaphore) * swapchain.maxFramesInFlight, ARRAY));
+    queueCompleteSemaphores = static_cast<VkSemaphore *>(FF_Memory::ff_allocate(sizeof(VkSemaphore) * swapchain.imageCount, ARRAY));
     inFlightFences = static_cast<VulkanFence *>(FF_Memory::ff_allocate(sizeof(VulkanFence) * swapchain.maxFramesInFlight, ARRAY));
 
     //IF AN ERROR OCCURS, THIS MIGHT BE WHY. THIS SHOULD BE CALLED SEPERATELY FROM THE OTHERS.
-    imagesInFlight = static_cast<VulkanFence *>(FF_Memory::ff_allocate(sizeof(VulkanFence) * swapchain.imageCount, ARRAY));
+    imagesInFlight = static_cast<VulkanFence **>(FF_Memory::ff_allocate(sizeof(VulkanFence*) * swapchain.imageCount, ARRAY));
+}
+
+void VulkanContext::clearImagesInFlight() {
+    for (unsigned int i = 0; i < swapchain.imageCount; i++) {
+        imagesInFlight[i] = nullptr;
+    }
 }
 
 void VulkanContext::destroyContext() {

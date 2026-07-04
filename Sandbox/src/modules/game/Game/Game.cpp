@@ -17,7 +17,7 @@ Game::~Game() {
 }
 
 void Game::startup() {
-    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {quit(context);}, "Engine.quit", KEY_ESCAPE);
+    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Engine.quit", KEY_ESCAPE);
 
     Engine::startup();
 }

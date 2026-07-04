@@ -7,18 +7,7 @@
 #include "VulkanBackend.h"
 #include "../Library/Logger.h"
 
-void RendererBackend::resize(short width, short height) {
-}
-
 bool RendererBackend::initialize(String appName, Platform *platform, unsigned int width, unsigned int height) {
-    return true;
-}
-
-bool RendererBackend::beginFrame(float deltaTime) {
-    return true;
-}
-
-bool RendererBackend::endFrame(float deltaTime) {
     return true;
 }
 

@@ -15,25 +15,26 @@ void Engine::startup()
 
     Logger::logInfo("Beginning startup sequence");
 
-    inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit(context);}, "Static.quit");
-
-    resize(width, height);
-
-    bIsRunning = true;
-    bIsPaused = false;
+    inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
 
     if (!platform->initialize(gameInstance->config.appName, gameInstance->config.startingX, gameInstance->config.startingY, gameInstance->config.startingWidth, gameInstance->config.startingHeight)) {
         Logger::logFatal("The platform failed to initialize!");
         return;
     }
 
-    bIsInitialized = true;
-
     //Start renderer
     if (!renderer.initialize(gameInstance->config.appName, platform, backend, gameInstance, width, height)) {
         Logger::logFatal("Failed to initialize renderer!");
         return;
     }
+
+    inputSystem->subscribeToEngineEvent(RESIZED, [this](const EngineInputContext context) {resize(context.mouseX, context.mouseY);}, "Static.resize");
+
+    resize(width, height);
+
+    bIsInitialized = true;
+    bIsRunning = true;
+    bIsPaused = false;
 
     run();
 }
@@ -118,7 +119,23 @@ void Engine::run() {
     bIsRunning = false;
 }
 
-void Engine::resize(unsigned int width, unsigned int height) {
+void Engine::resize(const unsigned short newWidth, const unsigned short newHeight) {
+    if (width != newWidth || height != newHeight) {
+        width = newWidth;
+        height = newHeight;
+
+        if (width == 0 || height == 0) {
+            Logger::logInfo("window minimize, Suspending application.");
+            bIsPaused = true;
+        } else {
+            if (bIsPaused) {
+                Logger::logInfo("Window restored, resuming application.");
+                bIsPaused = false;
+            }
+
+            renderer.onResize(width, height, backend);
+        }
+    }
 }
 
 bool Engine::update(float deltaTime) {
@@ -133,7 +150,7 @@ Engine::Engine(GameInstance *instance, const unsigned long stateSize) {
     instance->state = FF_Memory::ff_allocate(stateSize, GAME);
 }
 
-void Engine::quit(const EngineInputContext context) {
+void Engine::quit() {
     Logger::logInfo("User Quit. Shutting Down.\n");
     bIsRunning = false;
 }

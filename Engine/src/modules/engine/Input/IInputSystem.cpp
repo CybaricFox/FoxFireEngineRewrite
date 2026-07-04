@@ -131,5 +131,5 @@ void IInputSystem::processMouseScroll(const char z) {
 }
 
 void IInputSystem::subscribeToEngineEvent(const EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String &id, const Keys key) {
-    EngineEvents::subscribe(code, [callback = function](const EngineInputContext context){callback(context);}, id, key);
+    EngineEvents::subscribe(code, function, id, key);
 }

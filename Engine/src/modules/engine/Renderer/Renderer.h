@@ -9,8 +9,6 @@
 
 class Renderer {
 private:
-    void onResize(short width, short height);
-
     bool beginFrame(float deltaTime, RendererBackend *backend);
     bool endFrame(float deltaTime, RendererBackend* backend);
 
@@ -20,4 +18,5 @@ public:
     ~Renderer();
 
     bool drawFrame(const RenderPacket *packet, RendererBackend *backend);
+    void onResize(unsigned short width, unsigned short height, RendererBackend* backend);
 };

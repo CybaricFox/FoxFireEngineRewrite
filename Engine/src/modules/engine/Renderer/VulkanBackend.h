@@ -8,6 +8,7 @@
 #include "src/modules/engine/Library/Logger.h"
 
 #include "VulkanContext.h"
+#include "VulkanUtils.h"
 #include "src/modules/engine/Core/GameInstance.h"
 
 struct VulkanPhysicalDeviceFamilyInfo {
@@ -41,13 +42,13 @@ private:
 
     bool createDevice();
     bool createSurface(Platform* platform);
-    void createSwapchain(unsigned int width, unsigned int height);
-    void recreateSwapchain(unsigned int width, unsigned int height);
+    bool createSwapchain();
+    bool recreateSwapchain();
     bool selectPhysicalDevice();
     //Semaphore syncs between gpu threads
     //Fence syncs between gpu and application
     bool swapchainAcquireNextImageIndex(unsigned long timeout, VkSemaphore semaphore, VkFence fence, unsigned int* outImageIndex);
-    void presentSwapchain(VkSemaphore semaphore, unsigned int presentImageIndex);
+    void presentSwapchain();
     bool detectDepthFormat();
     void querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo* swapChainSupportInfo);
     void createImageView(VkFormat format, VulkanImage* image, VkImageAspectFlags aspectFlags);
@@ -93,7 +94,6 @@ private:
         VkImageAspectFlags aspect,
         VulkanImage* outImage
         );
-
 public:
     ~VulkanBackend() override;
 
@@ -101,9 +101,12 @@ public:
     static unsigned int cachedWidth;
     static unsigned int cachedHeight;
 
-    static void vulkanCheck(VkResult result);
 
     bool initialize(String appName, Platform *platform, unsigned int width, unsigned int height) override;
 
     void setVersion(const GameInstance* gameInstance);
+
+    void resize(unsigned short width, unsigned short height) override;
+    bool beginFrame(float deltaTime) override;
+    bool endFrame(float deltaTime) override;
 };

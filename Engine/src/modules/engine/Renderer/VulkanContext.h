@@ -110,7 +110,8 @@ private:
     VkSemaphore* queueCompleteSemaphores;
     unsigned int inFlightFenceCount;
     VulkanFence* inFlightFences;
-    VulkanFence* imagesInFlight;
+    VulkanFence** imagesInFlight;
+    bool bIsSwapchainDirty = false;
 
 #if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -124,19 +125,33 @@ public:
     VkSurfaceKHR* getSurface() {return &surface;}
     unsigned int* getCurrentFrame() { return &currentFrame; }
     VkInstance* getInstance() {return &instance;}
-    unsigned int* getFrameBufferWidth() { return &frameBufferWidth; }
-    unsigned int* getFrameBufferHeight() { return &frameBufferHeight; }
+    unsigned int getFrameBufferWidth() const { return frameBufferWidth; }
+    unsigned int getFrameBufferHeight() const { return frameBufferHeight; }
     VulkanRenderpass* getRenderpass() { return &renderpass; }
     VulkanCommandBuffer* getCommandBuffers() const {return commandBuffers;}
     VulkanCommandBuffer* getCommandBuffer(const unsigned int i) const {return &commandBuffers[i];}
-    VkSemaphore* getImageAvailableSemaphores() { return imageAvailableSemaphores; }
-    VkSemaphore* getQueueCompleteSemaphores() { return queueCompleteSemaphores; }
-    VulkanFence* getInFlightFences() { return inFlightFences; }
-    VulkanFence* getImagesInFlight() { return imagesInFlight; }
+    VkSemaphore* getImageAvailableSemaphores() const { return imageAvailableSemaphores; }
+    VkSemaphore* getQueueCompleteSemaphores() const { return queueCompleteSemaphores; }
+    VulkanFence* getInFlightFences() const { return inFlightFences; }
+    VulkanFence* getImagesInFlight() const { return *imagesInFlight; }
+    bool isRecreatingSwapchain() const {return bRecreateSwapchain;}
+    bool needsResize() const {return bIsSwapchainDirty;}
+    VulkanFence* getCurrentInFlightFence() const {return &inFlightFences[currentFrame];}
+    VkSemaphore* getCurrentImageAvailable() const {return &imageAvailableSemaphores[currentFrame];}
+    unsigned int* getImageIndex() { return &imageIndex; }
+    VulkanCommandBuffer* getCurrentCommandBuffer() const {return &commandBuffers[imageIndex];}
+    VulkanFramebuffer* getCurrentFramebuffer() const {return &swapchain.framebuffers[imageIndex];}
+    VulkanFence* getCurrentImageInFlight() const {return imagesInFlight[imageIndex];}
+    VkSemaphore* getCurrentQueueCompleteSemaphore() const {return &queueCompleteSemaphores[imageIndex];}
+
 
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
     void setHeight(const unsigned int height) {frameBufferHeight = height;}
-    void createSyncObjects();
+    void resize() {bIsSwapchainDirty = true;}
+    void finishResize() {bIsSwapchainDirty = false;}
+    void updateCurrentImageInFlight() const {imagesInFlight[imageIndex] = &inFlightFences[currentFrame];}
+    void enableRecreateSwapchain() {bRecreateSwapchain = true;}
+    void finishRecreateSwapchain() {bRecreateSwapchain = false;}
 
     VkDebugUtilsMessengerEXT* getDebugMessenger() {return &debugMessenger;}
 
@@ -145,4 +160,6 @@ public:
     void createCommandBuffers();
     void destroyCommandBuffers();
     void destroyFences();
+    void createSyncObjects();
+    void clearImagesInFlight();
 };

@@ -80,8 +80,9 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
         case WM_SIZE: {
             RECT rect;
             GetClientRect(hwnd, &rect);
-            unsigned int width = rect.right - rect.left;
-            unsigned int height = rect.bottom - rect.top;
+            const unsigned short width = rect.right - rect.left;
+            const unsigned short height = rect.bottom - rect.top;
+            EngineEvents::callEvent(RESIZED, EngineInputContext{width, height});
             break;
         }
         case WM_KEYDOWN:
@@ -720,6 +721,10 @@ bool Platform::processMessages() {
                     break;
                 }
                 case XCB_CONFIGURE_NOTIFY: {
+                    xcb_configure_notify_event_t* configureEvent = reinterpret_cast<xcb_motion_notify_event_t *>(event);
+                    unsigned short x = configureEvent->width;
+                    unsigned short y = configureEvent->height;
+                    EngineEvents::callEvent(RESIZED, new EngineInputContext{x, y});
                     break;
                 }
                 case XCB_CLIENT_MESSAGE: {

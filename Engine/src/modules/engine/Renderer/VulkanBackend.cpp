@@ -76,8 +76,8 @@ bool VulkanBackend::createDevice() {
 
         queueCreateInfos[i].flags = 0;
         queueCreateInfos[i].pNext = nullptr;
-        float queuePriority = 1.0f;
-        queueCreateInfos[i].pQueuePriorities = &queuePriority;
+        constexpr float queuePriority[] = {1.0f, 1.0f};
+        queueCreateInfos[i].pQueuePriorities = queuePriority;
     }
 
     VkPhysicalDeviceFeatures deviceFeatures{};
@@ -91,7 +91,7 @@ bool VulkanBackend::createDevice() {
     const auto extensionNames = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
     createInfo.ppEnabledExtensionNames = &extensionNames;
 
-    vulkanCheck(vkCreateDevice(vulkanContext.getDevice()->physicalDevice, &createInfo, nullptr, &vulkanContext.getDevice()->logicalDevice));
+    VulkanUtils::vulkanCheck(vkCreateDevice(vulkanContext.getDevice()->physicalDevice, &createInfo, nullptr, &vulkanContext.getDevice()->logicalDevice));
     Logger::logInfo("Vulkan logical device created.");
 
     vkGetDeviceQueue(vulkanContext.getDevice()->logicalDevice, vulkanContext.getDevice()->graphicsQueueIndex, 0, &vulkanContext.getDevice()->graphicsQueue);
@@ -102,7 +102,7 @@ bool VulkanBackend::createDevice() {
     VkCommandPoolCreateInfo poolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     poolCreateInfo.queueFamilyIndex = vulkanContext.getDevice()->graphicsQueueIndex;
     poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    vulkanCheck(vkCreateCommandPool(vulkanContext.getDevice()->logicalDevice, &poolCreateInfo, nullptr, &vulkanContext.getDevice()->commandPool));
+    VulkanUtils::vulkanCheck(vkCreateCommandPool(vulkanContext.getDevice()->logicalDevice, &poolCreateInfo, nullptr, &vulkanContext.getDevice()->commandPool));
     Logger::logInfo("Graphics command pool created.");
 
     return true;
@@ -112,8 +112,8 @@ bool VulkanBackend::createSurface(Platform* platform) {
     return platform->createSurface();
 }
 
-void VulkanBackend::createSwapchain(const unsigned int width, const unsigned int height) {
-    VkExtent2D swapchainExtent{width, height};
+bool VulkanBackend::createSwapchain() {
+    VkExtent2D swapchainExtent{vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight()};
     vulkanContext.getSwapchain()->maxFramesInFlight = 2;
 
     bool found = false;
@@ -186,18 +186,20 @@ void VulkanBackend::createSwapchain(const unsigned int width, const unsigned int
     swapChainCreateInfo.clipped = true;
     swapChainCreateInfo.oldSwapchain = nullptr;
 
-    vulkanCheck(vkCreateSwapchainKHR(vulkanContext.getDevice()->logicalDevice, &swapChainCreateInfo, nullptr, &vulkanContext.getSwapchain()->handle));
+    if (!VulkanUtils::vulkanCheck(vkCreateSwapchainKHR(vulkanContext.getDevice()->logicalDevice, &swapChainCreateInfo, nullptr, &vulkanContext.getSwapchain()->handle))) return false;
 
     *vulkanContext.getCurrentFrame() = 0;
     vulkanContext.getSwapchain()->imageCount = 0;
-    vulkanCheck(vkGetSwapchainImagesKHR(vulkanContext.getDevice()->logicalDevice, vulkanContext.getSwapchain()->handle, &vulkanContext.getSwapchain()->imageCount, nullptr));
+    if (!VulkanUtils::vulkanCheck(vkGetSwapchainImagesKHR(vulkanContext.getDevice()->logicalDevice, vulkanContext.getSwapchain()->handle, &vulkanContext.getSwapchain()->imageCount, nullptr))) return false;
+
     if (!vulkanContext.getSwapchain()->images) {
         vulkanContext.getSwapchain()->images = static_cast<VkImage *>(FF_Memory::ff_allocate(sizeof(VkImage) * vulkanContext.getSwapchain()->imageCount, RENDER));
     }
     if (!vulkanContext.getSwapchain()->imageViews) {
         vulkanContext.getSwapchain()->imageViews = static_cast<VkImageView*>(FF_Memory::ff_allocate(sizeof(VkImageView) * vulkanContext.getSwapchain()->imageCount, RENDER));
     }
-    vulkanCheck(vkGetSwapchainImagesKHR(vulkanContext.getDevice()->logicalDevice, vulkanContext.getSwapchain()->handle, &vulkanContext.getSwapchain()->imageCount, vulkanContext.getSwapchain()->images));
+
+    if (!VulkanUtils::vulkanCheck(vkGetSwapchainImagesKHR(vulkanContext.getDevice()->logicalDevice, vulkanContext.getSwapchain()->handle, &vulkanContext.getSwapchain()->imageCount, vulkanContext.getSwapchain()->images))) return false;
 
     for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
         VkImageViewCreateInfo viewCreateInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
@@ -210,12 +212,13 @@ void VulkanBackend::createSwapchain(const unsigned int width, const unsigned int
         viewCreateInfo.subresourceRange.baseArrayLayer = 0;
         viewCreateInfo.subresourceRange.layerCount = 1;
 
-        vulkanCheck(vkCreateImageView(vulkanContext.getDevice()->logicalDevice, &viewCreateInfo, nullptr, &vulkanContext.getSwapchain()->imageViews[i]));
+        if (!VulkanUtils::vulkanCheck(vkCreateImageView(vulkanContext.getDevice()->logicalDevice, &viewCreateInfo, nullptr, &vulkanContext.getSwapchain()->imageViews[i]))) return false;
     }
 
     if (!detectDepthFormat()) {
         vulkanContext.getDevice()->depthFormat = VK_FORMAT_UNDEFINED;
         Logger::logFatal("Failed to find a supported format!");
+        return false;
     }
 
     createImage(VK_IMAGE_TYPE_2D,
@@ -231,23 +234,73 @@ void VulkanBackend::createSwapchain(const unsigned int width, const unsigned int
         );
 
     Logger::logInfo("Successfully created swapchain!");
+    return true;
 }
 
-void VulkanBackend::recreateSwapchain(const unsigned int width, const unsigned int height) {
+bool VulkanBackend::recreateSwapchain() {
+    if (vulkanContext.isRecreatingSwapchain()) {
+        Logger::logDebug("Recreate swapchain was called while already recreating.");
+        return false;
+    }
+    if (vulkanContext.getFrameBufferWidth() == 0 || vulkanContext.getFrameBufferHeight() == 0) {
+        Logger::logDebug("Window is too small to recreate swapchain.");
+        return false;
+    }
+
+    vulkanContext.enableRecreateSwapchain();
+
+    vkDeviceWaitIdle(vulkanContext.getDevice()->logicalDevice);
+
+    vulkanContext.clearImagesInFlight();
+
+    querySwapChainSupport(vulkanContext.getDevice()->physicalDevice, *vulkanContext.getSurface(), &vulkanContext.getDevice()->swapChainSupportInfo);
+    detectDepthFormat();
+
     destroySwapchain();
-    createSwapchain(width, height);
+    createSwapchain();
+
+    vulkanContext.setWidth(cachedWidth);
+    vulkanContext.setHeight(cachedHeight);
+    vulkanContext.getRenderpass()->w = vulkanContext.getFrameBufferWidth();
+    vulkanContext.getRenderpass()->h = vulkanContext.getFrameBufferHeight();
+    cachedWidth = 0;
+    cachedHeight = 0;
+    vulkanContext.finishResize();
+
+    for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
+        freeCommandBuffer(vulkanContext.getCommandBuffer(i));
+    }
+
+    for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
+        destroyFramebuffer(&vulkanContext.getSwapchain()->framebuffers[i]);
+    }
+
+    vulkanContext.getRenderpass()->x = 0;
+    vulkanContext.getRenderpass()->y = 0;
+    vulkanContext.getRenderpass()->w = vulkanContext.getFrameBufferWidth();
+    vulkanContext.getRenderpass()->h = vulkanContext.getFrameBufferHeight();
+
+    regenerateFramebuffers();
+
+    for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
+        allocateCommandBuffer(true, vulkanContext.getCommandBuffer(i));
+    }
+
+    vulkanContext.finishRecreateSwapchain();
+
+    return true;
 }
 
 bool VulkanBackend::selectPhysicalDevice() {
     unsigned int deviceCount = 0;
-    vulkanCheck(vkEnumeratePhysicalDevices(*vulkanContext.getInstance(), &deviceCount, nullptr));
+    VulkanUtils::vulkanCheck(vkEnumeratePhysicalDevices(*vulkanContext.getInstance(), &deviceCount, nullptr));
     if (deviceCount == 0) {
         Logger::logFatal("No devices were found that support Vulkan.");
         return false;
     }
 
     VkPhysicalDevice devices[deviceCount];
-    vulkanCheck(vkEnumeratePhysicalDevices(*vulkanContext.getInstance(), &deviceCount, devices));
+    VulkanUtils::vulkanCheck(vkEnumeratePhysicalDevices(*vulkanContext.getInstance(), &deviceCount, devices));
 
     for (VkPhysicalDevice device : devices) {
         VkPhysicalDeviceProperties deviceProperties;
@@ -353,7 +406,7 @@ bool VulkanBackend::swapchainAcquireNextImageIndex(const unsigned long timeout, 
     const VkResult result = vkAcquireNextImageKHR(vulkanContext.getDevice()->logicalDevice, vulkanContext.getSwapchain()->handle, timeout, semaphore, fence, outImageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        recreateSwapchain(*vulkanContext.getFrameBufferWidth(), *vulkanContext.getFrameBufferHeight());
+        recreateSwapchain();
         return false;
     }
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -364,18 +417,18 @@ bool VulkanBackend::swapchainAcquireNextImageIndex(const unsigned long timeout, 
     return true;
 }
 
-void VulkanBackend::presentSwapchain(VkSemaphore semaphore, const unsigned int presentImageIndex) {
+void VulkanBackend::presentSwapchain() {
     VkPresentInfoKHR presentInfo{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &semaphore;
+    presentInfo.pWaitSemaphores = vulkanContext.getCurrentQueueCompleteSemaphore();
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &vulkanContext.getSwapchain()->handle;
-    presentInfo.pImageIndices = &presentImageIndex;
+    presentInfo.pImageIndices = vulkanContext.getImageIndex();
     presentInfo.pResults = nullptr;
 
     VkResult result = vkQueuePresentKHR(vulkanContext.getDevice()->presentQueue, &presentInfo);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        recreateSwapchain(*vulkanContext.getFrameBufferWidth(), *vulkanContext.getFrameBufferHeight());
+        recreateSwapchain();
     } else if (result != VK_SUCCESS) {
         Logger::logFatal("Failed to present swapchain image!");
     }
@@ -429,7 +482,7 @@ void VulkanBackend::beginRenderpass(VulkanCommandBuffer *commandBuffer, const Vk
 
 void VulkanBackend::endRenderpass(VulkanCommandBuffer *commandBuffer) {
     vkCmdEndRenderPass(commandBuffer->handle);
-    commandBuffer->state = RECORDING;
+    commandBuffer->state = RECORDING; //IM PRETTY SURE THIS IS SUPPOSED TO BE THE RENDER STATE
 }
 
 void VulkanBackend::allocateCommandBuffer(const bool bIsPrimary, VulkanCommandBuffer *commandBuffer) {
@@ -442,7 +495,7 @@ void VulkanBackend::allocateCommandBuffer(const bool bIsPrimary, VulkanCommandBu
     allocateInfo.pNext = nullptr;
 
     commandBuffer->state = NOT_ALLOCATED;
-    vulkanCheck(vkAllocateCommandBuffers(vulkanContext.getDevice()->logicalDevice, &allocateInfo, &commandBuffer->handle));
+    VulkanUtils::vulkanCheck(vkAllocateCommandBuffers(vulkanContext.getDevice()->logicalDevice, &allocateInfo, &commandBuffer->handle));
     commandBuffer->state = READY;
 }
 
@@ -466,12 +519,12 @@ void VulkanBackend::beginCommandBuffer(VulkanCommandBuffer* commandBuffer, const
         beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
     }
 
-    vulkanCheck(vkBeginCommandBuffer(commandBuffer->handle, &beginInfo));
+    VulkanUtils::vulkanCheck(vkBeginCommandBuffer(commandBuffer->handle, &beginInfo));
     commandBuffer->state = RECORDING;
 }
 
 void VulkanBackend::endCommandBuffer(VulkanCommandBuffer* commandBuffer) {
-    vulkanCheck(vkEndCommandBuffer(commandBuffer->handle));
+    VulkanUtils::vulkanCheck(vkEndCommandBuffer(commandBuffer->handle));
     commandBuffer->state = RECORDING_ENDED;
 }
 
@@ -495,10 +548,10 @@ void VulkanBackend::endSingleUseCommandBuffer(VulkanCommandBuffer *commandBuffer
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer->handle;
 
-    vulkanCheck(vkQueueSubmit(queue, 1, &submitInfo, nullptr));
+    VulkanUtils::vulkanCheck(vkQueueSubmit(queue, 1, &submitInfo, nullptr));
 
     //Wait for queue to finish since there is no fence here
-    vulkanCheck(vkQueueWaitIdle(queue));
+    VulkanUtils::vulkanCheck(vkQueueWaitIdle(queue));
 
     freeCommandBuffer(commandBuffer);
 }
@@ -534,7 +587,7 @@ void VulkanBackend::createFramebuffer(const unsigned int width, const unsigned i
     frameBufferCreateInfo.height = height;
     frameBufferCreateInfo.layers = 1;
 
-    vulkanCheck(vkCreateFramebuffer(vulkanContext.getDevice()->logicalDevice, &frameBufferCreateInfo, nullptr, &framebuffer->handle));
+    VulkanUtils::vulkanCheck(vkCreateFramebuffer(vulkanContext.getDevice()->logicalDevice, &frameBufferCreateInfo, nullptr, &framebuffer->handle));
 }
 
 void VulkanBackend::regenerateFramebuffers() {
@@ -542,7 +595,7 @@ void VulkanBackend::regenerateFramebuffers() {
         constexpr unsigned int attachmentCount = 2;
         VkImageView attachments[]{vulkanContext.getSwapchain()->imageViews[i], vulkanContext.getSwapchain()->depthAttachment.view};
 
-        createFramebuffer(*vulkanContext.getFrameBufferWidth(), *vulkanContext.getFrameBufferHeight(), attachmentCount, attachments, &vulkanContext.getSwapchain()->framebuffers[i]);
+        createFramebuffer(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), attachmentCount, attachments, &vulkanContext.getSwapchain()->framebuffers[i]);
     }
 }
 
@@ -564,7 +617,7 @@ void VulkanBackend::createFence(bool bCreateSignaled, VulkanFence * fence) {
     if (fence->bIsSignaled) {
         fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     }
-    vulkanCheck(vkCreateFence(vulkanContext.getDevice()->logicalDevice, &fenceCreateInfo, nullptr, &fence->handle));
+    VulkanUtils::vulkanCheck(vkCreateFence(vulkanContext.getDevice()->logicalDevice, &fenceCreateInfo, nullptr, &fence->handle));
 }
 
 void VulkanBackend::destroyFence(VulkanFence *fence) {
@@ -606,7 +659,7 @@ bool VulkanBackend::waitForFence(VulkanFence *fence, const unsigned long timeout
 
 void VulkanBackend::resetFence(VulkanFence *fence) {
     if (fence->bIsSignaled) {
-        vulkanCheck(vkResetFences(vulkanContext.getDevice()->logicalDevice, 1, &fence->handle));
+        VulkanUtils::vulkanCheck(vkResetFences(vulkanContext.getDevice()->logicalDevice, 1, &fence->handle));
         fence->bIsSignaled = false;
     }
 }
@@ -672,7 +725,7 @@ bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDev
             }
         }
         VkBool32 supportsPresent = VK_FALSE;
-        vulkanCheck(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &supportsPresent));
+        VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &supportsPresent));
         if (supportsPresent) {
             physicalDeviceFamilyInfo->presentFamily = i;
             validPresent = true;
@@ -711,10 +764,10 @@ bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDev
         if (!requirements->extensionNames.empty()) {
             unsigned int extensionCount = 0;
             VkExtensionProperties *availableExtensions = nullptr;
-            vulkanCheck(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr));
+            VulkanUtils::vulkanCheck(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr));
             if (extensionCount != 0) {
                 availableExtensions = static_cast<VkExtensionProperties *>(FF_Memory::ff_allocate(sizeof(VkExtensionProperties) * extensionCount, RENDER));
-                vulkanCheck(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions));
+                VulkanUtils::vulkanCheck(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions));
                 for (const char* extension : requirements->extensionNames) {
                     bool found = false;
                     for (unsigned int i = 0; i < extensionCount; i++) {
@@ -766,7 +819,7 @@ void VulkanBackend::createImage(VkImageType imageType, const unsigned int width,
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    vulkanCheck(vkCreateImage(vulkanContext.getDevice()->logicalDevice, &imageCreateInfo, nullptr, &outImage->handle));
+    VulkanUtils::vulkanCheck(vkCreateImage(vulkanContext.getDevice()->logicalDevice, &imageCreateInfo, nullptr, &outImage->handle));
 
     VkMemoryRequirements memRequirements;
     vkGetImageMemoryRequirements(vulkanContext.getDevice()->logicalDevice, outImage->handle, &memRequirements);
@@ -779,8 +832,8 @@ void VulkanBackend::createImage(VkImageType imageType, const unsigned int width,
     VkMemoryAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocateInfo.allocationSize = memRequirements.size;
     allocateInfo.memoryTypeIndex = memoryType;
-    vulkanCheck(vkAllocateMemory(vulkanContext.getDevice()->logicalDevice, &allocateInfo, nullptr, &outImage->deviceMemory));
-    vulkanCheck(vkBindImageMemory(vulkanContext.getDevice()->logicalDevice, outImage->handle, outImage->deviceMemory, 0));
+    VulkanUtils::vulkanCheck(vkAllocateMemory(vulkanContext.getDevice()->logicalDevice, &allocateInfo, nullptr, &outImage->deviceMemory));
+    VulkanUtils::vulkanCheck(vkBindImageMemory(vulkanContext.getDevice()->logicalDevice, outImage->handle, outImage->deviceMemory, 0));
 
     if (createView) {
         outImage->view = nullptr;
@@ -788,23 +841,31 @@ void VulkanBackend::createImage(VkImageType imageType, const unsigned int width,
     }
 }
 
-void VulkanBackend::querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo *swapChainSupportInfo) {
-    vulkanCheck(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &swapChainSupportInfo->capabilities));
+void VulkanBackend::resize(const unsigned short width, const unsigned short height) {
+    cachedWidth = width;
+    cachedHeight = height;
+    vulkanContext.resize();
 
-    vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &swapChainSupportInfo->formatCount, nullptr));
+    Logger::logInfo("Vulkan backend resized to  " + std::to_string(width) + "x" + std::to_string(height));
+}
+
+void VulkanBackend::querySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo *swapChainSupportInfo) {
+    VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &swapChainSupportInfo->capabilities));
+
+    VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &swapChainSupportInfo->formatCount, nullptr));
     if (swapChainSupportInfo->formatCount != 0) {
         if (!swapChainSupportInfo->formats) {
             swapChainSupportInfo->formats = static_cast<VkSurfaceFormatKHR*>(FF_Memory::ff_allocate(sizeof(VkSurfaceFormatKHR) * swapChainSupportInfo->formatCount, RENDER));
         }
-        vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &swapChainSupportInfo->formatCount, swapChainSupportInfo->formats));
+        VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &swapChainSupportInfo->formatCount, swapChainSupportInfo->formats));
     }
 
-    vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &swapChainSupportInfo->presentCount, nullptr));
+    VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &swapChainSupportInfo->presentCount, nullptr));
     if (swapChainSupportInfo->presentCount != 0) {
         if (!swapChainSupportInfo->presentModes) {
             swapChainSupportInfo->presentModes = static_cast<VkPresentModeKHR *>(FF_Memory::ff_allocate(sizeof(VkPresentModeKHR) * swapChainSupportInfo->presentCount, RENDER));
         }
-        vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &swapChainSupportInfo->presentCount, swapChainSupportInfo->presentModes));
+        VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &swapChainSupportInfo->presentCount, swapChainSupportInfo->presentModes));
     }
 }
 
@@ -819,10 +880,12 @@ void VulkanBackend::createImageView(VkFormat format, VulkanImage *image, VkImage
     viewCreateInfo.subresourceRange.baseArrayLayer = 0;
     viewCreateInfo.subresourceRange.layerCount = 1;
 
-    vulkanCheck(vkCreateImageView(vulkanContext.getDevice()->logicalDevice, &viewCreateInfo, nullptr, &image->view));
+    VulkanUtils::vulkanCheck(vkCreateImageView(vulkanContext.getDevice()->logicalDevice, &viewCreateInfo, nullptr, &image->view));
 }
 
 void VulkanBackend::destroySwapchain() {
+    vkDeviceWaitIdle(vulkanContext.getDevice()->logicalDevice);
+
     if (vulkanContext.getSwapchain()->depthAttachment.view) {
         vkDestroyImageView(vulkanContext.getDevice()->logicalDevice, vulkanContext.getSwapchain()->depthAttachment.view, nullptr);
         vulkanContext.getSwapchain()->depthAttachment.view = nullptr;
@@ -844,6 +907,17 @@ void VulkanBackend::destroySwapchain() {
 }
 
 void VulkanBackend::createRenderpass(float x, float y, float w, float h, float r, float g, float b, float a, float depth, unsigned int stencil) {
+    vulkanContext.getRenderpass()->x = x;
+    vulkanContext.getRenderpass()->y = y;
+    vulkanContext.getRenderpass()->w = w;
+    vulkanContext.getRenderpass()->h = h;
+    vulkanContext.getRenderpass()->r = r;
+    vulkanContext.getRenderpass()->g = g;
+    vulkanContext.getRenderpass()->b = b;
+    vulkanContext.getRenderpass()->a = a;
+    vulkanContext.getRenderpass()->depth = depth;
+    vulkanContext.getRenderpass()->stencil = stencil;
+
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
@@ -922,7 +996,7 @@ void VulkanBackend::createRenderpass(float x, float y, float w, float h, float r
     renderPassCreateInfo.pNext = nullptr;
     renderPassCreateInfo.flags = 0;
 
-    vulkanCheck(vkCreateRenderPass(vulkanContext.getDevice()->logicalDevice, &renderPassCreateInfo, nullptr, &vulkanContext.getRenderpass()->handle));
+    VulkanUtils::vulkanCheck(vkCreateRenderPass(vulkanContext.getDevice()->logicalDevice, &renderPassCreateInfo, nullptr, &vulkanContext.getRenderpass()->handle));
 }
 
 VulkanBackend::~VulkanBackend() {
@@ -935,15 +1009,19 @@ VulkanBackend::~VulkanBackend() {
             vkDestroySemaphore(vulkanContext.getDevice()->logicalDevice, vulkanContext.getImageAvailableSemaphores()[i], nullptr);
             vulkanContext.getImageAvailableSemaphores()[i] = nullptr;
         }
+        destroyFence(&vulkanContext.getInFlightFences()[i]);
+    }
+
+    for (unsigned char i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
         if (vulkanContext.getQueueCompleteSemaphores()[i]) {
             vkDestroySemaphore(vulkanContext.getDevice()->logicalDevice, vulkanContext.getQueueCompleteSemaphores()[i], nullptr);
             vulkanContext.getQueueCompleteSemaphores()[i] = nullptr;
         }
-        destroyFence(&vulkanContext.getInFlightFences()[i]);
     }
+
     FF_Memory::ff_free(vulkanContext.getImageAvailableSemaphores(), sizeof(VkSemaphore) * vulkanContext.getSwapchain()->maxFramesInFlight, ARRAY);
     *vulkanContext.getImageAvailableSemaphores() = nullptr;
-    FF_Memory::ff_free(vulkanContext.getQueueCompleteSemaphores(), sizeof(VkSemaphore) * vulkanContext.getSwapchain()->maxFramesInFlight, ARRAY);
+    FF_Memory::ff_free(vulkanContext.getQueueCompleteSemaphores(), sizeof(VkSemaphore) * vulkanContext.getSwapchain()->imageCount, ARRAY);
     *vulkanContext.getQueueCompleteSemaphores() = nullptr;
     vulkanContext.destroyFences();
 
@@ -967,10 +1045,6 @@ VulkanBackend::~VulkanBackend() {
     Logger::logDebug("Destroying Swapchain.");
     destroySwapchain();
     vulkanContext.destroyContext();
-}
-
-void VulkanBackend::vulkanCheck(VkResult result) {
-    assert(result == VK_SUCCESS);
 }
 
 bool VulkanBackend::initialize(const String appName, Platform* platform, const unsigned int width, const unsigned int height) {
@@ -1015,9 +1089,9 @@ bool VulkanBackend::initialize(const String appName, Platform* platform, const u
     validationLayers.push_back("VK_LAYER_KHRONOS_validation");
     layerCount = validationLayers.size();
     unsigned int availableLayerCount = 0;
-    vulkanCheck(vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr));
+    VulkanUtils::vulkanCheck(vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr));
     VkLayerProperties availableLayers[availableLayerCount];
-    vulkanCheck(vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers));
+    VulkanUtils::vulkanCheck(vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers));
 
     for (const char* requiredLayer : validationLayers) {
         Logger::logInfo("Searching for " + String(requiredLayer));
@@ -1044,7 +1118,7 @@ bool VulkanBackend::initialize(const String appName, Platform* platform, const u
     createInfo.enabledLayerCount = layerCount;
     createInfo.ppEnabledLayerNames = validationLayers.data();
 
-    vulkanCheck(vkCreateInstance(&createInfo, nullptr, vulkanContext.getInstance()));
+    VulkanUtils::vulkanCheck(vkCreateInstance(&createInfo, nullptr, vulkanContext.getInstance()));
     Logger::logInfo("Vulkan Instance Created Successfully.");
 
 #if ENABLE_DEBUG_LOGGING == true
@@ -1057,7 +1131,7 @@ bool VulkanBackend::initialize(const String appName, Platform* platform, const u
 
     const auto function = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(*vulkanContext.getInstance(), "vkCreateDebugUtilsMessengerEXT"));
     assert(function);
-    vulkanCheck(function(*vulkanContext.getInstance(), &debugCreateInfo, nullptr, vulkanContext.getDebugMessenger()));
+    VulkanUtils::vulkanCheck(function(*vulkanContext.getInstance(), &debugCreateInfo, nullptr, vulkanContext.getDebugMessenger()));
     Logger::logDebug("Vulkan debugger created successfully.");
 #endif
 
@@ -1075,9 +1149,9 @@ bool VulkanBackend::initialize(const String appName, Platform* platform, const u
         return false;
     }
 
-    createSwapchain(*vulkanContext.getFrameBufferWidth(), *vulkanContext.getFrameBufferHeight());
+    createSwapchain();
 
-    createRenderpass(0, 0, static_cast<float>(*vulkanContext.getFrameBufferWidth()), static_cast<float>(*vulkanContext.getFrameBufferHeight()), 0, 0, 0.2f, 1, 1, 0);
+    createRenderpass(0, 0, static_cast<float>(vulkanContext.getFrameBufferWidth()), static_cast<float>(vulkanContext.getFrameBufferHeight()), 0, 0, 0.2f, 1, 1, 0);
 
     vulkanContext.getSwapchain()->framebuffers = static_cast<VulkanFramebuffer *>(FF_Memory::ff_allocate(sizeof(VulkanFramebuffer) * vulkanContext.getSwapchain()->imageCount, ARRAY));
     regenerateFramebuffers();
@@ -1092,14 +1166,15 @@ bool VulkanBackend::initialize(const String appName, Platform* platform, const u
     for (unsigned char i = 0; i < vulkanContext.getSwapchain()->maxFramesInFlight; i++) {
         VkSemaphoreCreateInfo semCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
         vkCreateSemaphore(vulkanContext.getDevice()->logicalDevice, &semCreateInfo, nullptr, &vulkanContext.getImageAvailableSemaphores()[i]);
-        vkCreateSemaphore(vulkanContext.getDevice()->logicalDevice, &semCreateInfo, nullptr, &vulkanContext.getQueueCompleteSemaphores()[i]);
         createFence(true, &vulkanContext.getInFlightFences()[i]);
+    }
+    for (unsigned char i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
+        VkSemaphoreCreateInfo semCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        vkCreateSemaphore(vulkanContext.getDevice()->logicalDevice, &semCreateInfo, nullptr, &vulkanContext.getQueueCompleteSemaphores()[i]);
     }
 
     //Set initial state to 0. This is allocated in createSyncObject().
-    for (unsigned int i = 0; i < vulkanContext.getSwapchain()->imageCount; i++) {
-        FF_Memory::ff_clear(&vulkanContext.getImagesInFlight()[i], sizeof(VulkanFence));
-    }
+    vulkanContext.clearImagesInFlight();
 
     Logger::logInfo("Vulkan renderer initialized");
     return RendererBackend::initialize(appName, platform, width, height);
@@ -1109,4 +1184,102 @@ void VulkanBackend::setVersion(const GameInstance *gameInstance) {
     majorVersion = gameInstance->config.gameVersionMajor;
     minorVersion = gameInstance->config.gameVersionMinor;
     patchVersion = gameInstance->config.gameVersionPatch;
+}
+
+bool VulkanBackend::beginFrame(const float deltaTime) {
+    if (vulkanContext.isRecreatingSwapchain()) {
+        VkResult result = vkDeviceWaitIdle(vulkanContext.getDevice()->logicalDevice);
+        if (!VulkanUtils::vulkanCheck(result)) {
+            Logger::logError("Vulkan begin frame failed. vkDeviceWaitIdle #1 failed: " + VulkanUtils::getResultAsString(result, true));
+            return false;
+        }
+        Logger::logInfo("Recreating swapchain.");
+        return false;
+    }
+
+    if (vulkanContext.needsResize()) {
+        VkResult result = vkDeviceWaitIdle(vulkanContext.getDevice()->logicalDevice);
+        if (!VulkanUtils::vulkanCheck(result)) {
+            Logger::logError("Vulkan begin frame failed. vkDeviceWaitIdle #2 failed: " + VulkanUtils::getResultAsString(result, true));
+            return false;
+        }
+
+        if (!recreateSwapchain()) {
+            return false;
+        }
+
+        Logger::logInfo("Swapchain resized. Waiting for next frame.");
+        return false;
+    }
+
+    if (!waitForFence(vulkanContext.getCurrentInFlightFence(), UINT32_MAX)) {
+        Logger::logWarn("In flight fence failed to wait.");
+        return false;
+    }
+
+    if (!swapchainAcquireNextImageIndex(UINT32_MAX, *vulkanContext.getCurrentImageAvailable(), nullptr, vulkanContext.getImageIndex())) {
+        return false;
+    }
+
+    resetCommandBuffer(vulkanContext.getCurrentCommandBuffer());
+    beginCommandBuffer(vulkanContext.getCurrentCommandBuffer(), false, false, false);
+
+    VkViewport viewport;
+    viewport.x = 0;
+    viewport.y = vulkanContext.getFrameBufferHeight();
+    viewport.width = vulkanContext.getFrameBufferWidth();
+    viewport.height = -static_cast<float>(vulkanContext.getFrameBufferHeight());
+    viewport.minDepth = 0;
+    viewport.maxDepth = 1;
+
+    VkRect2D scissor;
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent.width = vulkanContext.getFrameBufferWidth();
+    scissor.extent.height = vulkanContext.getFrameBufferHeight();
+
+    vkCmdSetViewport(vulkanContext.getCurrentCommandBuffer()->handle, 0, 1, &viewport);
+    vkCmdSetScissor(vulkanContext.getCurrentCommandBuffer()->handle, 0, 1, &scissor);
+
+    vulkanContext.getRenderpass()->w = vulkanContext.getFrameBufferWidth();
+    vulkanContext.getRenderpass()->h = vulkanContext.getFrameBufferHeight();
+
+    beginRenderpass(vulkanContext.getCurrentCommandBuffer(), vulkanContext.getCurrentFramebuffer()->handle);
+
+    return true;
+}
+
+bool VulkanBackend::endFrame(const float deltaTime) {
+    endRenderpass(vulkanContext.getCurrentCommandBuffer());
+    endCommandBuffer(vulkanContext.getCurrentCommandBuffer());
+
+    //make sure the precious fence cannot grab this new frame
+    if (vulkanContext.getCurrentImageInFlight() != nullptr) {
+        waitForFence(vulkanContext.getCurrentImageInFlight(), UINT32_MAX);
+    }
+
+    vulkanContext.updateCurrentImageInFlight();
+    resetFence(vulkanContext.getCurrentInFlightFence());
+
+    VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &vulkanContext.getCurrentCommandBuffer()->handle;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = vulkanContext.getCurrentQueueCompleteSemaphore();
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = vulkanContext.getCurrentImageAvailable();
+    constexpr VkPipelineStageFlags flags[1]{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.pWaitDstStageMask = flags;
+
+    VkResult result = vkQueueSubmit(vulkanContext.getDevice()->graphicsQueue, 1, &submitInfo, vulkanContext.getCurrentInFlightFence()->handle);
+
+    if (!VulkanUtils::vulkanCheck(result)) {
+        Logger::logError("vkQueueSubmit failed with result: " + VulkanUtils::getResultAsString(result, true));
+        return false;
+    }
+
+    updateSubmittedCommandBuffer(vulkanContext.getCurrentCommandBuffer());
+    presentSwapchain();
+
+    return true;
 }

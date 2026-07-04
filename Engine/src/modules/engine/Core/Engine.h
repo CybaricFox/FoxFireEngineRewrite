@@ -18,7 +18,7 @@ private:
     //Handles the OS
     Platform* platform;
     //Backend Renderer
-    RendererBackend* backend;
+    RendererBackend* backend = nullptr;
     //Holds config data
     GameInstance* gameInstance;
 
@@ -33,10 +33,10 @@ protected:
     //Handle Input
     IInputSystem* inputSystem;
 
-    void quit(EngineInputContext context);
+    void quit();
     virtual void startup();
     void run();
-    void resize(unsigned int width, unsigned int height);
+    void resize(unsigned short newWidth, unsigned short newHeight);
     bool update (float deltaTime);
     bool render(float deltaTime);
 

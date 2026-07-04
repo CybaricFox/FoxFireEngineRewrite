@@ -21,7 +21,6 @@ private:
     PlatformState* platformState;
     unsigned long frameNumber;
 
-    void resize(short width, short height);
 
 protected:
     RendererBackend() = default;
@@ -32,8 +31,9 @@ public:
     static RendererBackend* create(RendererBackendType type, PlatformState* newPlatformState, const GameInstance *gameInstance);
 
     virtual bool initialize(String appName, Platform* platform, unsigned int width, unsigned int height);
-    bool beginFrame(float deltaTime);
-    bool endFrame(float deltaTime);
+    virtual bool beginFrame(float deltaTime) = 0;
+    virtual bool endFrame(float deltaTime) = 0;
+    virtual void resize(unsigned short width, unsigned short height) = 0;
 
     void incrementFrameNumber() {frameNumber++;}
     void clearFrameNumber() {frameNumber = 0;}
