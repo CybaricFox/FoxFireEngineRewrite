@@ -17,7 +17,7 @@ public:
     static void printConsoleError(const char *message, unsigned char color);
     bool processMessages();
 
-    [[nodiscard]] double getAbsoluteTime() const;
+    static double getAbsoluteTime();
 
     void processInputs(IInputSystem& inputSystem);
 

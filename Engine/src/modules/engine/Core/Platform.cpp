@@ -52,7 +52,7 @@ Platform::Platform()
 
 #include "windows.h"
 #include "windowsx.h"
-#include "src/modules/engine/Renderer/VulkanBackend.h"
+#include "../Renderer/Vulkan/VulkanBackend.h"
 #include "vulkan/vulkan.h"
 #include "vulkan/vulkan_win32.h"
 
@@ -282,7 +282,7 @@ void Platform::printConsoleError(const char *message, const unsigned char color)
     cerr << message << endl;
 }
 
-double Platform::getAbsoluteTime() const {
+double Platform::getAbsoluteTime() {
     LARGE_INTEGER currentTime;
     QueryPerformanceCounter(&currentTime);
     return clockFrequency * static_cast<double>(currentTime.QuadPart);

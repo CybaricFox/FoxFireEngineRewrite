@@ -4,7 +4,7 @@
 
 #include "RendererBackend.h"
 
-#include "VulkanBackend.h"
+#include "Vulkan/VulkanBackend.h"
 #include "../Library/Logger.h"
 
 bool RendererBackend::initialize(String appName, Platform *platform, unsigned int width, unsigned int height) {

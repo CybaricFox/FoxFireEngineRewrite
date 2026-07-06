@@ -1,6 +1,6 @@
 set(SANDBOX_NAME FoxFire_Sandbox)
 
-file(GLOB SOURCES src/modules/*/*/*.cpp)
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/modules/*.cpp)
 add_executable(${SANDBOX_NAME} src/Entry.cpp ${SOURCES})
 
 add_library(FoxFire_Entry

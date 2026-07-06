@@ -5,7 +5,7 @@ find_package(Vulkan REQUIRED)
 
 include(GenerateExportHeader)
 
-file(GLOB SOURCES src/modules/*/*/*.cpp)
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/modules/*.cpp)
 add_library(${ENGINE_NAME} SHARED ${SOURCES})
 
 generate_export_header(${ENGINE_NAME}
