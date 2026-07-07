@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Library/Clock.h"
+#include "src/modules/engine/Memory/FF_Memory.h"
 #include "Platform.h"
 #include "GameInstance.h"
 #include "foxfire_export.h"
@@ -10,6 +11,10 @@
 
 class FOXFIRE_API Engine {
 private:
+    //Holds a pointer to the derived Game
+    Engine* engine = nullptr;
+    //Block of memory that holds system memory data.
+    MemoryBlock ff_memory;
     //Frontend Rendering
     Renderer renderer{};
     //Calculates system time
@@ -37,12 +42,14 @@ protected:
     virtual void startup();
     void run();
     void resize(unsigned short newWidth, unsigned short newHeight);
-    bool update (float deltaTime);
+    virtual bool update (float deltaTime);
     bool render(float deltaTime);
 
 public:
     Engine(GameInstance *instance, unsigned long stateSize);
     virtual ~Engine();
+
+    void setEngineRef(Engine* derivedEngine);
 
     void initialize(GameInstance& instance);
 

@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "FF_Memory.h"
+#include "foxfire_export.h"
 
 #if defined(USE_SIMD)
     #include <xmmintrin.h>
 #endif
 
-union Vector2f {
+union FOXFIRE_API Vector2f {
     float elements[2];
 
     struct {
@@ -28,50 +28,50 @@ union Vector2f {
         };
     };
 };
-inline Vector2f& operator+=(Vector2f& source,const Vector2f& other) {
+inline FOXFIRE_API Vector2f& operator+=(Vector2f& source,const Vector2f& other) {
     source.x += other.x;
     source.y += other.y;
     return source;
 }
-inline Vector2f operator+(Vector2f left, const Vector2f& right) {
+inline FOXFIRE_API Vector2f operator+(Vector2f left, const Vector2f& right) {
     left += right;
     return left;
 }
-inline Vector2f& operator-=(Vector2f& source,const Vector2f& other) {
+inline FOXFIRE_API Vector2f& operator-=(Vector2f& source,const Vector2f& other) {
     source.x -= other.x;
     source.y -= other.y;
     return source;
 }
-inline Vector2f operator-(Vector2f left, const Vector2f& right) {
+inline FOXFIRE_API Vector2f operator-(Vector2f left, const Vector2f& right) {
     left -= right;
     return left;
 }
-inline Vector2f& operator*=(Vector2f& source,const Vector2f& other) {
+inline FOXFIRE_API Vector2f& operator*=(Vector2f& source,const Vector2f& other) {
     source.x *= other.x;
     source.y *= other.y;
     return source;
 }
-inline Vector2f operator*(Vector2f left, const Vector2f& right) {
+inline FOXFIRE_API Vector2f operator*(Vector2f left, const Vector2f& right) {
     left *= right;
     return left;
 }
-inline Vector2f& operator/=(Vector2f& source,const Vector2f& other) {
+inline FOXFIRE_API Vector2f& operator/=(Vector2f& source,const Vector2f& other) {
     source.x /= other.x;
     source.y /= other.y;
     return source;
 }
-inline Vector2f operator/(Vector2f left, const Vector2f& right) {
+inline FOXFIRE_API Vector2f operator/(Vector2f left, const Vector2f& right) {
     left /= right;
     return left;
 }
-inline Vector2f zeroVector2f() {return Vector2f{0, 0};}
-inline Vector2f oneVector2f() {return Vector2f{1, 1};}
-inline Vector2f upVector2f() {return Vector2f{0, 1};}
-inline Vector2f downVector2f() {return Vector2f{0, -1};}
-inline Vector2f leftVector2f() {return Vector2f{-1, 0};}
-inline Vector2f rightVector2f() {return Vector2f{1, 0};}
+inline FOXFIRE_API Vector2f zeroVector2f() {return Vector2f{0, 0};}
+inline FOXFIRE_API Vector2f oneVector2f() {return Vector2f{1, 1};}
+inline FOXFIRE_API Vector2f upVector2f() {return Vector2f{0, 1};}
+inline FOXFIRE_API Vector2f downVector2f() {return Vector2f{0, -1};}
+inline FOXFIRE_API Vector2f leftVector2f() {return Vector2f{-1, 0};}
+inline FOXFIRE_API Vector2f rightVector2f() {return Vector2f{1, 0};}
 
-union Vector3f {
+union FOXFIRE_API Vector3f {
     float elements[3];
 
     struct {
@@ -95,66 +95,66 @@ union Vector3f {
         };
     };
 };
-inline Vector3f& operator+=(Vector3f& source,const Vector3f& other) {
+inline FOXFIRE_API Vector3f& operator+=(Vector3f& source,const Vector3f& other) {
     source.x += other.x;
     source.y += other.y;
     source.z += other.z;
     return source;
 }
-inline Vector3f operator+(Vector3f left, const Vector3f& right) {
+inline FOXFIRE_API Vector3f operator+(Vector3f left, const Vector3f& right) {
     left += right;
     return left;
 }
-inline Vector3f& operator-=(Vector3f& source,const Vector3f& other) {
+inline FOXFIRE_API Vector3f& operator-=(Vector3f& source,const Vector3f& other) {
     source.x -= other.x;
     source.y -= other.y;
     source.z -= other.z;
     return source;
 }
-inline Vector3f operator-(Vector3f left, const Vector3f& right) {
+inline FOXFIRE_API Vector3f operator-(Vector3f left, const Vector3f& right) {
     left -= right;
     return left;
 }
-inline Vector3f& operator*=(Vector3f& source,const Vector3f& other) {
+inline FOXFIRE_API Vector3f& operator*=(Vector3f& source,const Vector3f& other) {
     source.x *= other.x;
     source.y *= other.y;
     source.z *= other.z;
     return source;
 }
-inline Vector3f operator*(Vector3f left, const Vector3f& right) {
+inline FOXFIRE_API Vector3f operator*(Vector3f left, const Vector3f& right) {
     left *= right;
     return left;
 }
-inline Vector3f& operator*=(Vector3f& source,const float scalar) {
+inline FOXFIRE_API Vector3f& operator*=(Vector3f& source,const float scalar) {
     source.x *= scalar;
     source.y *= scalar;
     source.z *= scalar;
     return source;
 }
-inline Vector3f operator*(Vector3f left, const float scalar) {
+inline FOXFIRE_API Vector3f operator*(Vector3f left, const float scalar) {
     left *= scalar;
     return left;
 }
-inline Vector3f& operator/=(Vector3f& source,const Vector3f& other) {
+inline FOXFIRE_API Vector3f& operator/=(Vector3f& source,const Vector3f& other) {
     source.x /= other.x;
     source.y /= other.y;
     source.z /= other.z;
     return source;
 }
-inline Vector3f operator/(Vector3f left, const Vector3f& right) {
+inline FOXFIRE_API Vector3f operator/(Vector3f left, const Vector3f& right) {
     left /= right;
     return left;
 }
-inline Vector3f zeroVector3f() {return Vector3f{0, 0, 0};}
-inline Vector3f oneVector3f() {return Vector3f{1, 1, 1};}
-inline Vector3f upVector3f() {return Vector3f{0, 1, 0};}
-inline Vector3f downVector3f() {return Vector3f{0, -1, 0};}
-inline Vector3f leftVector3f() {return Vector3f{-1, 0, 0};}
-inline Vector3f rightVector3f() {return Vector3f{1, 0, 0};}
-inline Vector3f forwardVector3() {return Vector3f{0, 0, -1};}
-inline Vector3f backwardVector3() {return Vector3f{0, 0, 1};}
+inline FOXFIRE_API Vector3f zeroVector3f() {return Vector3f{0, 0, 0};}
+inline FOXFIRE_API Vector3f oneVector3f() {return Vector3f{1, 1, 1};}
+inline FOXFIRE_API Vector3f upVector3f() {return Vector3f{0, 1, 0};}
+inline FOXFIRE_API Vector3f downVector3f() {return Vector3f{0, -1, 0};}
+inline FOXFIRE_API Vector3f leftVector3f() {return Vector3f{-1, 0, 0};}
+inline FOXFIRE_API Vector3f rightVector3f() {return Vector3f{1, 0, 0};}
+inline FOXFIRE_API Vector3f forwardVector3() {return Vector3f{0, 0, -1};}
+inline FOXFIRE_API Vector3f backwardVector3() {return Vector3f{0, 0, 1};}
 
-union alignas(16) Vector4f {
+union FOXFIRE_API alignas(16) Vector4f {
 #if defined(USE_SIMD)
     __m128 data;
 #endif
@@ -184,7 +184,7 @@ union alignas(16) Vector4f {
         };
     };
 };
-inline Vector4f createVector4f(const float x, const float y, const float z, const float w) {
+inline FOXFIRE_API Vector4f createVector4f(const float x, const float y, const float z, const float w) {
     Vector4f out{};
 #if defined(USE_SIMD)
     out.data = _mm_setr_ps(x, y, z, w);
@@ -196,9 +196,9 @@ inline Vector4f createVector4f(const float x, const float y, const float z, cons
 #endif
     return out;
 }
-inline Vector4f zeroVector4f() {return Vector4f{0, 0, 0, 0};}
-inline Vector4f oneVector4f() {return Vector4f{1, 1, 1, 1};}
-inline Vector4f& operator+=(Vector4f& source,const Vector4f& other) {
+inline FOXFIRE_API Vector4f zeroVector4f() {return Vector4f{0, 0, 0, 0};}
+inline FOXFIRE_API Vector4f oneVector4f() {return Vector4f{1, 1, 1, 1};}
+inline FOXFIRE_API Vector4f& operator+=(Vector4f& source,const Vector4f& other) {
 #if defined(USE_SIMD)
     source.data = _mm_add_ps(source.data, other.data);
 #else
@@ -209,11 +209,11 @@ inline Vector4f& operator+=(Vector4f& source,const Vector4f& other) {
 #endif
     return source;
 }
-inline Vector4f operator+(Vector4f left, const Vector4f& right) {
+inline FOXFIRE_API Vector4f operator+(Vector4f left, const Vector4f& right) {
     left += right;
     return left;
 }
-inline Vector4f& operator-=(Vector4f& source,const Vector4f& other) {
+inline FOXFIRE_API Vector4f& operator-=(Vector4f& source,const Vector4f& other) {
 #if defined(USE_SIMD)
     source.data = _mm_sub_ps(source.data, other.data);
 #else
@@ -224,11 +224,11 @@ inline Vector4f& operator-=(Vector4f& source,const Vector4f& other) {
 #endif
     return source;
 }
-inline Vector4f operator-(Vector4f left, const Vector4f& right) {
+inline FOXFIRE_API Vector4f operator-(Vector4f left, const Vector4f& right) {
     left -= right;
     return left;
 }
-inline Vector4f& operator*=(Vector4f& source,const Vector4f& other) {
+inline FOXFIRE_API Vector4f& operator*=(Vector4f& source,const Vector4f& other) {
 #if defined(USE_SIMD)
     source.data = _mm_mul_ps(source.data, other.data);
 #else
@@ -239,11 +239,11 @@ inline Vector4f& operator*=(Vector4f& source,const Vector4f& other) {
 #endif
     return source;
 }
-inline Vector4f operator*(Vector4f left, const Vector4f& right) {
+inline FOXFIRE_API Vector4f operator*(Vector4f left, const Vector4f& right) {
     left *= right;
     return left;
 }
-inline Vector4f& operator*=(Vector4f& source,const float scalar) {
+inline FOXFIRE_API Vector4f& operator*=(Vector4f& source,const float scalar) {
 #if defined(USE_SIMD)
     source.data = _mm_mul_ps(source.data, _mm_set1_ps(scalar));
 #else
@@ -254,11 +254,11 @@ inline Vector4f& operator*=(Vector4f& source,const float scalar) {
 #endif
     return source;
 }
-inline Vector4f operator*(Vector4f left, const float scalar) {
+inline FOXFIRE_API Vector4f operator*(Vector4f left, const float scalar) {
     left *= scalar;
     return left;
 }
-inline Vector4f& operator/=(Vector4f& source,const Vector4f& other) {
+inline FOXFIRE_API Vector4f& operator/=(Vector4f& source,const Vector4f& other) {
 #if defined(USE_SIMD)
     source.data = _mm_div_ps(source.data, other.data);
 #else
@@ -269,13 +269,13 @@ inline Vector4f& operator/=(Vector4f& source,const Vector4f& other) {
 #endif
     return source;
 }
-inline Vector4f operator/(Vector4f left, const Vector4f& right) {
+inline FOXFIRE_API Vector4f operator/(Vector4f left, const Vector4f& right) {
     left /= right;
     return left;
 }
 
 typedef Vector4f Quat;
-inline Quat multiplyQuat(const Quat a, const Quat b) {
+inline FOXFIRE_API Quat multiplyQuat(const Quat a, const Quat b) {
     Quat out;
 
     out.x = a.x * b.w + a.y * b.z - a.z * b.y + a.w * b.x;
@@ -286,11 +286,11 @@ inline Quat multiplyQuat(const Quat a, const Quat b) {
     return out;
 }
 
-inline Quat quatIdentity() {
+inline FOXFIRE_API Quat quatIdentity() {
     return Quat{0, 0, 0, 1};
 }
 
-union alignas(16) Mat4 {
+union FOXFIRE_API alignas(16) Mat4 {
     float data[16];
 #if defined(USE_SIMD)
     Vector4f rows[4];
@@ -304,7 +304,7 @@ inline Mat4 matrixIdentity() {
     out.data[15] = 1;
     return out;
 }
-inline Mat4 operator*(const Mat4& left, const Mat4& right) {
+inline FOXFIRE_API Mat4 operator*(const Mat4& left, const Mat4& right) {
     Mat4 out{};
 
 #if defined(USE_SIMD)
@@ -337,21 +337,21 @@ inline Mat4 operator*(const Mat4& left, const Mat4& right) {
     return out;
 }
 
-inline constexpr float FF_PI = 3.14159265358979323846f;
-inline constexpr float FF_INFINITY = 1e30f;
-inline constexpr float FF_EPSILON = 1.192092869e-07f;
-inline constexpr float FF_DEGREE_TO_RADIAN_MULTIPLIER = FF_PI / 180.0f;
-inline constexpr float FF_RADIAN_TO_DEGREE_MULTIPLIER = 180.0f / FF_PI;
+inline FOXFIRE_API constexpr float FF_PI = 3.14159265358979323846f;
+inline FOXFIRE_API constexpr float FF_INFINITY = 1e30f;
+inline FOXFIRE_API constexpr float FF_EPSILON = 1.192092869e-07f;
+inline FOXFIRE_API constexpr float FF_DEGREE_TO_RADIAN_MULTIPLIER = FF_PI / 180.0f;
+inline FOXFIRE_API constexpr float FF_RADIAN_TO_DEGREE_MULTIPLIER = 180.0f / FF_PI;
 
-inline bool isPowerOfTwo(const unsigned long value) {return value != 0 && ((value & (value - 1)) == 0);}
+inline FOXFIRE_API bool isPowerOfTwo(const unsigned long value) {return value != 0 && ((value & (value - 1)) == 0);}
 //Returns the squared length of the vector
 //This should be used to compare lengths because sqrt is expensive.
 //Do the other getter if you need the real length
-inline float getLengthSquared(const Vector2f& vector) {return vector.x * vector.x + vector.y * vector.y;}
-inline float getLengthSquared(const Vector3f& vector) {return vector.x * vector.x + vector.y * vector.y + vector.z * vector.z;}
-inline float getLengthSquared(const Vector4f& vector) {return vector.x * vector.x + vector.y * vector.y + vector.z * vector.z + vector.w * vector.w;}
-inline Vector3f toVector3f(const Vector4f& vector4) {return Vector3f{vector4.x, vector4.y, vector4.z};}
-inline Vector4f toVector4f(const Vector3f& vector3, const float w) {
+inline FOXFIRE_API float getLengthSquared(const Vector2f& vector) {return vector.x * vector.x + vector.y * vector.y;}
+inline FOXFIRE_API float getLengthSquared(const Vector3f& vector) {return vector.x * vector.x + vector.y * vector.y + vector.z * vector.z;}
+inline FOXFIRE_API float getLengthSquared(const Vector4f& vector) {return vector.x * vector.x + vector.y * vector.y + vector.z * vector.z + vector.w * vector.w;}
+inline FOXFIRE_API Vector3f toVector3f(const Vector4f& vector4) {return Vector3f{vector4.x, vector4.y, vector4.z};}
+inline FOXFIRE_API Vector4f toVector4f(const Vector3f& vector3, const float w) {
 #if defined(USE_SIMD)
     return Vector4f{_mm_setr_ps(vector3.x, vector3.y, vector3.z, w)};
 #else
@@ -359,7 +359,7 @@ inline Vector4f toVector4f(const Vector3f& vector3, const float w) {
 #endif
 }
 
-class FF_Math {
+class FOXFIRE_API FF_Math {
 private:
     static bool bIsSeeded;
 
@@ -380,23 +380,23 @@ public:
 
 //Returns the real length of a vector
 //EXPENSIVE
-inline float getVectorLength(const Vector2f& vector) {return FF_Math::sqrt(getLengthSquared(vector));}
-inline float getVectorLength(const Vector3f& vector) {return FF_Math::sqrt(getLengthSquared(vector));}
-inline float getVectorLength(const Vector4f& vector) {return FF_Math::sqrt(getLengthSquared(vector));}
+inline FOXFIRE_API float getVectorLength(const Vector2f& vector) {return FF_Math::sqrt(getLengthSquared(vector));}
+inline FOXFIRE_API float getVectorLength(const Vector3f& vector) {return FF_Math::sqrt(getLengthSquared(vector));}
+inline FOXFIRE_API float getVectorLength(const Vector4f& vector) {return FF_Math::sqrt(getLengthSquared(vector));}
 
-inline float getVectorDistance(const Vector2f a, const Vector2f b) {return getVectorLength(a - b);}
-inline float getVectorDistance(const Vector3f a, const Vector3f b) {return getVectorLength(a - b);}
-inline float getVectorDotProduct(const Vector3f a, const Vector3f b) {
+inline FOXFIRE_API float getVectorDistance(const Vector2f a, const Vector2f b) {return getVectorLength(a - b);}
+inline FOXFIRE_API float getVectorDistance(const Vector3f a, const Vector3f b) {return getVectorLength(a - b);}
+inline FOXFIRE_API float getVectorDotProduct(const Vector3f a, const Vector3f b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
-inline Vector3f getVectorCrossProduct(const Vector3f a, const Vector3f b) {
+inline FOXFIRE_API Vector3f getVectorCrossProduct(const Vector3f a, const Vector3f b) {
     return Vector3f{
         a.y * b.z - a.z * b.y,
         a.z * b.x - a.x * b.z,
         a.x * b.y - a.y * b.x
     };
 }
-inline float getVectorDotProduct(Vector4f a, const Vector4f b) {
+inline FOXFIRE_API float getVectorDotProduct(Vector4f a, const Vector4f b) {
 #if defined(USE_SIMD)
     __m128 mul = _mm_mul_ps(a.data, b.data);
 
@@ -411,7 +411,7 @@ inline float getVectorDotProduct(Vector4f a, const Vector4f b) {
 #endif
 }
 
-inline void normalize(Vector2f* vector) {
+inline FOXFIRE_API void normalize(Vector2f* vector) {
     const float lengthSq = getLengthSquared(*vector);
     if (lengthSq <= FF_EPSILON) {
         *vector = zeroVector2f();
@@ -421,10 +421,10 @@ inline void normalize(Vector2f* vector) {
     vector->x *= length;
     vector->y *= length;
 }
-inline void normalize(Vector2f& vector) {
+inline FOXFIRE_API void normalize(Vector2f& vector) {
     normalize(&vector);
 }
-inline void normalize(Vector3f* vector) {
+inline FOXFIRE_API void normalize(Vector3f* vector) {
     const float lengthSq = getLengthSquared(*vector);
     if (lengthSq <= FF_EPSILON) {
         *vector = zeroVector3f();
@@ -435,10 +435,10 @@ inline void normalize(Vector3f* vector) {
     vector->y *= length;
     vector->z *= length;
 }
-inline void normalize(Vector3f& vector) {
+inline FOXFIRE_API void normalize(Vector3f& vector) {
     normalize(&vector);
 }
-inline void normalize(Vector4f* vector) {
+inline FOXFIRE_API void normalize(Vector4f* vector) {
     const float lengthSq = getLengthSquared(*vector);
     if (lengthSq <= FF_EPSILON) {
         *vector = zeroVector4f();
@@ -450,11 +450,11 @@ inline void normalize(Vector4f* vector) {
     vector->z *= length;
     vector->w *= length;
 }
-inline void normalize(Vector4f& vector) {
+inline FOXFIRE_API void normalize(Vector4f& vector) {
     normalize(&vector);
 }
 
-inline bool compareVectors(Vector2f a, const Vector2f b, const float tolerance) {
+inline FOXFIRE_API bool compareVectors(Vector2f a, const Vector2f b, const float tolerance) {
     a -= b;
     if (FF_Math::abs(a.x) > tolerance) {
         return false;
@@ -464,7 +464,7 @@ inline bool compareVectors(Vector2f a, const Vector2f b, const float tolerance) 
     }
     return true;
 }
-inline bool compareVectors(Vector3f a, const Vector3f b, const float tolerance) {
+inline FOXFIRE_API bool compareVectors(Vector3f a, const Vector3f b, const float tolerance) {
     a -= b;
     if (FF_Math::abs(a.x) > tolerance) {
         return false;
@@ -478,7 +478,7 @@ inline bool compareVectors(Vector3f a, const Vector3f b, const float tolerance) 
     return true;
 }
 
-inline Mat4 orthographic(const float left, const float right, const float bottom, const float top, const float near, const float far) {
+inline FOXFIRE_API Mat4 orthographic(const float left, const float right, const float bottom, const float top, const float near, const float far) {
     Mat4 out{};
     const float lr = 1.0f / (left - right);
     const float bt = 1.0f / (bottom - top);
@@ -493,7 +493,7 @@ inline Mat4 orthographic(const float left, const float right, const float bottom
     out.data[15] = 1.0f;
     return out;
 }
-inline Mat4 perspective(const float fovRadians, const float aspectRatio, const float near, const float far) {
+inline FOXFIRE_API Mat4 perspective(const float fovRadians, const float aspectRatio, const float near, const float far) {
     const float halfTanFov = FF_Math::tan(fovRadians * 0.5f);
     Mat4 out{};
     out.data[0] = 1.0f / (aspectRatio * halfTanFov);
@@ -505,7 +505,7 @@ inline Mat4 perspective(const float fovRadians, const float aspectRatio, const f
 }
 
 //Creates a view matrix looking from pos towards target
-inline Mat4 lookAt(Vector3f pos, Vector3f target, Vector3f up) {
+inline FOXFIRE_API Mat4 lookAt(Vector3f pos, Vector3f target, Vector3f up) {
     Mat4 out{};
     Vector3f zAxis = target - pos;
     normalize(zAxis);
@@ -537,7 +537,7 @@ inline Mat4 lookAt(Vector3f pos, Vector3f target, Vector3f up) {
     out.data[15] = 1.0f;
     return out;
 }
-inline Mat4 invertMatrix(const Mat4 &matrix) {
+inline FOXFIRE_API Mat4 invertMatrix(const Mat4 &matrix) {
     const float* m = matrix.data;
 
     const float t0 = m[10] * m[15];
@@ -601,7 +601,7 @@ inline Mat4 invertMatrix(const Mat4 &matrix) {
     return out;
 }
 //Represents a position change (ie translation).
-inline Mat4 createTranslationMatrix(const Vector3f& pos) {
+inline FOXFIRE_API Mat4 createTranslationMatrix(const Vector3f& pos) {
     Mat4 out = matrixIdentity();
     out.data[12] = pos.x;
     out.data[13] = pos.y;
@@ -609,7 +609,7 @@ inline Mat4 createTranslationMatrix(const Vector3f& pos) {
     return out;
 }
 //Represents a scale change.
-inline Mat4 createScaleMatrix(const Vector3f& scale) {
+inline FOXFIRE_API Mat4 createScaleMatrix(const Vector3f& scale) {
     Mat4 out = matrixIdentity();
     out.data[0] = scale.x;
     out.data[5] = scale.y;
@@ -617,7 +617,7 @@ inline Mat4 createScaleMatrix(const Vector3f& scale) {
     return out;
 }
 
-inline Mat4 createEulerXMatrix(const float radians) {
+inline FOXFIRE_API Mat4 createEulerXMatrix(const float radians) {
     Mat4 out = matrixIdentity();
     const float c = FF_Math::cos(radians);
     const float s = FF_Math::sin(radians);
@@ -628,7 +628,7 @@ inline Mat4 createEulerXMatrix(const float radians) {
     out.data[10] = c;
     return out;
 }
-inline Mat4 createEulerYMatrix(const float radians) {
+inline FOXFIRE_API Mat4 createEulerYMatrix(const float radians) {
     Mat4 out = matrixIdentity();
     const float c = FF_Math::cos(radians);
     const float s = FF_Math::sin(radians);
@@ -639,7 +639,7 @@ inline Mat4 createEulerYMatrix(const float radians) {
     out.data[10] = c;
     return out;
 }
-inline Mat4 createEulerZMatrix(const float radians) {
+inline FOXFIRE_API Mat4 createEulerZMatrix(const float radians) {
     Mat4 out = matrixIdentity();
     const float c = FF_Math::cos(radians);
     const float s = FF_Math::sin(radians);
@@ -650,7 +650,7 @@ inline Mat4 createEulerZMatrix(const float radians) {
     out.data[5] = c;
     return out;
 }
-inline Mat4 createEuler(const float x, const float y, const float z) {
+inline FOXFIRE_API Mat4 createEuler(const float x, const float y, const float z) {
     const Mat4 rx = createEulerXMatrix(x);
     const Mat4 ry = createEulerYMatrix(y);
     const Mat4 rz = createEulerZMatrix(z);
@@ -658,7 +658,7 @@ inline Mat4 createEuler(const float x, const float y, const float z) {
     return out;
 }
 
-inline Mat4 transposeMatrix(const Mat4 &matrix) {
+inline FOXFIRE_API Mat4 transposeMatrix(const Mat4 &matrix) {
     Mat4 out{};
     out.data[0] = matrix.data[0];
     out.data[1] = matrix.data[4];
@@ -679,7 +679,7 @@ inline Mat4 transposeMatrix(const Mat4 &matrix) {
     return out;
 }
 
-inline Vector3f getBackwardDirection(const Mat4 &matrix) {
+inline FOXFIRE_API Vector3f getBackwardDirection(const Mat4 &matrix) {
     Vector3f forward{};
     forward.x = matrix.data[2];
     forward.y = matrix.data[6];
@@ -687,10 +687,10 @@ inline Vector3f getBackwardDirection(const Mat4 &matrix) {
     normalize(forward);
     return forward;
 }
-inline Vector3f getForwardDirection(const Mat4 &matrix) {
+inline FOXFIRE_API Vector3f getForwardDirection(const Mat4 &matrix) {
     return getBackwardDirection(matrix) * -1.0f;
 }
-inline Vector3f getUpDirection(const Mat4 &matrix) {
+inline FOXFIRE_API Vector3f getUpDirection(const Mat4 &matrix) {
     Vector3f up{};
     up.x = matrix.data[1];
     up.y = matrix.data[5];
@@ -698,10 +698,10 @@ inline Vector3f getUpDirection(const Mat4 &matrix) {
     normalize(up);
     return up;
 }
-inline Vector3f getDownDirection(const Mat4 &matrix) {
+inline FOXFIRE_API Vector3f getDownDirection(const Mat4 &matrix) {
     return getUpDirection(matrix) * -1.0f;
 }
-inline Vector3f getRightDirection(const Mat4 &matrix) {
+inline FOXFIRE_API Vector3f getRightDirection(const Mat4 &matrix) {
     Vector3f right{};
     right.x = matrix.data[0];
     right.y = matrix.data[4];
@@ -709,27 +709,27 @@ inline Vector3f getRightDirection(const Mat4 &matrix) {
     normalize(right);
     return right;
 }
-inline Vector3f getLeftDirection(const Mat4 &matrix) {
+inline FOXFIRE_API Vector3f getLeftDirection(const Mat4 &matrix) {
     return getRightDirection(matrix) * -1.0f;
 }
 
-inline float getQuatNormal(const Quat q) {
+inline FOXFIRE_API float getQuatNormal(const Quat q) {
     return FF_Math::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
 }
-inline Quat normalizeQuat(const Quat q) {
+inline FOXFIRE_API Quat normalizeQuat(const Quat q) {
     const float normal = getQuatNormal(q);
     return Quat{q.x / normal, q.y / normal, q.z / normal, q.w / normal};
 }
-inline Quat getQuatConjugate(const Quat q) {
+inline FOXFIRE_API Quat getQuatConjugate(const Quat q) {
     return Quat{-q.x, -q.y, -q.z, q.w};
 }
-inline Quat getQuatInverse(const Quat q) {
+inline FOXFIRE_API Quat getQuatInverse(const Quat q) {
     return normalizeQuat(getQuatConjugate(q));
 }
-inline float getQuatDotProduct(const Quat a, const Quat b) {
+inline FOXFIRE_API float getQuatDotProduct(const Quat a, const Quat b) {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 }
-inline Mat4 convertQuatToMatrix(const Quat q) {
+inline FOXFIRE_API Mat4 convertQuatToMatrix(const Quat q) {
     Mat4 out = matrixIdentity();
 
     // https://stackoverflow.com/questions/1556260/convert-quaternion-rotation-to-rotation-matrix
@@ -750,7 +750,7 @@ inline Mat4 convertQuatToMatrix(const Quat q) {
 
     return out;
 }
-inline Mat4 convertQuatToRotationMatrix(const Quat q, const Vector3f center) {
+inline FOXFIRE_API Mat4 convertQuatToRotationMatrix(const Quat q, const Vector3f center) {
     Mat4 out{};
 
     float* o = out.data;
@@ -776,7 +776,7 @@ inline Mat4 convertQuatToRotationMatrix(const Quat q, const Vector3f center) {
 
     return out;
 }
-inline Quat getQuatFromAxisAngle(const Vector3f axis, const float angle, const bool shouldNormalize) {
+inline FOXFIRE_API Quat getQuatFromAxisAngle(const Vector3f axis, const float angle, const bool shouldNormalize) {
     const float halfAngle = 0.5f * angle;
     const float s = FF_Math::sin(halfAngle);
     const float c = FF_Math::cos(halfAngle);
@@ -786,7 +786,7 @@ inline Quat getQuatFromAxisAngle(const Vector3f axis, const float angle, const b
     }
     return q;
 }
-inline Quat slerpQuat(Quat a, Quat b, float percentage) {
+inline FOXFIRE_API Quat slerpQuat(Quat a, Quat b, float percentage) {
     // Source: https://en.wikipedia.org/wiki/Slerp
     // Only unit quaternions are valid rotations.
     // Normalize to avoid undefined behavior.
@@ -834,9 +834,9 @@ inline Quat slerpQuat(Quat a, Quat b, float percentage) {
         (normalA.z * s0) + (normalB.z * s1),
         (normalA.w * s0) + (normalB.w * s1)};
 }
-inline float degreesToRadians(const float degrees) {
+inline FOXFIRE_API float degreesToRadians(const float degrees) {
     return degrees * FF_DEGREE_TO_RADIAN_MULTIPLIER;
 }
-inline float RadiansToDegrees(const float radians) {
+inline FOXFIRE_API float RadiansToDegrees(const float radians) {
     return radians * FF_RADIAN_TO_DEGREE_MULTIPLIER;
 }

@@ -4,7 +4,7 @@
 
 #include "VulkanContext.h"
 
-#include "src/modules/engine/Library/FF_Memory.h"
+#include "../../Memory/FF_Memory.h"
 #include "src/modules/engine/Library/Logger.h"
 
 int VulkanContext::findMemoryIndex(const int typeFilter, const unsigned int propertyFlags) const {

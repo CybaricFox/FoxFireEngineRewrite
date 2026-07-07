@@ -11,10 +11,9 @@ public:
     Game(GameInstance* instance, unsigned long size);
     ~Game() override;
 
-    void initialize(GameInstance* instance);
-
 protected:
     void startup() override;
+    bool update(float deltaTime) override;
 };
 
 

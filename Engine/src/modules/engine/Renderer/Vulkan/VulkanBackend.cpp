@@ -43,8 +43,8 @@ bool VulkanBackend::createDevice() {
     }
 
     Logger::logInfo("Creating logical device.");
-    bool presentSharesGraphicsQueue = vulkanContext.getDevice()->graphicsQueueIndex == vulkanContext.getDevice()->presentQueueIndex;
-    bool transferSharesGraphicsQueue = vulkanContext.getDevice()->graphicsQueueIndex == vulkanContext.getDevice()->transferQueueIndex;
+    const bool presentSharesGraphicsQueue = vulkanContext.getDevice()->graphicsQueueIndex == vulkanContext.getDevice()->presentQueueIndex;
+    const bool transferSharesGraphicsQueue = vulkanContext.getDevice()->graphicsQueueIndex == vulkanContext.getDevice()->transferQueueIndex;
     unsigned int indexCount = 1;
 
     if (!presentSharesGraphicsQueue) {
@@ -53,7 +53,7 @@ bool VulkanBackend::createDevice() {
     if (!transferSharesGraphicsQueue) {
         indexCount++;
     }
-    unsigned int indices[indexCount];
+    unsigned int indices[32];
     unsigned char index = 0;
     indices[index++] = vulkanContext.getDevice()->graphicsQueueIndex;
     if (!presentSharesGraphicsQueue) {
@@ -63,7 +63,7 @@ bool VulkanBackend::createDevice() {
         indices[index++] = vulkanContext.getDevice()->transferQueueIndex;
     }
 
-    VkDeviceQueueCreateInfo queueCreateInfos[indexCount];
+    VkDeviceQueueCreateInfo queueCreateInfos[32];
     for (unsigned int i = 0; i < indexCount; i++) {
         queueCreateInfos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfos[i].queueFamilyIndex = indices[i];
@@ -114,7 +114,6 @@ bool VulkanBackend::createSurface(Platform* platform) {
 
 bool VulkanBackend::createSwapchain() {
     VkExtent2D swapchainExtent{vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight()};
-    vulkanContext.getSwapchain()->maxFramesInFlight = 2;
 
     bool found = false;
     for (unsigned int i = 0; i < vulkanContext.getDevice()->swapChainSupportInfo.formatCount; i++) {
@@ -158,6 +157,8 @@ bool VulkanBackend::createSwapchain() {
     if (vulkanContext.getDevice()->swapChainSupportInfo.capabilities.maxImageCount > 0 && imageCount > vulkanContext.getDevice()->swapChainSupportInfo.capabilities.maxImageCount) {
         imageCount = vulkanContext.getDevice()->swapChainSupportInfo.capabilities.maxImageCount;
     }
+
+    vulkanContext.getSwapchain()->maxFramesInFlight = imageCount - 1;
 
     VkSwapchainCreateInfoKHR swapChainCreateInfo{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     swapChainCreateInfo.surface = *vulkanContext.getSurface();
@@ -237,6 +238,8 @@ bool VulkanBackend::createSwapchain() {
     return true;
 }
 
+//THIS FUNCTION IS CREATING ALLOCATIONS AND NOT FREEING THEM ON RESIZE!!!
+//IF MEMORY LEAKS BECOME A PROBLEM, FIX THIS!!!
 bool VulkanBackend::recreateSwapchain() {
     if (vulkanContext.isRecreatingSwapchain()) {
         Logger::logDebug("Recreate swapchain was called while already recreating.");
@@ -299,7 +302,7 @@ bool VulkanBackend::selectPhysicalDevice() {
         return false;
     }
 
-    VkPhysicalDevice devices[deviceCount];
+    VkPhysicalDevice devices[32];
     VulkanUtils::vulkanCheck(vkEnumeratePhysicalDevices(*vulkanContext.getInstance(), &deviceCount, devices));
 
     for (VkPhysicalDevice device : devices) {
@@ -683,7 +686,7 @@ bool VulkanBackend::physicalDeviceMeetsRequirements(VkPhysicalDevice physicalDev
 
     unsigned int familyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &familyCount, nullptr);
-    VkQueueFamilyProperties queueFamilyProperties[familyCount];
+    VkQueueFamilyProperties queueFamilyProperties[32];
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &familyCount, queueFamilyProperties);
 
     std::ostringstream oss1;
@@ -921,7 +924,7 @@ void VulkanBackend::createRenderpass(float x, float y, float w, float h, float r
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-    unsigned int attachmentCount = 2;
+    constexpr unsigned int attachmentCount = 2;
     VkAttachmentDescription attachments[attachmentCount];
 
     //Color attachment

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "EngineEvents.h"
-#include "../Library/FF_Memory.h"
+#include "../Memory/FF_Memory.h"
 #include "foxfire_export.h"
 
 enum Buttons{
@@ -32,17 +32,13 @@ private:
     bool bIsInitialized = false;
 
 protected:
-    bool isKeyDown(Keys key);
-    bool isKeyUp(Keys key);
-    bool wasKeyDown(Keys key);
-    bool wasKeyUp(Keys key);
-    bool isButtonDown(Buttons button);
-    bool isButtonUp(Buttons button);
-    bool wasButtonDown(Buttons button);
-    bool wasButtonUp(Buttons button);
+    bool isButtonDown(Buttons button) const;
+    bool isButtonUp(Buttons button) const;
+    bool wasButtonDown(Buttons button) const;
+    bool wasButtonUp(Buttons button) const;
 
-    void getMousePosition(int *x, int *y);
-    void getPreviousMousePosition(int *x, int *y);
+    void getMousePosition(int *x, int *y) const;
+    void getPreviousMousePosition(int *x, int *y) const;
 
 public:
     ~IInputSystem();
@@ -54,6 +50,11 @@ public:
     void processButton(Buttons button, bool bIsPressed);
     void processMouseMove(short x, short y);
     void processMouseScroll(char z);
+
+    bool isKeyDown(Keys key) const;
+    bool isKeyUp(Keys key) const;
+    bool wasKeyDown(Keys key) const;
+    bool wasKeyUp(Keys key) const;
 
     void subscribeToEngineEvent(EngineEventCode code, const std::function<void(EngineInputContext)> &function, const String &id, Keys key = MAX_KEYS);
 };

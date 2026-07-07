@@ -7,9 +7,9 @@
 #include <cstring>
 #include <iomanip>
 
-#include "Logger.h"
+#include "../Library/Logger.h"
 
-FF_Memory::MemoryBlock FF_Memory::memoryData{};
+MemoryBlock* FF_Memory::memoryData;
 
 String FF_Memory::getStringFromTag(const unsigned long tag) {
     switch (tag) {
@@ -17,6 +17,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 1: return "GAME";
         case 2: return "RENDER";
         case 3: return "ARRAY";
+        case 4: return "LINEAR ALLOCATOR";
         default: return " ";
     }
 }
@@ -26,21 +27,21 @@ void FF_Memory::ff_free(void *block, const unsigned long size, const MemoryTag t
         Logger::logWarn("Free called with Unknown tag. Add a tag for this allocation!");
     }
 
-    if (memoryData.taggedAllocations[tag] < size) {
+    if (memoryData->taggedAllocations[tag] < size) {
         Logger::logError(
             "Memory underflow detected for tag " +
             std::string(getStringFromTag(tag)) +
-            ". Current: " + std::to_string(memoryData.taggedAllocations[tag]) +
+            ". Current: " + std::to_string(memoryData->taggedAllocations[tag]) +
             ", freeing: " + std::to_string(size)
         );
-        memoryData.totalAllocated -= memoryData.taggedAllocations[tag];
-        memoryData.taggedAllocations[tag] = 0;
+        memoryData->totalAllocated -= memoryData->taggedAllocations[tag];
+        memoryData->taggedAllocations[tag] = 0;
         free(block);
         return;
     }
 
-    memoryData.totalAllocated -= size;
-    memoryData.taggedAllocations[tag] -= size;
+    memoryData->totalAllocated -= size;
+    memoryData->taggedAllocations[tag] -= size;
     free(block);
 }
 
@@ -69,31 +70,50 @@ String FF_Memory::getMemoryUsage() {
     for (unsigned int i = 0; i < MAX_TAGS; i++) {
         char unit[3] = "XB";
         float amount = 0.0f;
-        if (memoryData.taggedAllocations[i] > gb) {
+        if (memoryData->taggedAllocations[i] > gb) {
             unit[0] = 'G';
-            amount = static_cast<float>(memoryData.taggedAllocations[i]) / static_cast<float>(gb);
-        } else if (memoryData.taggedAllocations[i] > mb) {
+            amount = static_cast<float>(memoryData->taggedAllocations[i]) / static_cast<float>(gb);
+        } else if (memoryData->taggedAllocations[i] > mb) {
             unit[0] = 'M';
-            amount = static_cast<float>(memoryData.taggedAllocations[i]) / mb;
-        } else if (memoryData.taggedAllocations[i] > kb) {
+            amount = static_cast<float>(memoryData->taggedAllocations[i]) / mb;
+        } else if (memoryData->taggedAllocations[i] > kb) {
             unit[0] = 'K';
-            amount = static_cast<float>(memoryData.taggedAllocations[i]) / kb;
+            amount = static_cast<float>(memoryData->taggedAllocations[i]) / kb;
         } else {
             unit[0] = 'B';
             unit[1] = 0;
-            amount = static_cast<float>(memoryData.taggedAllocations[i]);
+            amount = static_cast<float>(memoryData->taggedAllocations[i]);
         }
 
         std::ostringstream oss;
-        oss << getStringFromTag(i) << ": "<< std::fixed << std::setprecision(2) << amount << unit<< "\n";
+        oss << getStringFromTag(i) << ": "<< std::fixed << std::setprecision(2) << amount << unit << "\n";
         outString.append(oss.str());
     }
 
     return outString;
 }
 
-void FF_Memory::initialize() {
-    ff_clear(&memoryData, sizeof(memoryData));
+void FF_Memory::initialize(unsigned int *memoryReq, void *block) {
+    *memoryReq = sizeof(MemoryBlock);
+
+    if (block == nullptr) {
+        return;
+    }
+
+    memoryData = static_cast<MemoryBlock*>(block);
+    ff_clear(memoryData, sizeof(MemoryBlock));
+}
+
+void FF_Memory::shutdown() {
+    memoryData = nullptr;
+}
+
+unsigned long FF_Memory::getAllocationCount() {
+    if (memoryData) {
+        return memoryData->allocationCount;
+    }
+
+    return 0;
 }
 
 void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag) {
@@ -101,8 +121,11 @@ void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag) {
         Logger::logWarn("Allocate called with Unknown tag. Add a tag for this allocation!");
     }
 
-    memoryData.totalAllocated += size;
-    memoryData.taggedAllocations[tag] += size;
+    if (memoryData) {
+        memoryData->totalAllocated += size;
+        memoryData->taggedAllocations[tag] += size;
+        memoryData->allocationCount++;
+    }
 
     void* block = malloc(size);
     ff_clear(block, size);

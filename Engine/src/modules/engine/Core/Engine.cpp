@@ -65,11 +65,11 @@ void Engine::run() {
             clock.update(*platform);
             const double currentTime = clock.getElapsedTime();
             const double deltaTime = (currentTime - lastTime);
-            const double frameStartTime = platform->getAbsoluteTime();
+            const double frameStartTime = Platform::getAbsoluteTime();
 
             //Logger::logInfo(std::to_string(deltaTime));
 
-            if (!update(static_cast<float>(deltaTime))) {
+            if (!engine->update(static_cast<float>(deltaTime))) {
                 Logger::logFatal("Game update tick failed!");
             }
 
@@ -100,8 +100,9 @@ void Engine::run() {
             }
 
             //Handle input at the end
-            platform->processInputs(*inputSystem);
+            //Must be update -> processInputs or key state wont be tracked correctly
             inputSystem->update(deltaTime);
+            platform->processInputs(*inputSystem);
 
             //Update last time
             lastTime = currentTime;
@@ -161,6 +162,8 @@ void Engine::initialize(GameInstance &instance) {
         Logger::logError("Initialize was already called!");
         return;
     }
+    unsigned int temp = 0;
+    FF_Memory::initialize(&temp, &ff_memory);
 
     Logger::initializeFile();
 
@@ -186,5 +189,11 @@ Engine::~Engine() {
     delete platform;
     delete inputSystem;
 
-    Logger::logInfo(FF_Memory::getMemoryUsage());
+    FF_Memory::shutdown();
+}
+
+void Engine::setEngineRef(Engine* derivedEngine) {
+    if (engine != nullptr) return;
+
+    engine = derivedEngine;
 }

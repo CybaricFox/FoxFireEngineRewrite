@@ -1,6 +1,7 @@
 #pragma once
 
-#include "foxfire_export.h"
+#include <foxfire_export.h>
+
 #include "src/defines.h"
 
 enum MemoryTag {
@@ -8,17 +9,19 @@ enum MemoryTag {
     GAME,
     RENDER,
     ARRAY,
+    LINEAR_ALLOCATOR,
     MAX_TAGS
+};
+
+struct MemoryBlock {
+    unsigned long totalAllocated;
+    unsigned long taggedAllocations[MAX_TAGS];
+    unsigned long allocationCount;
 };
 
 class FF_Memory {
 private:
-    struct MemoryBlock {
-        unsigned long totalAllocated;
-        unsigned long taggedAllocations[MAX_TAGS];
-    };
-
-    static MemoryBlock memoryData;
+    static MemoryBlock* memoryData;
 
     static String getStringFromTag(unsigned long tag);
 
@@ -28,6 +31,8 @@ public:
     static void* ff_clear(void* block, unsigned long size);
     static void* ff_copy(void* destination, const void* source, unsigned long size);
     static void* ff_set(void* destination, int value, unsigned long size);
-    static String getMemoryUsage();
-    static void initialize();
+    static FOXFIRE_API String getMemoryUsage();
+    static void initialize(unsigned int* memoryReq, void* block);
+    static void shutdown();
+    static FOXFIRE_API unsigned long getAllocationCount();
 };

@@ -6,47 +6,47 @@
 
 #include "../Library/Logger.h"
 
-bool IInputSystem::isKeyDown(const Keys key) {
+bool IInputSystem::isKeyDown(const Keys key) const {
     if (!bIsInitialized) return false;
     return keyboardState[key] == true;
 }
 
-bool IInputSystem::isKeyUp(const Keys key) {
+bool IInputSystem::isKeyUp(const Keys key) const {
     if (!bIsInitialized) return false;
     return keyboardState[key] == false;
 }
 
-bool IInputSystem::wasKeyDown(const Keys key) {
+bool IInputSystem::wasKeyDown(const Keys key) const {
     if (!bIsInitialized) return false;
     return previousKeyboardState[key] == true;
 }
 
-bool IInputSystem::wasKeyUp(const Keys key) {
+bool IInputSystem::wasKeyUp(const Keys key) const {
     if (!bIsInitialized) return false;
     return previousKeyboardState[key] == false;
 }
 
-bool IInputSystem::isButtonDown(const Buttons button) {
+bool IInputSystem::isButtonDown(const Buttons button) const {
     if (!bIsInitialized) return false;
     return mouseButtons[button] == true;
 }
 
-bool IInputSystem::isButtonUp(const Buttons button) {
+bool IInputSystem::isButtonUp(const Buttons button) const {
     if (!bIsInitialized) return false;
     return mouseButtons[button] == false;
 }
 
-bool IInputSystem::wasButtonDown(const Buttons button) {
+bool IInputSystem::wasButtonDown(const Buttons button) const {
     if (!bIsInitialized) return false;
     return previousMouseButtons[button] == true;
 }
 
-bool IInputSystem::wasButtonUp(const Buttons button) {
+bool IInputSystem::wasButtonUp(const Buttons button) const {
     if (!bIsInitialized) return false;
     return previousMouseButtons[button] == false;
 }
 
-void IInputSystem::getMousePosition(int *x, int *y) {
+void IInputSystem::getMousePosition(int *x, int *y) const {
     if (!bIsInitialized) {
         *x = 0;
         *y = 0;
@@ -57,7 +57,7 @@ void IInputSystem::getMousePosition(int *x, int *y) {
     *y = mouseY;
 }
 
-void IInputSystem::getPreviousMousePosition(int *x, int *y) {
+void IInputSystem::getPreviousMousePosition(int *x, int *y) const {
     if (!bIsInitialized) {
         *x = 0;
         *y = 0;

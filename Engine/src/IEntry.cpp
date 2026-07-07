@@ -8,6 +8,7 @@ int main() {
     Engine* engine = nullptr;
 
     createGame(&instance, engine);
+    engine->setEngineRef(engine);
 
     if (engine != nullptr) {
         engine->initialize(instance);

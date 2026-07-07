@@ -91,6 +91,27 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
         case WM_SYSKEYUP: {
             bool pressed = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
             auto key = static_cast<Keys>(wParam);
+
+            if (wParam == VK_MENU) {
+                if (GetKeyState(VK_RMENU) & 0x8000) {
+                    key = KEY_RALT;
+                } else if (GetKeyState(VK_LMENU) & 0x8000){
+                    key = KEY_LALT;
+                }
+            } else if (wParam == VK_SHIFT) {
+                if (GetKeyState(VK_RSHIFT) & 0x8000) {
+                    key = KEY_RSHIFT;
+                } else if (GetKeyState(VK_LSHIFT) & 0x8000) {
+                    key = KEY_LSHIFT;
+                }
+            } else if (wParam == VK_CONTROL) {
+                if (GetKeyState(VK_RCONTROL) & 0x8000) {
+                    key = KEY_RCONTROL;
+                } else if (GetKeyState(VK_LCONTROL) & 0x8000) {
+                    key = KEY_LCONTROL;
+                }
+            }
+
             keyInputs.emplace_back(MAX_BUTTONS, key, pressed);
             break;
         }
@@ -557,9 +578,10 @@ Keys translateKeycode(unsigned int keyCode) {
             return KEY_LCONTROL;
         case XK_Control_R:
             return KEY_RCONTROL;
-        // case XK_Menu: return KEY_LMENU;
-        case XK_Menu:
-            return KEY_RMENU;
+        case XK_ALT_L:
+            return KEY_LALT;
+        case XK_ALT_R:
+            return KEY_RALT;
         case XK_semicolon:
             return KEY_SEMICOLON;
         case XK_plus:
