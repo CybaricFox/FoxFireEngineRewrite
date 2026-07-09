@@ -5,7 +5,6 @@
 #include "Engine.h"
 
 #include "../Library/Logger.h"
-#include "src/modules/engine/Library/FF_Math.h"
 
 void Engine::startup()
 {
@@ -17,18 +16,6 @@ void Engine::startup()
     Logger::logInfo("Beginning startup sequence");
 
     inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
-
-    if (!platform->initialize(gameInstance->config.appName, gameInstance->config.startingX, gameInstance->config.startingY, gameInstance->config.startingWidth, gameInstance->config.startingHeight)) {
-        Logger::logFatal("The platform failed to initialize!");
-        return;
-    }
-
-    //Start renderer
-    if (!renderer.initialize(gameInstance->config.appName, platform, backend, gameInstance, width, height)) {
-        Logger::logFatal("Failed to initialize renderer!");
-        return;
-    }
-
     inputSystem->subscribeToEngineEvent(RESIZED, [this](const EngineInputContext context) {resize(context.mouseX, context.mouseY);}, "Static.resize");
 
     resize(width, height);
@@ -43,8 +30,8 @@ void Engine::startup()
 void Engine::run() {
     Logger::logInfo("Beginning run loop");
 
-    clock.start(*platform);
-    clock.update(*platform);
+    clock.start(platform);
+    clock.update(platform);
     lastTime = clock.getElapsedTime();
     double runTime = 0;
     unsigned char frameCount = 0;
@@ -56,15 +43,15 @@ void Engine::run() {
     Logger::logInfo(FF_Memory::getMemoryUsage());
 
     while (bIsRunning) {
-        if (!platform->processMessages()) {
+        if (!platform.processMessages()) {
             bIsRunning = false;
         }
 
         if (!bIsPaused) {
             //Update clock
-            clock.update(*platform);
+            clock.update(platform);
             const double currentTime = clock.getElapsedTime();
-            const double deltaTime = (currentTime - lastTime);
+            const double deltaTime = currentTime - lastTime;
             const double frameStartTime = Platform::getAbsoluteTime();
 
             //Logger::logInfo(std::to_string(deltaTime));
@@ -79,34 +66,29 @@ void Engine::run() {
 
             RenderPacket packet{};
             packet.deltaTime = static_cast<float>(deltaTime);
-
-            renderer.drawFrame(&packet, backend);
-
+            renderer.drawFrame(packet, *backend);
             //How long did the frame take
-            const double endTime = platform->getAbsoluteTime();
+            const double endTime = Platform::getAbsoluteTime();
             const double elapsedTime = endTime - frameStartTime;
             runTime += elapsedTime;
             const double remainingTime = targetTime - elapsedTime;
-
             //Time left is given back to the OS
             if (remainingTime > 0) {
                 const unsigned long remainingMS = remainingTime * 1000;
                 constexpr bool limitFrames = false;
                 if (remainingMS > 0 && limitFrames) {
-                    platform->ff_sleep(remainingMS - 1);
+                    platform.ff_sleep(remainingMS - 1);
                 }
 
                 frameCount++;
             }
-
             //Handle input at the end
             //Must be update -> processInputs or key state wont be tracked correctly
             inputSystem->update(deltaTime);
-            platform->processInputs(*inputSystem);
+            platform.processInputs(*inputSystem);
 
             //Update last time
             lastTime = currentTime;
-
             if (deltaCount >= 1) {
                 Logger::logInfo("FPS: " + std::to_string(fps));
                 fps = 0;
@@ -148,8 +130,17 @@ bool Engine::render(float deltaTime) {
     return true;
 }
 
-Engine::Engine(GameInstance *instance, const unsigned long stateSize) {
-    instance->state = FF_Memory::ff_allocate(stateSize, GAME);
+Engine::Engine()
+{
+    initializeMemory();
+}
+
+void Engine::initializeMemory() {
+    FF_Memory::initialize(memoryDataStore);
+
+    unsigned long totalMemorySize = 0;
+
+    linearAllocator.initialize(totalMemorySize, nullptr);
 }
 
 void Engine::quit() {
@@ -162,38 +153,59 @@ void Engine::initialize(GameInstance &instance) {
         Logger::logError("Initialize was already called!");
         return;
     }
-    unsigned int temp = 0;
-    FF_Memory::initialize(&temp, &ff_memory);
 
     Logger::initializeFile();
 
     Logger::logInfo("Initializing Game");
 
     gameInstance = &instance;
+    EngineEvents::initialize(subscribers);
     inputSystem->initialize();
-    platform = new Platform{};
+
+    if (!platform.initialize(gameInstance->config.appName, gameInstance->config.startingX, gameInstance->config.startingY, gameInstance->config.startingWidth, gameInstance->config.startingHeight)) {
+        Logger::logFatal("The platform failed to initialize!");
+        return;
+    }
+
+    //Start renderer
+    if (!renderer.initialize(gameInstance->config.appName, platform, backend, *gameInstance, width, height)) {
+        Logger::logFatal("Failed to initialize renderer!");
+        return;
+    }
 
     startup();
 }
 
-void Engine::getFramebufferSize(unsigned int *bufferWidth, unsigned int *bufferHeight) const {
-    *bufferWidth = width;
-    *bufferHeight = height;
+void Engine::getFramebufferSize(unsigned int& bufferWidth, unsigned int& bufferHeight) const {
+    bufferWidth = width;
+    bufferHeight = height;
 }
 
 Engine::~Engine() {
+    Logger::logInfo(FF_Memory::getMemoryUsage());
+
     bIsRunning = false;
+    engine = nullptr;
+
+    //Static destruction
+    EngineEvents::shutdown();
 
     //Destroy resources in opposite order of creation
     delete backend;
-    delete platform;
-    delete inputSystem;
+    if (inputSystem) {
+        delete inputSystem;
+        inputSystem = nullptr;
+    }
 
+    platform.shutdown();
+
+    linearAllocator.shutdown();
+    //THIS MUST ALWAYS SHUTDOWN LAST!
     FF_Memory::shutdown();
 }
 
-void Engine::setEngineRef(Engine* derivedEngine) {
+void Engine::setEngineRef(Engine& derivedEngine) {
     if (engine != nullptr) return;
 
-    engine = derivedEngine;
+    engine = &derivedEngine;
 }

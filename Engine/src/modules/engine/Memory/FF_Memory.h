@@ -10,6 +10,7 @@ enum MemoryTag {
     RENDER,
     ARRAY,
     LINEAR_ALLOCATOR,
+    DYNAMIC_ARRAY,
     MAX_TAGS
 };
 
@@ -20,7 +21,7 @@ struct MemoryBlock {
 };
 
 class FF_Memory {
-private:
+private:;
     static MemoryBlock* memoryData;
 
     static String getStringFromTag(unsigned long tag);
@@ -28,11 +29,13 @@ private:
 public:
     static void* ff_allocate(unsigned long size, MemoryTag tag);
     static void ff_free(void* block, unsigned long size, MemoryTag tag);
-    static void* ff_clear(void* block, unsigned long size);
+    static FOXFIRE_API void* ff_clear(void* block, unsigned long size);
     static void* ff_copy(void* destination, const void* source, unsigned long size);
+    static void* ff_move(void* destination, const void* source, unsigned long size);
     static void* ff_set(void* destination, int value, unsigned long size);
     static FOXFIRE_API String getMemoryUsage();
-    static void initialize(unsigned int* memoryReq, void* block);
+    static void initialize(MemoryBlock& memoryBlock);
     static void shutdown();
     static FOXFIRE_API unsigned long getAllocationCount();
+    static bool isInitialized(){return memoryData != nullptr;}
 };

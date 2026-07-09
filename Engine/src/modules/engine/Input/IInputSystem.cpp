@@ -5,6 +5,7 @@
 #include "IInputSystem.h"
 
 #include "../Library/Logger.h"
+#include "src/modules/engine/Memory/FF_Memory.h"
 
 bool IInputSystem::isKeyDown(const Keys key) const {
     if (!bIsInitialized) return false;
@@ -46,26 +47,26 @@ bool IInputSystem::wasButtonUp(const Buttons button) const {
     return previousMouseButtons[button] == false;
 }
 
-void IInputSystem::getMousePosition(int *x, int *y) const {
+void IInputSystem::getMousePosition(int& x, int& y) const {
     if (!bIsInitialized) {
-        *x = 0;
-        *y = 0;
+        x = 0;
+        y = 0;
         return;
     }
 
-    *x = mouseX;
-    *y = mouseY;
+    x = mouseX;
+    y = mouseY;
 }
 
-void IInputSystem::getPreviousMousePosition(int *x, int *y) const {
+void IInputSystem::getPreviousMousePosition(int& x, int& y) const {
     if (!bIsInitialized) {
-        *x = 0;
-        *y = 0;
+        x = 0;
+        y = 0;
         return;
     }
 
-    *x = previousMouseX;
-    *y = previousMouseY;
+    x = previousMouseX;
+    y = previousMouseY;
 }
 
 IInputSystem::~IInputSystem() {
@@ -126,7 +127,7 @@ void IInputSystem::processMouseMove(const short x, const short y) {
 
 void IInputSystem::processMouseScroll(const char z) {
     EngineInputContext context{};
-    context.mouseZ = z;
+    context.mouseZ = static_cast<unsigned char>(z);
     EngineEvents::callEvent(MOUSE_WHEEL, context);
 }
 

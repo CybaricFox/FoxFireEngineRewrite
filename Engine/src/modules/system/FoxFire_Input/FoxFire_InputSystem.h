@@ -5,6 +5,8 @@
 #pragma once
 #include "../../engine/Input/IInputSystem.h"
 
-class FOXFIRE_API FoxFire_InputSystem : public IInputSystem {
-
+class FOXFIRE_API FoxFire_InputSystem final : public IInputSystem {
+public:
+    FoxFire_InputSystem();
+    ~FoxFire_InputSystem() override = default;
 };

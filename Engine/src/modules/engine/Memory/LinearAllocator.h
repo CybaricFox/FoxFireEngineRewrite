@@ -4,18 +4,19 @@
 
 #pragma once
 
-
 class LinearAllocator {
 private:
-    unsigned long totalSize;
-    unsigned long allocated;
-    void* block;
-    bool bOwnsMemory;
+    unsigned long totalSize = 0;
+    unsigned long allocated = 0;
+    void* block = nullptr;
+    bool bOwnsMemory = false;
 
 public:
-    LinearAllocator(unsigned long size, void* memory);
+    LinearAllocator() = default;
     ~LinearAllocator();
+    void initialize(unsigned long size, void* memory);
+    void shutdown();
 
-    bool allocate(unsigned long size);
+    void* allocate(unsigned long size);
     void freeAll();
 };

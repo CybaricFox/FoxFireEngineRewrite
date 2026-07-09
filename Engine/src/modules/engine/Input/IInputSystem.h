@@ -5,7 +5,6 @@
 #pragma once
 
 #include "EngineEvents.h"
-#include "../Memory/FF_Memory.h"
 #include "foxfire_export.h"
 
 enum Buttons{
@@ -18,30 +17,31 @@ enum Buttons{
 class FOXFIRE_API IInputSystem {
 private:
     //Keyboard data
-    bool keyboardState[256];
-    bool previousKeyboardState[256];
+    bool keyboardState[256]{};
+    bool previousKeyboardState[256]{};
 
     //mouse data
     short mouseX = 0;
     short mouseY = 0;
-    unsigned char mouseButtons[MAX_BUTTONS];
+    unsigned char mouseButtons[MAX_BUTTONS]{};
     short previousMouseX = 0;
     short previousMouseY = 0;
-    unsigned char previousMouseButtons[MAX_BUTTONS];
+    unsigned char previousMouseButtons[MAX_BUTTONS]{};
 
     bool bIsInitialized = false;
 
 protected:
-    bool isButtonDown(Buttons button) const;
-    bool isButtonUp(Buttons button) const;
-    bool wasButtonDown(Buttons button) const;
-    bool wasButtonUp(Buttons button) const;
+    [[nodiscard]] bool isButtonDown(Buttons button) const;
+    [[nodiscard]] bool isButtonUp(Buttons button) const;
+    [[nodiscard]] bool wasButtonDown(Buttons button) const;
+    [[nodiscard]] bool wasButtonUp(Buttons button) const;
 
-    void getMousePosition(int *x, int *y) const;
-    void getPreviousMousePosition(int *x, int *y) const;
+    void getMousePosition(int& x, int& y) const;
+    void getPreviousMousePosition(int& x, int& y) const;
 
 public:
-    ~IInputSystem();
+    virtual ~IInputSystem();
+    IInputSystem() = default;
 
     void update(double deltaTime);
     void initialize();
@@ -51,10 +51,10 @@ public:
     void processMouseMove(short x, short y);
     void processMouseScroll(char z);
 
-    bool isKeyDown(Keys key) const;
-    bool isKeyUp(Keys key) const;
-    bool wasKeyDown(Keys key) const;
-    bool wasKeyUp(Keys key) const;
+    [[nodiscard]] bool isKeyDown(Keys key) const;
+    [[nodiscard]] bool isKeyUp(Keys key) const;
+    [[nodiscard]] bool wasKeyDown(Keys key) const;
+    [[nodiscard]] bool wasKeyUp(Keys key) const;
 
     void subscribeToEngineEvent(EngineEventCode code, const std::function<void(EngineInputContext)> &function, const String &id, Keys key = MAX_KEYS);
 };

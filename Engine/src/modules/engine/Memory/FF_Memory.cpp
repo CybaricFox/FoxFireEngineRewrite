@@ -9,7 +9,7 @@
 
 #include "../Library/Logger.h"
 
-MemoryBlock* FF_Memory::memoryData;
+MemoryBlock* FF_Memory::memoryData = nullptr;
 
 String FF_Memory::getStringFromTag(const unsigned long tag) {
     switch (tag) {
@@ -18,13 +18,23 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 2: return "RENDER";
         case 3: return "ARRAY";
         case 4: return "LINEAR ALLOCATOR";
+        case 5: return "DYNAMIC ARRAY";
         default: return " ";
     }
 }
 
-void FF_Memory::ff_free(void *block, const unsigned long size, const MemoryTag tag) {
+//ff_set should set the memory block to the beginning, but just in case, REMEMBER TO ZERO MEMORY IN OWNER IF HEAP CORRUPTION OCCURS!!!
+void FF_Memory::ff_free(void * block, const unsigned long size, const MemoryTag tag) {
+    if (!block) return;
+
     if (tag == UNKNOWN) {
         Logger::logWarn("Free called with Unknown tag. Add a tag for this allocation!");
+    }
+
+    if (!memoryData) {
+        Logger::logError("ff_free called after memoryData was destroyed!");
+        Logger::logError("Something is most likely surviving past memory shutdown in the engine!");
+        return;
     }
 
     if (memoryData->taggedAllocations[tag] < size) {
@@ -52,6 +62,10 @@ void * FF_Memory::ff_clear(void *block, const unsigned long size) {
 
 void * FF_Memory::ff_copy(void *destination, const void *source, const unsigned long size) {
     return memcpy(destination, source, size);
+}
+
+void * FF_Memory::ff_move(void *destination, const void *source, const unsigned long size) {
+    return memmove(destination, source, size);
 }
 
 void * FF_Memory::ff_set(void *destination, const int value, const unsigned long size) {
@@ -93,14 +107,8 @@ String FF_Memory::getMemoryUsage() {
     return outString;
 }
 
-void FF_Memory::initialize(unsigned int *memoryReq, void *block) {
-    *memoryReq = sizeof(MemoryBlock);
-
-    if (block == nullptr) {
-        return;
-    }
-
-    memoryData = static_cast<MemoryBlock*>(block);
+void FF_Memory::initialize(MemoryBlock& memoryBlock) {
+    memoryData = &memoryBlock;
     ff_clear(memoryData, sizeof(MemoryBlock));
 }
 

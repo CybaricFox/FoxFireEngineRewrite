@@ -4,6 +4,7 @@
 
 #include "VulkanContext.h"
 
+#include "VulkanBackend.h"
 #include "../../Memory/FF_Memory.h"
 #include "src/modules/engine/Library/Logger.h"
 
@@ -36,10 +37,10 @@ void VulkanContext::destroyCommandBuffers() {
 }
 
 void VulkanContext::destroyFences() {
-    FF_Memory::ff_free(inFlightFences, sizeof(VulkanFence) * swapchain.maxFramesInFlight, ARRAY);
-    inFlightFences = nullptr;
-    FF_Memory::ff_free(imagesInFlight, sizeof(VulkanFence) * swapchain.imageCount, ARRAY);
-    imagesInFlight = nullptr;
+    //FF_Memory::ff_free(inFlightFences, sizeof(VulkanFence) * swapchain.maxFramesInFlight, ARRAY);
+    //inFlightFences = nullptr;
+    //FF_Memory::ff_free(imagesInFlight, sizeof(VulkanFence*) * swapchain.imageCount, ARRAY);
+    //imagesInFlight = nullptr;
 }
 
 void VulkanContext::createSyncObjects() {
@@ -49,6 +50,51 @@ void VulkanContext::createSyncObjects() {
 
     //IF AN ERROR OCCURS, THIS MIGHT BE WHY. THIS SHOULD BE CALLED SEPERATELY FROM THE OTHERS.
     imagesInFlight = static_cast<VulkanFence **>(FF_Memory::ff_allocate(sizeof(VulkanFence*) * swapchain.imageCount, ARRAY));
+}
+
+void VulkanContext::destroySyncObjects() {
+    if (!device.logicalDevice) return;
+
+    //Destroy sync objects
+    if (imageAvailableSemaphores) {
+        for (unsigned char i = 0; i < swapchain.maxFramesInFlight; i++) {
+            if (imageAvailableSemaphores[i]) {
+                vkDestroySemaphore(device.logicalDevice, imageAvailableSemaphores[i], nullptr);
+                imageAvailableSemaphores[i] = nullptr;
+            }
+        }
+        FF_Memory::ff_free(imageAvailableSemaphores, sizeof(VkSemaphore) * swapchain.maxFramesInFlight, ARRAY);
+        imageAvailableSemaphores = nullptr;
+    }
+
+    if (queueCompleteSemaphores) {
+        for (unsigned int i = 0; i < swapchain.imageCount; i++) {
+            if (queueCompleteSemaphores[i]) {
+                vkDestroySemaphore(device.logicalDevice, queueCompleteSemaphores[i], nullptr);
+                queueCompleteSemaphores[i] = nullptr;
+            }
+        }
+        FF_Memory::ff_free(queueCompleteSemaphores, sizeof(VkSemaphore) * swapchain.imageCount, ARRAY);
+        queueCompleteSemaphores = nullptr;
+    }
+
+    if (inFlightFences) {
+        for (unsigned char i = 0; i < swapchain.maxFramesInFlight; i++) {
+            if (inFlightFences[i].handle) {
+                vkDestroyFence(device.logicalDevice, inFlightFences[i].handle, nullptr);
+                inFlightFences[i].handle = nullptr;
+            }
+            inFlightFences[i].bIsSignaled = false;
+        }
+        FF_Memory::ff_free(inFlightFences, sizeof(VulkanFence) * swapchain.maxFramesInFlight, ARRAY);
+        inFlightFences = nullptr;
+        inFlightFenceCount = 0;
+    }
+
+    if (imagesInFlight) {
+        FF_Memory::ff_free(imagesInFlight, sizeof(VulkanFence*) * swapchain.imageCount, ARRAY);
+        imagesInFlight = nullptr;
+    }
 }
 
 void VulkanContext::clearImagesInFlight() {
@@ -64,8 +110,11 @@ void VulkanContext::destroyContext() {
     device.presentQueueIndex = -1;
     device.transferQueueIndex = -1;
 
-    Logger::logDebug("Destroying command pools.");
-    vkDestroyCommandPool(device.logicalDevice, device.commandPool, nullptr);
+    if (device.commandPool) {
+        Logger::logDebug("Destroying command pools.");
+        vkDestroyCommandPool(device.logicalDevice, device.commandPool, nullptr);
+        device.commandPool = nullptr;
+    }
 
     Logger::logDebug("Destroying logical device.");
     if (device.logicalDevice) {
@@ -93,16 +142,25 @@ void VulkanContext::destroyContext() {
     device.physicalDevice = nullptr;
 
     Logger::logDebug("Destroying Vulkan debugger.");
-    if (getDebugMessenger()) {
-        const auto function = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
-        function(instance, *getDebugMessenger(), nullptr);
+    if (debugMessenger != nullptr) {
+        if (const auto function = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"))) {
+            function(instance, debugMessenger, nullptr);
+        }
+
+        debugMessenger = nullptr;
     }
 
-    Logger::logDebug("Destroying Vulkan surface.");
-    vkDestroySurfaceKHR(instance, surface, nullptr);
+    if (surface) {
+        Logger::logDebug("Destroying Vulkan surface.");
+        vkDestroySurfaceKHR(instance, surface, nullptr);
+        surface = nullptr;
+    }
 
-    Logger::logDebug("Destroying Vulkan instance.");
-    vkDestroyInstance(instance, nullptr);
+    if (instance) {
+        Logger::logDebug("Destroying Vulkan instance.");
+        vkDestroyInstance(instance, nullptr);
+        instance = nullptr;
+    }
 }
 
 void VulkanContext::destroyRenderpass() {

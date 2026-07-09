@@ -7,14 +7,10 @@
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
 
-Game::Game(GameInstance *instance, const unsigned long size)
-    : Engine(instance, size)
+Game::Game()
+    :Engine()
 {
     inputSystem = new FoxFire_InputSystem();
-}
-
-Game::~Game() {
-
 }
 
 void Game::startup() {

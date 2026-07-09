@@ -5,16 +5,17 @@
 #include "src/defines.h"
 
 struct PlatformState {
-    void* unknownState;
+    void* unknownState = nullptr;
 };
 
 class Platform {
 public:
-    Platform();
+    Platform() = default;
     ~Platform();
+    void shutdown();
 
-    static void printConsoleMessage(const char *message, unsigned char color);
-    static void printConsoleError(const char *message, unsigned char color);
+    static void printConsoleMessage(const String& message, unsigned char color);
+    static void printConsoleError(const String& message, unsigned char color);
     bool processMessages();
 
     static double getAbsoluteTime();
@@ -25,14 +26,14 @@ public:
 
     void ff_sleep(unsigned long ms);
 
-    void getRequiredExtensions(std::vector<const char*>& extensions);
+    void getRequiredExtensions(DynamicArray<const char *> &extensions);
 
-    PlatformState* getPlatformState() {return &platformState;}
+    PlatformState& getPlatformState() {return platformState;}
 
     bool createSurface();
 
 private:
-    PlatformState platformState;
+    PlatformState platformState{};
 
 };
 

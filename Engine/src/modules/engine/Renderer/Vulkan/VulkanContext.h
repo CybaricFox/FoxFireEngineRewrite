@@ -94,23 +94,23 @@ struct VulkanFence {
 
 class VulkanContext {
 private:
-    VkInstance instance;
-    VkAllocationCallbacks* allocator;
-    VkSurfaceKHR surface;
-    unsigned int frameBufferWidth;
-    unsigned int frameBufferHeight;
-    unsigned int imageIndex;
-    unsigned int currentFrame;
-    bool bRecreateSwapchain;
-    VulkanDevice device;
-    VulkanSwapchain swapchain;
-    VulkanRenderpass renderpass;
-    VulkanCommandBuffer* commandBuffers;
-    VkSemaphore* imageAvailableSemaphores;
-    VkSemaphore* queueCompleteSemaphores;
-    unsigned int inFlightFenceCount;
-    VulkanFence* inFlightFences;
-    VulkanFence** imagesInFlight;
+    VkInstance instance = nullptr;
+    VkAllocationCallbacks* allocator = nullptr;
+    VkSurfaceKHR surface = nullptr;
+    unsigned int frameBufferWidth = 0;
+    unsigned int frameBufferHeight = 0;
+    unsigned int imageIndex = 0;
+    unsigned int currentFrame = 0;
+    bool bRecreateSwapchain = false;
+    VulkanDevice device{};
+    VulkanSwapchain swapchain{};
+    VulkanRenderpass renderpass{};
+    VulkanCommandBuffer* commandBuffers = nullptr;
+    VkSemaphore* imageAvailableSemaphores = nullptr;
+    VkSemaphore* queueCompleteSemaphores = nullptr;
+    unsigned int inFlightFenceCount = 0;
+    VulkanFence* inFlightFences = nullptr;
+    VulkanFence** imagesInFlight = nullptr;
     bool bIsSwapchainDirty = false;
 
 #if ENABLE_DEBUG_LOGGING == true
@@ -120,29 +120,29 @@ private:
 public:
     [[nodiscard]] int findMemoryIndex(int typeFilter, unsigned int propertyFlags) const;
 
-    VulkanDevice* getDevice() {return &device;}
-    VulkanSwapchain* getSwapchain() {return &swapchain;}
-    VkSurfaceKHR* getSurface() {return &surface;}
-    unsigned int* getCurrentFrame() { return &currentFrame; }
-    VkInstance* getInstance() {return &instance;}
-    unsigned int getFrameBufferWidth() const { return frameBufferWidth; }
-    unsigned int getFrameBufferHeight() const { return frameBufferHeight; }
-    VulkanRenderpass* getRenderpass() { return &renderpass; }
+    VulkanDevice& getDevice() {return device;}
+    VulkanSwapchain& getSwapchain() {return swapchain;}
+    VkSurfaceKHR& getSurface() {return surface;}
+    unsigned int& getCurrentFrame() { return currentFrame; }
+    VkInstance& getInstance() {return instance;}
+    [[nodiscard]] unsigned int getFrameBufferWidth() const { return frameBufferWidth; }
+    [[nodiscard]] unsigned int getFrameBufferHeight() const { return frameBufferHeight; }
+    VulkanRenderpass& getRenderpass() { return renderpass; }
     VulkanCommandBuffer* getCommandBuffers() const {return commandBuffers;}
     VulkanCommandBuffer* getCommandBuffer(const unsigned int i) const {return &commandBuffers[i];}
     VkSemaphore* getImageAvailableSemaphores() const { return imageAvailableSemaphores; }
     VkSemaphore* getQueueCompleteSemaphores() const { return queueCompleteSemaphores; }
     VulkanFence* getInFlightFences() const { return inFlightFences; }
     VulkanFence* getImagesInFlight() const { return *imagesInFlight; }
-    bool isRecreatingSwapchain() const {return bRecreateSwapchain;}
-    bool needsResize() const {return bIsSwapchainDirty;}
-    VulkanFence* getCurrentInFlightFence() const {return &inFlightFences[currentFrame];}
-    VkSemaphore* getCurrentImageAvailable() const {return &imageAvailableSemaphores[currentFrame];}
-    unsigned int* getImageIndex() { return &imageIndex; }
-    VulkanCommandBuffer* getCurrentCommandBuffer() const {return &commandBuffers[imageIndex];}
-    VulkanFramebuffer* getCurrentFramebuffer() const {return &swapchain.framebuffers[imageIndex];}
+    [[nodiscard]] bool isRecreatingSwapchain() const {return bRecreateSwapchain;}
+    [[nodiscard]] bool needsResize() const {return bIsSwapchainDirty;}
+    VulkanFence& getCurrentInFlightFence() const {return inFlightFences[currentFrame];}
+    VkSemaphore& getCurrentImageAvailable() const {return imageAvailableSemaphores[currentFrame];}
+    unsigned int& getImageIndex() { return imageIndex; }
+    VulkanCommandBuffer& getCurrentCommandBuffer() const {return commandBuffers[imageIndex];}
+    VulkanFramebuffer& getCurrentFramebuffer() const {return swapchain.framebuffers[imageIndex];}
     VulkanFence* getCurrentImageInFlight() const {return imagesInFlight[imageIndex];}
-    VkSemaphore* getCurrentQueueCompleteSemaphore() const {return &queueCompleteSemaphores[imageIndex];}
+    VkSemaphore& getCurrentQueueCompleteSemaphore() const {return queueCompleteSemaphores[imageIndex];}
 
 
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
@@ -153,7 +153,7 @@ public:
     void enableRecreateSwapchain() {bRecreateSwapchain = true;}
     void finishRecreateSwapchain() {bRecreateSwapchain = false;}
 
-    VkDebugUtilsMessengerEXT* getDebugMessenger() {return &debugMessenger;}
+    VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}
 
     void destroyContext();
     void destroyRenderpass();
@@ -161,5 +161,7 @@ public:
     void destroyCommandBuffers();
     void destroyFences();
     void createSyncObjects();
+    void destroySyncObjects();
     void clearImagesInFlight();
+
 };

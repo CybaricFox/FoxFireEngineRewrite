@@ -9,14 +9,14 @@
 
 class Renderer {
 private:
-    bool beginFrame(float deltaTime, RendererBackend *backend);
-    bool endFrame(float deltaTime, RendererBackend* backend);
+    bool beginFrame(float deltaTime, RendererBackend& backend);
+    bool endFrame(float deltaTime, RendererBackend& backend);
 
 public:
-    bool initialize(const String &appName, Platform *platform, RendererBackend *&backend, const GameInstance *gameInstance, unsigned int
-                    width, unsigned int height);
+    bool initialize(const String &appName, Platform& platform, RendererBackend*& backend, const GameInstance& gameInstance, unsigned int width, unsigned int height);
+    Renderer() = default;
     ~Renderer();
 
-    bool drawFrame(const RenderPacket *packet, RendererBackend *backend);
+    bool drawFrame(const RenderPacket& packet, RendererBackend& backend);
     void onResize(unsigned short width, unsigned short height, RendererBackend* backend);
 };

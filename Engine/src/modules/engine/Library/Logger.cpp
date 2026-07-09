@@ -19,9 +19,9 @@ void Logger::log(const LogLevel level, const String &message) {
     const String levelString[5] = {"[FATAL]: ", "[SEVERE]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: "};
 
     if (level < WARN) {
-        Platform::printConsoleError((levelString[level] + message).c_str(), level);
+        Platform::printConsoleError(levelString[level] + message, level);
     } else {
-        Platform::printConsoleMessage((levelString[level] + message).c_str(), level);
+        Platform::printConsoleMessage(levelString[level] + message, level);
     }
 }
 

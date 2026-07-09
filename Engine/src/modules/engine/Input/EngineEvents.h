@@ -1,9 +1,9 @@
 #pragma once
 #include <functional>
-#include <vector>
 
 #include "src/defines.h"
 #include "foxfire_export.h"
+#include "src/modules/engine/Memory/DynamicArray.h"
 
 #define DEFINE_KEY(name, code) KEY_##name = code
 
@@ -164,9 +164,17 @@ struct EngineEventCallback {
 
 class EngineEvents {
 private:
-    static std::vector<EngineEventCallback> subscribers[];
+    static DynamicArray<EngineEventCallback>* subscribers;
 
 public:
+    static void initialize(DynamicArray<EngineEventCallback>* vptr);
+    static void shutdown() {
+        for (int i = 0; i < MAX_EVENT; i++) {
+            subscribers[i].shutdown();
+        }
+        subscribers = nullptr;
+    }
+
     static void subscribe(EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String& id, Keys key = MAX_KEYS);
     static void unsubscribe(EngineEventCode code, const String& id) ;
     static void callEvent(EngineEventCode code, EngineInputContext context);

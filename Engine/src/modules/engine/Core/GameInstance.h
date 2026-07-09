@@ -25,6 +25,7 @@ struct FOXFIRE_API GameInstance {
     ~GameInstance() {
         if (state != nullptr) {
             free(state);
+            state = nullptr;
         }
     }
 };

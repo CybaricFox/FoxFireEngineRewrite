@@ -7,11 +7,11 @@
 #include "Vulkan/VulkanBackend.h"
 #include "../Library/Logger.h"
 
-bool RendererBackend::initialize(String appName, Platform *platform, unsigned int width, unsigned int height) {
+bool RendererBackend::initialize(String appName, Platform& platform, unsigned int width, unsigned int height) {
     return true;
 }
 
-RendererBackend* RendererBackend::create(const RendererBackendType type, PlatformState *newPlatformState, const GameInstance *gameInstance) {
+RendererBackend* RendererBackend::create(const RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance) {
     RendererBackend* backend;
 
     if (type == VULKAN) {
@@ -25,7 +25,7 @@ RendererBackend* RendererBackend::create(const RendererBackendType type, Platfor
         return nullptr;
     }
 
-    backend->platformState = newPlatformState;
+    backend->platformState = &newPlatformState;
 
     return backend;
 }

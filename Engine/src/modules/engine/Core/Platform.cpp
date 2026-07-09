@@ -8,6 +8,8 @@
 #include <iostream>
 #include <ostream>
 
+#include "src/modules/engine/Memory/DynamicArray.h"
+
 struct KeyState {
     Buttons button;
     Keys key;
@@ -19,8 +21,8 @@ struct MouseState {
     char z;
 };
 
-std::vector<KeyState> keyInputs{};
-std::vector<MouseState> mouseInputs{};
+DynamicArray<KeyState> keyInputs;
+DynamicArray<MouseState> mouseInputs;
 
 void Platform::processInputs(IInputSystem &inputSystem) {
     for (const KeyState& input : keyInputs) {
@@ -42,12 +44,6 @@ void Platform::processInputs(IInputSystem &inputSystem) {
     mouseInputs.clear();
 }
 
-Platform::Platform()
-    : platformState{}
-{
-
-}
-
 #if FOXFIRE_PLATFORM_WINDOWS == 1
 
 #include "windows.h"
@@ -63,7 +59,14 @@ struct InternalState {
 };
 
 static double clockFrequency = 0;
-static LARGE_INTEGER startTime;
+static LARGE_INTEGER startTime{};
+
+void setupClock() {
+    LARGE_INTEGER frequency;
+    QueryPerformanceFrequency(&frequency);
+    clockFrequency = 1.0 / static_cast<double>(frequency.QuadPart);
+    QueryPerformanceCounter(&startTime);
+}
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wParam, LPARAM lParam) {
     //These are overrides
@@ -91,34 +94,25 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
         case WM_SYSKEYUP: {
             bool pressed = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
             auto key = static_cast<Keys>(wParam);
+            bool isExtended = (HIWORD(lParam) & KF_EXTENDED) == KF_EXTENDED;
 
             if (wParam == VK_MENU) {
-                if (GetKeyState(VK_RMENU) & 0x8000) {
-                    key = KEY_RALT;
-                } else if (GetKeyState(VK_LMENU) & 0x8000){
-                    key = KEY_LALT;
-                }
+                key = isExtended ? KEY_RALT : KEY_LALT;
             } else if (wParam == VK_SHIFT) {
-                if (GetKeyState(VK_RSHIFT) & 0x8000) {
-                    key = KEY_RSHIFT;
-                } else if (GetKeyState(VK_LSHIFT) & 0x8000) {
-                    key = KEY_LSHIFT;
-                }
+                const unsigned int leftShift = MapVirtualKey(VK_LSHIFT, MAPVK_VK_TO_VSC);
+                const unsigned int scancode = (lParam & (0xFF << 16)) >> 16;
+                key = scancode == leftShift ? KEY_LSHIFT : KEY_RSHIFT;
             } else if (wParam == VK_CONTROL) {
-                if (GetKeyState(VK_RCONTROL) & 0x8000) {
-                    key = KEY_RCONTROL;
-                } else if (GetKeyState(VK_LCONTROL) & 0x8000) {
-                    key = KEY_LCONTROL;
-                }
+                key = isExtended ? KEY_RCONTROL : KEY_LCONTROL;
             }
 
-            keyInputs.emplace_back(MAX_BUTTONS, key, pressed);
-            break;
+            keyInputs.emplace(MAX_BUTTONS, key, pressed);
+            return 0;
         }
         case WM_MOUSEMOVE: {
             int xPos = GET_X_LPARAM(lParam);
             int yPos = GET_Y_LPARAM(lParam);
-            mouseInputs.emplace_back(xPos, yPos, 0);
+            mouseInputs.emplace(xPos, yPos, 0);
             break;
         }
         case WM_MOUSEWHEEL: {
@@ -127,7 +121,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
             if (zDelta != 0) {
                 zDelta = zDelta < 0 ? -1 : 1;
             }
-            mouseInputs.emplace_back(0, 0, zDelta);
+            mouseInputs.emplace(0, 0, zDelta);
             break;
         }
         case WM_LBUTTONDOWN:
@@ -155,7 +149,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
                     break;
             }
             if (mouseButton != MAX_BUTTONS) {
-                keyInputs.emplace_back(mouseButton, MAX_KEYS, pressed);
+                keyInputs.emplace(mouseButton, MAX_KEYS, pressed);
             }
             break;
         }
@@ -167,9 +161,12 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
     return DefWindowProcA(hwnd, msg, wParam, lParam);
 };
 
-bool Platform::initialize(const String &applicationName, int x, int y, int width, int height) {
+bool Platform::initialize(const String &applicationName, const int x, const int y, const int width, const int height) {
     platformState.unknownState = malloc( sizeof(InternalState) );
     const auto castedState = static_cast<InternalState*>(platformState.unknownState);
+
+    keyInputs.initialize();
+    mouseInputs.initialize();
 
     castedState->instance = GetModuleHandleA(nullptr);
 
@@ -245,11 +242,7 @@ bool Platform::initialize(const String &applicationName, int x, int y, int width
     //Initial Maximize SW_SHOWMAXIMIZED : SW_MAXIMIZE
     ShowWindow(castedState->hwnd, showWindowCommandFlags);
 
-    //Setup clock
-    LARGE_INTEGER frequency;
-    QueryPerformanceFrequency(&frequency);
-    clockFrequency = 1.0 / static_cast<double>(frequency.QuadPart);
-    QueryPerformanceCounter(&startTime);
+    setupClock();
 
     return true;
 }
@@ -258,8 +251,8 @@ void Platform::ff_sleep(const unsigned long ms) {
     Sleep(ms);
 }
 
-void Platform::getRequiredExtensions(std::vector<const char*>& extensions) {
-    extensions.push_back("VK_KHR_win32_surface");
+void Platform::getRequiredExtensions(DynamicArray<const char*>& extensions) {
+    extensions.push("VK_KHR_win32_surface");
 }
 
 bool Platform::createSurface() {
@@ -270,52 +263,64 @@ bool Platform::createSurface() {
     createInfo.hinstance = state->instance;
     createInfo.hwnd = state->hwnd;
 
-    if (const VkResult result = vkCreateWin32SurfaceKHR(*vulkanContext->getInstance(), &createInfo, nullptr, &state->surface); result != VK_SUCCESS) {
+    if (const VkResult result = vkCreateWin32SurfaceKHR(vulkanContext->getInstance(), &createInfo, nullptr, &state->surface); result != VK_SUCCESS) {
         printConsoleError("Failed to create Vulkan surface for windwos.", 0);
         return false;
     }
 
-    *vulkanContext->getSurface() = state->surface;
+    vulkanContext->getSurface() = state->surface;
     return true;
 }
 
-void Platform::printConsoleMessage(const char* message, const unsigned char color) {
+void Platform::printConsoleMessage(const String& message, const unsigned char color) {
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     if (!(color > 4 || color < 0)) {
         static unsigned char colors[5] = {64, 4, 6, 2, 1};
         SetConsoleTextAttribute(consoleHandle, colors[color]);
     }
 
-    OutputDebugStringA(message);
+    OutputDebugStringA(message.c_str());
 
     cout << message << endl;
 }
 
-void Platform::printConsoleError(const char *message, const unsigned char color) {
+void Platform::printConsoleError(const String& message, const unsigned char color) {
     HANDLE consoleHandle = GetStdHandle(STD_ERROR_HANDLE);
     if (!(color > 4 || color < 0)) {
         static unsigned char colors[5] = {64, 4, 6, 2, 1};
         SetConsoleTextAttribute(consoleHandle, colors[color]);
     }
 
-    OutputDebugStringA(message);
+    OutputDebugStringA(message.c_str());
 
     cerr << message << endl;
 }
 
 double Platform::getAbsoluteTime() {
+    if (clockFrequency == 0) {
+        setupClock();
+    }
+
     LARGE_INTEGER currentTime;
     QueryPerformanceCounter(&currentTime);
     return clockFrequency * static_cast<double>(currentTime.QuadPart);
 }
 
 Platform::~Platform() {
+    if (platformState.unknownState != nullptr) shutdown();
+}
+
+void Platform::shutdown() {
     if (const auto state = static_cast<InternalState *>(platformState.unknownState); state->hwnd != nullptr) {
         DestroyWindow(state->hwnd);
         state->hwnd = nullptr;
     }
 
+    keyInputs.shutdown();
+    mouseInputs.shutdown();
+
     free(platformState.unknownState);
+    platformState.unknownState = nullptr;
 }
 
 //Tells the platform to process the windows messages to OS.
