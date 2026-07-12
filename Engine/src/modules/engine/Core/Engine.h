@@ -8,7 +8,7 @@
 #include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 #include "src/modules/engine/Memory/LinearAllocator.h"
-#include "src/modules/engine/Renderer/Renderer.h"
+#include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Renderer/RendererBackend.h"
 
 class FOXFIRE_API Engine {
@@ -18,7 +18,7 @@ private:
     LinearAllocator linearAllocator{};
 
     //Frontend Rendering
-    Renderer renderer{};
+    MasterRenderSystem masterRenderSystem{};
     //Calculates system time
     Clock clock{};
     //Handles the OS
@@ -41,6 +41,7 @@ private:
     double lastTime = 0;
 
     void initializeMemory();
+    void initializeRenderSystem();
 
 protected:
     //Handle Input

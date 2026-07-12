@@ -66,7 +66,7 @@ void Engine::run() {
 
             RenderPacket packet{};
             packet.deltaTime = static_cast<float>(deltaTime);
-            renderer.drawFrame(packet, *backend);
+            masterRenderSystem.drawFrame(packet, *backend);
             //How long did the frame take
             const double endTime = Platform::getAbsoluteTime();
             const double elapsedTime = endTime - frameStartTime;
@@ -117,7 +117,7 @@ void Engine::resize(const unsigned short newWidth, const unsigned short newHeigh
                 bIsPaused = false;
             }
 
-            renderer.onResize(width, height, backend);
+            masterRenderSystem.onResize(width, height, backend);
         }
     }
 }
@@ -141,6 +141,12 @@ void Engine::initializeMemory() {
     unsigned long totalMemorySize = 0;
 
     linearAllocator.initialize(totalMemorySize, nullptr);
+}
+
+void Engine::initializeRenderSystem() {
+    if (!masterRenderSystem.initialize(gameInstance->config.appName, platform, backend, *gameInstance, width, height)) {
+        Logger::logFatal("Failed to initialize renderer!");
+    }
 }
 
 void Engine::quit() {
@@ -168,10 +174,7 @@ void Engine::initialize(GameInstance &instance) {
     }
 
     //Start renderer
-    if (!renderer.initialize(gameInstance->config.appName, platform, backend, *gameInstance, width, height)) {
-        Logger::logFatal("Failed to initialize renderer!");
-        return;
-    }
+    initializeRenderSystem();
 
     startup();
 }
