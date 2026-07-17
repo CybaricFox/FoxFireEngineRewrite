@@ -34,14 +34,8 @@ private:
     void createRenderpass(float x, float y, float w, float h, float r, float g, float b, float a, float depth, unsigned int stencil);
     void beginRenderpass(VulkanCommandBuffer& commandBuffer, VkFramebuffer frameBuffer);
     void endRenderpass(VulkanCommandBuffer& commandBuffer);
-    void allocateCommandBuffer(bool bIsPrimary, VulkanCommandBuffer& commandBuffer);
-    void freeCommandBuffer(VulkanCommandBuffer& commandBuffer);
-    void beginCommandBuffer(VulkanCommandBuffer& commandBuffer, bool bIsSingleUse, bool bIsRenderpassContinue, bool bIsConcurrent);
-    void endCommandBuffer(VulkanCommandBuffer& commandBuffer);
     void updateSubmittedCommandBuffer(VulkanCommandBuffer& commandBuffer);
     void resetCommandBuffer(VulkanCommandBuffer& commandBuffer);
-    void allocateAndBeginSingleUseCommandBuffer(VulkanCommandBuffer& commandBuffer);
-    void endSingleUseCommandBuffer(VulkanCommandBuffer& commandBuffer, VkQueue queue);
     void allocateCommandBuffers();
     void createFence(bool bCreateSignaled, VulkanFence& fence);
     bool waitForFence(VulkanFence& fence, unsigned long timeout);

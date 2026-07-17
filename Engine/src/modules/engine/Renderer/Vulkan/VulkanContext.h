@@ -18,6 +18,16 @@ struct VulkanFence {
     bool bIsSignaled;
 };
 
+struct VulkanBuffer {
+    unsigned long totalSize;
+    VkBuffer handle;
+    VkBufferUsageFlagBits usageFlags;
+    bool bIsLocked;
+    VkDeviceMemory deviceMemory;
+    int memoryIndex;
+    unsigned int memoryPropertyFlags;
+};
+
 class VulkanContext {
 private:
     VkInstance instance = nullptr;
@@ -36,9 +46,13 @@ private:
     unsigned int inFlightFenceCount = 0;
     VulkanFence* inFlightFences = nullptr;
     VulkanFence** imagesInFlight = nullptr;
+    VulkanBuffer vertexBuffer{};
+    VulkanBuffer indexBuffer{};
+    unsigned long geometryVertexOffset = 0;
+    unsigned long geometryIndexOffset = 0;
 
 #if ENABLE_DEBUG_LOGGING == true
-    VkDebugUtilsMessengerEXT debugMessenger;
+    VkDebugUtilsMessengerEXT debugMessenger{};
 #endif
 
 public:
@@ -63,10 +77,14 @@ public:
     VulkanFence* getCurrentImageInFlight() const {return imagesInFlight[imageIndex];}
     VkSemaphore& getCurrentQueueCompleteSemaphore() const {return queueCompleteSemaphores[imageIndex];}
     VulkanFramebuffer& getCurrentFramebuffer() const {return swapchain.getFramebuffer(imageIndex);}
+    VulkanBuffer& getVertexBuffer() { return vertexBuffer; }
+    VulkanBuffer& getIndexBuffer() { return indexBuffer; }
 
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
     void setHeight(const unsigned int height) {frameBufferHeight = height;}
     void updateCurrentImageInFlight() const {imagesInFlight[imageIndex] = &inFlightFences[currentFrame];}
+    void setVertexOffset(const unsigned long offset) {geometryVertexOffset = offset;}
+    void setIndexOffset(const unsigned long offset) {geometryIndexOffset = offset;}
 
     VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}
 
@@ -78,5 +96,10 @@ public:
     void createSyncObjects();
     void destroySyncObjects();
     void clearImagesInFlight();
-
+    void allocateAndBeginSingleUseCommandBuffer(VulkanCommandBuffer& commandBuffer);
+    void allocateCommandBuffer(bool bIsPrimary, VulkanCommandBuffer& commandBuffer);
+    void beginCommandBuffer(VulkanCommandBuffer& commandBuffer, bool bIsSingleUse, bool bIsRenderpassContinue, bool bIsConcurrent);
+    void endSingleUseCommandBuffer(VulkanCommandBuffer& commandBuffer, VkQueue queue);
+    void freeCommandBuffer(VulkanCommandBuffer& commandBuffer);
+    void endCommandBuffer(VulkanCommandBuffer& commandBuffer);
 };

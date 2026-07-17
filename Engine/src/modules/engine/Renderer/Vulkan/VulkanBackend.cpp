@@ -61,7 +61,7 @@ bool VulkanBackend::recreateSwapchain() {
 
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
         if (vulkanContext.getCommandBuffer(i) && vulkanContext.getCommandBuffer(i)->handle) {
-            freeCommandBuffer(*vulkanContext.getCommandBuffer(i));
+            vulkanContext.freeCommandBuffer(*vulkanContext.getCommandBuffer(i));
         }
     }
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
@@ -91,7 +91,7 @@ bool VulkanBackend::recreateSwapchain() {
     vulkanContext.getSwapchain().regenerateFramebuffers(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getRenderpass(), vulkanContext.getDevice());
 
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
-        allocateCommandBuffer(true, *vulkanContext.getCommandBuffer(i));
+        vulkanContext.allocateCommandBuffer(true, *vulkanContext.getCommandBuffer(i));
     }
 
     vulkanContext.getSwapchain().finishRecreateSwapchain();
@@ -164,49 +164,6 @@ void VulkanBackend::endRenderpass(VulkanCommandBuffer& commandBuffer) {
     commandBuffer.state = RECORDING; //IM PRETTY SURE THIS IS SUPPOSED TO BE THE RENDER STATE
 }
 
-void VulkanBackend::allocateCommandBuffer(const bool bIsPrimary, VulkanCommandBuffer& commandBuffer) {
-    FF_Memory::ff_clear(&commandBuffer, sizeof(VulkanCommandBuffer));
-
-    VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-    allocateInfo.commandPool = vulkanContext.getDevice().getCommandPool();
-    allocateInfo.level = bIsPrimary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
-    allocateInfo.commandBufferCount = 1;
-    allocateInfo.pNext = nullptr;
-
-    commandBuffer.state = NOT_ALLOCATED;
-    VulkanUtils::vulkanCheck(vkAllocateCommandBuffers(vulkanContext.getDevice().getLogicalDevice(), &allocateInfo, &commandBuffer.handle));
-    commandBuffer.state = READY;
-}
-
-void VulkanBackend::freeCommandBuffer(VulkanCommandBuffer& commandBuffer) {
-    vkFreeCommandBuffers(vulkanContext.getDevice().getLogicalDevice(), vulkanContext.getDevice().getCommandPool(), 1, &commandBuffer.handle);
-    commandBuffer.handle = nullptr;
-    commandBuffer.state = NOT_ALLOCATED;
-}
-
-void VulkanBackend::beginCommandBuffer(VulkanCommandBuffer& commandBuffer, const bool bIsSingleUse, const bool bIsRenderpassContinue, const bool bIsConcurrent) {
-    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-
-    beginInfo.flags = 0;
-    if (bIsSingleUse) {
-        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    }
-    if (bIsRenderpassContinue) {
-        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-    }
-    if (bIsConcurrent) {
-        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    }
-
-    VulkanUtils::vulkanCheck(vkBeginCommandBuffer(commandBuffer.handle, &beginInfo));
-    commandBuffer.state = RECORDING;
-}
-
-void VulkanBackend::endCommandBuffer(VulkanCommandBuffer& commandBuffer) {
-    VulkanUtils::vulkanCheck(vkEndCommandBuffer(commandBuffer.handle));
-    commandBuffer.state = RECORDING_ENDED;
-}
-
 void VulkanBackend::updateSubmittedCommandBuffer(VulkanCommandBuffer& commandBuffer) {
     commandBuffer.state = SUBMITTED;
 }
@@ -215,35 +172,15 @@ void VulkanBackend::resetCommandBuffer(VulkanCommandBuffer& commandBuffer) {
     commandBuffer.state = READY;
 }
 
-void VulkanBackend::allocateAndBeginSingleUseCommandBuffer(VulkanCommandBuffer& commandBuffer) {
-    allocateCommandBuffer(true, commandBuffer);
-    beginCommandBuffer(commandBuffer, true, false, false);
-}
-
-void VulkanBackend::endSingleUseCommandBuffer(VulkanCommandBuffer& commandBuffer, VkQueue queue) {
-    endCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer.handle;
-
-    VulkanUtils::vulkanCheck(vkQueueSubmit(queue, 1, &submitInfo, nullptr));
-
-    //Wait for queue to finish since there is no fence here
-    VulkanUtils::vulkanCheck(vkQueueWaitIdle(queue));
-
-    freeCommandBuffer(commandBuffer);
-}
-
 void VulkanBackend::allocateCommandBuffers() {
     vulkanContext.createCommandBuffers();
 
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
         if (vulkanContext.getCommandBuffer(i)->handle) {
-            freeCommandBuffer(*vulkanContext.getCommandBuffer(i));
+            vulkanContext.freeCommandBuffer(*vulkanContext.getCommandBuffer(i));
         }
         FF_Memory::ff_clear(vulkanContext.getCommandBuffer(i), sizeof(VulkanCommandBuffer));
-        allocateCommandBuffer(true, *vulkanContext.getCommandBuffer(i));
+        vulkanContext.allocateCommandBuffer(true, *vulkanContext.getCommandBuffer(i));
     }
 
     Logger::logInfo("Vulkan command buffers created and allocated.");
@@ -399,7 +336,7 @@ VulkanBackend::~VulkanBackend() {
     vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
 
     //Destroy shader modules
-    vulkanShader.destroy(vulkanContext.getDevice());
+    vulkanShader.destroy(vulkanContext);
 
     Logger::logDebug("Destroying sync objects");
     //Destroy sync objects
@@ -409,7 +346,7 @@ VulkanBackend::~VulkanBackend() {
     //Destroy command buffers
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
         if (vulkanContext.getCommandBuffer(i)->handle) {
-            freeCommandBuffer(*vulkanContext.getCommandBuffer(i));
+            vulkanContext.freeCommandBuffer(*vulkanContext.getCommandBuffer(i));
             vulkanContext.getCommandBuffer(i)->handle = nullptr;
         }
     }
@@ -562,6 +499,8 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
         return false;
     }
 
+    vulkanShader.createBuffers(vulkanContext);
+
     Logger::logInfo("Vulkan renderer initialized");
     return RendererBackend::initialize(appName, platform, width, height);
 }
@@ -608,7 +547,7 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
     }
 
     resetCommandBuffer(vulkanContext.getCurrentCommandBuffer());
-    beginCommandBuffer(vulkanContext.getCurrentCommandBuffer(), false, false, false);
+    vulkanContext.beginCommandBuffer(vulkanContext.getCurrentCommandBuffer(), false, false, false);
 
     VkViewport viewport;
     viewport.x = 0;
@@ -637,7 +576,7 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
 
 bool VulkanBackend::endFrame(const float deltaTime) {
     endRenderpass(vulkanContext.getCurrentCommandBuffer());
-    endCommandBuffer(vulkanContext.getCurrentCommandBuffer());
+    vulkanContext.endCommandBuffer(vulkanContext.getCurrentCommandBuffer());
 
     //make sure the precious fence cannot grab this new frame
     if (vulkanContext.getCurrentImageInFlight() != nullptr) {

@@ -54,7 +54,6 @@ private:
         bool bIsSwapchainDirty = false;
 
         void createImageView(VkFormat format, VulkanImage &image, VkImageAspectFlags aspectFlags, VulkanDevice &device);
-        [[nodiscard]] int findMemoryIndex(int typeFilter, unsigned int propertyFlags, VulkanDevice &device);
 
         void createImage(
                 VkImageType imageType, unsigned int width, unsigned int height, VkFormat format,
@@ -83,4 +82,5 @@ public:
         void regenerateFramebuffers(unsigned int frameBufferWidth, unsigned int frameBufferHeight, VulkanRenderpass& renderpass, VulkanDevice& device);
         void destroySwapchain(VulkanDevice &device);
         void createFramebuffers();
+        [[nodiscard]] int findMemoryIndex(int typeFilter, unsigned int propertyFlags, VulkanDevice &device);
 };

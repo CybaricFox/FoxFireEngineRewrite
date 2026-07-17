@@ -51,6 +51,165 @@ bool VulkanShader::createShaderModule(VulkanContext &context, const String &name
     return true;
 }
 
+bool VulkanShader::createBuffer(VulkanContext &context, const unsigned long size, VkBufferUsageFlagBits usage, const unsigned int memoryFlags, const bool bBind, VulkanBuffer &buffer) {
+    FF_Memory::ff_clear(&buffer, sizeof(VulkanBuffer));
+    buffer.totalSize = size;
+    buffer.usageFlags = usage;
+    buffer.memoryPropertyFlags = memoryFlags;
+
+    VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VulkanUtils::vulkanCheck(vkCreateBuffer(context.getDevice().getLogicalDevice(), &bufferInfo, nullptr, &buffer.handle));
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(context.getDevice().getLogicalDevice(), buffer.handle, &memRequirements);
+    buffer.memoryIndex = context.getSwapchain().findMemoryIndex(static_cast<int>(memRequirements.memoryTypeBits), buffer.memoryPropertyFlags, context.getDevice());
+    if (buffer.memoryIndex == -1) {
+        Logger::logError("Can't find memory index for vulkan buffer!");
+        return false;
+    }
+
+    VkMemoryAllocateInfo allocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = buffer.memoryIndex;
+
+    VkResult result = vkAllocateMemory(context.getDevice().getLogicalDevice(), &allocInfo, nullptr, &buffer.deviceMemory);
+    if (result != VK_SUCCESS) {
+        Logger::logError("Failed to allocate memory for a new vulkan buffer: " + VulkanUtils::getResultAsString(result, true));
+        return false;
+    }
+
+    if (bBind) {
+        bindBuffer(context.getDevice(), buffer, 0);
+    }
+
+    return true;
+}
+
+void VulkanShader::destroyBuffer(VulkanDevice& device, VulkanBuffer &buffer) {
+    if (buffer.deviceMemory) {
+        vkFreeMemory(device.getLogicalDevice(), buffer.deviceMemory, nullptr);
+        buffer.deviceMemory = nullptr;
+    }
+    if (buffer.handle) {
+        vkDestroyBuffer(device.getLogicalDevice(), buffer.handle, nullptr);
+        buffer.handle = nullptr;
+    }
+    buffer.totalSize = 0;
+    buffer.bIsLocked = false;
+}
+
+void * VulkanShader::lockBuffer(VulkanDevice& device, const VulkanBuffer &buffer, const unsigned long offset, const unsigned long size, const unsigned int flags) {
+    void* data;
+    VulkanUtils::vulkanCheck(vkMapMemory(device.getLogicalDevice(), buffer.deviceMemory, offset, size, flags, &data));
+    return data;
+}
+
+void VulkanShader::unlockBuffer(VulkanDevice &device, const VulkanBuffer &buffer) {
+    vkUnmapMemory(device.getLogicalDevice(), buffer.deviceMemory);
+}
+
+void VulkanShader::loadBufferData(VulkanDevice &device, const VulkanBuffer &buffer, const unsigned long offset, const unsigned long size, const unsigned int flags, const void *data) {
+    void* dataPtr;
+    VulkanUtils::vulkanCheck(vkMapMemory(device.getLogicalDevice(), buffer.deviceMemory, offset, size, flags, &dataPtr));
+    FF_Memory::ff_copy(dataPtr, data, size);
+    vkUnmapMemory(device.getLogicalDevice(), buffer.deviceMemory);
+}
+
+void VulkanShader::copyBufferData(VulkanContext &context, VkCommandPool pool, VkFence fence, VkQueue queue, VkBuffer source, unsigned long sourceOffset, VkBuffer dest, unsigned long destOffset, unsigned long size) {
+    vkQueueWaitIdle(queue);
+
+    //Create a one time use command buffer
+    VulkanCommandBuffer tempBuffer{};
+    context.allocateAndBeginSingleUseCommandBuffer(tempBuffer);
+
+    VkBufferCopy copyRegion;
+    copyRegion.srcOffset = sourceOffset;
+    copyRegion.dstOffset = destOffset;
+    copyRegion.size = size;
+
+    vkCmdCopyBuffer(tempBuffer.handle, source, dest, 1, &copyRegion);
+
+    context.endSingleUseCommandBuffer(tempBuffer, queue);
+}
+
+bool VulkanShader::resizeBuffer(VulkanContext &context, const unsigned long newSize, VulkanBuffer &buffer, VkQueue queue, VkCommandPool pool) {
+    VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferInfo.size = newSize;
+    bufferInfo.usage = buffer.usageFlags;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkBuffer newBuffer;
+    VulkanUtils::vulkanCheck(vkCreateBuffer(context.getDevice().getLogicalDevice(), &bufferInfo, nullptr, &newBuffer));
+
+    VkMemoryRequirements requirements;
+    vkGetBufferMemoryRequirements(context.getDevice().getLogicalDevice(), newBuffer, &requirements);
+
+    VkMemoryAllocateInfo allocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    allocInfo.allocationSize = requirements.size;
+    allocInfo.memoryTypeIndex = buffer.memoryIndex;
+
+    VkDeviceMemory newMemory;
+    VkResult result = vkAllocateMemory(context.getDevice().getLogicalDevice(), &allocInfo, nullptr, &newMemory);
+    if (result != VK_SUCCESS) {
+        Logger::logError("Failed to resize vulkan buffer: " + VulkanUtils::getResultAsString(result, true));
+        return false;
+    }
+
+    VulkanUtils::vulkanCheck(vkBindBufferMemory(context.getDevice().getLogicalDevice(), newBuffer, newMemory, 0));
+
+    copyBufferData(context, pool, nullptr, queue, buffer.handle, 0, newBuffer, 0, buffer.totalSize);
+
+    vkDeviceWaitIdle(context.getDevice().getLogicalDevice());
+
+    if (buffer.deviceMemory) {
+        vkFreeMemory(context.getDevice().getLogicalDevice(), buffer.deviceMemory, nullptr);
+        buffer.deviceMemory = nullptr;
+    }
+    if (buffer.handle) {
+        vkDestroyBuffer(context.getDevice().getLogicalDevice(), buffer.handle, nullptr);
+        buffer.handle = nullptr;
+    }
+    buffer.totalSize = newSize;
+    buffer.deviceMemory = newMemory;
+    buffer.handle = newBuffer;
+
+    return true;
+}
+
+void VulkanShader::bindBuffer(VulkanDevice& device, const VulkanBuffer &buffer, const unsigned long offset) {
+    VulkanUtils::vulkanCheck(vkBindBufferMemory(device.getLogicalDevice(), buffer.handle, buffer.deviceMemory, offset));
+}
+
+bool VulkanShader::createBuffers(VulkanContext &context) {
+    VkMemoryPropertyFlags memoryPropertyFlags{VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
+
+    constexpr unsigned long vertexBufferSize = sizeof(Vertex3d) * 1024 * 1024; //Vertex Buffer should be 64mb with this
+    if (!createBuffer(context, vertexBufferSize,
+        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
+        memoryPropertyFlags, true, context.getVertexBuffer())) {
+
+        Logger::logError("Error creating vertex buffer!");
+        return false;
+    }
+    context.setVertexOffset(0);
+
+    constexpr unsigned long indexBufferSize = sizeof(unsigned int) * 1024 * 1024;
+    if (!createBuffer(context, indexBufferSize,
+        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
+        memoryPropertyFlags, true, context.getIndexBuffer())) {
+
+        Logger::logError("Error creating index buffer!");
+        return false;
+        }
+    context.setIndexOffset(0);
+
+    return true;
+}
+
 bool VulkanShader::initialize(VulkanContext &context) {
     const String stageTypeStrings[STAGE_COUNT] = {"vert", "frag"};
     constexpr VkShaderStageFlagBits stageTypes[STAGE_COUNT] = {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT};
@@ -112,11 +271,14 @@ bool VulkanShader::initialize(VulkanContext &context) {
     return true;
 }
 
-void VulkanShader::destroy(VulkanDevice& device) {
-    pipeline.destroyPipeline(device);
+void VulkanShader::destroy(VulkanContext& context) {
+    destroyBuffer(context.getDevice(), context.getVertexBuffer());
+    destroyBuffer(context.getDevice(), context.getIndexBuffer());
+
+    pipeline.destroyPipeline(context.getDevice());
 
     for (auto & stage : stages) {
-        vkDestroyShaderModule(device.getLogicalDevice(), stage.handle, nullptr);
+        vkDestroyShaderModule(context.getDevice().getLogicalDevice(), stage.handle, nullptr);
         stage.handle = nullptr;
     }
 }
