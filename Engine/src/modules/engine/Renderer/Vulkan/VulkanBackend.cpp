@@ -398,6 +398,9 @@ void VulkanBackend::createRenderpass(float x, float y, float w, float h, float r
 VulkanBackend::~VulkanBackend() {
     vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
 
+    //Destroy shader modules
+    vulkanShader.destroy(vulkanContext.getDevice());
+
     Logger::logDebug("Destroying sync objects");
     //Destroy sync objects
     vulkanContext.destroySyncObjects();
@@ -553,6 +556,11 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
 
     //Set initial state to 0. This is allocated in createSyncObject().
     vulkanContext.clearImagesInFlight();
+
+    if (!vulkanShader.initialize(vulkanContext)) {
+        Logger::logError("Failed to initialize Vulkan shaders.");
+        return false;
+    }
 
     Logger::logInfo("Vulkan renderer initialized");
     return RendererBackend::initialize(appName, platform, width, height);

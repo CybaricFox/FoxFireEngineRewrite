@@ -15,6 +15,7 @@ void Engine::startup()
 
     Logger::logInfo("Beginning startup sequence");
 
+    //Setup builtin engine events
     inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
     inputSystem->subscribeToEngineEvent(RESIZED, [this](const EngineInputContext context) {resize(context.mouseX, context.mouseY);}, "Static.resize");
 
@@ -40,9 +41,12 @@ void Engine::run() {
     int fps = 0;
     float deltaCount = 0;
 
+    //Debug gets memory usage before starting the run loop
+    //note that memory usage only shows tracked memory, not full memory.
     Logger::logInfo(FF_Memory::getMemoryUsage());
 
     while (bIsRunning) {
+        //Input detection.
         if (!platform.processMessages()) {
             bIsRunning = false;
         }
@@ -54,8 +58,6 @@ void Engine::run() {
             const double deltaTime = currentTime - lastTime;
             const double frameStartTime = Platform::getAbsoluteTime();
 
-            //Logger::logInfo(std::to_string(deltaTime));
-
             if (!engine->update(static_cast<float>(deltaTime))) {
                 Logger::logFatal("Game update tick failed!");
             }
@@ -66,7 +68,9 @@ void Engine::run() {
 
             RenderPacket packet{};
             packet.deltaTime = static_cast<float>(deltaTime);
+
             masterRenderSystem.drawFrame(packet, *backend);
+
             //How long did the frame take
             const double endTime = Platform::getAbsoluteTime();
             const double elapsedTime = endTime - frameStartTime;
@@ -133,6 +137,7 @@ bool Engine::render(float deltaTime) {
 Engine::Engine()
 {
     initializeMemory();
+    Logger::initializeFile(logHandler);
 }
 
 void Engine::initializeMemory() {
@@ -160,14 +165,14 @@ void Engine::initialize(GameInstance &instance) {
         return;
     }
 
-    Logger::initializeFile();
-
     Logger::logInfo("Initializing Game");
 
+    //Initialize event and input systems
     gameInstance = &instance;
     EngineEvents::initialize(subscribers);
     inputSystem->initialize();
 
+    //Initialize platform class
     if (!platform.initialize(gameInstance->config.appName, gameInstance->config.startingX, gameInstance->config.startingY, gameInstance->config.startingWidth, gameInstance->config.startingHeight)) {
         Logger::logFatal("The platform failed to initialize!");
         return;
@@ -205,6 +210,8 @@ Engine::~Engine() {
     linearAllocator.shutdown();
     //THIS MUST ALWAYS SHUTDOWN LAST!
     FF_Memory::shutdown();
+    //cleanup logger after memory shutdown so memory errors output to log file.
+    Logger::cleanup();
 }
 
 void Engine::setEngineRef(Engine& derivedEngine) {

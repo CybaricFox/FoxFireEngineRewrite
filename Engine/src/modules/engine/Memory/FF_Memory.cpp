@@ -19,6 +19,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 3: return "ARRAY";
         case 4: return "LINEAR ALLOCATOR";
         case 5: return "DYNAMIC ARRAY";
+        case 6: return "CHAR ARRAY";
         default: return " ";
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include <foxfire_export.h>
 
+#include "FileHandler.h"
 #include "src/defines.h"
 
 //Enable or disable debug messages depending on the type of release
@@ -15,9 +16,13 @@ enum LogLevel {
 };
 
 class FOXFIRE_API Logger{
+private:
+    static FileHandler* logFile;
+
+    static void appendLog(const String& message);
 public:
     //Creates log file
-    static void initializeFile();
+    static bool initializeFile(FileHandler& fileHandler);
     static void cleanup();
 
     //log a message to console

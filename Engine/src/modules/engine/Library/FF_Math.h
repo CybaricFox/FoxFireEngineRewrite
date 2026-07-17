@@ -337,6 +337,10 @@ inline FOXFIRE_API Mat4 operator*(const Mat4& left, const Mat4& right) {
     return out;
 }
 
+struct Vertex3d {
+    Vector3f position;
+};
+
 inline FOXFIRE_API constexpr float FF_PI = 3.14159265358979323846f;
 inline FOXFIRE_API constexpr float FF_INFINITY = 1e30f;
 inline FOXFIRE_API constexpr float FF_EPSILON = 1.192092869e-07f;

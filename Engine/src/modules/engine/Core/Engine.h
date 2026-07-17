@@ -17,6 +17,8 @@ private:
     MemoryBlock memoryDataStore{};
     LinearAllocator linearAllocator{};
 
+    //Holds the log file
+    FileHandler logHandler{};
     //Frontend Rendering
     MasterRenderSystem masterRenderSystem{};
     //Calculates system time

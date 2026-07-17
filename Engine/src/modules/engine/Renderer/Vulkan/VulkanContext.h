@@ -64,7 +64,6 @@ public:
     VkSemaphore& getCurrentQueueCompleteSemaphore() const {return queueCompleteSemaphores[imageIndex];}
     VulkanFramebuffer& getCurrentFramebuffer() const {return swapchain.getFramebuffer(imageIndex);}
 
-
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
     void setHeight(const unsigned int height) {frameBufferHeight = height;}
     void updateCurrentImageInFlight() const {imagesInFlight[imageIndex] = &inFlightFences[currentFrame];}

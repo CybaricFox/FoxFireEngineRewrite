@@ -7,6 +7,7 @@
 #include "../RendererBackend.h"
 
 #include "VulkanContext.h"
+#include "VulkanShader.h"
 #include "VulkanUtils.h"
 #include "src/modules/engine/Core/GameInstance.h"
 
@@ -15,6 +16,8 @@ private:
     int majorVersion = 0;
     int minorVersion = 0;
     int patchVersion = 0;
+
+    VulkanShader vulkanShader{};
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
