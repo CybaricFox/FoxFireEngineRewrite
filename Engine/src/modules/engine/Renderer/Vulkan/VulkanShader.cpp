@@ -112,9 +112,9 @@ void VulkanShader::unlockBuffer(VulkanDevice &device, const VulkanBuffer &buffer
     vkUnmapMemory(device.getLogicalDevice(), buffer.deviceMemory);
 }
 
-void VulkanShader::loadBufferData(VulkanDevice &device, const VulkanBuffer &buffer, const unsigned long offset, const unsigned long size, const unsigned int flags, const void *data) {
+void VulkanShader::loadBufferData(VulkanDevice &device, const VulkanBuffer &buffer, const unsigned long offset, const unsigned long size, const void *data) {
     void* dataPtr;
-    VulkanUtils::vulkanCheck(vkMapMemory(device.getLogicalDevice(), buffer.deviceMemory, offset, size, flags, &dataPtr));
+    VulkanUtils::vulkanCheck(vkMapMemory(device.getLogicalDevice(), buffer.deviceMemory, offset, size, 0, &dataPtr));
     FF_Memory::ff_copy(dataPtr, data, size);
     vkUnmapMemory(device.getLogicalDevice(), buffer.deviceMemory);
 }
@@ -283,6 +283,7 @@ void VulkanShader::destroy(VulkanContext& context) {
     }
 }
 
-void VulkanShader::use() {
-
+void VulkanShader::use(VulkanContext& context) const {
+    const unsigned int imageIndex = context.getImageIndex();
+    pipeline.bindPipeline(*context.getCommandBuffer(imageIndex), VK_PIPELINE_BIND_POINT_GRAPHICS);
 }

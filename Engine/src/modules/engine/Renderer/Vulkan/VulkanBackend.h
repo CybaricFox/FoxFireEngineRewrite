@@ -40,6 +40,7 @@ private:
     void createFence(bool bCreateSignaled, VulkanFence& fence);
     bool waitForFence(VulkanFence& fence, unsigned long timeout);
     void resetFence(VulkanFence& fence);
+    void uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, const VulkanBuffer& buffer, unsigned long offset, unsigned long size, const void* data);
 public:
     VulkanBackend() = default;
     ~VulkanBackend() override;

@@ -15,11 +15,11 @@ void Engine::startup()
 
     Logger::logInfo("Beginning startup sequence");
 
+    resize(gameInstance->config.startingWidth, gameInstance->config.startingHeight);
+
     //Setup builtin engine events
     inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
     inputSystem->subscribeToEngineEvent(RESIZED, [this](const EngineInputContext context) {resize(context.mouseX, context.mouseY);}, "Static.resize");
-
-    resize(width, height);
 
     bIsInitialized = true;
     bIsRunning = true;

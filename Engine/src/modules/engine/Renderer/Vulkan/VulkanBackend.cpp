@@ -9,6 +9,7 @@
 #include <iomanip>
 
 #include "../../Library/Logger.h"
+#include "src/modules/engine/Library/FF_Math.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 
 VulkanContext VulkanBackend::vulkanContext{};
@@ -229,6 +230,16 @@ void VulkanBackend::resetFence(VulkanFence& fence) {
         VulkanUtils::vulkanCheck(vkResetFences(vulkanContext.getDevice().getLogicalDevice(), 1, &fence.handle));
         fence.bIsSignaled = false;
     }
+}
+
+void VulkanBackend::uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, const VulkanBuffer &buffer, const unsigned long offset, const unsigned long size, const void *data) {
+    constexpr VkBufferUsageFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    VulkanBuffer stagingBuffer{};
+    vulkanShader.createBuffer(vulkanContext, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, flags, true, stagingBuffer);
+
+    vulkanShader.loadBufferData(vulkanContext.getDevice(), stagingBuffer, offset, size, data);
+    vulkanShader.copyBufferData(vulkanContext, pool, fence, queue, stagingBuffer.handle, 0, buffer.handle, offset, size);
+    vulkanShader.destroyBuffer(vulkanContext.getDevice(), stagingBuffer);
 }
 
 void VulkanBackend::resize(const unsigned short width, const unsigned short height) {
@@ -501,6 +512,22 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
 
     vulkanShader.createBuffers(vulkanContext);
 
+    //TEMPORARY TEST CODE
+    constexpr unsigned int vertexCount = 4;
+    Vertex3d vertices[vertexCount];
+    FF_Memory::ff_clear(vertices, sizeof(Vertex3d) * vertexCount);
+    vertices[0].position = {0, -0.5f, 0};
+    vertices[1].position = {0.5f, 0.5f, 0};
+    vertices[2].position = {0, 0.5f, 0};
+    vertices[3].position = {0.5, -0.5f, 0};
+
+    constexpr unsigned int indexCount = 6;
+    constexpr unsigned int indices[indexCount] = {0, 1, 2, 0, 3, 1};
+
+    uploadRangeOfData(vulkanContext.getDevice().getCommandPool(), nullptr, vulkanContext.getDevice().getGraphicsQueue(), vulkanContext.getVertexBuffer(), 0, sizeof(Vertex3d) * vertexCount, vertices);
+    uploadRangeOfData(vulkanContext.getDevice().getCommandPool(), nullptr, vulkanContext.getDevice().getGraphicsQueue(), vulkanContext.getIndexBuffer(), 0, sizeof(unsigned int) * indexCount, indices);
+    //END TEST CODE
+
     Logger::logInfo("Vulkan renderer initialized");
     return RendererBackend::initialize(appName, platform, width, height);
 }
@@ -570,6 +597,14 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
     vulkanContext.getRenderpass().h = static_cast<float>(vulkanContext.getFrameBufferHeight());
 
     beginRenderpass(vulkanContext.getCurrentCommandBuffer(), vulkanContext.getCurrentFramebuffer().handle);
+
+    //TEST CODE
+    vulkanShader.use(vulkanContext);
+    constexpr VkDeviceSize offsets[1] = {0};
+    vkCmdBindVertexBuffers(vulkanContext.getCurrentCommandBuffer().handle, 0, 1, &vulkanContext.getVertexBuffer().handle, offsets);
+    vkCmdBindIndexBuffer(vulkanContext.getCurrentCommandBuffer().handle, vulkanContext.getIndexBuffer().handle, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(vulkanContext.getCurrentCommandBuffer().handle, 6, 1, 0, 0, 0);
+    //END TEST CODE
 
     return true;
 }
