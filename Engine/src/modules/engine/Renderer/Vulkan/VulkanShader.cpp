@@ -221,8 +221,29 @@ bool VulkanShader::initialize(VulkanContext &context) {
         }
     }
 
-    //Initialize descriptors
-    //HERE
+    //Initialize global descriptors
+    VkDescriptorSetLayoutBinding globalUBOLayoutBinding;
+    globalUBOLayoutBinding.binding = 0;
+    globalUBOLayoutBinding.descriptorCount = 1;
+    globalUBOLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    globalUBOLayoutBinding.pImmutableSamplers = nullptr;
+    globalUBOLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo globalLayoutInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    globalLayoutInfo.bindingCount = 1;
+    globalLayoutInfo.pBindings = &globalUBOLayoutBinding;
+    VulkanUtils::vulkanCheck(vkCreateDescriptorSetLayout(context.getDevice().getLogicalDevice(), &globalLayoutInfo, nullptr, &globalDescriptorSetLayout));
+
+    VkDescriptorPoolSize globalPoolSize;
+    globalPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    globalPoolSize.descriptorCount = context.getSwapchain().getImageCount();
+
+    VkDescriptorPoolCreateInfo globalPoolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    globalPoolInfo.poolSizeCount = 1;
+    globalPoolInfo.pPoolSizes = &globalPoolSize;
+    globalPoolInfo.maxSets = context.getSwapchain().getImageCount();
+
+    VulkanUtils::vulkanCheck(vkCreateDescriptorPool(context.getDevice().getLogicalDevice(), &globalPoolInfo, nullptr, &globalDescriptorPool));
 
     //Create pipeline
     VkViewport viewport;
@@ -254,6 +275,10 @@ bool VulkanShader::initialize(VulkanContext &context) {
         offset += sizes[i];
     }
 
+    //Create descriptor set layouts
+    constexpr int descriptorSetLayoutCount = 1;
+    VkDescriptorSetLayout layouts[descriptorSetLayoutCount] = {globalDescriptorSetLayout};
+
     //Create stages
     VkPipelineShaderStageCreateInfo shaderStageCreateInfos[STAGE_COUNT];
     FF_Memory::ff_clear(shaderStageCreateInfos, sizeof(shaderStageCreateInfos));
@@ -263,10 +288,26 @@ bool VulkanShader::initialize(VulkanContext &context) {
         shaderStageCreateInfos[i] = stages[i].shaderStageCreateInfo;
     }
 
-    if (!pipeline.createPipeline(context.getRenderpass(), attributeCount, attributeDescriptions, 0, nullptr, STAGE_COUNT, shaderStageCreateInfos, viewport, scissor, false,context.getDevice())) {
+    if (!pipeline.createPipeline(context.getRenderpass(), attributeCount, attributeDescriptions, descriptorSetLayoutCount, layouts, STAGE_COUNT, shaderStageCreateInfos, viewport, scissor, false,context.getDevice())) {
         Logger::logError("Failed to load graphics pipeline for object shader!");
         return false;
     }
+
+    if (!createBuffer(context, sizeof(GlobalUniform) * 3,
+        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        true, globalUniformBuffer)) {
+
+        Logger::logError("Failed to create global uniform buffer!");
+        return false;
+    }
+
+    VkDescriptorSetLayout globalLayouts[3] = {globalDescriptorSetLayout, globalDescriptorSetLayout, globalDescriptorSetLayout};
+    VkDescriptorSetAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    allocateInfo.descriptorPool = globalDescriptorPool;
+    allocateInfo.descriptorSetCount = 3;
+    allocateInfo.pSetLayouts = globalLayouts;
+    VulkanUtils::vulkanCheck(vkAllocateDescriptorSets(context.getDevice().getLogicalDevice(), &allocateInfo, globalDescriptorSets));
 
     return true;
 }
@@ -275,7 +316,12 @@ void VulkanShader::destroy(VulkanContext& context) {
     destroyBuffer(context.getDevice(), context.getVertexBuffer());
     destroyBuffer(context.getDevice(), context.getIndexBuffer());
 
+    destroyBuffer(context.getDevice(), globalUniformBuffer);
+
     pipeline.destroyPipeline(context.getDevice());
+
+    vkDestroyDescriptorPool(context.getDevice().getLogicalDevice(), globalDescriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(context.getDevice().getLogicalDevice(), globalDescriptorSetLayout, nullptr);
 
     for (auto & stage : stages) {
         vkDestroyShaderModule(context.getDevice().getLogicalDevice(), stage.handle, nullptr);
@@ -284,6 +330,33 @@ void VulkanShader::destroy(VulkanContext& context) {
 }
 
 void VulkanShader::use(VulkanContext& context) const {
-    const unsigned int imageIndex = context.getImageIndex();
-    pipeline.bindPipeline(*context.getCommandBuffer(imageIndex), VK_PIPELINE_BIND_POINT_GRAPHICS);
+    pipeline.bindPipeline(*context.getCommandBuffer(context.getImageIndex()), VK_PIPELINE_BIND_POINT_GRAPHICS);
+}
+
+void VulkanShader::updateGlobalState(VulkanContext &context) {
+    VkCommandBuffer commandBuffer = context.getCommandBuffer(context.getImageIndex())->handle;
+    VkDescriptorSet globalDescriptorSet = globalDescriptorSets[context.getImageIndex()];
+
+    constexpr unsigned int range = sizeof(GlobalUniform);
+    const unsigned long offset = sizeof(GlobalUniform) * context.getImageIndex();
+
+    loadBufferData(context.getDevice(), globalUniformBuffer, offset, range, &globalUBO);
+
+    VkDescriptorBufferInfo bufferInfo;
+    bufferInfo.buffer = globalUniformBuffer.handle;
+    bufferInfo.offset = offset;
+    bufferInfo.range = range;
+
+    VkWriteDescriptorSet writeDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    writeDescriptorSet.dstSet = globalDescriptorSet;
+    writeDescriptorSet.dstBinding = 0;
+    writeDescriptorSet.dstArrayElement = 0;
+    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    writeDescriptorSet.descriptorCount = 1;
+    writeDescriptorSet.pBufferInfo = &bufferInfo;
+
+    vkUpdateDescriptorSets(context.getDevice().getLogicalDevice(), 1, &writeDescriptorSet, 0, nullptr);
+
+    //This must be executed last because some GPUs cannot update a uniform buffer after binding it.
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.getPipelineLayout(), 0, 1, &globalDescriptorSet, 0, nullptr);
 }

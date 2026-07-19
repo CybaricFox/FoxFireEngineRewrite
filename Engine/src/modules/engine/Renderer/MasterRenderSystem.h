@@ -20,6 +20,6 @@ public:
     MasterRenderSystem() = default;
     ~MasterRenderSystem();
 
-    bool drawFrame(const RenderPacket& packet, RendererBackend& backend);
+    bool drawFrame(const RenderPacket &packet, RendererBackend &backend);
     void onResize(unsigned short width, unsigned short height, RendererBackend* backend);
 };

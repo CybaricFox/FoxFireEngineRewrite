@@ -9,10 +9,11 @@
 
 class VulkanPipeline {
 private:
-    VkPipeline handle;
-    VkPipelineLayout pipelineLayout;
+    VkPipeline handle{};
+    VkPipelineLayout pipelineLayout{};
 
 public:
+    VkPipelineLayout& getPipelineLayout() {return pipelineLayout;}
 
     void destroyPipeline(VulkanDevice &device);
     void bindPipeline(const VulkanCommandBuffer& commandBuffer, VkPipelineBindPoint pipelineBindPoint) const;

@@ -57,4 +57,5 @@ public:
     void resize(unsigned short width, unsigned short height) override;
     bool beginFrame(float deltaTime) override;
     bool endFrame(float deltaTime) override;
+    void updateGlobalState(Mat4 projection, Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) override;
 };

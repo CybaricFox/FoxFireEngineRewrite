@@ -516,10 +516,13 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     constexpr unsigned int vertexCount = 4;
     Vertex3d vertices[vertexCount];
     FF_Memory::ff_clear(vertices, sizeof(Vertex3d) * vertexCount);
-    vertices[0].position = {0, -0.5f, 0};
-    vertices[1].position = {0.5f, 0.5f, 0};
-    vertices[2].position = {0, 0.5f, 0};
-    vertices[3].position = {0.5, -0.5f, 0};
+
+    constexpr float f = 10.0f;
+
+    vertices[0].position = {-0.5 * f, -0.5f * f, 0};
+    vertices[1].position = {0.5f * f, 0.5f * f, 0};
+    vertices[2].position = {-0.5 * f, 0.5f * f, 0};
+    vertices[3].position = {0.5 * f, -0.5f * f, 0};
 
     constexpr unsigned int indexCount = 6;
     constexpr unsigned int indices[indexCount] = {0, 1, 2, 0, 3, 1};
@@ -598,14 +601,6 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
 
     beginRenderpass(vulkanContext.getCurrentCommandBuffer(), vulkanContext.getCurrentFramebuffer().handle);
 
-    //TEST CODE
-    vulkanShader.use(vulkanContext);
-    constexpr VkDeviceSize offsets[1] = {0};
-    vkCmdBindVertexBuffers(vulkanContext.getCurrentCommandBuffer().handle, 0, 1, &vulkanContext.getVertexBuffer().handle, offsets);
-    vkCmdBindIndexBuffer(vulkanContext.getCurrentCommandBuffer().handle, vulkanContext.getIndexBuffer().handle, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(vulkanContext.getCurrentCommandBuffer().handle, 6, 1, 0, 0, 0);
-    //END TEST CODE
-
     return true;
 }
 
@@ -642,4 +637,23 @@ bool VulkanBackend::endFrame(const float deltaTime) {
     presentSwapchain();
 
     return true;
+}
+
+void VulkanBackend::updateGlobalState(const Mat4 projection, const Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) {
+    const VulkanCommandBuffer& commandBuffer = vulkanContext.getCommandBuffers()[vulkanContext.getImageIndex()];
+
+    vulkanShader.use(vulkanContext);
+
+    vulkanShader.getUBO().projection = projection;
+    vulkanShader.getUBO().view = view;
+
+    vulkanShader.updateGlobalState(vulkanContext);
+
+    //TEST CODE
+    vulkanShader.use(vulkanContext);
+    constexpr VkDeviceSize offsets[1] = {0};
+    vkCmdBindVertexBuffers(commandBuffer.handle, 0, 1, &vulkanContext.getVertexBuffer().handle, offsets);
+    vkCmdBindIndexBuffer(commandBuffer.handle, vulkanContext.getIndexBuffer().handle, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(commandBuffer.handle, 6, 1, 0, 0, 0);
+    //END TEST CODE
 }

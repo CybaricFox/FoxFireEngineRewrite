@@ -3,10 +3,11 @@
 //
 
 #pragma once
-#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.h>
 
 #include "VulkanContext.h"
 #include "VulkanPipeline.h"
+#include "src/modules/engine/Renderer/GlobalUniform.h"
 
 struct VulkanShaderStage {
     VkShaderModuleCreateInfo createInfo;
@@ -20,6 +21,12 @@ class VulkanShader {
 private:
     VulkanShaderStage stages[STAGE_COUNT]{};
     VulkanPipeline pipeline{};
+    GlobalUniform globalUBO{};
+    VkDescriptorPool globalDescriptorPool{};
+    //1 per frame. Max 3 for triple buffering (Mailbox).
+    VkDescriptorSet globalDescriptorSets[3]{};
+    VkDescriptorSetLayout globalDescriptorSetLayout{};
+    VulkanBuffer globalUniformBuffer{};
 
     //Creates a shader module from a .spv file. Name is the name of the file and TypeStr is the suffix (frag, vert). Do not include '.' in the typeStr!
     bool createShaderModule(VulkanContext& context, const String &name, const String& typeStr, VkShaderStageFlagBits stageFlags, unsigned int stageIndex);
@@ -29,9 +36,12 @@ private:
     void bindBuffer(VulkanDevice &device, const VulkanBuffer &buffer, unsigned long offset);
 
 public:
+    GlobalUniform& getUBO() {return globalUBO;}
+
     bool initialize(VulkanContext& context);
     void destroy(VulkanContext &context);
     void use(VulkanContext &context) const;
+    void updateGlobalState(VulkanContext &context);
     bool createBuffers(VulkanContext& context);
     bool createBuffer(VulkanContext& context, unsigned long size, VkBufferUsageFlagBits usage, unsigned int memoryFlags, bool bBind, VulkanBuffer& buffer);
     void loadBufferData(VulkanDevice &device, const VulkanBuffer &buffer, unsigned long offset, unsigned long size, const void *data);

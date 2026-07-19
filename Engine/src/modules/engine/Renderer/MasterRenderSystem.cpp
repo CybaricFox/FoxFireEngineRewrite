@@ -8,6 +8,12 @@
 
 bool MasterRenderSystem::drawFrame(const RenderPacket& packet, RendererBackend& backend) {
     if (beginFrame(packet.deltaTime, backend)) {
+        const Mat4 projectionMatrix = perspective(degreesToRadians(45.0f), 1280.0f / 720.0f, 0.1f, 1000.0f);
+        static float z = -1.0f;
+        z -= 0.01f;
+        const Mat4 viewMatrix = createTranslationMatrix({0, 0, z});
+        backend.updateGlobalState(projectionMatrix, viewMatrix, zeroVector3f(), oneVector4f(), 0);
+
         if (!endFrame(packet.deltaTime, backend)) {
             Logger::logFatal("Failed to end frame!");
             return false;
