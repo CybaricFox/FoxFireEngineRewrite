@@ -640,16 +640,19 @@ bool VulkanBackend::endFrame(const float deltaTime) {
 }
 
 void VulkanBackend::updateGlobalState(const Mat4 projection, const Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) {
-    const VulkanCommandBuffer& commandBuffer = vulkanContext.getCommandBuffers()[vulkanContext.getImageIndex()];
-
     vulkanShader.use(vulkanContext);
 
     vulkanShader.getUBO().projection = projection;
     vulkanShader.getUBO().view = view;
 
     vulkanShader.updateGlobalState(vulkanContext);
+}
+
+void VulkanBackend::updateObject(const Mat4 model) {
+    vulkanShader.updateObject(vulkanContext, model);
 
     //TEST CODE
+    const VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
     vulkanShader.use(vulkanContext);
     constexpr VkDeviceSize offsets[1] = {0};
     vkCmdBindVertexBuffers(commandBuffer.handle, 0, 1, &vulkanContext.getVertexBuffer().handle, offsets);

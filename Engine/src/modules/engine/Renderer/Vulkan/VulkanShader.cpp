@@ -184,6 +184,12 @@ void VulkanShader::bindBuffer(VulkanDevice& device, const VulkanBuffer &buffer, 
     VulkanUtils::vulkanCheck(vkBindBufferMemory(device.getLogicalDevice(), buffer.handle, buffer.deviceMemory, offset));
 }
 
+void VulkanShader::updateObject(VulkanContext &context, const Mat4 &model) {
+    VkCommandBuffer commandBuffer = context.getCommandBuffer(context.getImageIndex())->handle;
+
+    vkCmdPushConstants(commandBuffer, pipeline.getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), &model);
+}
+
 bool VulkanShader::createBuffers(VulkanContext &context) {
     VkMemoryPropertyFlags memoryPropertyFlags{VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
 

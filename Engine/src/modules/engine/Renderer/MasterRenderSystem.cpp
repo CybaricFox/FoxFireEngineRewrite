@@ -9,10 +9,15 @@
 bool MasterRenderSystem::drawFrame(const RenderPacket& packet, RendererBackend& backend) {
     if (beginFrame(packet.deltaTime, backend)) {
         const Mat4 projectionMatrix = perspective(degreesToRadians(45.0f), 1280.0f / 720.0f, 0.1f, 1000.0f);
-        static float z = -1.0f;
+        static float z = 0.0f;
         z -= 0.01f;
         const Mat4 viewMatrix = createTranslationMatrix({0, 0, z});
         backend.updateGlobalState(projectionMatrix, viewMatrix, zeroVector3f(), oneVector4f(), 0);
+        static float angle = 0.01f;
+        angle += 0.001f;
+        const Quat rotation = getQuatFromAxisAngle(forwardVector3(), angle, false);
+        const Mat4 model = convertQuatToRotationMatrix(rotation, zeroVector3f());
+        backend.updateObject(model);
 
         if (!endFrame(packet.deltaTime, backend)) {
             Logger::logFatal("Failed to end frame!");

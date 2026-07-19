@@ -101,7 +101,16 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int a
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = false;
 
+    //Push constants
+    VkPushConstantRange pushConstant;
+    pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstant.offset = sizeof(Mat4) * 0;
+    pushConstant.size = sizeof(Mat4) * 2; //= 128 bytes
+
+    //Pipeline layout
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
     pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutCount;
     pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts;
 

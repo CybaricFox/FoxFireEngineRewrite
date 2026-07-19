@@ -47,4 +47,5 @@ public:
     void loadBufferData(VulkanDevice &device, const VulkanBuffer &buffer, unsigned long offset, unsigned long size, const void *data);
     void copyBufferData(VulkanContext& context, VkCommandPool pool, VkFence fence, VkQueue queue, VkBuffer source, unsigned long sourceOffset, VkBuffer dest, unsigned long destOffset, unsigned long size);
     void destroyBuffer(VulkanDevice &device, VulkanBuffer &buffer);
+    void updateObject(VulkanContext& context, const Mat4 &model);
 };

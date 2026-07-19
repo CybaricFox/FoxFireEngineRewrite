@@ -36,6 +36,7 @@ public:
     virtual bool endFrame(float deltaTime) = 0;
     virtual void resize(unsigned short width, unsigned short height) = 0;
     virtual void updateGlobalState(Mat4 projection, Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) = 0;
+    virtual void updateObject(Mat4 model) = 0;
 
     void incrementFrameNumber() {frameNumber++;}
     void clearFrameNumber() {frameNumber = 0;}
