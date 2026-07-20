@@ -6,20 +6,16 @@
 
 #include "../Library/Logger.h"
 
-bool MasterRenderSystem::drawFrame(const RenderPacket& packet, RendererBackend& backend) {
-    if (beginFrame(packet.deltaTime, backend)) {
-        const Mat4 projectionMatrix = perspective(degreesToRadians(45.0f), 1280.0f / 720.0f, 0.1f, 1000.0f);
-        static float z = 0.0f;
-        z -= 0.01f;
-        const Mat4 viewMatrix = createTranslationMatrix({0, 0, z});
-        backend.updateGlobalState(projectionMatrix, viewMatrix, zeroVector3f(), oneVector4f(), 0);
+bool MasterRenderSystem::drawFrame(const RenderPacket& packet) const {
+    if (beginFrame(packet.deltaTime)) {
+        backend->updateGlobalState(projection, view, zeroVector3f(), oneVector4f(), 0);
         static float angle = 0.01f;
         angle += 0.001f;
         const Quat rotation = getQuatFromAxisAngle(forwardVector3(), angle, false);
         const Mat4 model = convertQuatToRotationMatrix(rotation, zeroVector3f());
-        backend.updateObject(model);
+        backend->updateObject(model);
 
-        if (!endFrame(packet.deltaTime, backend)) {
+        if (!endFrame(packet.deltaTime)) {
             Logger::logFatal("Failed to end frame!");
             return false;
         }
@@ -28,25 +24,30 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet, RendererBackend& 
     return true;
 }
 
-void MasterRenderSystem::onResize(const unsigned short width, const unsigned short height, RendererBackend* backend) {
+void MasterRenderSystem::onResize(const unsigned short width, const unsigned short height) {
     if (backend) {
+        projection = perspective(degreesToRadians(45.0f), static_cast<float>(width) / static_cast<float>(height), nearClip, farClip);
         backend->resize(width, height);
     } else {
         Logger::logWarn("Backend cannot resize because it does not exist.");
     }
 }
 
-bool MasterRenderSystem::beginFrame(const float deltaTime, RendererBackend& backend) {
-    return backend.beginFrame(deltaTime);
+bool MasterRenderSystem::beginFrame(const float deltaTime) const {
+    return backend->beginFrame(deltaTime);
 }
 
-bool MasterRenderSystem::endFrame(const float deltaTime, RendererBackend& backend) {
-    const bool result = backend.endFrame(deltaTime);
-    backend.incrementFrameNumber();
+bool MasterRenderSystem::endFrame(const float deltaTime) const {
+    const bool result = backend->endFrame(deltaTime);
+    backend->incrementFrameNumber();
     return result;
 }
 
-bool MasterRenderSystem::initialize(const String &appName, Platform& platform, RendererBackend*& backend, const GameInstance& gameInstance, const unsigned int width, const unsigned int height) {
+void MasterRenderSystem::setView(const Mat4 &newView) {
+    view = newView;
+}
+
+bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, const unsigned int width, const unsigned int height) {
     backend = RendererBackend::create(VULKAN, platform.getPlatformState(), gameInstance);
     if (backend == nullptr) {
         Logger::logFatal("Failed to create the backend renderer!");
@@ -59,9 +60,18 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, R
         return false;
     }
 
+    projection = perspective(degreesToRadians(45.0f), 1280 / 720.0f, nearClip, farClip);
+    view = createTranslationMatrix({0, 0, -30});
+    view = invertMatrix(view);
+
     return true;
 }
 
-MasterRenderSystem::~MasterRenderSystem() {
+void MasterRenderSystem::shutdown() {
+    delete backend;
+    backend = nullptr;
+}
 
+MasterRenderSystem::~MasterRenderSystem() {
+    shutdown();
 }

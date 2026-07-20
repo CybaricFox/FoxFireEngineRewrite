@@ -25,13 +25,9 @@ private:
     Clock clock{};
     //Handles the OS
     Platform platform{};
-    //Backend Renderer
-    RendererBackend* backend = nullptr;
 
     //Holds a pointer to the derived Game
     Engine* engine = nullptr;
-    //Holds config data
-    GameInstance* gameInstance = nullptr;
     //Holds subscribers to engine related events
     DynamicArray<EngineEventCallback> subscribers[MAX_EVENT];
 
@@ -46,6 +42,8 @@ private:
     void initializeRenderSystem();
 
 protected:
+    //Holds config data
+    GameInstance* gameInstance = nullptr;
     //Handle Input
     IInputSystem* inputSystem = nullptr;
 
@@ -56,13 +54,16 @@ protected:
     virtual bool update (float deltaTime);
     bool render(float deltaTime);
 
+    //REMOVE THIS LATER
+    void setView(const Mat4 &newView);
+
 public:
     explicit Engine();
     virtual ~Engine();
 
     void setEngineRef(Engine& derivedEngine);
 
-    void initialize(GameInstance& instance);
+    virtual void initialize(GameInstance& instance);
 
     void getFramebufferSize(unsigned int& bufferWidth, unsigned int& bufferHeight) const;
 };

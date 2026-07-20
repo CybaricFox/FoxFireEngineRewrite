@@ -69,7 +69,9 @@ void Engine::run() {
             RenderPacket packet{};
             packet.deltaTime = static_cast<float>(deltaTime);
 
-            masterRenderSystem.drawFrame(packet, *backend);
+            if (!masterRenderSystem.drawFrame(packet)) {
+                Logger::logFatal("Failed to draw frame!");
+            }
 
             //How long did the frame take
             const double endTime = Platform::getAbsoluteTime();
@@ -121,7 +123,7 @@ void Engine::resize(const unsigned short newWidth, const unsigned short newHeigh
                 bIsPaused = false;
             }
 
-            masterRenderSystem.onResize(width, height, backend);
+            masterRenderSystem.onResize(width, height);
         }
     }
 }
@@ -132,6 +134,10 @@ bool Engine::update(float deltaTime) {
 
 bool Engine::render(float deltaTime) {
     return true;
+}
+
+void Engine::setView(const Mat4 &newView) {
+    masterRenderSystem.setView(newView);
 }
 
 Engine::Engine()
@@ -149,7 +155,7 @@ void Engine::initializeMemory() {
 }
 
 void Engine::initializeRenderSystem() {
-    if (!masterRenderSystem.initialize(gameInstance->config.appName, platform, backend, *gameInstance, width, height)) {
+    if (!masterRenderSystem.initialize(gameInstance->config.appName, platform, *gameInstance, width, height)) {
         Logger::logFatal("Failed to initialize renderer!");
     }
 }
@@ -199,7 +205,7 @@ Engine::~Engine() {
     EngineEvents::shutdown();
 
     //Destroy resources in opposite order of creation
-    delete backend;
+    masterRenderSystem.shutdown();
     if (inputSystem) {
         delete inputSystem;
         inputSystem = nullptr;

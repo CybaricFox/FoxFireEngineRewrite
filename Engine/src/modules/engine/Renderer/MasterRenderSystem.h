@@ -10,16 +10,27 @@
 
 class MasterRenderSystem {
 private:
-    bool beginFrame(float deltaTime, RendererBackend& backend);
-    bool endFrame(float deltaTime, RendererBackend& backend);
+    //Backend Renderer
+    RendererBackend* backend = nullptr;
+    //Camera projection
+    Mat4 projection{};
+    Mat4 view{};
+    float nearClip = 0.1f;
+    float farClip = 1000.0f;
 
     DynamicArray<IRenderSystem> renderSystems{};
 
+    [[nodiscard]] bool beginFrame(float deltaTime) const;
+    [[nodiscard]] bool endFrame(float deltaTime) const;
+
 public:
-    bool initialize(const String &appName, Platform& platform, RendererBackend*& backend, const GameInstance& gameInstance, unsigned int width, unsigned int height);
+    bool initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, unsigned int width, unsigned int height);
+    void shutdown();
     MasterRenderSystem() = default;
     ~MasterRenderSystem();
 
-    bool drawFrame(const RenderPacket &packet, RendererBackend &backend);
-    void onResize(unsigned short width, unsigned short height, RendererBackend* backend);
+    void setView(const Mat4 &newView);
+
+    [[nodiscard]] bool drawFrame(const RenderPacket &packet) const;
+    void onResize(unsigned short width, unsigned short height);
 };
