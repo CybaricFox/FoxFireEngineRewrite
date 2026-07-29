@@ -339,6 +339,7 @@ inline Mat4 operator*(const Mat4& left, const Mat4& right) {
 
 struct Vertex3d {
     Vector3f position;
+    Vector2f textureCoordinate;
 };
 
 inline constexpr float FF_PI = 3.14159265358979323846f;

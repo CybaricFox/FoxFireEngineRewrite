@@ -4,6 +4,8 @@
 #include <iostream>
 #include <string>
 
+#define INVALID_ID 4294967295U
+
 //Windows
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
     #define FOXFIRE_PLATFORM_WINDOWS 1

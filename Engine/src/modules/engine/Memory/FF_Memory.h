@@ -12,6 +12,7 @@ enum MemoryTag {
     LINEAR_ALLOCATOR,
     DYNAMIC_ARRAY,
     CHAR_ARRAY,
+    TEXTURE,
     MAX_TAGS
 };
 

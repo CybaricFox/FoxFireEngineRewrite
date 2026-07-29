@@ -12,4 +12,6 @@ public:
     static String getResultAsString(VkResult result, bool bGetExtended);
 
     static bool vulkanCheck(VkResult result);
+
+    static int findMemoryIndex(int typeFilter, unsigned int propertyFlags, VkPhysicalDevice physicalDevice);
 };

@@ -520,15 +520,25 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     constexpr float f = 10.0f;
 
     vertices[0].position = {-0.5 * f, -0.5f * f, 0};
+    vertices[0].textureCoordinate = {0, 0};
     vertices[1].position = {0.5f * f, 0.5f * f, 0};
+    vertices[1].textureCoordinate = {1, 1};
     vertices[2].position = {-0.5 * f, 0.5f * f, 0};
+    vertices[2].textureCoordinate = {0, 1};
     vertices[3].position = {0.5 * f, -0.5f * f, 0};
+    vertices[3].textureCoordinate = {1, 0};
 
     constexpr unsigned int indexCount = 6;
     constexpr unsigned int indices[indexCount] = {0, 1, 2, 0, 3, 1};
 
     uploadRangeOfData(vulkanContext.getDevice().getCommandPool(), nullptr, vulkanContext.getDevice().getGraphicsQueue(), vulkanContext.getVertexBuffer(), 0, sizeof(Vertex3d) * vertexCount, vertices);
     uploadRangeOfData(vulkanContext.getDevice().getCommandPool(), nullptr, vulkanContext.getDevice().getGraphicsQueue(), vulkanContext.getIndexBuffer(), 0, sizeof(unsigned int) * indexCount, indices);
+
+    unsigned int id = 0;
+    if (!vulkanShader.aquireResources(vulkanContext, id)) {
+        Logger::logError("Failed to aquire shader resource.");
+        return false;
+    }
     //END TEST CODE
 
     Logger::logInfo("Vulkan renderer initialized");
@@ -542,6 +552,8 @@ void VulkanBackend::setVersion(const GameInstance& gameInstance) {
 }
 
 bool VulkanBackend::beginFrame(const float deltaTime) {
+    vulkanContext.setDeltaTime(deltaTime);
+
     if (vulkanContext.getSwapchain().isRecreatingSwapchain()) {
         VkResult result = vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
         if (!VulkanUtils::vulkanCheck(result)) {
@@ -648,8 +660,8 @@ void VulkanBackend::updateGlobalState(const Mat4 projection, const Mat4 view, Ve
     vulkanShader.updateGlobalState(vulkanContext);
 }
 
-void VulkanBackend::updateObject(const Mat4 model) {
-    vulkanShader.updateObject(vulkanContext, model);
+void VulkanBackend::updateEntity(const GeometryRenderData data) {
+    vulkanShader.updateEntity(vulkanContext, data);
 
     //TEST CODE
     const VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
@@ -659,4 +671,76 @@ void VulkanBackend::updateObject(const Mat4 model) {
     vkCmdBindIndexBuffer(commandBuffer.handle, vulkanContext.getIndexBuffer().handle, 0, VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(commandBuffer.handle, 6, 1, 0, 0, 0);
     //END TEST CODE
+}
+
+void VulkanBackend::createTexture(String &name, bool autoRelease, int width, int height, int channelCount, const unsigned char *pixels, bool isTransparent, Texture &outTexture) {
+    outTexture.width = width;
+    outTexture.height = height;
+    outTexture.channelCount = channelCount;
+    outTexture.generation = INVALID_ID;
+
+    outTexture.data = FF_Memory::ff_allocate(sizeof(VulkanTextureData), TEXTURE);
+    auto* data = static_cast<VulkanTextureData *>(outTexture.data);
+
+    VkDeviceSize imageSize = width * height * channelCount;
+    VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+
+    VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    VkMemoryPropertyFlags memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    VulkanBuffer staging{};
+    vulkanShader.createBuffer(vulkanContext, imageSize, static_cast<VkBufferUsageFlagBits>(usage), memoryPropertyFlags, true, staging);
+    vulkanShader.loadBufferData(vulkanContext.getDevice(), staging, 0, imageSize, pixels);
+
+    data->image.createImage(VK_IMAGE_TYPE_2D, width, height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
+
+    VulkanCommandBuffer tempBuffer{};
+    VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
+    vulkanContext.allocateAndBeginSingleUseCommandBuffer(tempBuffer);
+
+    data->image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, vulkanContext.getDevice());
+    data->image.copyFromBuffer(staging.handle, tempBuffer);
+    data->image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, vulkanContext.getDevice());
+    vulkanContext.endSingleUseCommandBuffer(tempBuffer, queue);
+    vulkanShader.destroyBuffer(vulkanContext.getDevice(), staging);
+
+    VkSamplerCreateInfo samplerCreateInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
+    samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
+    samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerCreateInfo.anisotropyEnable = VK_TRUE;
+    samplerCreateInfo.maxAnisotropy = 16;
+    samplerCreateInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerCreateInfo.compareEnable = VK_FALSE;
+    samplerCreateInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerCreateInfo.mipLodBias = 0.0f;
+    samplerCreateInfo.minLod = 0.0f;
+    samplerCreateInfo.maxLod = 0.0f;
+
+    VkResult result = vkCreateSampler(vulkanContext.getDevice().getLogicalDevice(), &samplerCreateInfo, nullptr, &data->sampler);
+    if (!VulkanUtils::vulkanCheck(result)) {
+        Logger::logError("Error creating texture sample: " + VulkanUtils::getResultAsString(result, true));
+        return;
+    }
+
+    outTexture.bIsTransparent = isTransparent;
+    outTexture.generation++;
+}
+
+void VulkanBackend::destroyTexture(Texture &texture) {
+    vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
+
+    const auto data = static_cast<VulkanTextureData *>(texture.data);
+
+    data->image.destroy(vulkanContext.getDevice());
+    FF_Memory::ff_clear(&data->image, sizeof(VulkanImage));
+    vkDestroySampler(vulkanContext.getDevice().getLogicalDevice(), data->sampler, nullptr);
+    data->sampler = nullptr;
+
+    FF_Memory::ff_free(texture.data, sizeof(VulkanTextureData), TEXTURE);
 }

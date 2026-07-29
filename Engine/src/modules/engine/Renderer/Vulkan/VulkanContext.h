@@ -5,13 +5,9 @@
 #pragma once
 #include <vulkan/vulkan.h>
 
+#include "VulkanCommandBuffer.h"
 #include "VulkanSwapchain.h"
 #include "src/modules/engine/Library/Logger.h"
-
-struct VulkanCommandBuffer {
-    VkCommandBuffer handle;
-    VulkanState state;
-};
 
 struct VulkanFence {
     VkFence handle;
@@ -50,6 +46,7 @@ private:
     VulkanBuffer indexBuffer{};
     unsigned long geometryVertexOffset = 0;
     unsigned long geometryIndexOffset = 0;
+    float deltaTime = 0.0f;
 
 #if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT debugMessenger{};
@@ -79,12 +76,14 @@ public:
     VulkanFramebuffer& getCurrentFramebuffer() const {return swapchain.getFramebuffer(imageIndex);}
     VulkanBuffer& getVertexBuffer() { return vertexBuffer; }
     VulkanBuffer& getIndexBuffer() { return indexBuffer; }
+    [[nodiscard]] float getDeltaTime() const { return deltaTime; }
 
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
     void setHeight(const unsigned int height) {frameBufferHeight = height;}
     void updateCurrentImageInFlight() const {imagesInFlight[imageIndex] = &inFlightFences[currentFrame];}
     void setVertexOffset(const unsigned long offset) {geometryVertexOffset = offset;}
     void setIndexOffset(const unsigned long offset) {geometryIndexOffset = offset;}
+    void setDeltaTime(const float dt) {deltaTime = dt;}
 
     VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}
 

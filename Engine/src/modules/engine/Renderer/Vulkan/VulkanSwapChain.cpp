@@ -120,7 +120,7 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
         return false;
     }
 
-    createImage(VK_IMAGE_TYPE_2D,
+    depthAttachment.createImage(VK_IMAGE_TYPE_2D,
                 swapchainExtent.width,
                 swapchainExtent.height,
                 device.getDepthFormat(),
@@ -129,7 +129,7 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                 true,
                 VK_IMAGE_ASPECT_DEPTH_BIT,
-                depthAttachment, device
+                device
     );
 
     Logger::logInfo("Successfully created swapchain!");
@@ -154,77 +154,6 @@ bool VulkanSwapchain::detectDepthFormat(VulkanDevice& device) {
     return false;
 }
 
-void VulkanSwapchain::createImage(VkImageType imageType, const unsigned int width, const unsigned int height, VkFormat format,
-    VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags, const bool createView,
-    VkImageAspectFlags aspect, VulkanImage& outImage, VulkanDevice& device) {
-
-    outImage.width = width;
-    outImage.height = height;
-
-    VkImageCreateInfo imageCreateInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageCreateInfo.extent.width = width;
-    imageCreateInfo.extent.height = height;
-    imageCreateInfo.extent.depth = 1;
-    imageCreateInfo.mipLevels = 4;
-    imageCreateInfo.arrayLayers = 1;
-    imageCreateInfo.format = format;
-    imageCreateInfo.tiling = tiling;
-    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageCreateInfo.usage = usage;
-    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    VulkanUtils::vulkanCheck(vkCreateImage(device.getLogicalDevice(), &imageCreateInfo, nullptr, &outImage.handle));
-
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(device.getLogicalDevice(), outImage.handle, &memRequirements);
-    const int memoryType = findMemoryIndex(static_cast<int>(memRequirements.memoryTypeBits), memoryPropertyFlags, device);
-    if (memoryType == -1) {
-        Logger::logError("Memory type could not be found. The image in invalid.");
-        return;
-    }
-
-    VkMemoryAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    allocateInfo.allocationSize = memRequirements.size;
-    allocateInfo.memoryTypeIndex = memoryType;
-    VulkanUtils::vulkanCheck(vkAllocateMemory(device.getLogicalDevice(), &allocateInfo, nullptr, &outImage.deviceMemory));
-    VulkanUtils::vulkanCheck(vkBindImageMemory(device.getLogicalDevice(), outImage.handle, outImage.deviceMemory, 0));
-
-    if (createView) {
-        outImage.view = nullptr;
-        createImageView(format, outImage, aspect, device);
-    }
-}
-
-void VulkanSwapchain::createImageView(VkFormat format, VulkanImage& image, VkImageAspectFlags aspectFlags, VulkanDevice& device) {
-    VkImageViewCreateInfo viewCreateInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-    viewCreateInfo.image = image.handle;
-    viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewCreateInfo.format = format;
-    viewCreateInfo.subresourceRange.aspectMask = aspectFlags;
-    viewCreateInfo.subresourceRange.baseMipLevel = 0;
-    viewCreateInfo.subresourceRange.levelCount = 1;
-    viewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    viewCreateInfo.subresourceRange.layerCount = 1;
-
-    VulkanUtils::vulkanCheck(vkCreateImageView(device.getLogicalDevice(), &viewCreateInfo, nullptr, &image.view));
-}
-
-int VulkanSwapchain::findMemoryIndex(const int typeFilter, const unsigned int propertyFlags, VulkanDevice &device) {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(device.getPhysicalDevice(), &memProperties);
-
-    for (unsigned int i = 0; i < memProperties.memoryTypeCount; i++) {
-        if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & propertyFlags) == propertyFlags) {
-            return static_cast<int>(i);
-        }
-    }
-
-    Logger::logWarn("Unable to find memory type!");
-    return -1;
-}
-
 void VulkanSwapchain::destroyFramebuffer(const unsigned int index, VulkanDevice& device) {
     if (framebuffers[index].handle) {
         vkDestroyFramebuffer(device.getLogicalDevice(), framebuffers[index].handle, nullptr);
@@ -243,7 +172,7 @@ void VulkanSwapchain::destroyFramebuffer(const unsigned int index, VulkanDevice&
 void VulkanSwapchain::regenerateFramebuffers(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, VulkanRenderpass& renderpass, VulkanDevice& device) {
     for (unsigned int i = 0; i < imageCount; i++) {
         constexpr unsigned int attachmentCount = 2;
-        const VkImageView attachments[]{imageViews[i], depthAttachment.view};
+        const VkImageView attachments[]{imageViews[i], depthAttachment.getImageView()};
 
         createFramebuffer(frameBufferWidth, frameBufferHeight, attachmentCount, attachments, framebuffers[i], renderpass, device);
     }
@@ -272,18 +201,7 @@ void VulkanSwapchain::createFramebuffer(const unsigned int width, const unsigned
 void VulkanSwapchain::destroySwapchain(VulkanDevice& device) {
     vkDeviceWaitIdle(device.getLogicalDevice());
 
-    if (depthAttachment.view) {
-        vkDestroyImageView(device.getLogicalDevice(), depthAttachment.view, nullptr);
-        depthAttachment.view = nullptr;
-    }
-    if (depthAttachment.handle) {
-        vkDestroyImage(device.getLogicalDevice(), depthAttachment.handle, nullptr);
-        depthAttachment.handle = nullptr;
-    }
-    if (depthAttachment.deviceMemory) {
-        vkFreeMemory(device.getLogicalDevice(), depthAttachment.deviceMemory, nullptr);
-        depthAttachment.deviceMemory = nullptr;
-    }
+    depthAttachment.destroy(device);
 
     if (imageViews) {
         for (unsigned int i = 0; i < imageCount; i++) {

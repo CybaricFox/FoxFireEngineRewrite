@@ -4,6 +4,8 @@
 
 #include "VulkanUtils.h"
 
+#include "src/modules/engine/Library/Logger.h"
+
 String VulkanUtils::getResultAsString(VkResult result, const bool bGetExtended) {
     // From: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkResult.html
     // Success Codes
@@ -134,4 +136,18 @@ bool VulkanUtils::vulkanCheck(VkResult result) {
         case VK_ERROR_UNKNOWN:
             return false;
     }
+}
+
+int VulkanUtils::findMemoryIndex(const int typeFilter, const unsigned int propertyFlags, VkPhysicalDevice physicalDevice) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+    for (unsigned int i = 0; i < memProperties.memoryTypeCount; i++) {
+        if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & propertyFlags) == propertyFlags) {
+            return static_cast<int>(i);
+        }
+    }
+
+    Logger::logWarn("Unable to find memory type!");
+    return -1;
 }

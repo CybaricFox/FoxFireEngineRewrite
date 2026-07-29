@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include "VulkanImage.h"
 #include "VulkanState.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 #include "src/modules/engine/Renderer/Vulkan/VulkanDevice.h"
@@ -32,34 +33,18 @@ struct VulkanFramebuffer {
         VulkanRenderpass* renderpass;
 };
 
-struct VulkanImage {
-        VkImage handle;
-        VkDeviceMemory deviceMemory;
-        VkImageView view;
-        unsigned int width;
-        unsigned int height;
-};
-
 class VulkanSwapchain {
 private:
-        VkSurfaceFormatKHR imageFormat;
-        unsigned char maxFramesInFlight;
-        VkSwapchainKHR handle;
-        unsigned int imageCount;
-        VkImage* images;
-        VkImageView* imageViews;
-        VulkanImage depthAttachment;
-        VulkanFramebuffer* framebuffers;
+        VkSurfaceFormatKHR imageFormat{};
+        unsigned char maxFramesInFlight = 0;
+        VkSwapchainKHR handle{};
+        unsigned int imageCount = 0;
+        VkImage* images = nullptr;
+        VkImageView* imageViews = nullptr;
+        VulkanImage depthAttachment{};
+        VulkanFramebuffer* framebuffers = nullptr;
         bool bRecreateSwapchain = false;
         bool bIsSwapchainDirty = false;
-
-        void createImageView(VkFormat format, VulkanImage &image, VkImageAspectFlags aspectFlags, VulkanDevice &device);
-
-        void createImage(
-                VkImageType imageType, unsigned int width, unsigned int height, VkFormat format,
-                VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags, bool createView,
-                VkImageAspectFlags aspect, VulkanImage &outImage, VulkanDevice &device
-        );
 public:
         [[nodiscard]] VulkanFramebuffer& getFramebuffer(const unsigned int index) const {return framebuffers[index];}
         unsigned int& getImageCount() { return imageCount; }
@@ -82,5 +67,4 @@ public:
         void regenerateFramebuffers(unsigned int frameBufferWidth, unsigned int frameBufferHeight, VulkanRenderpass& renderpass, VulkanDevice& device);
         void destroySwapchain(VulkanDevice &device);
         void createFramebuffers();
-        [[nodiscard]] int findMemoryIndex(int typeFilter, unsigned int propertyFlags, VulkanDevice &device);
 };
