@@ -7,24 +7,10 @@
 #include <vulkan/vulkan.h>
 
 #include "VulkanImage.h"
+#include "VulkanRenderpass.h"
 #include "VulkanState.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 #include "src/modules/engine/Renderer/Vulkan/VulkanDevice.h"
-
-struct VulkanRenderpass {
-        VkRenderPass handle;
-        float x;
-        float y;
-        float w;
-        float h;
-        float r;
-        float g;
-        float b;
-        float a;
-        float depth;
-        unsigned int stencil;
-        VulkanState state;
-};
 
 struct VulkanFramebuffer {
         VkFramebuffer handle;

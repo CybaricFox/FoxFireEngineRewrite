@@ -8,7 +8,7 @@
 #include "src/modules/engine/Library/Logger.h"
 
 template<typename T>
-class DynamicArray {
+class FOXFIRE_API DynamicArray {
     static_assert(alignof(T) <= alignof(std::max_align_t),
               "DynamicArray does not support over-aligned types with the current allocator.");
 private:
@@ -47,6 +47,7 @@ private:
 
 public:
     DynamicArray() = default;
+    //Destructor will run after memory system is deleted. Do not use a destructor!
 
     explicit DynamicArray(const unsigned long initialCapacity) {initialize(initialCapacity);}
 
@@ -84,10 +85,6 @@ public:
         }
 
         capacity = 0;
-    }
-
-    ~DynamicArray() {
-        shutdown(); //Ensures memory is destroyed if destroy is not manually called.
     }
 
     [[nodiscard]] unsigned long getCapacity() const {return capacity;}

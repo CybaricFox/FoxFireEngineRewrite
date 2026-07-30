@@ -61,8 +61,8 @@ bool VulkanBackend::recreateSwapchain() {
     vulkanContext.clearImagesInFlight();
 
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
-        if (vulkanContext.getCommandBuffer(i) && vulkanContext.getCommandBuffer(i)->handle) {
-            vulkanContext.freeCommandBuffer(*vulkanContext.getCommandBuffer(i));
+        if (vulkanContext.isCommandBufferValid(i) && vulkanContext.getCommandBuffer(i).getHandle()) {
+            vulkanContext.getCommandBuffer(i).freeCommandBuffer(vulkanContext.getDevice());
         }
     }
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
@@ -78,21 +78,21 @@ bool VulkanBackend::recreateSwapchain() {
 
     vulkanContext.setWidth(cachedWidth);
     vulkanContext.setHeight(cachedHeight);
-    vulkanContext.getRenderpass().w = static_cast<float>(vulkanContext.getFrameBufferWidth());
-    vulkanContext.getRenderpass().h = static_cast<float>(vulkanContext.getFrameBufferHeight());
+    vulkanContext.getRenderpass().setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
+    vulkanContext.getRenderpass().setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
     cachedWidth = 0;
     cachedHeight = 0;
     vulkanContext.getSwapchain().finishResize();
 
-    vulkanContext.getRenderpass().x = 0;
-    vulkanContext.getRenderpass().y = 0;
-    vulkanContext.getRenderpass().w = static_cast<float>(vulkanContext.getFrameBufferWidth());
-    vulkanContext.getRenderpass().h = static_cast<float>(vulkanContext.getFrameBufferHeight());
+    vulkanContext.getRenderpass().setX(0);
+    vulkanContext.getRenderpass().setY(0);
+    vulkanContext.getRenderpass().setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
+    vulkanContext.getRenderpass().setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
 
     vulkanContext.getSwapchain().regenerateFramebuffers(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getRenderpass(), vulkanContext.getDevice());
 
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
-        vulkanContext.allocateCommandBuffer(true, *vulkanContext.getCommandBuffer(i));
+        vulkanContext.getCommandBuffer(i).allocateCommandBuffer(true, vulkanContext.getDevice());
     }
 
     vulkanContext.getSwapchain().finishRecreateSwapchain();
@@ -132,114 +132,31 @@ void VulkanBackend::presentSwapchain() {
     }
 
     //loop the current frame
-    vulkanContext.getCurrentFrame() = (vulkanContext.getCurrentFrame() + 1) % vulkanContext.getSwapchain().getMaxFramesInFlight();
-}
-
-void VulkanBackend::beginRenderpass(VulkanCommandBuffer& commandBuffer, VkFramebuffer frameBuffer) {
-    VkRenderPassBeginInfo beginInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-    beginInfo.renderPass = vulkanContext.getRenderpass().handle;
-    beginInfo.framebuffer = frameBuffer;
-    beginInfo.renderArea.offset.x = static_cast<int32_t>(vulkanContext.getRenderpass().x);
-    beginInfo.renderArea.offset.y = static_cast<int32_t>(vulkanContext.getRenderpass().y);
-    beginInfo.renderArea.extent.width = static_cast<int32_t>(vulkanContext.getRenderpass().w);
-    beginInfo.renderArea.extent.height = static_cast<int32_t>(vulkanContext.getRenderpass().h);
-
-    VkClearValue clearValues[2];
-    FF_Memory::ff_clear(clearValues, sizeof(VkClearValue) * 2);
-    clearValues[0].color.float32[0] = vulkanContext.getRenderpass().r;
-    clearValues[0].color.float32[1] = vulkanContext.getRenderpass().g;
-    clearValues[0].color.float32[2] = vulkanContext.getRenderpass().b;
-    clearValues[0].color.float32[3] = vulkanContext.getRenderpass().a;
-    clearValues[1].depthStencil.depth = vulkanContext.getRenderpass().depth;
-    clearValues[1].depthStencil.stencil = vulkanContext.getRenderpass().stencil;
-
-    beginInfo.clearValueCount = 2;
-    beginInfo.pClearValues = clearValues;
-
-    vkCmdBeginRenderPass(commandBuffer.handle, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
-    commandBuffer.state = IN_RENDER_PASS;
-}
-
-void VulkanBackend::endRenderpass(VulkanCommandBuffer& commandBuffer) {
-    vkCmdEndRenderPass(commandBuffer.handle);
-    commandBuffer.state = RECORDING; //IM PRETTY SURE THIS IS SUPPOSED TO BE THE RENDER STATE
-}
-
-void VulkanBackend::updateSubmittedCommandBuffer(VulkanCommandBuffer& commandBuffer) {
-    commandBuffer.state = SUBMITTED;
-}
-
-void VulkanBackend::resetCommandBuffer(VulkanCommandBuffer& commandBuffer) {
-    commandBuffer.state = READY;
+    vulkanContext.setCurrentFrame((vulkanContext.getCurrentFrame() + 1) % vulkanContext.getSwapchain().getMaxFramesInFlight());
 }
 
 void VulkanBackend::allocateCommandBuffers() {
     vulkanContext.createCommandBuffers();
 
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
-        if (vulkanContext.getCommandBuffer(i)->handle) {
-            vulkanContext.freeCommandBuffer(*vulkanContext.getCommandBuffer(i));
+        VulkanCommandBuffer& commandBuffer = vulkanContext.getCommandBuffer(i);
+        if (commandBuffer.getHandle()) {
+            commandBuffer.freeCommandBuffer(vulkanContext.getDevice());
         }
-        FF_Memory::ff_clear(vulkanContext.getCommandBuffer(i), sizeof(VulkanCommandBuffer));
-        vulkanContext.allocateCommandBuffer(true, *vulkanContext.getCommandBuffer(i));
+        commandBuffer.allocateCommandBuffer(true, vulkanContext.getDevice());
     }
 
     Logger::logInfo("Vulkan command buffers created and allocated.");
 }
 
-void VulkanBackend::createFence(const bool bCreateSignaled, VulkanFence& fence) {
-    fence.bIsSignaled = bCreateSignaled;
-    VkFenceCreateInfo fenceCreateInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-    if (fence.bIsSignaled) {
-        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-    }
-    VulkanUtils::vulkanCheck(vkCreateFence(vulkanContext.getDevice().getLogicalDevice(), &fenceCreateInfo, nullptr, &fence.handle));
-}
-
-bool VulkanBackend::waitForFence(VulkanFence& fence, const unsigned long timeout) {
-    if (!fence.bIsSignaled) {
-        switch (vkWaitForFences(vulkanContext.getDevice().getLogicalDevice(), 1, &fence.handle, true, timeout)) {
-            case VK_SUCCESS:
-                fence.bIsSignaled = true;
-                return true;
-            case VK_TIMEOUT:
-                Logger::logWarn("Fence timed out.");
-                break;
-            case VK_ERROR_DEVICE_LOST:
-                Logger::logError("Fence lost device.");
-                break;
-            case VK_ERROR_OUT_OF_HOST_MEMORY:
-                Logger::logError("Fence ran out of host memory.");
-                break;
-            case VK_ERROR_OUT_OF_DEVICE_MEMORY:
-                Logger::logError("Fence ran out of device memory.");
-                break;
-            default:
-                Logger::logError("Fence encountered an unknown error.");
-                break;
-        }
-    } else {
-        return true;
-    }
-
-    return false;
-}
-
-void VulkanBackend::resetFence(VulkanFence& fence) {
-    if (fence.bIsSignaled) {
-        VulkanUtils::vulkanCheck(vkResetFences(vulkanContext.getDevice().getLogicalDevice(), 1, &fence.handle));
-        fence.bIsSignaled = false;
-    }
-}
-
-void VulkanBackend::uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, const VulkanBuffer &buffer, const unsigned long offset, const unsigned long size, const void *data) {
+void VulkanBackend::uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, const unsigned long offset, const unsigned long size, const void *data) {
     constexpr VkBufferUsageFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     VulkanBuffer stagingBuffer{};
-    vulkanShader.createBuffer(vulkanContext, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, flags, true, stagingBuffer);
+    stagingBuffer.createBuffer(vulkanContext.getDevice(), size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, flags, true);
 
-    vulkanShader.loadBufferData(vulkanContext.getDevice(), stagingBuffer, offset, size, data);
-    vulkanShader.copyBufferData(vulkanContext, pool, fence, queue, stagingBuffer.handle, 0, buffer.handle, offset, size);
-    vulkanShader.destroyBuffer(vulkanContext.getDevice(), stagingBuffer);
+    stagingBuffer.loadBufferData(vulkanContext.getDevice(), offset, size, data);
+    stagingBuffer.copyBufferData(vulkanContext.getDevice(), pool, fence, queue, stagingBuffer.getBuffer(), 0, buffer.getBuffer(), offset, size);
+    stagingBuffer.destroyBuffer(vulkanContext.getDevice());
 }
 
 void VulkanBackend::resize(const unsigned short width, const unsigned short height) {
@@ -248,99 +165,6 @@ void VulkanBackend::resize(const unsigned short width, const unsigned short heig
     vulkanContext.getSwapchain().resize();
 
     Logger::logInfo("Vulkan backend resized to  " + std::to_string(width) + "x" + std::to_string(height));
-}
-
-void VulkanBackend::createRenderpass(float x, float y, float w, float h, float r, float g, float b, float a, float depth, unsigned int stencil) {
-    vulkanContext.getRenderpass().x = x;
-    vulkanContext.getRenderpass().y = y;
-    vulkanContext.getRenderpass().w = w;
-    vulkanContext.getRenderpass().h = h;
-    vulkanContext.getRenderpass().r = r;
-    vulkanContext.getRenderpass().g = g;
-    vulkanContext.getRenderpass().b = b;
-    vulkanContext.getRenderpass().a = a;
-    vulkanContext.getRenderpass().depth = depth;
-    vulkanContext.getRenderpass().stencil = stencil;
-
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-
-    constexpr unsigned int attachmentCount = 2;
-    VkAttachmentDescription attachments[attachmentCount];
-
-    //Color attachment
-    VkAttachmentDescription colorAttachment;
-    colorAttachment.format = vulkanContext.getSwapchain().getImageFormat().format;
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    colorAttachment.flags = 0;
-
-    attachments[0] = colorAttachment;
-
-    VkAttachmentReference colorAttachmentReference;
-    colorAttachmentReference.attachment = 0;
-    colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentReference;
-
-    //Depth attachment
-    VkAttachmentDescription depthAttachment{};
-    depthAttachment.format = vulkanContext.getDevice().getDepthFormat();
-    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    attachments[1] = depthAttachment;
-
-    VkAttachmentReference depthAttachmentReference;
-    depthAttachmentReference.attachment = 1;
-    depthAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    subpass.pDepthStencilAttachment = &depthAttachmentReference;
-
-    //Input from a shader
-    subpass.inputAttachmentCount = 0;
-    subpass.pInputAttachments = nullptr;
-
-    //Multisampling
-    subpass.pResolveAttachments = nullptr;
-
-    //Attachements not used in this subpass but are needed for the next subpass
-    subpass.preserveAttachmentCount = 0;
-    subpass.pResolveAttachments = nullptr;
-
-    //Dependencies for render pass
-    VkSubpassDependency dependency;
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependency.dependencyFlags = 0;
-
-    //Create render pass
-    VkRenderPassCreateInfo renderPassCreateInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    renderPassCreateInfo.attachmentCount = attachmentCount;
-    renderPassCreateInfo.pAttachments = attachments;
-    renderPassCreateInfo.subpassCount = 1;
-    renderPassCreateInfo.pSubpasses = &subpass;
-    renderPassCreateInfo.dependencyCount = 1;
-    renderPassCreateInfo.pDependencies = &dependency;
-    renderPassCreateInfo.pNext = nullptr;
-    renderPassCreateInfo.flags = 0;
-
-    VulkanUtils::vulkanCheck(vkCreateRenderPass(vulkanContext.getDevice().getLogicalDevice(), &renderPassCreateInfo, nullptr, &vulkanContext.getRenderpass().handle));
 }
 
 VulkanBackend::~VulkanBackend() {
@@ -356,9 +180,10 @@ VulkanBackend::~VulkanBackend() {
     Logger::logDebug("Destroying command buffers.");
     //Destroy command buffers
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
-        if (vulkanContext.getCommandBuffer(i)->handle) {
-            vulkanContext.freeCommandBuffer(*vulkanContext.getCommandBuffer(i));
-            vulkanContext.getCommandBuffer(i)->handle = nullptr;
+        VulkanCommandBuffer& commandBuffer = vulkanContext.getCommandBuffer(i);
+        if (commandBuffer.getHandle()) {
+            commandBuffer.freeCommandBuffer(vulkanContext.getDevice());
+            commandBuffer.destroyHandle();
         }
     }
     vulkanContext.destroyCommandBuffers();
@@ -369,7 +194,7 @@ VulkanBackend::~VulkanBackend() {
     }
 
     Logger::logDebug("Destroying Renderpass.");
-    vulkanContext.destroyRenderpass();
+    vulkanContext.getRenderpass().destroyRenderpass(vulkanContext.getDevice());
     Logger::logDebug("Destroying Swapchain.");
     vulkanContext.getSwapchain().destroySwapchain(vulkanContext.getDevice());
     vulkanContext.destroyContext();
@@ -479,7 +304,10 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
 
     vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame());
 
-    createRenderpass(0, 0, static_cast<float>(vulkanContext.getFrameBufferWidth()), static_cast<float>(vulkanContext.getFrameBufferHeight()), 0, 0, 0.2f, 1, 1, 0);
+    vulkanContext.getRenderpass().createRenderpass(0, 0,
+        static_cast<float>(vulkanContext.getFrameBufferWidth()),
+        static_cast<float>(vulkanContext.getFrameBufferHeight()), 0, 0, 0.2f, 1,
+        1, 0, vulkanContext.getSwapchain().getImageFormat(), vulkanContext.getDevice());
 
     vulkanContext.getSwapchain().createFramebuffers();
 
@@ -495,9 +323,9 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     for (unsigned char i = 0; i < vulkanContext.getSwapchain().getMaxFramesInFlight(); i++) {
         VkSemaphoreCreateInfo semCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
         vkCreateSemaphore(vulkanContext.getDevice().getLogicalDevice(), &semCreateInfo, nullptr, &vulkanContext.getImageAvailableSemaphores()[i]);
-        createFence(true, vulkanContext.getInFlightFences()[i]);
+        vulkanContext.getFenceInFlight(i).createFence(vulkanContext.getDevice(), true);
     }
-    for (unsigned char i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
+    for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
         VkSemaphoreCreateInfo semCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
         vkCreateSemaphore(vulkanContext.getDevice().getLogicalDevice(), &semCreateInfo, nullptr, &vulkanContext.getQueueCompleteSemaphores()[i]);
     }
@@ -505,7 +333,8 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     //Set initial state to 0. This is allocated in createSyncObject().
     vulkanContext.clearImagesInFlight();
 
-    if (!vulkanShader.initialize(vulkanContext)) {
+    //Create shader system
+    if (!vulkanShader.initialize(vulkanContext, *defaultDiffuseTexture)) {
         Logger::logError("Failed to initialize Vulkan shaders.");
         return false;
     }
@@ -579,7 +408,7 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
         return false;
     }
 
-    if (!waitForFence(vulkanContext.getCurrentInFlightFence(), UINT32_MAX)) {
+    if (!vulkanContext.getCurrentInFlightFence().waitForFence(vulkanContext.getDevice(), UINT32_MAX)) {
         Logger::logWarn("In flight fence failed to wait.");
         return false;
     }
@@ -588,8 +417,8 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
         return false;
     }
 
-    resetCommandBuffer(vulkanContext.getCurrentCommandBuffer());
-    vulkanContext.beginCommandBuffer(vulkanContext.getCurrentCommandBuffer(), false, false, false);
+    vulkanContext.getCurrentCommandBuffer().resetCommandBuffer();
+    vulkanContext.getCurrentCommandBuffer().beginCommandBuffer(false, false, false);
 
     VkViewport viewport;
     viewport.x = 0;
@@ -605,32 +434,32 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
     scissor.extent.width = vulkanContext.getFrameBufferWidth();
     scissor.extent.height = vulkanContext.getFrameBufferHeight();
 
-    vkCmdSetViewport(vulkanContext.getCurrentCommandBuffer().handle, 0, 1, &viewport);
-    vkCmdSetScissor(vulkanContext.getCurrentCommandBuffer().handle, 0, 1, &scissor);
+    vkCmdSetViewport(vulkanContext.getCurrentCommandBuffer().getHandle(), 0, 1, &viewport);
+    vkCmdSetScissor(vulkanContext.getCurrentCommandBuffer().getHandle(), 0, 1, &scissor);
 
-    vulkanContext.getRenderpass().w = static_cast<float>(vulkanContext.getFrameBufferWidth());
-    vulkanContext.getRenderpass().h = static_cast<float>(vulkanContext.getFrameBufferHeight());
+    vulkanContext.getRenderpass().setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
+    vulkanContext.getRenderpass().setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
 
-    beginRenderpass(vulkanContext.getCurrentCommandBuffer(), vulkanContext.getCurrentFramebuffer().handle);
+    vulkanContext.getRenderpass().beginRenderpass(vulkanContext.getCurrentCommandBuffer(), vulkanContext.getCurrentFramebuffer().handle);
 
     return true;
 }
 
 bool VulkanBackend::endFrame(const float deltaTime) {
-    endRenderpass(vulkanContext.getCurrentCommandBuffer());
-    vulkanContext.endCommandBuffer(vulkanContext.getCurrentCommandBuffer());
+    vulkanContext.getRenderpass().endRenderpass(vulkanContext.getCurrentCommandBuffer());
+    vulkanContext.getCurrentCommandBuffer().endCommandBuffer();
 
     //make sure the precious fence cannot grab this new frame
     if (vulkanContext.getCurrentImageInFlight() != nullptr) {
-        waitForFence(*vulkanContext.getCurrentImageInFlight(), UINT32_MAX);
+        vulkanContext.getCurrentImageInFlight()->waitForFence(vulkanContext.getDevice(), UINT32_MAX);
     }
 
     vulkanContext.updateCurrentImageInFlight();
-    resetFence(vulkanContext.getCurrentInFlightFence());
+    vulkanContext.getCurrentInFlightFence().resetFence(vulkanContext.getDevice());
 
     VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &vulkanContext.getCurrentCommandBuffer().handle;
+    submitInfo.pCommandBuffers = &vulkanContext.getCurrentCommandBuffer().getHandle();
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &vulkanContext.getCurrentQueueCompleteSemaphore();
     submitInfo.waitSemaphoreCount = 1;
@@ -638,14 +467,14 @@ bool VulkanBackend::endFrame(const float deltaTime) {
     constexpr VkPipelineStageFlags flags[1]{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.pWaitDstStageMask = flags;
 
-    VkResult result = vkQueueSubmit(vulkanContext.getDevice().getGraphicsQueue(), 1, &submitInfo, vulkanContext.getCurrentInFlightFence().handle);
+    VkResult result = vkQueueSubmit(vulkanContext.getDevice().getGraphicsQueue(), 1, &submitInfo, vulkanContext.getCurrentInFlightFence().getFence());
 
     if (!VulkanUtils::vulkanCheck(result)) {
         Logger::logError("vkQueueSubmit failed with result: " + VulkanUtils::getResultAsString(result, true));
         return false;
     }
 
-    updateSubmittedCommandBuffer(vulkanContext.getCurrentCommandBuffer());
+    vulkanContext.getCurrentCommandBuffer().updateSubmittedCommandBuffer();
     presentSwapchain();
 
     return true;
@@ -664,12 +493,12 @@ void VulkanBackend::updateEntity(const GeometryRenderData data) {
     vulkanShader.updateEntity(vulkanContext, data);
 
     //TEST CODE
-    const VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
+    VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
     vulkanShader.use(vulkanContext);
     constexpr VkDeviceSize offsets[1] = {0};
-    vkCmdBindVertexBuffers(commandBuffer.handle, 0, 1, &vulkanContext.getVertexBuffer().handle, offsets);
-    vkCmdBindIndexBuffer(commandBuffer.handle, vulkanContext.getIndexBuffer().handle, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(commandBuffer.handle, 6, 1, 0, 0, 0);
+    vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, &vulkanContext.getVertexBuffer().getBuffer(), offsets);
+    vkCmdBindIndexBuffer(commandBuffer.getHandle(), vulkanContext.getIndexBuffer().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(commandBuffer.getHandle(), 6, 1, 0, 0, 0);
     //END TEST CODE
 }
 
@@ -688,22 +517,21 @@ void VulkanBackend::createTexture(String &name, bool autoRelease, int width, int
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     VkMemoryPropertyFlags memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     VulkanBuffer staging{};
-    vulkanShader.createBuffer(vulkanContext, imageSize, static_cast<VkBufferUsageFlagBits>(usage), memoryPropertyFlags, true, staging);
-    vulkanShader.loadBufferData(vulkanContext.getDevice(), staging, 0, imageSize, pixels);
+    staging.createBuffer(vulkanContext.getDevice(), imageSize, static_cast<VkBufferUsageFlagBits>(usage), memoryPropertyFlags, true);
+    staging.loadBufferData(vulkanContext.getDevice(), 0, imageSize, pixels);
 
     data->image.createImage(VK_IMAGE_TYPE_2D, width, height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
 
-    VulkanCommandBuffer tempBuffer{};
+    VulkanCommandBuffer tempBuffer = VulkanCommandBuffer::allocateAndBeginSingleUseCommandBuffer(vulkanContext.getDevice());
     VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
-    vulkanContext.allocateAndBeginSingleUseCommandBuffer(tempBuffer);
 
     data->image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, vulkanContext.getDevice());
-    data->image.copyFromBuffer(staging.handle, tempBuffer);
+    data->image.copyFromBuffer(staging.getBuffer(), tempBuffer);
     data->image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, vulkanContext.getDevice());
-    vulkanContext.endSingleUseCommandBuffer(tempBuffer, queue);
-    vulkanShader.destroyBuffer(vulkanContext.getDevice(), staging);
+    tempBuffer.endSingleUseCommandBuffer(queue, vulkanContext.getDevice());
+    staging.destroyBuffer(vulkanContext.getDevice());
 
     VkSamplerCreateInfo samplerCreateInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
@@ -735,12 +563,14 @@ void VulkanBackend::createTexture(String &name, bool autoRelease, int width, int
 void VulkanBackend::destroyTexture(Texture &texture) {
     vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
 
-    const auto data = static_cast<VulkanTextureData *>(texture.data);
+    if (texture.data) {
+        const auto data = static_cast<VulkanTextureData *>(texture.data);
 
-    data->image.destroy(vulkanContext.getDevice());
-    FF_Memory::ff_clear(&data->image, sizeof(VulkanImage));
-    vkDestroySampler(vulkanContext.getDevice().getLogicalDevice(), data->sampler, nullptr);
-    data->sampler = nullptr;
+        data->image.destroy(vulkanContext.getDevice());
+        FF_Memory::ff_clear(&data->image, sizeof(VulkanImage));
+        vkDestroySampler(vulkanContext.getDevice().getLogicalDevice(), data->sampler, nullptr);
+        data->sampler = nullptr;
+    }
 
     FF_Memory::ff_free(texture.data, sizeof(VulkanTextureData), TEXTURE);
 }

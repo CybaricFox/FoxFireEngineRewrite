@@ -28,8 +28,12 @@ private:
 protected:
     RendererBackend() = default;
 
+    Texture* defaultDiffuseTexture = nullptr;
+
 public:
     virtual ~RendererBackend();
+
+    void setDefaultTexture(Texture& texture) {defaultDiffuseTexture = &texture;}
 
     static RendererBackend* create(RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance);
 

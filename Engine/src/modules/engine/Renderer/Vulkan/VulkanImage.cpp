@@ -64,7 +64,7 @@ void VulkanImage::destroy(VulkanDevice &device) {
     }
 }
 
-void VulkanImage::transitionImageLayout(const VulkanCommandBuffer &commandBuffer, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VulkanDevice& device) const {
+void VulkanImage::transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VulkanDevice& device) const {
     //memory barrier ensures commands called before this use the old layout, and commands after this use the new layout.
     VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
     barrier.oldLayout = oldLayout;
@@ -101,10 +101,10 @@ void VulkanImage::transitionImageLayout(const VulkanCommandBuffer &commandBuffer
         return;
     }
 
-    vkCmdPipelineBarrier(commandBuffer.handle, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr,1, &barrier);
+    vkCmdPipelineBarrier(commandBuffer.getHandle(), sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr,1, &barrier);
 }
 
-void VulkanImage::copyFromBuffer(const VkBuffer buffer, const VulkanCommandBuffer &commandBuffer) const {
+void VulkanImage::copyFromBuffer(const VkBuffer buffer, VulkanCommandBuffer &commandBuffer) const {
     VkBufferImageCopy region;
     FF_Memory::ff_clear(&region, sizeof(VkBufferImageCopy));
     region.bufferOffset = 0;
@@ -118,7 +118,7 @@ void VulkanImage::copyFromBuffer(const VkBuffer buffer, const VulkanCommandBuffe
     region.imageExtent.height = height;
     region.imageExtent.depth = 1;
 
-    vkCmdCopyBufferToImage(commandBuffer.handle, buffer, handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    vkCmdCopyBufferToImage(commandBuffer.getHandle(), buffer, handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
 void VulkanImage::createImageView(VkFormat format, VkImageAspectFlags aspectFlags, VulkanDevice& device) {

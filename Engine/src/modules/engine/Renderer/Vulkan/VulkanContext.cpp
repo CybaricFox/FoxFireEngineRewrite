@@ -35,7 +35,7 @@ void VulkanContext::createSyncObjects() {
     inFlightFences = static_cast<VulkanFence *>(FF_Memory::ff_allocate(sizeof(VulkanFence) * swapchain.getMaxFramesInFlight(), ARRAY));
 
     //IF AN ERROR OCCURS, THIS MIGHT BE WHY. THIS SHOULD BE CALLED SEPERATELY FROM THE OTHERS.
-    imagesInFlight = static_cast<VulkanFence **>(FF_Memory::ff_allocate(sizeof(VulkanFence*) * swapchain.getImageCount(), ARRAY));
+    imagesInFlight.initialize(swapchain.getImageCount());
 }
 
 void VulkanContext::destroySyncObjects() {
@@ -66,20 +66,15 @@ void VulkanContext::destroySyncObjects() {
 
     if (inFlightFences) {
         for (unsigned char i = 0; i < swapchain.getMaxFramesInFlight(); i++) {
-            if (inFlightFences[i].handle) {
-                vkDestroyFence(device.getLogicalDevice(), inFlightFences[i].handle, nullptr);
-                inFlightFences[i].handle = nullptr;
-            }
-            inFlightFences[i].bIsSignaled = false;
+            inFlightFences[i].destroyFence(device);
         }
         FF_Memory::ff_free(inFlightFences, sizeof(VulkanFence) * swapchain.getMaxFramesInFlight(), ARRAY);
         inFlightFences = nullptr;
         inFlightFenceCount = 0;
     }
 
-    if (imagesInFlight) {
-        FF_Memory::ff_free(imagesInFlight, sizeof(VulkanFence*) * swapchain.getImageCount(), ARRAY);
-        imagesInFlight = nullptr;
+    if (!imagesInFlight.isEmpty()) {
+        imagesInFlight.shutdown();
     }
 }
 
@@ -147,74 +142,4 @@ void VulkanContext::destroyContext() {
         vkDestroyInstance(instance, nullptr);
         instance = nullptr;
     }
-}
-
-void VulkanContext::destroyRenderpass() {
-    if (renderpass.handle) {
-        vkDestroyRenderPass(device.getLogicalDevice(), renderpass.handle, nullptr);
-        renderpass.handle = nullptr;
-    }
-}
-
-void VulkanContext::allocateAndBeginSingleUseCommandBuffer(VulkanCommandBuffer& commandBuffer) {
-    allocateCommandBuffer(true, commandBuffer);
-    beginCommandBuffer(commandBuffer, true, false, false);
-}
-
-void VulkanContext::allocateCommandBuffer(const bool bIsPrimary, VulkanCommandBuffer& commandBuffer) {
-    FF_Memory::ff_clear(&commandBuffer, sizeof(VulkanCommandBuffer));
-
-    VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-    allocateInfo.commandPool = device.getCommandPool();
-    allocateInfo.level = bIsPrimary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
-    allocateInfo.commandBufferCount = 1;
-    allocateInfo.pNext = nullptr;
-
-    commandBuffer.state = NOT_ALLOCATED;
-    VulkanUtils::vulkanCheck(vkAllocateCommandBuffers(device.getLogicalDevice(), &allocateInfo, &commandBuffer.handle));
-    commandBuffer.state = READY;
-}
-
-void VulkanContext::beginCommandBuffer(VulkanCommandBuffer& commandBuffer, const bool bIsSingleUse, const bool bIsRenderpassContinue, const bool bIsConcurrent) {
-    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-
-    beginInfo.flags = 0;
-    if (bIsSingleUse) {
-        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    }
-    if (bIsRenderpassContinue) {
-        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-    }
-    if (bIsConcurrent) {
-        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    }
-
-    VulkanUtils::vulkanCheck(vkBeginCommandBuffer(commandBuffer.handle, &beginInfo));
-    commandBuffer.state = RECORDING;
-}
-
-void VulkanContext::endSingleUseCommandBuffer(VulkanCommandBuffer& commandBuffer, VkQueue queue) {
-    endCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer.handle;
-
-    VulkanUtils::vulkanCheck(vkQueueSubmit(queue, 1, &submitInfo, nullptr));
-
-    //Wait for queue to finish since there is no fence here
-    VulkanUtils::vulkanCheck(vkQueueWaitIdle(queue));
-
-    freeCommandBuffer(commandBuffer);
-}
-
-void VulkanContext::freeCommandBuffer(VulkanCommandBuffer& commandBuffer) {
-    vkFreeCommandBuffers(device.getLogicalDevice(), device.getCommandPool(), 1, &commandBuffer.handle);
-    commandBuffer.handle = nullptr;
-    commandBuffer.state = NOT_ALLOCATED;
-}
-
-void VulkanContext::endCommandBuffer(VulkanCommandBuffer& commandBuffer) {
-    VulkanUtils::vulkanCheck(vkEndCommandBuffer(commandBuffer.handle));
-    commandBuffer.state = RECORDING_ENDED;
 }

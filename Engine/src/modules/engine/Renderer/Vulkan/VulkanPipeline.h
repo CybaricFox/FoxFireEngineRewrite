@@ -16,7 +16,7 @@ public:
     VkPipelineLayout& getPipelineLayout() {return pipelineLayout;}
 
     void destroyPipeline(VulkanDevice &device);
-    void bindPipeline(const VulkanCommandBuffer& commandBuffer, VkPipelineBindPoint pipelineBindPoint) const;
+    void bindPipeline(VulkanCommandBuffer &commandBuffer, VkPipelineBindPoint pipelineBindPoint) const;
 
     bool createPipeline(
         VulkanRenderpass &renderpass,

@@ -26,8 +26,9 @@ public:
     VkImage& getImage() {return handle;}
     VkDeviceMemory& getMemory() {return deviceMemory;}
 
-    void transitionImageLayout(const VulkanCommandBuffer& commandBuffer, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VulkanDevice &device) const;
-    void copyFromBuffer(VkBuffer buffer, const VulkanCommandBuffer& commandBuffer) const;
+    void transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VulkanDevice &
+                               device) const;
+    void copyFromBuffer(VkBuffer buffer, VulkanCommandBuffer &commandBuffer) const;
 
     void createImage(
             VkImageType imageType, unsigned int newWidth, unsigned int newHeight, VkFormat format,

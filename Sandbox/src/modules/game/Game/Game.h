@@ -1,4 +1,5 @@
 #pragma once
+#include "../../system/FoxFire_Input/FoxFire_Events.h"
 #include "src/modules/engine/Core/Engine.h"
 
 struct GameState {
@@ -15,9 +16,12 @@ private:
     void increaseCameraYaw(GameState* state, float amount);
     void increaseCameraPitch(GameState* state, float amount);
     void increaseCameraRoll(GameState* state, float amount);
+
 public:
     Game();
-    ~Game() override = default;
+    ~Game() override;
+
+    EventData<void> swapTextureEvent{};
 
 protected:
     void startup() override;

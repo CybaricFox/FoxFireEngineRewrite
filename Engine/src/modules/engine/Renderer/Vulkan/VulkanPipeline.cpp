@@ -19,8 +19,8 @@ void VulkanPipeline::destroyPipeline(VulkanDevice& device) {
     }
 }
 
-void VulkanPipeline::bindPipeline(const VulkanCommandBuffer &commandBuffer, VkPipelineBindPoint pipelineBindPoint) const {
-    vkCmdBindPipeline(commandBuffer.handle, pipelineBindPoint, handle);
+void VulkanPipeline::bindPipeline(VulkanCommandBuffer &commandBuffer, VkPipelineBindPoint pipelineBindPoint) const {
+    vkCmdBindPipeline(commandBuffer.getHandle(), pipelineBindPoint, handle);
 }
 
 bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int attributeCount,
@@ -129,7 +129,7 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int a
     graphicsPipelineInfo.pDynamicState = &dynamicStateInfo;
     graphicsPipelineInfo.pTessellationState = nullptr;
     graphicsPipelineInfo.layout = pipelineLayout;
-    graphicsPipelineInfo.renderPass = renderpass.handle;
+    graphicsPipelineInfo.renderPass = renderpass.getHandle();
     graphicsPipelineInfo.subpass = 0;
     graphicsPipelineInfo.basePipelineHandle = nullptr;
     graphicsPipelineInfo.basePipelineIndex = -1;

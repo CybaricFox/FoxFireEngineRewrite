@@ -8,7 +8,7 @@
 #include "src/defines.h"
 #include "src/modules/engine/Core/Platform.h"
 
-class MasterRenderSystem {
+class FOXFIRE_API MasterRenderSystem {
 private:
     //Backend Renderer
     RendererBackend* backend = nullptr;
@@ -18,12 +18,18 @@ private:
     float nearClip = 0.1f;
     float farClip = 1000.0f;
     Texture defaultTexture{};
+    Texture testTexture{}; //remove me
 
     DynamicArray<IRenderSystem> renderSystems{};
 
     [[nodiscard]] bool beginFrame(float deltaTime) const;
     [[nodiscard]] bool endFrame(float deltaTime) const;
     void createDefaultTexture();
+    Texture createBlankTexture();
+
+    bool loadTexture(Texture &texture, const String &fileName, const String &subFolders);
+    bool loadTexture(Texture &texture, const String &fileName);
+    bool loadTextureHelper(Texture &texture, String &path, const String &fileName);
 
 public:
     bool initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, unsigned int width, unsigned int height);
@@ -35,7 +41,7 @@ public:
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);
-    void createTexture(String name, bool autoRelease, int width, int height, int channelCount, const unsigned char *pixels, bool isTransparent, Texture
-                       &outTexture) const;
+    void createTexture(String name, bool autoRelease, int width, int height, int channelCount, const unsigned char *pixels, bool isTransparent, Texture &outTexture) const;
     void destroyTexture(Texture& texture) const;
+    void onDebugEvent();
 };

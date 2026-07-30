@@ -5,24 +5,11 @@
 #pragma once
 #include <vulkan/vulkan.h>
 
+#include "VulkanBuffer.h"
 #include "VulkanCommandBuffer.h"
+#include "VulkanFence.h"
 #include "VulkanSwapchain.h"
 #include "src/modules/engine/Library/Logger.h"
-
-struct VulkanFence {
-    VkFence handle;
-    bool bIsSignaled;
-};
-
-struct VulkanBuffer {
-    unsigned long totalSize;
-    VkBuffer handle;
-    VkBufferUsageFlagBits usageFlags;
-    bool bIsLocked;
-    VkDeviceMemory deviceMemory;
-    int memoryIndex;
-    unsigned int memoryPropertyFlags;
-};
 
 class VulkanContext {
 private:
@@ -41,7 +28,7 @@ private:
     VkSemaphore* queueCompleteSemaphores = nullptr;
     unsigned int inFlightFenceCount = 0;
     VulkanFence* inFlightFences = nullptr;
-    VulkanFence** imagesInFlight = nullptr;
+    DynamicArray<VulkanFence*> imagesInFlight{};
     VulkanBuffer vertexBuffer{};
     VulkanBuffer indexBuffer{};
     unsigned long geometryVertexOffset = 0;
@@ -61,44 +48,39 @@ public:
     [[nodiscard]] unsigned int getFrameBufferWidth() const { return frameBufferWidth; }
     [[nodiscard]] unsigned int getFrameBufferHeight() const { return frameBufferHeight; }
     VulkanRenderpass& getRenderpass() { return renderpass; }
-    VulkanCommandBuffer* getCommandBuffers() const {return commandBuffers;}
-    VulkanCommandBuffer* getCommandBuffer(const unsigned int i) const {return &commandBuffers[i];}
+    [[nodiscard]] VulkanCommandBuffer* getCommandBuffers() const {return commandBuffers;}
+    [[nodiscard]] VulkanCommandBuffer& getCommandBuffer(const unsigned int i) const {return commandBuffers[i];}
     VkSemaphore* getImageAvailableSemaphores() const { return imageAvailableSemaphores; }
     VkSemaphore* getQueueCompleteSemaphores() const { return queueCompleteSemaphores; }
-    VulkanFence* getInFlightFences() const { return inFlightFences; }
-    VulkanFence* getImagesInFlight() const { return *imagesInFlight; }
-    VulkanFence& getCurrentInFlightFence() const {return inFlightFences[currentFrame];}
+    [[nodiscard]] VulkanFence* getInFlightFences() const { return inFlightFences; }
+    [[nodiscard]] VulkanFence& getFenceInFlight(const unsigned int i) const {return inFlightFences[i];}
+    [[nodiscard]] VulkanFence& getCurrentInFlightFence() const {return inFlightFences[currentFrame];}
     VkSemaphore& getCurrentImageAvailable() const {return imageAvailableSemaphores[currentFrame];}
     unsigned int& getImageIndex() { return imageIndex; }
-    VulkanCommandBuffer& getCurrentCommandBuffer() const {return commandBuffers[imageIndex];}
-    VulkanFence* getCurrentImageInFlight() const {return imagesInFlight[imageIndex];}
+    [[nodiscard]] VulkanCommandBuffer& getCurrentCommandBuffer() const {return commandBuffers[imageIndex];}
+    VulkanFence*& getCurrentImageInFlight() {return imagesInFlight[imageIndex];}
     VkSemaphore& getCurrentQueueCompleteSemaphore() const {return queueCompleteSemaphores[imageIndex];}
-    VulkanFramebuffer& getCurrentFramebuffer() const {return swapchain.getFramebuffer(imageIndex);}
+    [[nodiscard]] VulkanFramebuffer& getCurrentFramebuffer() const {return swapchain.getFramebuffer(imageIndex);}
     VulkanBuffer& getVertexBuffer() { return vertexBuffer; }
     VulkanBuffer& getIndexBuffer() { return indexBuffer; }
     [[nodiscard]] float getDeltaTime() const { return deltaTime; }
 
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
     void setHeight(const unsigned int height) {frameBufferHeight = height;}
-    void updateCurrentImageInFlight() const {imagesInFlight[imageIndex] = &inFlightFences[currentFrame];}
+    void updateCurrentImageInFlight() {imagesInFlight[imageIndex] = &inFlightFences[currentFrame];}
     void setVertexOffset(const unsigned long offset) {geometryVertexOffset = offset;}
     void setIndexOffset(const unsigned long offset) {geometryIndexOffset = offset;}
     void setDeltaTime(const float dt) {deltaTime = dt;}
+    void setCurrentFrame(const unsigned int value) {currentFrame = value;}
 
     VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}
 
     void destroyContext();
-    void destroyRenderpass();
     void createCommandBuffers();
     void destroyCommandBuffers();
     void destroyFences();
     void createSyncObjects();
     void destroySyncObjects();
     void clearImagesInFlight();
-    void allocateAndBeginSingleUseCommandBuffer(VulkanCommandBuffer& commandBuffer);
-    void allocateCommandBuffer(bool bIsPrimary, VulkanCommandBuffer& commandBuffer);
-    void beginCommandBuffer(VulkanCommandBuffer& commandBuffer, bool bIsSingleUse, bool bIsRenderpassContinue, bool bIsConcurrent);
-    void endSingleUseCommandBuffer(VulkanCommandBuffer& commandBuffer, VkQueue queue);
-    void freeCommandBuffer(VulkanCommandBuffer& commandBuffer);
-    void endCommandBuffer(VulkanCommandBuffer& commandBuffer);
+    [[nodiscard]] bool isCommandBufferValid(const unsigned int i) const {return &commandBuffers[i] != nullptr;}
 };

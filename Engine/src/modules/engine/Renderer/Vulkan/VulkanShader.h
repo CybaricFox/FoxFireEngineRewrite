@@ -43,26 +43,19 @@ private:
     VulkanBuffer entityUniformBuffer{};
     unsigned int entityUniformBufferIndex = 0;
     EntityState entityStates[MAX_ENTITIES]{};
+    Texture* defaultDiffuseTexture = nullptr;
 
     //Creates a shader module from a .spv file. Name is the name of the file and TypeStr is the suffix (frag, vert). Do not include '.' in the typeStr!
     bool createShaderModule(VulkanContext& context, const String &name, const String& typeStr, VkShaderStageFlagBits stageFlags, unsigned int stageIndex);
-    void* lockBuffer(VulkanDevice &device, const VulkanBuffer &buffer, unsigned long offset, unsigned long size, unsigned int flags);
-    void unlockBuffer(VulkanDevice &device, const VulkanBuffer &buffer);
-    bool resizeBuffer(VulkanContext &context, unsigned long newSize, VulkanBuffer &buffer, VkQueue queue, VkCommandPool pool);
-    void bindBuffer(VulkanDevice &device, const VulkanBuffer &buffer, unsigned long offset);
 
 public:
     GlobalUniform& getUBO() {return globalUBO;}
 
-    bool initialize(VulkanContext& context);
+    bool initialize(VulkanContext& context, Texture& defaultDiffuse);
     void destroy(VulkanContext &context);
-    void use(VulkanContext &context) const;
+    void use(const VulkanContext &context) const;
     void updateGlobalState(VulkanContext &context);
     bool createBuffers(VulkanContext& context);
-    bool createBuffer(VulkanContext& context, unsigned long size, VkBufferUsageFlagBits usage, unsigned int memoryFlags, bool bBind, VulkanBuffer& buffer);
-    void loadBufferData(VulkanDevice &device, const VulkanBuffer &buffer, unsigned long offset, unsigned long size, const void *data);
-    void copyBufferData(VulkanContext& context, VkCommandPool pool, VkFence fence, VkQueue queue, VkBuffer source, unsigned long sourceOffset, VkBuffer dest, unsigned long destOffset, unsigned long size);
-    void destroyBuffer(VulkanDevice &device, VulkanBuffer &buffer);
     void updateEntity(VulkanContext &context, const GeometryRenderData &data);
     bool aquireResources(VulkanContext& context, unsigned int& outId);
     void releaseResources(VulkanContext& context, unsigned int id);

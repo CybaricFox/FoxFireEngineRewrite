@@ -188,7 +188,7 @@ void VulkanSwapchain::createFramebuffer(const unsigned int width, const unsigned
     framebuffer.attachmentCount = attachmentCount;
 
     VkFramebufferCreateInfo frameBufferCreateInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    frameBufferCreateInfo.renderPass = renderpass.handle;
+    frameBufferCreateInfo.renderPass = renderpass.getHandle();
     frameBufferCreateInfo.attachmentCount = attachmentCount;
     frameBufferCreateInfo.pAttachments = framebuffer.attachments;
     frameBufferCreateInfo.width = width;

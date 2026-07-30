@@ -5,7 +5,7 @@
 #include "Game.h"
 
 #include "src/modules/engine/Library/Logger.h"
-#include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
+#include "../Sandbox/src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
 
 void Game::recalculateView(GameState *state) {
     if (!state->bIsCameraDirty) return;
@@ -40,8 +40,16 @@ Game::Game()
     inputSystem = new FoxFire_InputSystem();
 }
 
+Game::~Game() {
+    swapTextureEvent.destroyEvent();
+}
+
 void Game::startup() {
     inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Engine.quit", KEY_ESCAPE);
+
+    //event system
+    swapTextureEvent.subscribe([this]() {masterRenderSystem.onDebugEvent();});
+    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {swapTextureEvent.call();}, "Game.swapTexture", KEY_L);
 
     Engine::startup();
 }

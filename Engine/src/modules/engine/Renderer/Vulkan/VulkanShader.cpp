@@ -52,139 +52,6 @@ bool VulkanShader::createShaderModule(VulkanContext &context, const String &name
     return true;
 }
 
-bool VulkanShader::createBuffer(VulkanContext &context, const unsigned long size, VkBufferUsageFlagBits usage, const unsigned int memoryFlags, const bool bBind, VulkanBuffer &buffer) {
-    FF_Memory::ff_clear(&buffer, sizeof(VulkanBuffer));
-    buffer.totalSize = size;
-    buffer.usageFlags = usage;
-    buffer.memoryPropertyFlags = memoryFlags;
-
-    VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    VulkanUtils::vulkanCheck(vkCreateBuffer(context.getDevice().getLogicalDevice(), &bufferInfo, nullptr, &buffer.handle));
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(context.getDevice().getLogicalDevice(), buffer.handle, &memRequirements);
-    buffer.memoryIndex = VulkanUtils::findMemoryIndex(static_cast<int>(memRequirements.memoryTypeBits), buffer.memoryPropertyFlags, context.getDevice().getPhysicalDevice());
-    if (buffer.memoryIndex == -1) {
-        Logger::logError("Can't find memory index for vulkan buffer!");
-        return false;
-    }
-
-    VkMemoryAllocateInfo allocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = buffer.memoryIndex;
-
-    VkResult result = vkAllocateMemory(context.getDevice().getLogicalDevice(), &allocInfo, nullptr, &buffer.deviceMemory);
-    if (result != VK_SUCCESS) {
-        Logger::logError("Failed to allocate memory for a new vulkan buffer: " + VulkanUtils::getResultAsString(result, true));
-        return false;
-    }
-
-    if (bBind) {
-        bindBuffer(context.getDevice(), buffer, 0);
-    }
-
-    return true;
-}
-
-void VulkanShader::destroyBuffer(VulkanDevice& device, VulkanBuffer &buffer) {
-    if (buffer.deviceMemory) {
-        vkFreeMemory(device.getLogicalDevice(), buffer.deviceMemory, nullptr);
-        buffer.deviceMemory = nullptr;
-    }
-    if (buffer.handle) {
-        vkDestroyBuffer(device.getLogicalDevice(), buffer.handle, nullptr);
-        buffer.handle = nullptr;
-    }
-    buffer.totalSize = 0;
-    buffer.bIsLocked = false;
-}
-
-void * VulkanShader::lockBuffer(VulkanDevice& device, const VulkanBuffer &buffer, const unsigned long offset, const unsigned long size, const unsigned int flags) {
-    void* data;
-    VulkanUtils::vulkanCheck(vkMapMemory(device.getLogicalDevice(), buffer.deviceMemory, offset, size, flags, &data));
-    return data;
-}
-
-void VulkanShader::unlockBuffer(VulkanDevice &device, const VulkanBuffer &buffer) {
-    vkUnmapMemory(device.getLogicalDevice(), buffer.deviceMemory);
-}
-
-void VulkanShader::loadBufferData(VulkanDevice &device, const VulkanBuffer &buffer, const unsigned long offset, const unsigned long size, const void *data) {
-    void* dataPtr;
-    VulkanUtils::vulkanCheck(vkMapMemory(device.getLogicalDevice(), buffer.deviceMemory, offset, size, 0, &dataPtr));
-    FF_Memory::ff_copy(dataPtr, data, size);
-    vkUnmapMemory(device.getLogicalDevice(), buffer.deviceMemory);
-}
-
-void VulkanShader::copyBufferData(VulkanContext &context, VkCommandPool pool, VkFence fence, VkQueue queue, VkBuffer source, unsigned long sourceOffset, VkBuffer dest, unsigned long destOffset, unsigned long size) {
-    vkQueueWaitIdle(queue);
-
-    //Create a one time use command buffer
-    VulkanCommandBuffer tempBuffer{};
-    context.allocateAndBeginSingleUseCommandBuffer(tempBuffer);
-
-    VkBufferCopy copyRegion;
-    copyRegion.srcOffset = sourceOffset;
-    copyRegion.dstOffset = destOffset;
-    copyRegion.size = size;
-
-    vkCmdCopyBuffer(tempBuffer.handle, source, dest, 1, &copyRegion);
-
-    context.endSingleUseCommandBuffer(tempBuffer, queue);
-}
-
-bool VulkanShader::resizeBuffer(VulkanContext &context, const unsigned long newSize, VulkanBuffer &buffer, VkQueue queue, VkCommandPool pool) {
-    VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bufferInfo.size = newSize;
-    bufferInfo.usage = buffer.usageFlags;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    VkBuffer newBuffer;
-    VulkanUtils::vulkanCheck(vkCreateBuffer(context.getDevice().getLogicalDevice(), &bufferInfo, nullptr, &newBuffer));
-
-    VkMemoryRequirements requirements;
-    vkGetBufferMemoryRequirements(context.getDevice().getLogicalDevice(), newBuffer, &requirements);
-
-    VkMemoryAllocateInfo allocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    allocInfo.allocationSize = requirements.size;
-    allocInfo.memoryTypeIndex = buffer.memoryIndex;
-
-    VkDeviceMemory newMemory;
-    VkResult result = vkAllocateMemory(context.getDevice().getLogicalDevice(), &allocInfo, nullptr, &newMemory);
-    if (result != VK_SUCCESS) {
-        Logger::logError("Failed to resize vulkan buffer: " + VulkanUtils::getResultAsString(result, true));
-        return false;
-    }
-
-    VulkanUtils::vulkanCheck(vkBindBufferMemory(context.getDevice().getLogicalDevice(), newBuffer, newMemory, 0));
-
-    copyBufferData(context, pool, nullptr, queue, buffer.handle, 0, newBuffer, 0, buffer.totalSize);
-
-    vkDeviceWaitIdle(context.getDevice().getLogicalDevice());
-
-    if (buffer.deviceMemory) {
-        vkFreeMemory(context.getDevice().getLogicalDevice(), buffer.deviceMemory, nullptr);
-        buffer.deviceMemory = nullptr;
-    }
-    if (buffer.handle) {
-        vkDestroyBuffer(context.getDevice().getLogicalDevice(), buffer.handle, nullptr);
-        buffer.handle = nullptr;
-    }
-    buffer.totalSize = newSize;
-    buffer.deviceMemory = newMemory;
-    buffer.handle = newBuffer;
-
-    return true;
-}
-
-void VulkanShader::bindBuffer(VulkanDevice& device, const VulkanBuffer &buffer, const unsigned long offset) {
-    VulkanUtils::vulkanCheck(vkBindBufferMemory(device.getLogicalDevice(), buffer.handle, buffer.deviceMemory, offset));
-}
-
 bool VulkanShader::aquireResources(VulkanContext &context, unsigned int &outId) {
     outId = entityUniformBufferIndex;
     entityUniformBufferIndex++;
@@ -228,7 +95,7 @@ void VulkanShader::releaseResources(VulkanContext &context, const unsigned int i
 }
 
 void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData& data) {
-    VkCommandBuffer commandBuffer = context.getCommandBuffer(context.getImageIndex())->handle;
+    VkCommandBuffer commandBuffer = context.getCurrentCommandBuffer().getHandle();
 
     vkCmdPushConstants(commandBuffer, pipeline.getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), &data.model);
 
@@ -250,12 +117,12 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
     accumulator += context.getDeltaTime();
     const float s = (FF_Math::sin(accumulator) + 1) / 2; //Changes the scale form -1, 1 to 0, 1
     obo.diffuse = createVector4f(s, s, s, 1);
-    loadBufferData(context.getDevice(), entityUniformBuffer, offset, range, &obo);
+    entityUniformBuffer.loadBufferData(context.getDevice(), offset, range, &obo);
 
     VkDescriptorBufferInfo bufferInfo{};
     VkWriteDescriptorSet descriptor{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     if (entityState->descriptorStates[descriptorIndex].generations[context.getImageIndex()] == INVALID_ID) {
-        bufferInfo.buffer = entityUniformBuffer.handle;
+        bufferInfo.buffer = entityUniformBuffer.getBuffer();
         bufferInfo.offset = offset;
         bufferInfo.range = range;
 
@@ -277,9 +144,15 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
     VkWriteDescriptorSet descriptor1{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     for (unsigned int i = 0; i < samplerCount; i++) {
         Texture* texture = data.textures[i];
-        unsigned int* descriptorGeneration = &entityState->descriptorStates[descriptorIndex].generations[context.getImageIndex()];
+        unsigned int& descriptorGeneration = entityState->descriptorStates[descriptorIndex].generations[context.getImageIndex()];
 
-        if (texture && (*descriptorGeneration != texture->generation || *descriptorGeneration == INVALID_ID)) {
+        //Prevents an unloaded texture from being loaded
+        if (texture->generation == INVALID_ID) {
+            texture = defaultDiffuseTexture;
+            descriptorGeneration = INVALID_ID;
+        }
+
+        if (texture && (descriptorGeneration != texture->generation || descriptorGeneration == INVALID_ID)) {
             auto* internalData = static_cast<VulkanTextureData *>(texture->data);
 
             imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -296,7 +169,7 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
 
             //Sync frame generation if the texture is not default
             if (texture->generation != INVALID_ID) {
-                *descriptorGeneration = texture->generation;
+                descriptorGeneration = texture->generation;
             }
             descriptorIndex++;
         }
@@ -313,9 +186,9 @@ bool VulkanShader::createBuffers(VulkanContext &context) {
     VkMemoryPropertyFlags memoryPropertyFlags{VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
 
     constexpr unsigned long vertexBufferSize = sizeof(Vertex3d) * 1024 * 1024; //Vertex Buffer should be 64mb with this
-    if (!createBuffer(context, vertexBufferSize,
+    if (!context.getVertexBuffer().createBuffer(context.getDevice(), vertexBufferSize,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
-        memoryPropertyFlags, true, context.getVertexBuffer())) {
+        memoryPropertyFlags, true)) {
 
         Logger::logError("Error creating vertex buffer!");
         return false;
@@ -323,19 +196,21 @@ bool VulkanShader::createBuffers(VulkanContext &context) {
     context.setVertexOffset(0);
 
     constexpr unsigned long indexBufferSize = sizeof(unsigned int) * 1024 * 1024;
-    if (!createBuffer(context, indexBufferSize,
+    if (!context.getIndexBuffer().createBuffer(context.getDevice(), indexBufferSize,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
-        memoryPropertyFlags, true, context.getIndexBuffer())) {
+        memoryPropertyFlags, true)) {
 
         Logger::logError("Error creating index buffer!");
         return false;
-        }
+    }
     context.setIndexOffset(0);
 
     return true;
 }
 
-bool VulkanShader::initialize(VulkanContext &context) {
+bool VulkanShader::initialize(VulkanContext &context, Texture& defaultDiffuse) {
+    defaultDiffuseTexture = &defaultDiffuse;
+
     const String stageTypeStrings[STAGE_COUNT] = {"vert", "frag"};
     constexpr VkShaderStageFlagBits stageTypes[STAGE_COUNT] = {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT};
 
@@ -446,10 +321,11 @@ bool VulkanShader::initialize(VulkanContext &context) {
         return false;
     }
 
-    if (!createBuffer(context, sizeof(GlobalUniform) * 3,
+    unsigned int deviceLocalBits = context.getDevice().supportsDeviceLocalBit() ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
+    if (!globalUniformBuffer.createBuffer(context.getDevice(), sizeof(GlobalUniform) * 3,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        true, globalUniformBuffer)) {
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | deviceLocalBits,
+        true)) {
 
         Logger::logError("Failed to create global uniform buffer!");
         return false;
@@ -462,10 +338,10 @@ bool VulkanShader::initialize(VulkanContext &context) {
     allocateInfo.pSetLayouts = globalLayouts;
     VulkanUtils::vulkanCheck(vkAllocateDescriptorSets(context.getDevice().getLogicalDevice(), &allocateInfo, globalDescriptorSets));
 
-    if (!createBuffer(context, sizeof(EntityUniform),
+    if (!entityUniformBuffer.createBuffer(context.getDevice(), sizeof(EntityUniform),
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        true, entityUniformBuffer)) {
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        true)) {
 
         Logger::logError("Entity buffer failed to create for shader.");
         return false;
@@ -478,11 +354,11 @@ void VulkanShader::destroy(VulkanContext& context) {
     vkDestroyDescriptorPool(context.getDevice().getLogicalDevice(), entityDescriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(context.getDevice().getLogicalDevice(), entityDescriptorLayout, nullptr);
 
-    destroyBuffer(context.getDevice(), context.getVertexBuffer());
-    destroyBuffer(context.getDevice(), context.getIndexBuffer());
+    context.getVertexBuffer().destroyBuffer(context.getDevice());
+    context.getIndexBuffer().destroyBuffer(context.getDevice());
 
-    destroyBuffer(context.getDevice(), globalUniformBuffer);
-    destroyBuffer(context.getDevice(), entityUniformBuffer);
+    globalUniformBuffer.destroyBuffer(context.getDevice());
+    entityUniformBuffer.destroyBuffer(context.getDevice());
 
     pipeline.destroyPipeline(context.getDevice());
 
@@ -495,21 +371,21 @@ void VulkanShader::destroy(VulkanContext& context) {
     }
 }
 
-void VulkanShader::use(VulkanContext& context) const {
-    pipeline.bindPipeline(*context.getCommandBuffer(context.getImageIndex()), VK_PIPELINE_BIND_POINT_GRAPHICS);
+void VulkanShader::use(const VulkanContext& context) const {
+    pipeline.bindPipeline(context.getCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS);
 }
 
 void VulkanShader::updateGlobalState(VulkanContext &context) {
-    VkCommandBuffer commandBuffer = context.getCommandBuffer(context.getImageIndex())->handle;
+    VkCommandBuffer commandBuffer = context.getCurrentCommandBuffer().getHandle();
     VkDescriptorSet globalDescriptorSet = globalDescriptorSets[context.getImageIndex()];
 
     constexpr unsigned int range = sizeof(GlobalUniform);
     const unsigned long offset = sizeof(GlobalUniform) * context.getImageIndex();
 
-    loadBufferData(context.getDevice(), globalUniformBuffer, offset, range, &globalUBO);
+    globalUniformBuffer.loadBufferData(context.getDevice(), offset, range, &globalUBO);
 
     VkDescriptorBufferInfo bufferInfo;
-    bufferInfo.buffer = globalUniformBuffer.handle;
+    bufferInfo.buffer = globalUniformBuffer.getBuffer();
     bufferInfo.offset = offset;
     bufferInfo.range = range;
 

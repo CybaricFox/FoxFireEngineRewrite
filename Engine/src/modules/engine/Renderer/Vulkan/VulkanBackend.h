@@ -36,16 +36,9 @@ private:
     //Fence syncs between gpu and application
     bool swapchainAcquireNextImageIndex(unsigned long timeout, VkSemaphore semaphore, VkFence fence, unsigned int& outImageIndex);
     void presentSwapchain();
-    void createRenderpass(float x, float y, float w, float h, float r, float g, float b, float a, float depth, unsigned int stencil);
-    void beginRenderpass(VulkanCommandBuffer& commandBuffer, VkFramebuffer frameBuffer);
-    void endRenderpass(VulkanCommandBuffer& commandBuffer);
-    void updateSubmittedCommandBuffer(VulkanCommandBuffer& commandBuffer);
-    void resetCommandBuffer(VulkanCommandBuffer& commandBuffer);
     void allocateCommandBuffers();
-    void createFence(bool bCreateSignaled, VulkanFence& fence);
-    bool waitForFence(VulkanFence& fence, unsigned long timeout);
-    void resetFence(VulkanFence& fence);
-    void uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, const VulkanBuffer& buffer, unsigned long offset, unsigned long size, const void* data);
+    void uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, unsigned long offset, unsigned long size, const
+                           void *data);
 public:
     VulkanBackend() = default;
     ~VulkanBackend() override;

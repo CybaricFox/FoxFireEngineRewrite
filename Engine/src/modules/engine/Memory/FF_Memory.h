@@ -22,7 +22,7 @@ struct MemoryBlock {
     unsigned long allocationCount;
 };
 
-class FF_Memory {
+class FOXFIRE_API FF_Memory {
 private:;
     static MemoryBlock* memoryData;
 
@@ -31,13 +31,13 @@ private:;
 public:
     static void* ff_allocate(unsigned long size, MemoryTag tag);
     static void ff_free(void* block, unsigned long size, MemoryTag tag);
-    static FOXFIRE_API void* ff_clear(void* block, unsigned long size);
+    static void* ff_clear(void* block, unsigned long size);
     static void* ff_copy(void* destination, const void* source, unsigned long size);
     static void* ff_move(void* destination, const void* source, unsigned long size);
     static void* ff_set(void* destination, int value, unsigned long size);
-    static FOXFIRE_API String getMemoryUsage();
+    static String getMemoryUsage();
     static void initialize(MemoryBlock& memoryBlock);
     static void shutdown();
-    static FOXFIRE_API unsigned long getAllocationCount();
+    static unsigned long getAllocationCount();
     static bool isInitialized(){return memoryData != nullptr;}
 };

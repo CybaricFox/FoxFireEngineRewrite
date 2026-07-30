@@ -19,8 +19,6 @@ private:
 
     //Holds the log file
     FileHandler logHandler{};
-    //Frontend Rendering
-    MasterRenderSystem masterRenderSystem{};
     //Calculates system time
     Clock clock{};
     //Handles the OS
@@ -46,6 +44,8 @@ protected:
     GameInstance* gameInstance = nullptr;
     //Handle Input
     IInputSystem* inputSystem = nullptr;
+    //Frontend Rendering
+    MasterRenderSystem masterRenderSystem{};
 
     void quit();
     virtual void startup();

@@ -104,6 +104,16 @@ bool VulkanDevice::selectPhysicalDevice(VkInstance& instance, VkSurfaceKHR& surf
         VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
         vkGetPhysicalDeviceMemoryProperties(devices[i], &deviceMemoryProperties);
 
+        //Check for local bit compat
+        bool supportsDeviceLocalBit = false;
+        for (unsigned int j = 0; j < deviceMemoryProperties.memoryTypeCount; j++) {
+            if ((deviceMemoryProperties.memoryTypes[j].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0 &&
+                (deviceMemoryProperties.memoryTypes[j].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0) {
+                supportsDeviceLocalBit = true;
+                break;
+            }
+        }
+
         //Requirements are request from engine. These are what the engine wants.
         PhysicalDeviceRequirements requirements{};
         requirements.graphics = true;
@@ -182,6 +192,7 @@ bool VulkanDevice::selectPhysicalDevice(VkInstance& instance, VkSurfaceKHR& surf
             physicalDeviceProperties = deviceProperties;
             physicalDeviceFeatures = deviceFeatures;
             physicalDeviceMemoryProperties = deviceMemoryProperties;
+            bSupportsDeviceLocalBit = supportsDeviceLocalBit;
             break;
         }
     }

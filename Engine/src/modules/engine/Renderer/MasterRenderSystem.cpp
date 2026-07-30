@@ -6,17 +6,20 @@
 
 #include "../Library/Logger.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
+
 bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
     if (beginFrame(packet.deltaTime)) {
         backend->updateGlobalState(projection, view, zeroVector3f(), oneVector4f(), 0);
         static float angle = 0.00f;
-        //angle += angle / 10000;
+        //angle += (angle + 0.001) / 10000;
         const Quat rotation = getQuatFromAxisAngle(forwardVector3(), angle, false);
         const Mat4 model = convertQuatToRotationMatrix(rotation, zeroVector3f());
         GeometryRenderData data{};
         data.id = 0;
         data.model = model;
-        data.textures[0] = &defaultTexture;
+        data.textures[0] = &testTexture;
         backend->updateEntity(data);
 
         if (!endFrame(packet.deltaTime)) {
@@ -45,6 +48,15 @@ void MasterRenderSystem::destroyTexture(Texture &texture) const {
     if (backend) backend->destroyTexture(texture);
 }
 
+void MasterRenderSystem::onDebugEvent() {
+    const String files[2] = {"obamnaSODA", "whoishe"};
+    static char choice = 1;
+    choice++;
+    choice %= 2;
+
+    loadTexture(testTexture, files[choice]);
+}
+
 bool MasterRenderSystem::beginFrame(const float deltaTime) const {
     return backend->beginFrame(deltaTime);
 }
@@ -55,6 +67,7 @@ bool MasterRenderSystem::endFrame(const float deltaTime) const {
     return result;
 }
 
+//Generates a default texture during runtime so dependency on a file system isn't necessary for niche scenarios.
 void MasterRenderSystem::createDefaultTexture() {
     Logger::logDebug("Creating default texture");
     constexpr unsigned int dimensions = 256;
@@ -82,6 +95,83 @@ void MasterRenderSystem::createDefaultTexture() {
     }
 
     createTexture("default", false, dimensions, dimensions, 4, pixels, false, defaultTexture);
+    defaultTexture.generation = INVALID_ID;
+}
+
+Texture MasterRenderSystem::createBlankTexture() {
+    Texture texture{};
+    texture.generation = INVALID_ID;
+    return texture;
+}
+
+bool MasterRenderSystem::loadTexture(Texture& texture, const String &fileName, const String &subFolders) {
+    String path = "Assets/" + subFolders + "/" + fileName + ".";
+    return loadTextureHelper(texture, path, fileName);
+}
+
+bool MasterRenderSystem::loadTexture(Texture &texture, const String &fileName) {
+    String path = "Assets/" + fileName + ".";
+    return loadTextureHelper(texture, path, fileName);
+}
+
+bool MasterRenderSystem::loadTextureHelper(Texture &texture, String &path, const String &fileName) {
+    constexpr int requiredChannelCount = 4;
+    stbi_set_flip_vertically_on_load(true); //stb loads the image from down to top, this effectively makes it read top to down.
+    //In the future, this should check for the extension automatically
+    path.append("png");
+
+    Texture tempTexture{};
+    int width = static_cast<int>(tempTexture.width);
+    int height = static_cast<int>(tempTexture.height);
+    int channelCount = tempTexture.channelCount;
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channelCount, requiredChannelCount);
+    tempTexture.width = width;
+    tempTexture.height = height;
+    tempTexture.channelCount = channelCount;
+
+    //overwrite the texture channel count with the one we are using
+    tempTexture.channelCount = requiredChannelCount;
+
+    if (!data) {
+        if (stbi_failure_reason()) {
+            Logger::logWarn("#1 Failed to load texture file: " + path + ": " + stbi_failure_reason());
+        }
+        return false;
+    }
+
+    const unsigned int currentGeneration = texture.generation;
+    texture.generation = INVALID_ID;
+    const unsigned long totalSize = tempTexture.width * tempTexture.height * requiredChannelCount;
+
+    //transparency
+    bool isTransparent = false;
+    for (unsigned long i = 0; i < totalSize; i += requiredChannelCount) {
+        const unsigned char a = data[i + 3];
+        if (a < 255) {
+            isTransparent = true;
+            break;
+        }
+    }
+
+    //This always fails... but then works anyway? commented out for now until I know why.
+    //if (stbi_failure_reason()) {
+    //    Logger::logWarn("#2 Failed to load texture file: " + path + ": " + stbi_failure_reason());
+    //    return false;
+    //}
+
+    createTexture(fileName, false, static_cast<int>(tempTexture.width), static_cast<int>(tempTexture.height), tempTexture.channelCount, data, isTransparent, tempTexture);
+
+    destroyTexture(texture);
+    texture = tempTexture;
+
+    if (currentGeneration == INVALID_ID) {
+        texture.generation = 0;
+    } else {
+        texture.generation = currentGeneration + 1;
+    }
+
+    stbi_image_free(data);
+    return true;
 }
 
 void MasterRenderSystem::setView(const Mat4 &newView) {
@@ -94,6 +184,8 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
         Logger::logFatal("Failed to create the backend renderer!");
         return false;
     }
+
+    backend->setDefaultTexture(defaultTexture);
     backend->clearFrameNumber();
 
     if (!backend->initialize(appName, platform, width, height)) {
@@ -101,17 +193,21 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
         return false;
     }
 
-    createDefaultTexture();
-
     projection = perspective(degreesToRadians(45.0f), 1280 / 720.0f, nearClip, farClip);
     view = createTranslationMatrix({0, 0, -30});
     view = invertMatrix(view);
+
+    createDefaultTexture();
+
+    //load textures
+    testTexture = createBlankTexture();
 
     return true;
 }
 
 void MasterRenderSystem::shutdown() {
     destroyTexture(defaultTexture);
+    destroyTexture(testTexture);
     delete backend;
     backend = nullptr;
 }

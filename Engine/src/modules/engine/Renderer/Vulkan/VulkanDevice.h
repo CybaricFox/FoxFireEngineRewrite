@@ -47,6 +47,7 @@ private:
     VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
     VkFormat depthFormat;
     VkCommandPool commandPool;
+    bool bSupportsDeviceLocalBit = false;
 
     bool selectPhysicalDevice(VkInstance& instance, VkSurfaceKHR& surface);
 
@@ -61,6 +62,7 @@ private:
 public:
     bool createDevice(VkInstance &instance, VkSurfaceKHR &surface);
     void querySwapChainSupport(VkPhysicalDevice vulkanPhysicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo& vulkanSwapchainSupportInfo);
+    [[nodiscard]] bool supportsDeviceLocalBit() const {return bSupportsDeviceLocalBit;}
 
     VkDevice& getLogicalDevice(){return logicalDevice;}
     VulkanSwapChainSupportInfo& getSwapChainSupportInfo(){return swapChainSupportInfo;}
