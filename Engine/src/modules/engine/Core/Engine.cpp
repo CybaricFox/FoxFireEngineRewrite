@@ -154,12 +154,6 @@ void Engine::initializeMemory() {
     linearAllocator.initialize(totalMemorySize, nullptr);
 }
 
-void Engine::initializeRenderSystem() {
-    if (!masterRenderSystem.initialize(gameInstance->config.appName, platform, *gameInstance, width, height)) {
-        Logger::logFatal("Failed to initialize renderer!");
-    }
-}
-
 void Engine::quit() {
     Logger::logInfo("User Quit. Shutting Down.\n");
     bIsRunning = false;
@@ -185,7 +179,16 @@ void Engine::initialize(GameInstance &instance) {
     }
 
     //Start renderer
-    initializeRenderSystem();
+    if (!masterRenderSystem.initialize(gameInstance->config.appName, platform, *gameInstance, width, height)) {
+        Logger::logFatal("Failed to initialize the render system!");
+        return;
+    }
+
+    //Start texture system
+    if (!masterRenderSystem.initializeTextureSystem(65536, textureSystem)) {
+        Logger::logFatal("Failed to initialize the texture system!");
+        return;
+    }
 
     startup();
 }
@@ -205,6 +208,7 @@ Engine::~Engine() {
     EngineEvents::shutdown();
 
     //Destroy resources in opposite order of creation
+    textureSystem = nullptr;
     masterRenderSystem.shutdown();
     if (inputSystem) {
         delete inputSystem;

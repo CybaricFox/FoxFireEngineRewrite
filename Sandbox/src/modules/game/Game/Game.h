@@ -1,6 +1,6 @@
 #pragma once
-#include "../../system/FoxFire_Input/FoxFire_Events.h"
 #include "src/modules/engine/Core/Engine.h"
+#include "src/modules/system/FoxFire_Input/FoxFire_Events.h"
 
 struct GameState {
     float deltaTime;
@@ -21,7 +21,7 @@ public:
     Game();
     ~Game() override;
 
-    EventData<void> swapTextureEvent{};
+    Event<void> swapTextureEvent{};
 
 protected:
     void startup() override;

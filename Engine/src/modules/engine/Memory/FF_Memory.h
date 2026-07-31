@@ -13,6 +13,7 @@ enum MemoryTag {
     DYNAMIC_ARRAY,
     CHAR_ARRAY,
     TEXTURE,
+    HASHMAP,
     MAX_TAGS
 };
 

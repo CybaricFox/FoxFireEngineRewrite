@@ -73,9 +73,7 @@ void VulkanContext::destroySyncObjects() {
         inFlightFenceCount = 0;
     }
 
-    if (!imagesInFlight.isEmpty()) {
-        imagesInFlight.shutdown();
-    }
+    imagesInFlight.shutdown();
 }
 
 void VulkanContext::clearImagesInFlight() {

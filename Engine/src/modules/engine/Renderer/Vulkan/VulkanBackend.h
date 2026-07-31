@@ -56,7 +56,7 @@ public:
     bool beginFrame(float deltaTime) override;
     bool endFrame(float deltaTime) override;
     void updateGlobalState(Mat4 projection, Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) override;
-    void updateEntity(GeometryRenderData data) override;
-    void createTexture(String &name, bool autoRelease, int width, int height, int channelCount, const unsigned char *pixels, bool isTransparent, Texture &outTexture) override;
+    void updateEntity(const GeometryRenderData &data, Texture &defaultTexture) override;
+    void createTexture(String name, int width, int height, int channelCount, const unsigned char *pixels, bool isTransparent, Texture &outTexture) override;
     void destroyTexture(Texture &texture) override;
 };

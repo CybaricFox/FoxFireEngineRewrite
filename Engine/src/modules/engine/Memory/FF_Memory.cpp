@@ -21,6 +21,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 5: return "DYNAMIC ARRAY";
         case 6: return "CHAR ARRAY";
         case 7: return "TEXTURE";
+        case 8: return "HASHMAP";
         default: return " ";
     }
 }
@@ -34,8 +35,7 @@ void FF_Memory::ff_free(void * block, const unsigned long size, const MemoryTag 
     }
 
     if (!memoryData) {
-        Logger::logError("ff_free called after memoryData was destroyed!");
-        Logger::logError("Something is most likely surviving past memory shutdown in the engine!");
+        cerr << "ff_free called after memoryData was destroyed!" << endl;
         return;
     }
 

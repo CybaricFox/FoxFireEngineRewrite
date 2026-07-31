@@ -8,6 +8,7 @@
 #include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 #include "src/modules/engine/Memory/LinearAllocator.h"
+#include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Renderer/RendererBackend.h"
 
@@ -37,13 +38,14 @@ private:
     double lastTime = 0;
 
     void initializeMemory();
-    void initializeRenderSystem();
 
 protected:
     //Holds config data
     GameInstance* gameInstance = nullptr;
     //Handle Input
     IInputSystem* inputSystem = nullptr;
+    //Texture manager reference (Owned by the masterrendersystem and should not be relied on)
+    ITextureSystem* textureSystem = nullptr;
     //Frontend Rendering
     MasterRenderSystem masterRenderSystem{};
 

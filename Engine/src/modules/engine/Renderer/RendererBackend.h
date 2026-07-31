@@ -28,12 +28,8 @@ private:
 protected:
     RendererBackend() = default;
 
-    Texture* defaultDiffuseTexture = nullptr;
-
 public:
     virtual ~RendererBackend();
-
-    void setDefaultTexture(Texture& texture) {defaultDiffuseTexture = &texture;}
 
     static RendererBackend* create(RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance);
 
@@ -42,8 +38,8 @@ public:
     virtual bool endFrame(float deltaTime) = 0;
     virtual void resize(unsigned short width, unsigned short height) = 0;
     virtual void updateGlobalState(Mat4 projection, Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) = 0;
-    virtual void updateEntity(GeometryRenderData data) = 0;
-    virtual void createTexture(String& name, bool autoRelease, int width, int height, int channelCount, const unsigned char* pixels, bool isTransparent, Texture& outTexture) = 0;
+    virtual void updateEntity(const GeometryRenderData &data, Texture &defaultTexture) = 0;
+    virtual void createTexture(String name, int width, int height, int channelCount, const unsigned char* pixels, bool isTransparent, Texture& outTexture) = 0;
     virtual void destroyTexture(Texture& texture) = 0;
 
     void incrementFrameNumber() {frameNumber++;}

@@ -7,17 +7,17 @@
 #include <functional>
 #include "src/modules/engine/Memory/DynamicArray.h"
 
-struct BaseEventData {
-    BaseEventData() = default;
+struct BaseEvent {
+    BaseEvent() = default;
 };
 
 //T is the callback struct chosen by the registerer.
 template<typename T>
-struct EventData final : BaseEventData{
+struct Event final : BaseEvent{
     //array of functions that use the callback data
     DynamicArray<std::function<void(const T&)>> listeners{};
 
-    EventData() {listeners.initialize();}
+    Event() {listeners.initialize();}
 
     //Subscribes a function to this event
     void subscribe(std::function<void(const T&)> function) {
@@ -34,12 +34,12 @@ struct EventData final : BaseEventData{
 };
 
 template<>
-struct EventData<void> final : BaseEventData{
+struct Event<void> final : BaseEvent{
     //array of functions that use the callback data
     DynamicArray<std::function<void()>> listeners{};
 
-    EventData() {listeners.initialize();}
-    ~EventData() {listeners.shutdown();}
+    Event() {listeners.initialize();}
+    ~Event() {listeners.shutdown();}
 
     //Subscribes a function to this event
     void subscribe(const std::function<void()>& function) {

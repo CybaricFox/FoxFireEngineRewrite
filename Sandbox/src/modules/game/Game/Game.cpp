@@ -5,7 +5,8 @@
 #include "Game.h"
 
 #include "src/modules/engine/Library/Logger.h"
-#include "../Sandbox/src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
+#include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
+#include "src/modules/system/FoxFire_Textures/FoxFire_TextureSystem.h"
 
 void Game::recalculateView(GameState *state) {
     if (!state->bIsCameraDirty) return;
@@ -38,6 +39,7 @@ Game::Game()
     :Engine()
 {
     inputSystem = new FoxFire_InputSystem();
+    textureSystem = new FoxFire_TextureSystem();
 }
 
 Game::~Game() {

@@ -3,13 +3,14 @@
 //
 
 #pragma once
+#include "src/defines.h"
 
 struct Texture {
-    unsigned int id;
-    unsigned int width;
-    unsigned int height;
-    unsigned char channelCount;
-    bool bIsTransparent;
-    unsigned int generation; //Maybe change this to bIsDirty later on.
-    void* data;
+    unsigned int id = INVALID_ID;
+    unsigned int width = 0;
+    unsigned int height = 0;
+    unsigned char channelCount = 0;
+    bool bIsTransparent = false;
+    unsigned int generation = INVALID_ID;
+    void* data = nullptr;
 };

@@ -10,7 +10,7 @@
 #include "src/modules/engine/Library/FF_Math.h"
 #include "src/modules/engine/Library/FileHandler.h"
 
-#define FF_OBJECT_SHADER "Vulkan_Object_Shader"
+#define FF_MATERIAL_SHADER "Vulkan_Material_Shader"
 
 bool VulkanShader::createShaderModule(VulkanContext &context, const String &name, const String &typeStr, VkShaderStageFlagBits stageFlags, unsigned int stageIndex) {
     String fileName = "Shaders/" + name + "." + typeStr + ".spv";
@@ -60,6 +60,9 @@ bool VulkanShader::aquireResources(VulkanContext &context, unsigned int &outId) 
         for (unsigned int& generation : descriptorState.generations) {
             generation = INVALID_ID;
         }
+        for (unsigned int& id : descriptorState.ids) {
+            id = INVALID_ID;
+        }
     }
 
     //allocate descriptor sets
@@ -91,10 +94,13 @@ void VulkanShader::releaseResources(VulkanContext &context, const unsigned int i
         for (unsigned int& generation : descriptorState.generations) {
             generation = INVALID_ID;
         }
+        for (unsigned int& idd : descriptorState.ids) {
+            idd = INVALID_ID;
+        }
     }
 }
 
-void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData& data) {
+void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData& data, Texture& defaultTexture) {
     VkCommandBuffer commandBuffer = context.getCurrentCommandBuffer().getHandle();
 
     vkCmdPushConstants(commandBuffer, pipeline.getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), &data.model);
@@ -145,14 +151,15 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
     for (unsigned int i = 0; i < samplerCount; i++) {
         Texture* texture = data.textures[i];
         unsigned int& descriptorGeneration = entityState->descriptorStates[descriptorIndex].generations[context.getImageIndex()];
+        unsigned int& descriptorID = entityState->descriptorStates[descriptorIndex].ids[context.getImageIndex()];
 
         //Prevents an unloaded texture from being loaded
         if (texture->generation == INVALID_ID) {
-            texture = defaultDiffuseTexture;
+            texture = &defaultTexture;
             descriptorGeneration = INVALID_ID;
         }
 
-        if (texture && (descriptorGeneration != texture->generation || descriptorGeneration == INVALID_ID)) {
+        if (texture && (descriptorID != texture->id || descriptorGeneration != texture->generation || descriptorGeneration == INVALID_ID)) {
             auto* internalData = static_cast<VulkanTextureData *>(texture->data);
 
             imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -170,6 +177,7 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
             //Sync frame generation if the texture is not default
             if (texture->generation != INVALID_ID) {
                 descriptorGeneration = texture->generation;
+                descriptorID = texture->id;
             }
             descriptorIndex++;
         }
@@ -208,15 +216,13 @@ bool VulkanShader::createBuffers(VulkanContext &context) {
     return true;
 }
 
-bool VulkanShader::initialize(VulkanContext &context, Texture& defaultDiffuse) {
-    defaultDiffuseTexture = &defaultDiffuse;
-
+bool VulkanShader::initialize(VulkanContext &context) {
     const String stageTypeStrings[STAGE_COUNT] = {"vert", "frag"};
     constexpr VkShaderStageFlagBits stageTypes[STAGE_COUNT] = {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT};
 
     for (unsigned int i = 0; i < STAGE_COUNT; i++) {
-        if (!createShaderModule(context, FF_OBJECT_SHADER, stageTypeStrings[i], stageTypes[i], i)) {
-            Logger::logError("Unable to create " + stageTypeStrings[i] + " for " + FF_OBJECT_SHADER);
+        if (!createShaderModule(context, FF_MATERIAL_SHADER, stageTypeStrings[i], stageTypes[i], i)) {
+            Logger::logError("Unable to create " + stageTypeStrings[i] + " for " + FF_MATERIAL_SHADER);
             return false;
         }
     }

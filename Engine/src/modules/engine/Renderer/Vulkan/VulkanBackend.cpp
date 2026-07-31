@@ -334,7 +334,7 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     vulkanContext.clearImagesInFlight();
 
     //Create shader system
-    if (!vulkanShader.initialize(vulkanContext, *defaultDiffuseTexture)) {
+    if (!vulkanShader.initialize(vulkanContext)) {
         Logger::logError("Failed to initialize Vulkan shaders.");
         return false;
     }
@@ -489,8 +489,8 @@ void VulkanBackend::updateGlobalState(const Mat4 projection, const Mat4 view, Ve
     vulkanShader.updateGlobalState(vulkanContext);
 }
 
-void VulkanBackend::updateEntity(const GeometryRenderData data) {
-    vulkanShader.updateEntity(vulkanContext, data);
+void VulkanBackend::updateEntity(const GeometryRenderData &data, Texture& defaultTexture) {
+    vulkanShader.updateEntity(vulkanContext, data, defaultTexture);
 
     //TEST CODE
     VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
@@ -502,7 +502,7 @@ void VulkanBackend::updateEntity(const GeometryRenderData data) {
     //END TEST CODE
 }
 
-void VulkanBackend::createTexture(String &name, bool autoRelease, int width, int height, int channelCount, const unsigned char *pixels, bool isTransparent, Texture &outTexture) {
+void VulkanBackend::createTexture(String name, const int width, const int height, const int channelCount, const unsigned char *pixels, const bool isTransparent, Texture &outTexture) {
     outTexture.width = width;
     outTexture.height = height;
     outTexture.channelCount = channelCount;
@@ -570,7 +570,7 @@ void VulkanBackend::destroyTexture(Texture &texture) {
         FF_Memory::ff_clear(&data->image, sizeof(VulkanImage));
         vkDestroySampler(vulkanContext.getDevice().getLogicalDevice(), data->sampler, nullptr);
         data->sampler = nullptr;
-    }
 
-    FF_Memory::ff_free(texture.data, sizeof(VulkanTextureData), TEXTURE);
+        FF_Memory::ff_free(texture.data, sizeof(VulkanTextureData), TEXTURE);
+    }
 }

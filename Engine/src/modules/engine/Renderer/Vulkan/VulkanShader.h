@@ -17,6 +17,7 @@ struct VulkanShaderStage {
 
 struct VulkanDescriptorState {
     unsigned int generations[3];
+    unsigned int ids[3];
 };
 
 constexpr int STAGE_COUNT = 2;
@@ -43,7 +44,6 @@ private:
     VulkanBuffer entityUniformBuffer{};
     unsigned int entityUniformBufferIndex = 0;
     EntityState entityStates[MAX_ENTITIES]{};
-    Texture* defaultDiffuseTexture = nullptr;
 
     //Creates a shader module from a .spv file. Name is the name of the file and TypeStr is the suffix (frag, vert). Do not include '.' in the typeStr!
     bool createShaderModule(VulkanContext& context, const String &name, const String& typeStr, VkShaderStageFlagBits stageFlags, unsigned int stageIndex);
@@ -51,12 +51,12 @@ private:
 public:
     GlobalUniform& getUBO() {return globalUBO;}
 
-    bool initialize(VulkanContext& context, Texture& defaultDiffuse);
+    bool initialize(VulkanContext& context);
     void destroy(VulkanContext &context);
     void use(const VulkanContext &context) const;
     void updateGlobalState(VulkanContext &context);
     bool createBuffers(VulkanContext& context);
-    void updateEntity(VulkanContext &context, const GeometryRenderData &data);
+    void updateEntity(VulkanContext &context, const GeometryRenderData &data, Texture &defaultTexture);
     bool aquireResources(VulkanContext& context, unsigned int& outId);
     void releaseResources(VulkanContext& context, unsigned int id);
 };
