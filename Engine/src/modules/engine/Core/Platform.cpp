@@ -351,9 +351,9 @@ bool Platform::processMessages() {
     #include <unistd.h>
 #endif
 
-#define VK_USE_PLATFORM_WIN32_KHR
+#define VK_USE_PLATFORM_XCB_KHR
 #include <vulkan/vulkan.h>
-#include "src/modules/engine/Renderer/VulkanBackend.h"
+#include "src/modules/engine/Renderer/Vulkan/VulkanBackend.h"
 
 struct InternalState {
     Display* display;
@@ -366,17 +366,10 @@ struct InternalState {
 };
 
     Platform::~Platform() {
-        const InternalState* castedState = static_cast<InternalState *>(platformState.unknownState);
-
-        //Turn on repeating keys since this seems to toggle it in the os itself
-        XAutoRepeatOn(castedState->display);
-
-        xcb_destroy_window(castedState->connection, castedState->window);
-
-        free(platformState.unknownState);
+        if (platformState.unknownState) shutdown();
     }
 
-void Platform::printConsoleMessage(const char *message, const unsigned char color) {
+void Platform::printConsoleMessage(const String &message, const unsigned char color) {
         String output;
 
         if (!(color > 4 || color < 0)) {
@@ -387,9 +380,9 @@ void Platform::printConsoleMessage(const char *message, const unsigned char colo
         }
 
         cout << output << endl;
-}
+    }
 
-void Platform::printConsoleError(const char *message, unsigned char color) {
+void Platform::printConsoleError(const String &message, const unsigned char color) {
         String output;
 
         if (!(color > 4 || color < 0)) {
@@ -400,22 +393,24 @@ void Platform::printConsoleError(const char *message, unsigned char color) {
         }
 
         cerr << output << endl;
-}
+
+        if (color == 0) exit(-1);
+    }
 
 bool Platform::createSurface() {
         VulkanContext* vulkanContext = &VulkanBackend::vulkanContext;
         const auto state = static_cast<InternalState *>(platformState.unknownState);
 
         VkXcbSurfaceCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR};
-        createInfo.connection = state->instance;
+        createInfo.connection = state->connection;
         createInfo.window = state->window;
 
-        if (const VkResult result = vkCreateXcbSurfaceKHR(vulkanContext->instance, &createInfo, nullptr, &state->surface); result != VK_SUCCESS) {
+        if (const VkResult result = vkCreateXcbSurfaceKHR(vulkanContext->getInstance(), &createInfo, nullptr, &state->surface); result != VK_SUCCESS) {
             printConsoleError("Failed to create Vulkan surface for linux.", 0);
             return false;
         }
 
-        vulkanContext->surface = state->surface;
+        vulkanContext->getSurface() = state->surface;
         return true;
     }
 
@@ -583,9 +578,9 @@ Keys translateKeycode(unsigned int keyCode) {
             return KEY_LCONTROL;
         case XK_Control_R:
             return KEY_RCONTROL;
-        case XK_ALT_L:
+        case XK_Alt_L:
             return KEY_LALT;
-        case XK_ALT_R:
+        case XK_Alt_R:
             return KEY_RALT;
         case XK_semicolon:
             return KEY_SEMICOLON;
@@ -687,20 +682,17 @@ Keys translateKeycode(unsigned int keyCode) {
 bool Platform::processMessages() {
         const auto state = static_cast<InternalState *>(platformState.unknownState);
 
-        xcb_generic_event_t* event;
+        xcb_generic_event_t* event = nullptr;
         xcb_client_message_event_t* message;
         bool quitFlag = false;
 
         //Poll events until null is returned
-        while (event != nullptr) {
-            event = xcb_poll_for_event(state->connection);
-            if (event == nullptr) break;
-
+        while ((event = xcb_poll_for_event(state->connection)) != nullptr) {
             //input events
             switch (event->response_type & ~0x80) {
                 case XCB_KEY_PRESS:
                 case XCB_KEY_RELEASE: {
-                    const auto* keyEvent = reinterpret_cast<xcb_key_press_event_t *>(event);
+                    auto* keyEvent = reinterpret_cast<xcb_key_press_event_t *>(event);
                     bool pressed = event->response_type == XCB_KEY_PRESS;
                     const xcb_keycode_t code = keyEvent->detail;
                     const KeySym keySym = XkbKeycodeToKeysym(
@@ -716,7 +708,7 @@ bool Platform::processMessages() {
                         break;
                     }
 
-                    keyInputs.emplace_back(MAX_BUTTONS, key, pressed);
+                    keyInputs.emplace(MAX_BUTTONS, key, pressed);
                     break;
                 }
                 case XCB_BUTTON_PRESS:
@@ -738,20 +730,20 @@ bool Platform::processMessages() {
                     }
 
                     if (mouseButton != MAX_BUTTONS) {
-                        keyInputs.emplace_back(mouseButton, MAX_KEYS, pressed);
+                        keyInputs.emplace(mouseButton, MAX_KEYS, pressed);
                     }
                     break;
                 }
                 case XCB_MOTION_NOTIFY: {
                     auto* moveEvent = reinterpret_cast<xcb_motion_notify_event_t *>(event);
-                    mouseInputs.emplace_back(moveEvent->event_x, moveEvent->event_y, 0);
+                    mouseInputs.emplace(moveEvent->event_x, moveEvent->event_y, 0);
                     break;
                 }
                 case XCB_CONFIGURE_NOTIFY: {
-                    xcb_configure_notify_event_t* configureEvent = reinterpret_cast<xcb_motion_notify_event_t *>(event);
-                    unsigned short x = configureEvent->width;
-                    unsigned short y = configureEvent->height;
-                    EngineEvents::callEvent(RESIZED, new EngineInputContext{x, y});
+                    const auto* configureEvent = reinterpret_cast<xcb_configure_notify_event_t *>(event);
+                    const unsigned short x = configureEvent->width;
+                    const unsigned short y = configureEvent->height;
+                    EngineEvents::callEvent(RESIZED, EngineInputContext{x, y});
                     break;
                 }
                 case XCB_CLIENT_MESSAGE: {
@@ -773,15 +765,16 @@ bool Platform::processMessages() {
         return !quitFlag;
 }
 
-void Platform::getRequiredExtensions(std::vector<const char*>& extensions) {
-        extensions.push_back("VK_KHR_xcb_surface");
+
+void Platform::getRequiredExtensions(DynamicArray<const char*>& extensions) {
+        extensions.push("VK_KHR_xcb_surface");
     }
 
-float Platform::getAbsoluteTime() const {
-        struct timespec now;
+double Platform::getAbsoluteTime() {
+        timespec now{};
         clock_gettime(CLOCK_MONOTONIC, &now);
-        return now.tv_sec + now.tv_nsec * 0.000000001;
-}
+        return static_cast<double>(now.tv_sec) + static_cast<double>(now.tv_nsec) * 0.000000001;
+    }
 
 void ff_sleep(unsigned long ms) {
 #if _POSIX_C_SOURCE >= 199309L
@@ -797,11 +790,12 @@ void ff_sleep(unsigned long ms) {
 #endif
         }
 
-bool Platform::initialize(const String &applicationName, int x, int y, int width, int height) {
+bool Platform::initialize(const String &applicationName, const int x, const int y, const int width, const int height) {
         platformState.unknownState = malloc(sizeof(InternalState));
         const auto castedState = static_cast<InternalState *>(platformState.unknownState);
 
         castedState->display = XOpenDisplay(nullptr);
+        XSetEventQueueOwner(castedState->display, XCBOwnsEventQueue);
 
         //Turn off repeating keys
         XAutoRepeatOff(castedState->display);
@@ -818,7 +812,7 @@ bool Platform::initialize(const String &applicationName, int x, int y, int width
 
         //Loop through screens
         xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
-        int screen = 0;
+        constexpr int screen = 0;
         for (int i = screen; i > 0; i--) {
             xcb_screen_next(&iter);
         }
@@ -845,8 +839,8 @@ bool Platform::initialize(const String &applicationName, int x, int y, int width
             XCB_COPY_FROM_PARENT,
             castedState->window,
             castedState->screen->root,
-            x,
-            y,
+            static_cast<int16_t>(x),
+            static_cast<int16_t>(y),
             width,
             height,
             0,
@@ -889,11 +883,26 @@ bool Platform::initialize(const String &applicationName, int x, int y, int width
         xcb_map_window(castedState->connection, castedState->window);
 
         if (const int streamResult = xcb_flush(castedState->connection); streamResult <= 0) {
-            printConsoleError(("Failed to flush XCB connection" + std::to_string(streamResult)).c_str(), 0);
+            printConsoleError("Failed to flush XCB connection" + std::to_string(streamResult), 0);
             return false;
         }
 
         return true;
+    }
+
+void Platform::shutdown() {
+        const InternalState* castedState = static_cast<InternalState *>(platformState.unknownState);
+
+        //Turn on repeating keys since this seems to toggle it in the os itself
+        XAutoRepeatOn(castedState->display);
+
+        xcb_destroy_window(castedState->connection, castedState->window);
+
+        keyInputs.shutdown();
+        mouseInputs.shutdown();
+
+        free(platformState.unknownState);
+        platformState.unknownState = nullptr;
     }
 
 

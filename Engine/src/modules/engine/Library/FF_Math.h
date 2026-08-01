@@ -154,12 +154,12 @@ inline Vector3f rightVector3f() {return Vector3f{1, 0, 0};}
 inline Vector3f forwardVector3() {return Vector3f{0, 0, -1};}
 inline Vector3f backwardVector3() {return Vector3f{0, 0, 1};}
 
-union FOXFIRE_API alignas(16) Vector4f {
+union FOXFIRE_API Vector4f {
 #if defined(USE_SIMD)
     __m128 data;
 #endif
 
-    float elements[4];
+    alignas(16) float elements[4];
 
     struct {
         union {
@@ -290,8 +290,8 @@ inline Quat quatIdentity() {
     return Quat{0, 0, 0, 1};
 }
 
-union FOXFIRE_API alignas(16) Mat4 {
-    float data[16];
+union FOXFIRE_API Mat4 {
+    alignas(16) float data[16];
 #if defined(USE_SIMD)
     Vector4f rows[4];
 #endif

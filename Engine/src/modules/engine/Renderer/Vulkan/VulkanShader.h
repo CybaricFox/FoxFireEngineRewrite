@@ -16,8 +16,8 @@ struct VulkanShaderStage {
 };
 
 struct VulkanDescriptorState {
-    unsigned int generations[3];
-    unsigned int ids[3];
+    DynamicArray<unsigned int> generations{};
+    DynamicArray<unsigned int> ids{};
 };
 
 constexpr int STAGE_COUNT = 2;
@@ -25,8 +25,25 @@ constexpr int MAX_ENTITIES = 1024;
 constexpr int DESCRIPTOR_COUNT = 2;
 
 struct EntityState {
-    VkDescriptorSet descriptorSets[3]{}; //per frame
+    bool bIsValid = false;
+    DynamicArray<VkDescriptorSet> descriptorSets{}; //per frame
     VulkanDescriptorState descriptorStates[DESCRIPTOR_COUNT]{};//per entity
+
+    void initialize(const unsigned int frameCount) {
+        if (bIsValid) return;
+        descriptorSets.initialize(frameCount);
+        descriptorStates[0].generations.initialize(frameCount);
+        descriptorStates[0].ids.initialize(frameCount);
+        descriptorStates[1].generations.initialize(frameCount);
+        descriptorStates[1].ids.initialize(frameCount);
+        for (unsigned int i = 0; i < frameCount; i++) {
+            descriptorStates[0].generations.emplace(INVALID_ID);
+            descriptorStates[0].ids.emplace(INVALID_ID);
+            descriptorStates[1].generations.emplace(INVALID_ID);
+            descriptorStates[1].ids.emplace(INVALID_ID);
+        }
+        bIsValid = true;
+    }
 };
 
 class VulkanShader {
@@ -36,14 +53,14 @@ private:
     GlobalUniform globalUBO{};
     VkDescriptorPool globalDescriptorPool{};
     //1 per frame. Max 3 for triple buffering (Mailbox).
-    VkDescriptorSet globalDescriptorSets[3]{};
+    DynamicArray<VkDescriptorSet> globalDescriptorSets{};
     VkDescriptorSetLayout globalDescriptorSetLayout{};
     VulkanBuffer globalUniformBuffer{};
     VkDescriptorPool entityDescriptorPool{};
     VkDescriptorSetLayout entityDescriptorLayout{};
     VulkanBuffer entityUniformBuffer{};
     unsigned int entityUniformBufferIndex = 0;
-    EntityState entityStates[MAX_ENTITIES]{};
+    DynamicArray<EntityState> entityStates{};
 
     //Creates a shader module from a .spv file. Name is the name of the file and TypeStr is the suffix (frag, vert). Do not include '.' in the typeStr!
     bool createShaderModule(VulkanContext& context, const String &name, const String& typeStr, VkShaderStageFlagBits stageFlags, unsigned int stageIndex);

@@ -56,6 +56,8 @@ bool VulkanShader::aquireResources(VulkanContext &context, unsigned int &outId) 
     outId = entityUniformBufferIndex;
     entityUniformBufferIndex++;
     EntityState* entityState = &entityStates[outId];
+    if (!entityState->bIsValid) entityState->initialize(context.getSwapchain().getImageCount());
+
     for (auto& descriptorState : entityState->descriptorStates) {
         for (unsigned int& generation : descriptorState.generations) {
             generation = INVALID_ID;
@@ -66,13 +68,16 @@ bool VulkanShader::aquireResources(VulkanContext &context, unsigned int &outId) 
     }
 
     //allocate descriptor sets
-    VkDescriptorSetLayout layouts[3] = {entityDescriptorLayout, entityDescriptorLayout, entityDescriptorLayout};
+    DynamicArray<VkDescriptorSetLayout> layouts{context.getSwapchain().getImageCount()};
+    for (int i = 0; i < context.getSwapchain().getImageCount(); i++) {
+        layouts.push(entityDescriptorLayout);
+    }
     VkDescriptorSetAllocateInfo allocInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     allocInfo.descriptorPool = entityDescriptorPool;
-    allocInfo.descriptorSetCount = 3;
-    allocInfo.pSetLayouts = layouts;
+    allocInfo.descriptorSetCount = context.getSwapchain().getImageCount();
+    allocInfo.pSetLayouts = layouts.getData();
 
-    VkResult result = vkAllocateDescriptorSets(context.getDevice().getLogicalDevice(), &allocInfo, entityState->descriptorSets);
+    VkResult result = vkAllocateDescriptorSets(context.getDevice().getLogicalDevice(), &allocInfo, entityState->descriptorSets.getData());
     if (result != VK_SUCCESS) {
         Logger::logError("Error allocating descriptor sets in shader!");
         return false;
@@ -84,8 +89,8 @@ bool VulkanShader::aquireResources(VulkanContext &context, unsigned int &outId) 
 void VulkanShader::releaseResources(VulkanContext &context, const unsigned int id) {
     EntityState* entityState = &entityStates[id];
 
-    constexpr unsigned int descriptorSetCount = 3;
-    VkResult result = vkFreeDescriptorSets(context.getDevice().getLogicalDevice(), entityDescriptorPool, descriptorSetCount, entityState->descriptorSets);
+    const unsigned int descriptorSetCount = context.getSwapchain().getImageCount();
+    VkResult result = vkFreeDescriptorSets(context.getDevice().getLogicalDevice(), entityDescriptorPool, descriptorSetCount, entityState->descriptorSets.getData());
     if (result != VK_SUCCESS) {
         Logger::logError("Error freeing descriptor sets in shader!");
     }
@@ -107,7 +112,7 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
 
     //Obtain material data
     EntityState* entityState = &entityStates[data.id];
-    VkDescriptorSet entitySet = entityState->descriptorSets[context.getImageIndex()];
+    VkDescriptorSet entitySet = entityState->descriptorSets[context.getCurrentFrame()];
     VkWriteDescriptorSet descriptorWrites[DESCRIPTOR_COUNT];
     FF_Memory::ff_clear(descriptorWrites, sizeof(VkWriteDescriptorSet) * DESCRIPTOR_COUNT);
     unsigned int descriptorCount = 0;
@@ -150,8 +155,8 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
     VkWriteDescriptorSet descriptor1{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     for (unsigned int i = 0; i < samplerCount; i++) {
         Texture* texture = data.textures[i];
-        unsigned int& descriptorGeneration = entityState->descriptorStates[descriptorIndex].generations[context.getImageIndex()];
-        unsigned int& descriptorID = entityState->descriptorStates[descriptorIndex].ids[context.getImageIndex()];
+        unsigned int& descriptorGeneration = entityState->descriptorStates[descriptorIndex].generations[context.getCurrentFrame()];
+        unsigned int& descriptorID = entityState->descriptorStates[descriptorIndex].ids[context.getCurrentFrame()];
 
         //Prevents an unloaded texture from being loaded
         if (texture->generation == INVALID_ID) {
@@ -226,6 +231,8 @@ bool VulkanShader::initialize(VulkanContext &context) {
             return false;
         }
     }
+
+    entityStates.initialize(MAX_ENTITIES);
 
     //Initialize global descriptors
     VkDescriptorSetLayoutBinding globalUBOLayoutBinding;
@@ -327,22 +334,27 @@ bool VulkanShader::initialize(VulkanContext &context) {
         return false;
     }
 
+    unsigned int imageCount = context.getSwapchain().getImageCount();
     unsigned int deviceLocalBits = context.getDevice().supportsDeviceLocalBit() ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
-    if (!globalUniformBuffer.createBuffer(context.getDevice(), sizeof(GlobalUniform) * 3,
+    if (!globalUniformBuffer.createBuffer(context.getDevice(), sizeof(GlobalUniform) * imageCount,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | deviceLocalBits,
         true)) {
 
         Logger::logError("Failed to create global uniform buffer!");
         return false;
-    }
+        }
 
-    VkDescriptorSetLayout globalLayouts[3] = {globalDescriptorSetLayout, globalDescriptorSetLayout, globalDescriptorSetLayout};
+    VkDescriptorSetLayout globalLayouts[imageCount];
+    for (int i = 0; i < imageCount; i++) {
+        globalLayouts[i] = globalDescriptorSetLayout;
+    }
     VkDescriptorSetAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     allocateInfo.descriptorPool = globalDescriptorPool;
-    allocateInfo.descriptorSetCount = 3;
+    allocateInfo.descriptorSetCount = imageCount;
     allocateInfo.pSetLayouts = globalLayouts;
-    VulkanUtils::vulkanCheck(vkAllocateDescriptorSets(context.getDevice().getLogicalDevice(), &allocateInfo, globalDescriptorSets));
+    globalDescriptorSets.initialize(imageCount);
+    VulkanUtils::vulkanCheck(vkAllocateDescriptorSets(context.getDevice().getLogicalDevice(), &allocateInfo, globalDescriptorSets.getData()));
 
     if (!entityUniformBuffer.createBuffer(context.getDevice(), sizeof(EntityUniform),
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),

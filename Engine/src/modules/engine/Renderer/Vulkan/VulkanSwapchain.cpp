@@ -2,7 +2,7 @@
 // Created by cmorg on 7/10/2026.
 //
 
-#include "VulkanSwapChain.h"
+#include "VulkanSwapchain.h"
 
 #include <algorithm>
 

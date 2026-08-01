@@ -12,6 +12,9 @@
 
 inline constexpr unsigned int TREE_THRESHOLD = 10; //Not implemented
 
+template<typename>
+inline constexpr bool alwaysFalse = false;
+
 //Struct for returning keys with their value.
 template<typename K, typename V>
 struct KeyValuePair {
@@ -65,7 +68,7 @@ private:
         if constexpr (std::same_as<KeyType, String>) {
             return HashUtils::generateStringHash(key);
         } else {
-            static_assert(false, "HashMap does not support this key type.");
+            static_assert(alwaysFalse<KeyType>, "HashMap does not support this key type.");
             return -1;
         }
     }

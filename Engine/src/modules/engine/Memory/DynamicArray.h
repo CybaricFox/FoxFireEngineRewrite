@@ -5,6 +5,7 @@
 #pragma once
 
 #include <utility>
+#include <cstddef>
 
 #include "FF_Memory.h"
 #include "src/modules/engine/Library/Logger.h"
@@ -373,7 +374,7 @@ public:
         return copy;
     }
 
-    const T* getData() {
+    T* getData() {
         return memory;
     }
 
