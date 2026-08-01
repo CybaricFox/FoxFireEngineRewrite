@@ -190,6 +190,12 @@ void Engine::initialize(GameInstance &instance) {
         return;
     }
 
+    //Start material system
+    if (!masterRenderSystem.initializeMaterialSystem(4096, materialSystem)) {
+        Logger::logFatal("Failed to initialize the texture system!");
+        return;
+    }
+
     startup();
 }
 
@@ -208,6 +214,7 @@ Engine::~Engine() {
     EngineEvents::shutdown();
 
     //Destroy resources in opposite order of creation
+    materialSystem = nullptr;
     textureSystem = nullptr;
     masterRenderSystem.shutdown();
     if (inputSystem) {

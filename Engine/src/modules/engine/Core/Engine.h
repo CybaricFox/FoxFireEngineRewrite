@@ -44,10 +44,14 @@ protected:
     GameInstance* gameInstance = nullptr;
     //Handle Input
     IInputSystem* inputSystem = nullptr;
-    //Texture manager reference (Owned by the masterrendersystem and should not be relied on)
-    ITextureSystem* textureSystem = nullptr;
     //Frontend Rendering
     MasterRenderSystem masterRenderSystem{};
+
+    //Temp systems during startup. Not reliable!
+    //Texture manager reference
+    ITextureSystem* textureSystem = nullptr;
+    //Material manager reference
+    IMaterialSystem* materialSystem = nullptr;
 
     void quit();
     virtual void startup();

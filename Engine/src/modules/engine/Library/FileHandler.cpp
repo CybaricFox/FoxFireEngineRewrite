@@ -59,19 +59,22 @@ void FileHandler::closeFile() {
     }
 }
 
-bool FileHandler::readLine(String *&line) {
-    if (!handle) return false;
+bool FileHandler::readLine(String& line, const unsigned long maxLength, unsigned long& outLength) const {
+    if (!handle || maxLength == 0) return false;
 
-    char buffer[32000];
-    if (fgets(buffer, 32000, static_cast<FILE *>(handle)) != nullptr) {
-        *line = String(buffer);
+    //ensures string is the size of the line being read.
+    line.resize(maxLength);
+
+    if (fgets(line.data(), static_cast<int>(maxLength), static_cast<FILE *>(handle)) != nullptr) {
+        outLength = std::strlen(line.data());
+        line.resize(outLength);
         return true;
     }
 
     return false;
 }
 
-bool FileHandler::writeLine(const String &text) {
+bool FileHandler::writeLine(const String &text) const {
     if (handle) {
         int result = fputs(text.c_str(), static_cast<FILE *>(handle));
         if (result != EOF) {

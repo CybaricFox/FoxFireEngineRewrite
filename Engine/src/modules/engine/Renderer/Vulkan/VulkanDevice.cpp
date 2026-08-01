@@ -45,10 +45,10 @@ bool VulkanDevice::createDevice(VkInstance& instance, VkSurfaceKHR& surface) {
         queueCreateInfos[i].queueFamilyIndex = indices[i];
         queueCreateInfos[i].queueCount = 1;
 
-        //This won't work on some gpus, ignore for now since it works on mine.
-        if (indices[i] == graphicsQueueIndex) {
-            queueCreateInfos[i].queueCount = 2;
-        }
+        //This won't work on some gpus.
+        //if (indices[i] == graphicsQueueIndex) {
+        //    queueCreateInfos[i].queueCount = 2;
+        //}
 
         queueCreateInfos[i].flags = 0;
         queueCreateInfos[i].pNext = nullptr;

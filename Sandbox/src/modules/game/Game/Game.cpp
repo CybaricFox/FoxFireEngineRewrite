@@ -6,6 +6,7 @@
 
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
+#include "src/modules/system/FoxFire_Textures/FoxFire_MaterialSystem.h"
 #include "src/modules/system/FoxFire_Textures/FoxFire_TextureSystem.h"
 
 void Game::recalculateView(GameState *state) {
@@ -40,6 +41,7 @@ Game::Game()
 {
     inputSystem = new FoxFire_InputSystem();
     textureSystem = new FoxFire_TextureSystem();
+    materialSystem = new FoxFire_MaterialSystem();
 }
 
 Game::~Game() {

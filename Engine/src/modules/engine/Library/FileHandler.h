@@ -23,8 +23,8 @@ public:
     bool exists(const String& name);
     bool openFile(const String& path, FileMode mode, bool isBinary);
     void closeFile();
-    bool readLine(String*& line);
-    bool writeLine(const String& text);
+    bool readLine(String &line, unsigned long maxLength, unsigned long &outLength) const;
+    bool writeLine(const String& text) const;
     bool read(unsigned long size, void* outData, unsigned long& outBytesRead);
     bool readAll(unsigned char*& outBytes, unsigned long& outBytesRead);
     bool write(unsigned long size, const void* inData, unsigned long& outBytesWritten);

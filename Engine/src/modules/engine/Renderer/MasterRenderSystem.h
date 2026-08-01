@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "IMaterialSystem.h"
 #include "IRenderSystem.h"
 #include "ITextureSystem.h"
 #include "RendererBackend.h"
@@ -18,10 +19,12 @@ private:
     Mat4 view{};
     float nearClip = 0.1f;
     float farClip = 1000.0f;
-    Texture testTexture{}; //remove me
+    Material* testMaterial = nullptr; //remove me
 
     //Texture manager
     ITextureSystem* textureSystem = nullptr;
+    //Material Manager
+    IMaterialSystem* materialSystem = nullptr;
 
     DynamicArray<IRenderSystem> renderSystems{};
 
@@ -32,16 +35,16 @@ private:
 public:
     bool initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, unsigned int width, unsigned int height);
     bool initializeTextureSystem(unsigned int initialCapacity, ITextureSystem* system);
+    bool initializeMaterialSystem(unsigned int initialCapacity, IMaterialSystem* system);
     void shutdown();
     MasterRenderSystem() = default;
     ~MasterRenderSystem();
 
-    RendererBackend* getBackend() const {return backend;}
+    [[nodiscard]] RendererBackend* getBackend() const {return backend;}
 
     void setView(const Mat4 &newView);
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);
-    void onDebugEvent();
-    void createTexture(String name, int width, int height, int channelCount, const unsigned char *pixels, bool isTransparent, Texture &outTexture) const;
+    void onDebugEvent() const;
 };

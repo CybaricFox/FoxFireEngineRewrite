@@ -5,6 +5,10 @@
 #pragma once
 
 #include "foxfire_export.h"
+#include "Logger.h"
+#include "StringUtils.h"
+#include "src/defines.h"
+#include "src/modules/engine/Memory/FF_Memory.h"
 
 #if defined(USE_SIMD)
     #include <xmmintrin.h>
@@ -362,6 +366,21 @@ inline Vector4f toVector4f(const Vector3f& vector3, const float w) {
 #else
     return Vector4f{vector3.x, vector3.y, vector3.z, w};
 #endif
+}
+inline bool stringToVector4f(const String &string, Vector4f& out) {
+    FF_Memory::ff_clear(&out, sizeof(Vector4f));
+    const int result = sscanf(string.c_str(), "%f %f %f %f", &out.x, &out.y, &out.z, &out.w);
+    return result != -1;
+}
+inline bool stringToVector3f(const String &string, Vector3f& out) {
+    FF_Memory::ff_clear(&out, sizeof(Vector3f));
+    const int result = sscanf(string.c_str(), "%f %f %f", &out.x, &out.y, &out.z);
+    return result != -1;
+}
+inline bool stringToVector2f(const String &string, Vector2f& out) {
+    FF_Memory::ff_clear(&out, sizeof(Vector2f));
+    const int result = sscanf(string.c_str(), "%f %f", &out.x, &out.y);
+    return result != -1;
 }
 
 class FOXFIRE_API FF_Math {

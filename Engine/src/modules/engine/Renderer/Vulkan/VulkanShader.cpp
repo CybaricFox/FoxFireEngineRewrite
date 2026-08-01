@@ -52,10 +52,10 @@ bool VulkanShader::createShaderModule(VulkanContext &context, const String &name
     return true;
 }
 
-bool VulkanShader::aquireResources(VulkanContext &context, unsigned int &outId) {
-    outId = entityUniformBufferIndex;
+bool VulkanShader::aquireResources(VulkanContext &context, Material &material) {
+    material.internalId = entityUniformBufferIndex;
     entityUniformBufferIndex++;
-    EntityState* entityState = &entityStates[outId];
+    MaterialState* entityState = &materialStates[material.internalId];
     if (!entityState->bIsValid) entityState->initialize(context.getSwapchain().getImageCount());
 
     for (auto& descriptorState : entityState->descriptorStates) {
@@ -86,16 +86,16 @@ bool VulkanShader::aquireResources(VulkanContext &context, unsigned int &outId) 
     return true;
 }
 
-void VulkanShader::releaseResources(VulkanContext &context, const unsigned int id) {
-    EntityState* entityState = &entityStates[id];
+void VulkanShader::releaseResources(VulkanContext &context, Material &material) {
+    MaterialState* materialState = &materialStates[material.internalId];
 
     const unsigned int descriptorSetCount = context.getSwapchain().getImageCount();
-    VkResult result = vkFreeDescriptorSets(context.getDevice().getLogicalDevice(), entityDescriptorPool, descriptorSetCount, entityState->descriptorSets.getData());
+    VkResult result = vkFreeDescriptorSets(context.getDevice().getLogicalDevice(), entityDescriptorPool, descriptorSetCount, materialState->descriptorSets.getData());
     if (result != VK_SUCCESS) {
         Logger::logError("Error freeing descriptor sets in shader!");
     }
 
-    for (auto& descriptorState : entityState->descriptorStates) {
+    for (auto& descriptorState : materialState->descriptorStates) {
         for (unsigned int& generation : descriptorState.generations) {
             generation = INVALID_ID;
         }
@@ -103,6 +103,8 @@ void VulkanShader::releaseResources(VulkanContext &context, const unsigned int i
             idd = INVALID_ID;
         }
     }
+
+    material.internalId = INVALID_ID;
 }
 
 void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData& data, Texture& defaultTexture) {
@@ -111,7 +113,7 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
     vkCmdPushConstants(commandBuffer, pipeline.getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), &data.model);
 
     //Obtain material data
-    EntityState* entityState = &entityStates[data.id];
+    MaterialState* entityState = &materialStates[data.material->internalId];
     VkDescriptorSet entitySet = entityState->descriptorSets[context.getCurrentFrame()];
     VkWriteDescriptorSet descriptorWrites[DESCRIPTOR_COUNT];
     FF_Memory::ff_clear(descriptorWrites, sizeof(VkWriteDescriptorSet) * DESCRIPTOR_COUNT);
@@ -119,20 +121,24 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
     unsigned int descriptorIndex = 0;
 
     //Descriptor #0 - Uniform Buffer
-    unsigned int range = sizeof(EntityUniform);
-    unsigned long offset = sizeof(EntityUniform) * data.id;
-    EntityUniform obo{};
+    unsigned int range = sizeof(MaterialUniform);
+    unsigned long offset = sizeof(MaterialUniform) * data.material->internalId;
+    MaterialUniform obo{};
 
     //For Testing
-    static float accumulator = 0.0f;
-    accumulator += context.getDeltaTime();
-    const float s = (FF_Math::sin(accumulator) + 1) / 2; //Changes the scale form -1, 1 to 0, 1
-    obo.diffuse = createVector4f(s, s, s, 1);
+    //static float accumulator = 0.0f;
+    //accumulator += context.getDeltaTime();
+    //const float s = (FF_Math::sin(accumulator) + 1) / 2; //Changes the scale form -1, 1 to 0, 1
+    //obo.diffuse = createVector4f(s, s, s, 1);
+
+    obo.diffuse = data.material->diffuseColor;
     entityUniformBuffer.loadBufferData(context.getDevice(), offset, range, &obo);
+
+    unsigned int& uboGeneration = entityState->descriptorStates[descriptorIndex].generations[context.getImageIndex()];
 
     VkDescriptorBufferInfo bufferInfo{};
     VkWriteDescriptorSet descriptor{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    if (entityState->descriptorStates[descriptorIndex].generations[context.getImageIndex()] == INVALID_ID) {
+    if (uboGeneration == INVALID_ID || uboGeneration != data.material->generation) {
         bufferInfo.buffer = entityUniformBuffer.getBuffer();
         bufferInfo.offset = offset;
         bufferInfo.range = range;
@@ -145,16 +151,30 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
 
         descriptorWrites[descriptorCount] = descriptor;
         descriptorCount++;
-        entityState->descriptorStates[descriptorIndex].generations[context.getImageIndex()] = 1;
+        uboGeneration = data.material->generation;
     }
 
     descriptorIndex++;
 
+    //Samplers
     constexpr unsigned int samplerCount = 1;
     VkDescriptorImageInfo imageInfos[1];
     VkWriteDescriptorSet descriptor1{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     for (unsigned int i = 0; i < samplerCount; i++) {
-        Texture* texture = data.textures[i];
+        TextureUseCase use = samplerUses[i];
+        Texture* texture = nullptr;
+
+        switch (use) {
+            case TEXTURE_USE_MAP_DIFFUSE: {
+                texture = data.material->diffuseMap.texture;
+                break;
+            }
+            default: {
+                Logger::logFatal("Texture use case is unknown. Sampler cannot be bound!");
+                return;
+            }
+        }
+
         unsigned int& descriptorGeneration = entityState->descriptorStates[descriptorIndex].generations[context.getCurrentFrame()];
         unsigned int& descriptorID = entityState->descriptorStates[descriptorIndex].ids[context.getCurrentFrame()];
 
@@ -232,7 +252,7 @@ bool VulkanShader::initialize(VulkanContext &context) {
         }
     }
 
-    entityStates.initialize(MAX_ENTITIES);
+    materialStates.initialize(INITIAL_MATERIALS);
 
     //Initialize global descriptors
     VkDescriptorSetLayoutBinding globalUBOLayoutBinding;
@@ -257,8 +277,9 @@ bool VulkanShader::initialize(VulkanContext &context) {
     globalPoolInfo.maxSets = context.getSwapchain().getImageCount();
     VulkanUtils::vulkanCheck(vkCreateDescriptorPool(context.getDevice().getLogicalDevice(), &globalPoolInfo, nullptr, &globalDescriptorPool));
 
+    samplerUses[0] = TEXTURE_USE_MAP_DIFFUSE;
+
     //Entity descriptors
-    constexpr unsigned int localSamplerCount = 1;
     VkDescriptorType descriptorTypes[DESCRIPTOR_COUNT] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER};
     VkDescriptorSetLayoutBinding bindings[DESCRIPTOR_COUNT];
     FF_Memory::ff_clear(&bindings, sizeof(VkDescriptorSetLayoutBinding) * DESCRIPTOR_COUNT);
@@ -276,14 +297,15 @@ bool VulkanShader::initialize(VulkanContext &context) {
 
     VkDescriptorPoolSize entityPoolSizes[2];
     entityPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    entityPoolSizes[0].descriptorCount = MAX_ENTITIES;
+    entityPoolSizes[0].descriptorCount = INITIAL_MATERIALS;
     entityPoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    entityPoolSizes[1].descriptorCount = MAX_ENTITIES * localSamplerCount;
+    entityPoolSizes[1].descriptorCount = INITIAL_MATERIALS * SAMPLER_COUNT;
 
     VkDescriptorPoolCreateInfo entityPoolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     entityPoolInfo.poolSizeCount = 2;
     entityPoolInfo.pPoolSizes = entityPoolSizes;
-    entityPoolInfo.maxSets = MAX_ENTITIES;
+    entityPoolInfo.maxSets = INITIAL_MATERIALS;
+    entityPoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
     VulkanUtils::vulkanCheck(vkCreateDescriptorPool(context.getDevice().getLogicalDevice(), &entityPoolInfo, nullptr, &entityDescriptorPool));
 
@@ -356,7 +378,8 @@ bool VulkanShader::initialize(VulkanContext &context) {
     globalDescriptorSets.initialize(imageCount);
     VulkanUtils::vulkanCheck(vkAllocateDescriptorSets(context.getDevice().getLogicalDevice(), &allocateInfo, globalDescriptorSets.getData()));
 
-    if (!entityUniformBuffer.createBuffer(context.getDevice(), sizeof(EntityUniform),
+    //THE BUFFER IS HARD LIMITED TO 4096 FOR NOW! THE MATERIAL ARRAY IS DYNAMIC, SO ISSUES MAY OCCUR WAAAAAY LATER DOWN THE LINE!
+    if (!entityUniformBuffer.createBuffer(context.getDevice(), sizeof(MaterialUniform) * 4096,
         static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         true)) {

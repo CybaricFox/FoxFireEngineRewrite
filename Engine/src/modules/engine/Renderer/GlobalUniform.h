@@ -4,7 +4,7 @@
 
 #pragma once
 #include "src/modules/engine/Library/FF_Math.h"
-#include "src/modules/engine/Resources/Resource_Types.h"
+#include "src/modules/engine/Resources/ResourceTypes.h"
 
 //Must be 256 bytes!
 struct GlobalUniform {
@@ -15,7 +15,7 @@ struct GlobalUniform {
 };
 
 //64 bytes
-struct EntityUniform {
+struct alignas(256) MaterialUniform {
     Vector4f diffuse; //16 bytes
     Vector4f reserved0;
     Vector4f reserved1;
@@ -23,7 +23,6 @@ struct EntityUniform {
 };
 
 struct GeometryRenderData {
-    unsigned int id;
     Mat4 model;
-    Texture* textures[16];
+    Material* material;
 };

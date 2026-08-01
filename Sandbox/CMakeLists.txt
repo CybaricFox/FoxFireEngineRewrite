@@ -19,12 +19,6 @@ target_link_libraries(${SANDBOX_NAME}
         FoxFire_Engine
 )
 
-add_custom_command(TARGET ${SANDBOX_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/Assets
-        $<TARGET_FILE_DIR:${SANDBOX_NAME}>/Assets
-)
-
 if(WIN32 AND MINGW)
     target_link_options(${SANDBOX_NAME}
             PRIVATE
@@ -97,4 +91,19 @@ add_custom_target(SandboxShaders ALL
         DEPENDS ${SPIRV_BINARY_FILES}
 )
 
-add_dependencies(${SANDBOX_NAME} SandboxShaders)
+set(ASSET_SOURCE_DIR "${CMAKE_SOURCE_DIR}/Assets")
+set(ASSET_OUTPUT_DIR "${FOXFIRE_OUTPUT_DIR}/Assets")
+
+add_custom_target(CopyAssets
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+        "${ASSET_OUTPUT_DIR}"
+
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        "${ASSET_SOURCE_DIR}"
+        "${ASSET_OUTPUT_DIR}"
+
+        COMMENT "Updating asset files..."
+        VERBATIM
+)
+
+add_dependencies(${SANDBOX_NAME} SandboxShaders CopyAssets)

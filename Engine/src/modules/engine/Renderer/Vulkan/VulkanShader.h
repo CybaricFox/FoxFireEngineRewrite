@@ -21,10 +21,11 @@ struct VulkanDescriptorState {
 };
 
 constexpr int STAGE_COUNT = 2;
-constexpr int MAX_ENTITIES = 1024;
+constexpr int INITIAL_MATERIALS = 1024;
 constexpr int DESCRIPTOR_COUNT = 2;
+constexpr int SAMPLER_COUNT = 1;
 
-struct EntityState {
+struct MaterialState {
     bool bIsValid = false;
     DynamicArray<VkDescriptorSet> descriptorSets{}; //per frame
     VulkanDescriptorState descriptorStates[DESCRIPTOR_COUNT]{};//per entity
@@ -60,7 +61,8 @@ private:
     VkDescriptorSetLayout entityDescriptorLayout{};
     VulkanBuffer entityUniformBuffer{};
     unsigned int entityUniformBufferIndex = 0;
-    DynamicArray<EntityState> entityStates{};
+    DynamicArray<MaterialState> materialStates{};
+    TextureUseCase samplerUses[SAMPLER_COUNT]{};
 
     //Creates a shader module from a .spv file. Name is the name of the file and TypeStr is the suffix (frag, vert). Do not include '.' in the typeStr!
     bool createShaderModule(VulkanContext& context, const String &name, const String& typeStr, VkShaderStageFlagBits stageFlags, unsigned int stageIndex);
@@ -74,6 +76,6 @@ public:
     void updateGlobalState(VulkanContext &context);
     bool createBuffers(VulkanContext& context);
     void updateEntity(VulkanContext &context, const GeometryRenderData &data, Texture &defaultTexture);
-    bool aquireResources(VulkanContext& context, unsigned int& outId);
-    void releaseResources(VulkanContext& context, unsigned int id);
+    bool aquireResources(VulkanContext& context, Material& material);
+    void releaseResources(VulkanContext &context, Material &material);
 };

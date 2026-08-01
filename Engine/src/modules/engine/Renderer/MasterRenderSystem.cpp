@@ -9,17 +9,29 @@
 bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
     if (beginFrame(packet.deltaTime)) {
         backend->updateGlobalState(projection, view, zeroVector3f(), oneVector4f(), 0);
-        static float angle = 0.00f;
-        //angle += (angle + 0.001) / 10000;
-        const Quat rotation = getQuatFromAxisAngle(forwardVector3(), angle, false);
-        const Mat4 model = convertQuatToRotationMatrix(rotation, zeroVector3f());
+        static float angle = 0.001f;
+        //angle += angle / 10000;
+        //const Quat rotation = getQuatFromAxisAngle(forwardVector3(), angle, false);
+        //const Mat4 model = convertQuatToRotationMatrix(rotation, zeroVector3f());
+        const Mat4 model = createTranslationMatrix({0, 0 , 0});
         GeometryRenderData data{};
-        data.id = 0;
         data.model = model;
-        if (testTexture.id == INVALID_ID) {
-            testTexture = textureSystem->getDefaultTexture();
+
+        //Create a default material if none exists
+        if (!testMaterial) {
+            testMaterial = &materialSystem->acquireMaterial("MaterialTemplate", "templates");
+            if (testMaterial == nullptr) {
+                Logger::logWarn("Failed to acquire material for drawing, falling back to default!");
+                MaterialConfig materialConfig{};
+                materialConfig.name = "MaterialTemplate";
+                materialConfig.bAutoRelease = false;
+                materialConfig.diffuseColor = oneVector4f();
+                materialConfig.mapName = DEFAULT_TEXTURE_NAME;
+                testMaterial = &materialSystem->acquireMaterial(materialConfig);
+            }
         }
-        data.textures[0] = &testTexture;
+
+        data.material = testMaterial;
         backend->updateEntity(data, textureSystem->getDefaultTexture());
 
         if (!endFrame(packet.deltaTime)) {
@@ -40,14 +52,19 @@ void MasterRenderSystem::onResize(const unsigned short width, const unsigned sho
     }
 }
 
-void MasterRenderSystem::onDebugEvent() {
+void MasterRenderSystem::onDebugEvent() const {
     const String files[2] = {"obamnaSODA", "whoishe"};
     static char choice = 1;
     const String oldName = files[choice];
     choice++;
     choice %= 2;
 
-    testTexture = textureSystem->acquireTexture(files[choice], true);
+    testMaterial->diffuseMap.texture = &textureSystem->acquireTexture(true, files[choice], "");
+    if (!testMaterial->diffuseMap.texture) {
+        Logger::logWarn("Master Render System debug event failed to obtain a texture!");
+        testMaterial->diffuseMap.texture = &textureSystem->getDefaultTexture();
+    }
+
     textureSystem->releaseTexture(oldName);
 }
 
@@ -89,9 +106,6 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
     view = createTranslationMatrix({0, 0, -30});
     view = invertMatrix(view);
 
-    //load textures
-    testTexture = createBlankTexture();
-
     return true;
 }
 
@@ -100,7 +114,16 @@ bool MasterRenderSystem::initializeTextureSystem(const unsigned int initialCapac
     return textureSystem->initialize(initialCapacity, backend);
 }
 
+bool MasterRenderSystem::initializeMaterialSystem(const unsigned int initialCapacity, IMaterialSystem *system) {
+    materialSystem = system;
+    return materialSystem->initialize(initialCapacity, textureSystem, backend);
+}
+
 void MasterRenderSystem::shutdown() {
+    if (materialSystem) {
+        delete materialSystem;
+        materialSystem = nullptr;
+    }
     //Destroy texture system
     if (textureSystem) {
         delete textureSystem;
@@ -113,8 +136,4 @@ void MasterRenderSystem::shutdown() {
 
 MasterRenderSystem::~MasterRenderSystem() {
     shutdown();
-}
-
-void MasterRenderSystem::createTexture(String name, const int width, const int height, const int channelCount, const unsigned char *pixels, const bool isTransparent, Texture &outTexture) const {
-    backend->createTexture(name, width, height, channelCount, pixels, isTransparent, outTexture);
 }

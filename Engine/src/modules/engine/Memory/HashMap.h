@@ -223,7 +223,6 @@ public:
 
         const unsigned int existingIndex = hashExists(key);
         if (existingIndex == -1) {
-            Logger::logWarn("Hashmap cannot get the value of a key that does not exist!");
             return nullptr;
         }
 

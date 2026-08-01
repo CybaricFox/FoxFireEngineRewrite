@@ -362,12 +362,6 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
 
     uploadRangeOfData(vulkanContext.getDevice().getCommandPool(), nullptr, vulkanContext.getDevice().getGraphicsQueue(), vulkanContext.getVertexBuffer(), 0, sizeof(Vertex3d) * vertexCount, vertices);
     uploadRangeOfData(vulkanContext.getDevice().getCommandPool(), nullptr, vulkanContext.getDevice().getGraphicsQueue(), vulkanContext.getIndexBuffer(), 0, sizeof(unsigned int) * indexCount, indices);
-
-    unsigned int id = 0;
-    if (!vulkanShader.aquireResources(vulkanContext, id)) {
-        Logger::logError("Failed to aquire shader resource.");
-        return false;
-    }
     //END TEST CODE
 
     Logger::logInfo("Vulkan renderer initialized");
@@ -502,16 +496,13 @@ void VulkanBackend::updateEntity(const GeometryRenderData &data, Texture& defaul
     //END TEST CODE
 }
 
-void VulkanBackend::createTexture(String name, const int width, const int height, const int channelCount, const unsigned char *pixels, const bool isTransparent, Texture &outTexture) {
-    outTexture.width = width;
-    outTexture.height = height;
-    outTexture.channelCount = channelCount;
-    outTexture.generation = INVALID_ID;
+void VulkanBackend::createTexture(const unsigned char *pixels, Texture &texture) {
+    texture.generation = INVALID_ID;
 
-    outTexture.data = FF_Memory::ff_allocate(sizeof(VulkanTextureData), TEXTURE);
-    auto* data = static_cast<VulkanTextureData *>(outTexture.data);
+    texture.data = FF_Memory::ff_allocate(sizeof(VulkanTextureData), TEXTURE);
+    auto* data = static_cast<VulkanTextureData *>(texture.data);
 
-    VkDeviceSize imageSize = width * height * channelCount;
+    VkDeviceSize imageSize = texture.width * texture.height * texture.channelCount;
     VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -520,7 +511,7 @@ void VulkanBackend::createTexture(String name, const int width, const int height
     staging.createBuffer(vulkanContext.getDevice(), imageSize, static_cast<VkBufferUsageFlagBits>(usage), memoryPropertyFlags, true);
     staging.loadBufferData(vulkanContext.getDevice(), 0, imageSize, pixels);
 
-    data->image.createImage(VK_IMAGE_TYPE_2D, width, height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+    data->image.createImage(VK_IMAGE_TYPE_2D, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
 
@@ -556,8 +547,7 @@ void VulkanBackend::createTexture(String name, const int width, const int height
         return;
     }
 
-    outTexture.bIsTransparent = isTransparent;
-    outTexture.generation++;
+    texture.generation++;
 }
 
 void VulkanBackend::destroyTexture(Texture &texture) {
@@ -572,5 +562,23 @@ void VulkanBackend::destroyTexture(Texture &texture) {
         data->sampler = nullptr;
 
         FF_Memory::ff_free(texture.data, sizeof(VulkanTextureData), TEXTURE);
+    }
+}
+
+bool VulkanBackend::createMaterial(Material &material) {
+    if (!vulkanShader.aquireResources(vulkanContext, material)) {
+        Logger::logError("Vulkan Backend failed to acquire material resources.");
+        return false;
+    }
+
+    Logger::logDebug("Vulkan Backend created material successfully.");
+    return true;
+}
+
+void VulkanBackend::destroyMaterial(Material &material) {
+    if (material.internalId != INVALID_ID) {
+        vulkanShader.releaseResources(vulkanContext, material);
+    } else {
+        Logger::logWarn("Vulkan Backend tried to destroy a material with an INVALID_ID.");
     }
 }

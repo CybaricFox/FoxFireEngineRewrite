@@ -11,20 +11,16 @@
 
 bool FoxFire_TextureSystem::initialize(const unsigned int initialCapacity, RendererBackend* backend) {
     backendRef = backend;
-    textures.initialize(initialCapacity);
-    freeIndexes.initialize();
-    textureMap.setCapacity(initialCapacity);
+    assets.initialize(initialCapacity);
 
     createDefaultTextures();
     return true;
 }
 
 void FoxFire_TextureSystem::shutdown() {
-    if (!backendRef) return;
-
-    for (Texture& texture : textures) {
+    for (Texture& texture : assets.getData()) {
         if (texture.generation != INVALID_ID) {
-            backendRef->destroyTexture(texture);
+            destroyTexture(texture);
         }
     }
 
@@ -32,71 +28,23 @@ void FoxFire_TextureSystem::shutdown() {
     backendRef = nullptr;
 }
 
-Texture & FoxFire_TextureSystem::acquireTexture(const String& fileName, const bool autoRelease) {
+Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const String& fileName, const String& subPath) {
     if (fileName == DEFAULT_TEXTURE_NAME) {
         Logger::logWarn("Texture system tried to acquire the default texture. Use getDefaultTexture() instead.");
         return defaultTexture;
     }
 
-    if (textureMap.keyExists(fileName)) {
-        TextureContext* context = textureMap.getValue(fileName);
-        context->referenceCount++;
-        return textures[context->index];
+    if (Texture* texture = assets.acquireAsset(fileName); texture) {
+        return *texture;
     }
 
-    TextureContext context{};
-    Texture* texture;
+    AssetContext context{};
     context.bAutoRelease = autoRelease;
-    context.referenceCount++;
-    if (!freeIndexes.isEmpty()) {
-        context.index = freeIndexes[freeIndexes.getLength() - 1];
-        freeIndexes.popBack();
-        texture = &textures[context.index];
-    } else {
-        context.index = textures.getLength();
-        texture = textures.emplace();
-    }
+
+    Texture* texture = assets.createAsset(fileName, context);
 
     if (texture == nullptr) return defaultTexture;
 
-    if (!loadTexture(*texture, fileName)) {
-        Logger::logError("Failed to load texture: " + fileName);
-        return defaultTexture;
-    }
-
-    texture->id = context.index;
-    textureMap.addEntry(fileName, context);
-    Logger::logDebug("Successfully created new texture: " + fileName);
-
-    return *texture;
-}
-Texture & FoxFire_TextureSystem::acquireTexture(const String& fileName, const String& subPath, const bool autoRelease) {
-    if (fileName == DEFAULT_TEXTURE_NAME) {
-        Logger::logWarn("Texture system tried to acquire the default texture. Use getDefaultTexture() instead.");
-        return defaultTexture;
-    }
-
-    if (textureMap.keyExists(fileName)) {
-        TextureContext* context = textureMap.getValue(fileName);
-        context->referenceCount++;
-        Logger::logDebug(fileName + " now has " + std::to_string(context->referenceCount) + " references.");
-        return textures[context->index];
-    }
-
-    TextureContext context{};
-    Texture* texture;
-    context.bAutoRelease = autoRelease;
-    context.referenceCount++;
-    if (!freeIndexes.isEmpty()) {
-        context.index = freeIndexes[freeIndexes.getLength() - 1];
-        freeIndexes.popBack();
-        texture = &textures[context.index];
-    } else {
-        context.index = textures.getLength();
-        texture = textures.emplace();
-    }
-
-    if (texture == nullptr) return defaultTexture;
 
     if (!loadTexture(*texture, fileName, subPath)) {
         Logger::logError("Failed to load texture: " + fileName + " with subpath: " + subPath);
@@ -104,39 +52,19 @@ Texture & FoxFire_TextureSystem::acquireTexture(const String& fileName, const St
     }
 
     texture->id = context.index;
-    textureMap.addEntry(fileName, context);
     Logger::logDebug("Successfully created new texture: " + fileName);
 
     return *texture;
 }
 
-void FoxFire_TextureSystem::releaseTexture(const String &name) {
+void FoxFire_TextureSystem::releaseTexture(const String name) {
     if (name == DEFAULT_TEXTURE_NAME) {
         Logger::logWarn("Cannot release the default texture!");
         return;
     }
 
-    if (!textureMap.keyExists(name)) {
-        Logger::logWarn("Cannot release a texture that does not exist! Texture name: " + name);
-        return;
-    }
-
-    TextureContext* context = textureMap.getValue(name);
-    if (context->referenceCount == 0) return;
-
-    context->referenceCount--;
-    if (context->referenceCount == 0 && context->bAutoRelease) {
-        Texture& texture = textures[context->index];
-        backendRef->destroyTexture(texture);
-        FF_Memory::ff_clear(&texture, sizeof(Texture));
-        freeIndexes.push(context->index);
-        texture.id = INVALID_ID;
-        texture.generation = INVALID_ID;
-        textureMap.removeValue(name);
-        Logger::logDebug(name + " was unloaded from the texture system.");
-    } else {
-        Logger::logDebug(name + " has one less reference. " + std::to_string(context->referenceCount) + " remains.");
-    }
+    Texture* texture = nullptr;
+    if (assets.releaseAsset(name, texture)) destroyTexture(*texture);
 }
 
 //Generates a default texture during runtime so dependency on a file system isn't necessary for niche scenarios.
@@ -166,27 +94,31 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
         }
     }
 
-    backendRef->createTexture(DEFAULT_TEXTURE_NAME, dimensions, dimensions, 4, pixels, false, defaultTexture);
+    defaultTexture.name = DEFAULT_TEXTURE_NAME;
+    defaultTexture.width = dimensions;
+    defaultTexture.height = dimensions;
+    defaultTexture.channelCount = 4;
     defaultTexture.generation = INVALID_ID;
+    defaultTexture.bIsTransparent = false;
+    backendRef->createTexture(pixels, defaultTexture);
+
 
     return true;
 }
 
 void FoxFire_TextureSystem::destroyDefaultTextures() {
-    backendRef->destroyTexture(defaultTexture);
+    destroyTexture(defaultTexture);
 }
 
-bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName, const String &subFolders) {
-    String path = "Assets/" + subFolders + "/" + fileName + ".";
-    return loadTextureHelper(texture, path, fileName);
-}
+bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName, const String &subFolders = "") const {
+    String path{};
 
-bool FoxFire_TextureSystem::loadTexture(Texture &texture, const String &fileName) {
-    String path = "Assets/" + fileName + ".";
-    return loadTextureHelper(texture, path, fileName);
-}
+    if (subFolders.empty()) {
+        path = "Assets/" + fileName + ".";
+    } else {
+        path = "Assets/" + subFolders + "/" + fileName + ".";
+    }
 
-bool FoxFire_TextureSystem::loadTextureHelper(Texture &texture, String &path, const String &fileName) {
     constexpr int requiredChannelCount = 4;
     stbi_set_flip_vertically_on_load(true); //stb loads the image from down to top, this effectively makes it read top to down.
     //In the future, this should check for the extension automatically
@@ -207,6 +139,7 @@ bool FoxFire_TextureSystem::loadTextureHelper(Texture &texture, String &path, co
     if (!data) {
         if (stbi_failure_reason()) {
             Logger::logWarn("#1 Failed to load texture file: " + path + ": " + stbi_failure_reason());
+            stbi__err(nullptr, 0);
         }
         return false;
     }
@@ -225,14 +158,20 @@ bool FoxFire_TextureSystem::loadTextureHelper(Texture &texture, String &path, co
         }
     }
 
-    //This always fails... but then works anyway? commented out for now until I know why.
-    //if (stbi_failure_reason()) {
-    //    Logger::logWarn("#2 Failed to load texture file: " + path + ": " + stbi_failure_reason());
-    //    return false;
-    //}
+    /*
+    if (stbi_failure_reason()) {
+        Logger::logWarn("#2 Failed to load texture file: " + path + ": " + stbi_failure_reason());
+        stbi__err(nullptr, 0);
+        return false;
+    }
+    */
 
-    backendRef->createTexture(fileName, static_cast<int>(tempTexture.width), static_cast<int>(tempTexture.height), tempTexture.channelCount, data, isTransparent, tempTexture);
-    backendRef->destroyTexture(texture);
+    tempTexture.name = fileName;
+    tempTexture.generation = INVALID_ID;
+    tempTexture.bIsTransparent = isTransparent;
+
+    backendRef->createTexture(data, tempTexture);
+    destroyTexture(texture);
     texture = tempTexture;
 
     if (currentGeneration == INVALID_ID) {
@@ -243,6 +182,11 @@ bool FoxFire_TextureSystem::loadTextureHelper(Texture &texture, String &path, co
 
     stbi_image_free(data);
     return true;
+}
+
+void FoxFire_TextureSystem::destroyTexture(Texture &texture) const {
+    backendRef->destroyTexture(texture);
+    texture = Texture{};
 }
 
 FoxFire_TextureSystem::~FoxFire_TextureSystem() {
