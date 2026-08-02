@@ -8,7 +8,7 @@
 #include "src/modules/engine/Core/GameInstance.h"
 #include "src/modules/engine/Core/Platform.h"
 #include "src/modules/engine/Library/FF_Math.h"
-#include "src/modules/engine/Resources/ResourceTypes.h"
+#include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 enum RendererBackendType {
     VULKAN,
@@ -17,6 +17,8 @@ enum RendererBackendType {
 
 struct RenderPacket {
     float deltaTime;
+    unsigned int geometryCount;
+    GeometryRenderData* geometries;
 };
 
 class RendererBackend {
@@ -37,11 +39,13 @@ public:
     virtual bool endFrame(float deltaTime) = 0;
     virtual void resize(unsigned short width, unsigned short height) = 0;
     virtual void updateGlobalState(Mat4 projection, Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) = 0;
-    virtual void updateEntity(const GeometryRenderData &data, Texture &defaultTexture) = 0;
+    virtual void drawGeometry(const GeometryRenderData &data, Texture &defaultTexture, Material &defaultMaterial) = 0;
     virtual void createTexture(const unsigned char* pixels, Texture& texture) = 0;
     virtual void destroyTexture(Texture& texture) = 0;
     virtual bool createMaterial(Material& material) = 0;
     virtual void destroyMaterial(Material& material) = 0;
+    virtual bool createGeometry(Geometry& geometry, unsigned int vertexCount, const Vertex3d* vertices, unsigned int indexCount, const unsigned int* indices) = 0;
+    virtual void destroyGeometry(Geometry& geometry) = 0;
 
     void incrementFrameNumber() {frameNumber++;}
     void clearFrameNumber() {frameNumber = 0;}

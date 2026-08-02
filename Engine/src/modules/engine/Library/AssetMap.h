@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "ReusableArray.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/Memory/HashMap.h"
 #include "src/modules/engine/Resources/Contexts.h"
@@ -11,23 +12,21 @@ template<typename V, typename C>
 requires std::derived_from<C, AssetContext>
 class AssetMap {
 private:
-    DynamicArray<unsigned int> freeIndexes{};
-    DynamicArray<V> data{};
+    ReusableArray<V> data{};
     HashMap<String, C> map{};
 
     V* getAsset(const String& key) {
         AssetContext* context = getContext(key);
         if (!context) return nullptr;
-        return &data[context->index];
+        return &data.get(context->index);
     }
 public:
     void initialize(unsigned int initialCapacity) {
         data.initialize(initialCapacity);
-        freeIndexes.initialize();
         map.setCapacity(initialCapacity);
     }
 
-    DynamicArray<V>& getData() { return data; }
+    ReusableArray<V>& getData() { return data; }
 
     C* getContext(const String &key) {
         if (!map.keyExists(key)) return nullptr;
@@ -38,7 +37,7 @@ public:
         AssetContext* context = getContext(key);
         if (!context) return nullptr;
         ++context->referenceCount;
-        return &data[context->index];
+        return &data.get(context->index);
     }
 
     //Creates a blank context and asset to be edited.
@@ -46,16 +45,11 @@ public:
     V* createAsset(String name, C& context) {
         V* asset;
         ++context.referenceCount;
-        if (!freeIndexes.isEmpty()) {
-            context.index = freeIndexes[freeIndexes.getLength() - 1];
-            freeIndexes.popBack();
-            map.addEntry(name, context);
-            return &data[context.index];
-        }
 
-        context.index = data.getLength();
+        unsigned int index = data.assign();
+        context.index = index;
         map.addEntry(name, context);
-        return data.emplace();
+        return &data.get(index);
     }
 
     bool releaseAsset(String name, V*& out) {
@@ -66,7 +60,7 @@ public:
 
         if (context->referenceCount == 0 && context->bAutoRelease) {
             out = getAsset(name);
-            freeIndexes.push(context->index);
+            data.release(context->index);
             map.removeValue(name);
             Logger::logDebug(name + " was unloaded from the texture system.");
 

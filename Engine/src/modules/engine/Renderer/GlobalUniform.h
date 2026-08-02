@@ -4,7 +4,7 @@
 
 #pragma once
 #include "src/modules/engine/Library/FF_Math.h"
-#include "src/modules/engine/Resources/ResourceTypes.h"
+#include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 //Must be 256 bytes!
 struct GlobalUniform {
@@ -24,5 +24,16 @@ struct alignas(256) MaterialUniform {
 
 struct GeometryRenderData {
     Mat4 model;
-    Material* material;
+    Geometry* geometry;
+};
+
+struct GeometryData {
+    unsigned int id = INVALID_ID;
+    unsigned int generation = INVALID_ID;
+    unsigned int vertexCount = 0;
+    unsigned int vertexBufferOffset = 0;
+    unsigned int vertexBufferSize = 0;
+    unsigned int indexCount = 0;
+    unsigned int indexBufferOffset = 0;
+    unsigned int indexBufferSize = 0;
 };

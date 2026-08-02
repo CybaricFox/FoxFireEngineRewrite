@@ -8,7 +8,9 @@
 
 #include "ITextureSystem.h"
 #include "src/defines.h"
-#include "src/modules/engine/Resources/ResourceTypes.h"
+#include "src/modules/engine/Resources/EngineResourceTypes.h"
+
+#define DEFAULT_MATERIAL_NAME "default"
 
 struct MaterialConfig {
     String name{};
@@ -23,6 +25,9 @@ public:
 
     virtual bool initialize(unsigned int initialCapacity, ITextureSystem *system, RendererBackend *backend) = 0;
 
-    virtual Material& acquireMaterial(const String &name, const String &subPath) = 0;
+    virtual Material& getDefaultMaterial() = 0;
+
+    virtual Material& acquireMaterial(const String &name) = 0;
     virtual Material& acquireMaterial(const MaterialConfig &config) = 0;
+    virtual void releaseMaterial(const String &name) = 0;
 };

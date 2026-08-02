@@ -19,26 +19,21 @@ bool FoxFire_MaterialSystem::initialize(const unsigned int initialCapacity, ITex
 }
 
 void FoxFire_MaterialSystem::shutdown() {
-    for (Material& material : assets.getData()) {
+    for (Material& material : assets.getData().getData()) {
         if (material.generation != INVALID_ID) {
             destroyMaterial(material);
         }
     }
 
-    destroyMaterial(defaultMaterial);
+    //destroyMaterial(defaultMaterial);
     backendReference = nullptr;
     textureSystemReference = nullptr;
 }
 
-Material & FoxFire_MaterialSystem::acquireMaterial(const String &name, const String &subPath) {
+Material & FoxFire_MaterialSystem::acquireMaterial(const String &name) {
     MaterialConfig config{};
 
-    String path{};
-    if (subPath.empty()) {
-        path = "Assets/" + name + ".FoxMaterial";
-    } else {
-        path = "Assets/" + subPath + "/" + name + ".FoxMaterial";
-    }
+    const String path = "Assets/" + name + ".FoxMaterial";
 
     if (!loadMaterialFile(path, config)) {
         Logger::logError("Failed to load material file: " + path);

@@ -37,6 +37,9 @@ private:
     short height = 0;
     double lastTime = 0;
 
+    //Remove Me
+    Geometry* testGeometry = nullptr;
+
     void initializeMemory();
 
 protected:
@@ -52,6 +55,8 @@ protected:
     ITextureSystem* textureSystem = nullptr;
     //Material manager reference
     IMaterialSystem* materialSystem = nullptr;
+    //Geometry manager reference
+    IGeometrySystem* geometrySystem = nullptr;
 
     void quit();
     virtual void startup();
@@ -62,6 +67,24 @@ protected:
 
     //REMOVE THIS LATER
     void setView(const Mat4 &newView);
+
+    void onDebugEvent() const {
+        const String files[2] = {"obamnaSODA", "whoishe"};
+        static char choice = 1;
+        const String oldName = files[choice];
+        choice++;
+        choice %= 2;
+
+        if (testGeometry) {
+            testGeometry->material->diffuseMap.texture = &masterRenderSystem.acquireTexture(true, files[choice], "");
+            if (!testGeometry->material->diffuseMap.texture) {
+                Logger::logWarn("Debug event failed to acquire texture!");
+                testGeometry->material->diffuseMap.texture = &masterRenderSystem.getDefaultTexture();
+            }
+
+            masterRenderSystem.releaseTexture(oldName);
+        }
+    }
 
 public:
     explicit Engine();

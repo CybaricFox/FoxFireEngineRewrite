@@ -75,7 +75,8 @@ public:
     void use(const VulkanContext &context) const;
     void updateGlobalState(VulkanContext &context);
     bool createBuffers(VulkanContext& context);
-    void updateEntity(VulkanContext &context, const GeometryRenderData &data, Texture &defaultTexture);
+    void setModel(VulkanContext& context, const Mat4 &model);
+    void applyMaterial(VulkanContext& context, Material& material, Texture& defaultTexture);
     bool aquireResources(VulkanContext& context, Material& material);
     void releaseResources(VulkanContext &context, Material &material);
 };

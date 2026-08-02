@@ -90,6 +90,9 @@ void VulkanShader::releaseResources(VulkanContext &context, Material &material) 
     MaterialState* materialState = &materialStates[material.internalId];
 
     const unsigned int descriptorSetCount = context.getSwapchain().getImageCount();
+
+    vkDeviceWaitIdle(context.getDevice().getLogicalDevice());
+
     VkResult result = vkFreeDescriptorSets(context.getDevice().getLogicalDevice(), entityDescriptorPool, descriptorSetCount, materialState->descriptorSets.getData());
     if (result != VK_SUCCESS) {
         Logger::logError("Error freeing descriptor sets in shader!");
@@ -107,13 +110,12 @@ void VulkanShader::releaseResources(VulkanContext &context, Material &material) 
     material.internalId = INVALID_ID;
 }
 
-void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData& data, Texture& defaultTexture) {
+void VulkanShader::applyMaterial(VulkanContext &context, Material& material, Texture& defaultTexture) {
+    unsigned int imageIndex = context.getImageIndex();
     VkCommandBuffer commandBuffer = context.getCurrentCommandBuffer().getHandle();
 
-    vkCmdPushConstants(commandBuffer, pipeline.getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), &data.model);
-
     //Obtain material data
-    MaterialState* entityState = &materialStates[data.material->internalId];
+    MaterialState* entityState = &materialStates[material.internalId];
     VkDescriptorSet entitySet = entityState->descriptorSets[context.getCurrentFrame()];
     VkWriteDescriptorSet descriptorWrites[DESCRIPTOR_COUNT];
     FF_Memory::ff_clear(descriptorWrites, sizeof(VkWriteDescriptorSet) * DESCRIPTOR_COUNT);
@@ -122,7 +124,7 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
 
     //Descriptor #0 - Uniform Buffer
     unsigned int range = sizeof(MaterialUniform);
-    unsigned long offset = sizeof(MaterialUniform) * data.material->internalId;
+    unsigned long offset = sizeof(MaterialUniform) * material.internalId;
     MaterialUniform obo{};
 
     //For Testing
@@ -131,14 +133,14 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
     //const float s = (FF_Math::sin(accumulator) + 1) / 2; //Changes the scale form -1, 1 to 0, 1
     //obo.diffuse = createVector4f(s, s, s, 1);
 
-    obo.diffuse = data.material->diffuseColor;
+    obo.diffuse = material.diffuseColor;
     entityUniformBuffer.loadBufferData(context.getDevice(), offset, range, &obo);
 
-    unsigned int& uboGeneration = entityState->descriptorStates[descriptorIndex].generations[context.getImageIndex()];
+    unsigned int& uboGeneration = entityState->descriptorStates[descriptorIndex].generations[imageIndex];
 
     VkDescriptorBufferInfo bufferInfo{};
     VkWriteDescriptorSet descriptor{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    if (uboGeneration == INVALID_ID || uboGeneration != data.material->generation) {
+    if (uboGeneration == INVALID_ID || uboGeneration != material.generation) {
         bufferInfo.buffer = entityUniformBuffer.getBuffer();
         bufferInfo.offset = offset;
         bufferInfo.range = range;
@@ -151,7 +153,7 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
 
         descriptorWrites[descriptorCount] = descriptor;
         descriptorCount++;
-        uboGeneration = data.material->generation;
+        uboGeneration = material.generation;
     }
 
     descriptorIndex++;
@@ -166,7 +168,7 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
 
         switch (use) {
             case TEXTURE_USE_MAP_DIFFUSE: {
-                texture = data.material->diffuseMap.texture;
+                texture = material.diffuseMap.texture;
                 break;
             }
             default: {
@@ -178,10 +180,10 @@ void VulkanShader::updateEntity(VulkanContext &context, const GeometryRenderData
         unsigned int& descriptorGeneration = entityState->descriptorStates[descriptorIndex].generations[context.getCurrentFrame()];
         unsigned int& descriptorID = entityState->descriptorStates[descriptorIndex].ids[context.getCurrentFrame()];
 
-        //Prevents an unloaded texture from being loaded
+        //Prevents an unloaded texture from being loaded.
         if (texture->generation == INVALID_ID) {
             texture = &defaultTexture;
-            descriptorGeneration = INVALID_ID;
+             descriptorGeneration = INVALID_ID;
         }
 
         if (texture && (descriptorID != texture->id || descriptorGeneration != texture->generation || descriptorGeneration == INVALID_ID)) {
@@ -239,6 +241,12 @@ bool VulkanShader::createBuffers(VulkanContext &context) {
     context.setIndexOffset(0);
 
     return true;
+}
+
+void VulkanShader::setModel(VulkanContext &context, const Mat4 &model) {
+    unsigned int imageIndex = context.getImageIndex();
+    VkCommandBuffer commandBuffer = context.getCurrentCommandBuffer().getHandle();
+    vkCmdPushConstants(commandBuffer, pipeline.getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model), &model);
 }
 
 bool VulkanShader::initialize(VulkanContext &context) {

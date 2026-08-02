@@ -18,7 +18,7 @@ bool FoxFire_TextureSystem::initialize(const unsigned int initialCapacity, Rende
 }
 
 void FoxFire_TextureSystem::shutdown() {
-    for (Texture& texture : assets.getData()) {
+    for (Texture& texture : assets.getData().getData()) {
         if (texture.generation != INVALID_ID) {
             destroyTexture(texture);
         }

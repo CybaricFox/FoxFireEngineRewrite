@@ -37,8 +37,8 @@ private:
     bool swapchainAcquireNextImageIndex(unsigned long timeout, VkSemaphore semaphore, VkFence fence, unsigned int& outImageIndex);
     void presentSwapchain();
     void allocateCommandBuffers();
-    void uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, unsigned long offset, unsigned long size, const
-                           void *data);
+    void uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, unsigned long offset, unsigned long size, const void *data);
+    void freeRangeOfData(VulkanBuffer &buffer, unsigned long offset, unsigned long size);
 public:
     VulkanBackend() = default;
     ~VulkanBackend() override;
@@ -56,9 +56,11 @@ public:
     bool beginFrame(float deltaTime) override;
     bool endFrame(float deltaTime) override;
     void updateGlobalState(Mat4 projection, Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) override;
-    void updateEntity(const GeometryRenderData &data, Texture &defaultTexture) override;
+    void drawGeometry(const GeometryRenderData &data, Texture &defaultTexture, Material &defaultMaterial) override;
     void createTexture(const unsigned char *pixels, Texture &texture) override;
     void destroyTexture(Texture &texture) override;
     bool createMaterial(Material &material) override;
     void destroyMaterial(Material &material) override;
+    bool createGeometry(Geometry &geometry, unsigned vertexCount, const Vertex3d *vertices, unsigned indexCount, const unsigned *indices) override;
+    void destroyGeometry(Geometry &geometry) override;
 };

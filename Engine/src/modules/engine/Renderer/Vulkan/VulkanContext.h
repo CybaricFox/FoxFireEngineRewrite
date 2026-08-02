@@ -10,6 +10,8 @@
 #include "VulkanFence.h"
 #include "VulkanSwapchain.h"
 #include "src/modules/engine/Library/Logger.h"
+#include "src/modules/engine/Library/ReusableArray.h"
+#include "src/modules/engine/Renderer/GlobalUniform.h"
 
 class VulkanContext {
 private:
@@ -34,6 +36,7 @@ private:
     unsigned long geometryVertexOffset = 0;
     unsigned long geometryIndexOffset = 0;
     float deltaTime = 0.0f;
+    ReusableArray<GeometryData> geometries{};
 
 #if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT debugMessenger{};
@@ -64,6 +67,9 @@ public:
     VulkanBuffer& getVertexBuffer() { return vertexBuffer; }
     VulkanBuffer& getIndexBuffer() { return indexBuffer; }
     [[nodiscard]] float getDeltaTime() const { return deltaTime; }
+    GeometryData& getGeometry(const unsigned int id) { return geometries.get(id); }
+    [[nodiscard]] unsigned long getGeometryVertexOffset() const { return geometryVertexOffset; }
+    [[nodiscard]] unsigned long getGeometryIndexOffset() const { return geometryIndexOffset; }
 
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
     void setHeight(const unsigned int height) {frameBufferHeight = height;}
@@ -72,6 +78,10 @@ public:
     void setIndexOffset(const unsigned long offset) {geometryIndexOffset = offset;}
     void setDeltaTime(const float dt) {deltaTime = dt;}
     void setCurrentFrame(const unsigned int value) {currentFrame = value;}
+    unsigned int assignGeometry() {return geometries.assign();}
+    void setGeometryVertexOffset(const unsigned long offset) {geometryVertexOffset = offset;}
+    void setGeometryIndexOffset(const unsigned long offset) {geometryIndexOffset = offset;}
+    void initializeGeometry() {geometries.initialize(0);}
 
     VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}
 

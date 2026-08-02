@@ -22,6 +22,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 6: return "CHAR ARRAY";
         case 7: return "TEXTURE";
         case 8: return "HASHMAP";
+        case 9: return "REUSABLE_ARRAY";
         default: return " ";
     }
 }

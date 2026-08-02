@@ -60,17 +60,28 @@ void Engine::run() {
 
             if (!engine->update(static_cast<float>(deltaTime))) {
                 Logger::logFatal("Game update tick failed!");
+                bIsRunning = false;
             }
 
             if (!render(static_cast<float>(deltaTime))) {
                 Logger::logFatal("Game render tick failed!");
+                bIsRunning = false;
             }
 
             RenderPacket packet{};
             packet.deltaTime = static_cast<float>(deltaTime);
 
+            //temp code
+            GeometryRenderData testData{};
+            testData.geometry = testGeometry;
+            testData.model = matrixIdentity();
+            packet.geometryCount = 1;
+            packet.geometries = &testData;
+            //end temp code
+
             if (!masterRenderSystem.drawFrame(packet)) {
                 Logger::logFatal("Failed to draw frame!");
+                bIsRunning = false;
             }
 
             //How long did the frame take
@@ -196,6 +207,20 @@ void Engine::initialize(GameInstance &instance) {
         return;
     }
 
+    //Start geometry system
+    if (!masterRenderSystem.initializeGeometrySystem(4096, geometrySystem)) {
+        Logger::logFatal("Failed to initialize the geometry system!");
+        return;
+    }
+
+    //Temp code
+    const GeometryConfig config = masterRenderSystem.generatePlaneConfig(10, 10, 5, 5, 2, 2, "test geometry", "templates/MaterialTemplate");
+    testGeometry = &masterRenderSystem.acquireGeometry(config, true);
+    FF_Memory::ff_free(config.vertices, sizeof(Vertex3d) * config.vertexCount, ARRAY);
+    FF_Memory::ff_free(config.indices, sizeof(unsigned int) * config.indexCount, ARRAY);
+    //testGeometry = &masterRenderSystem.getDefaultGeometry();
+    //End temp code
+
     startup();
 }
 
@@ -214,6 +239,7 @@ Engine::~Engine() {
     EngineEvents::shutdown();
 
     //Destroy resources in opposite order of creation
+    geometrySystem = nullptr;
     materialSystem = nullptr;
     textureSystem = nullptr;
     masterRenderSystem.shutdown();

@@ -14,6 +14,7 @@ enum MemoryTag {
     CHAR_ARRAY,
     TEXTURE,
     HASHMAP,
+    REUSABLE_ARRAY,
     MAX_TAGS
 };
 

@@ -6,33 +6,14 @@
 
 #include "../Library/Logger.h"
 
-bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
+bool MasterRenderSystem::drawFrame(const RenderPacket& packet) const {
     if (beginFrame(packet.deltaTime)) {
         backend->updateGlobalState(projection, view, zeroVector3f(), oneVector4f(), 0);
-        static float angle = 0.001f;
-        //angle += angle / 10000;
-        //const Quat rotation = getQuatFromAxisAngle(forwardVector3(), angle, false);
-        //const Mat4 model = convertQuatToRotationMatrix(rotation, zeroVector3f());
-        const Mat4 model = createTranslationMatrix({0, 0 , 0});
-        GeometryRenderData data{};
-        data.model = model;
 
-        //Create a default material if none exists
-        if (!testMaterial) {
-            testMaterial = &materialSystem->acquireMaterial("MaterialTemplate", "templates");
-            if (testMaterial == nullptr) {
-                Logger::logWarn("Failed to acquire material for drawing, falling back to default!");
-                MaterialConfig materialConfig{};
-                materialConfig.name = "MaterialTemplate";
-                materialConfig.bAutoRelease = false;
-                materialConfig.diffuseColor = oneVector4f();
-                materialConfig.mapName = DEFAULT_TEXTURE_NAME;
-                testMaterial = &materialSystem->acquireMaterial(materialConfig);
-            }
+        const unsigned int count = packet.geometryCount;
+        for (unsigned int i = 0; i < count; i++) {
+            backend->drawGeometry(packet.geometries[i], textureSystem->getDefaultTexture(), materialSystem->getDefaultMaterial());
         }
-
-        data.material = testMaterial;
-        backend->updateEntity(data, textureSystem->getDefaultTexture());
 
         if (!endFrame(packet.deltaTime)) {
             Logger::logFatal("Failed to end frame!");
@@ -52,20 +33,24 @@ void MasterRenderSystem::onResize(const unsigned short width, const unsigned sho
     }
 }
 
-void MasterRenderSystem::onDebugEvent() const {
-    const String files[2] = {"obamnaSODA", "whoishe"};
-    static char choice = 1;
-    const String oldName = files[choice];
-    choice++;
-    choice %= 2;
+Texture & MasterRenderSystem::acquireTexture(const bool autoRelease, const String &fileName, const String &subPath) const {
+    return textureSystem->acquireTexture(autoRelease, fileName, subPath);
+}
 
-    testMaterial->diffuseMap.texture = &textureSystem->acquireTexture(true, files[choice], "");
-    if (!testMaterial->diffuseMap.texture) {
-        Logger::logWarn("Master Render System debug event failed to obtain a texture!");
-        testMaterial->diffuseMap.texture = &textureSystem->getDefaultTexture();
-    }
+void MasterRenderSystem::releaseTexture(const String &name) const {
+    textureSystem->releaseTexture(name);
+}
 
-    textureSystem->releaseTexture(oldName);
+//Vertex and index arrays must be freed upon disposal!
+Geometry & MasterRenderSystem::acquireGeometry(const GeometryConfig &config, const bool autoRelease) const {
+    return geometrySystem->acquireGeometry(config, autoRelease);
+}
+
+GeometryConfig MasterRenderSystem::generatePlaneConfig(const float width, const float height, const unsigned int xCount,
+                                                       const unsigned int yCount, const float xTile, const float yTile,
+                                                       const String &name, const String &materialName) const {
+
+    return geometrySystem->generatePlaneConfig(width, height, xCount, yCount, xTile, yTile, name, materialName);
 }
 
 bool MasterRenderSystem::beginFrame(const float deltaTime) const {
@@ -119,7 +104,16 @@ bool MasterRenderSystem::initializeMaterialSystem(const unsigned int initialCapa
     return materialSystem->initialize(initialCapacity, textureSystem, backend);
 }
 
+bool MasterRenderSystem::initializeGeometrySystem(const unsigned int initialCapacity, IGeometrySystem *system) {
+    geometrySystem = system;
+    return geometrySystem->initialize(initialCapacity, backend, materialSystem);
+}
+
 void MasterRenderSystem::shutdown() {
+    if (geometrySystem) {
+        delete geometrySystem;
+        geometrySystem = nullptr;
+    }
     if (materialSystem) {
         delete materialSystem;
         materialSystem = nullptr;

@@ -6,6 +6,7 @@
 
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
+#include "src/modules/system/FoxFire_Textures/FoxFire_GeometrySystem.h"
 #include "src/modules/system/FoxFire_Textures/FoxFire_MaterialSystem.h"
 #include "src/modules/system/FoxFire_Textures/FoxFire_TextureSystem.h"
 
@@ -42,6 +43,7 @@ Game::Game()
     inputSystem = new FoxFire_InputSystem();
     textureSystem = new FoxFire_TextureSystem();
     materialSystem = new FoxFire_MaterialSystem();
+    geometrySystem = new FoxFire_GeometrySystem();
 }
 
 Game::~Game() {
@@ -52,7 +54,7 @@ void Game::startup() {
     inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Engine.quit", KEY_ESCAPE);
 
     //event system
-    swapTextureEvent.subscribe([this]() {masterRenderSystem.onDebugEvent();});
+    swapTextureEvent.subscribe([this]() {onDebugEvent();});
     inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {swapTextureEvent.call();}, "Game.swapTexture", KEY_L);
 
     Engine::startup();

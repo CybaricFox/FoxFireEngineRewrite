@@ -35,4 +35,12 @@ struct Material {
     TextureMap diffuseMap{};
 };
 
+struct Geometry {
+    unsigned int id = INVALID_ID;
+    unsigned int internalId = INVALID_ID;
+    unsigned int generation = INVALID_ID;
+    String name{};
+    Material* material = nullptr;
+};
+
 

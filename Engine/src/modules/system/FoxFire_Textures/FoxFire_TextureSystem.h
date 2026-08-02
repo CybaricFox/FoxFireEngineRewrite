@@ -11,7 +11,7 @@
 #include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/RendererBackend.h"
 #include "src/modules/engine/Resources/Contexts.h"
-#include "src/modules/engine/Resources/ResourceTypes.h"
+#include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 class FOXFIRE_API FoxFire_TextureSystem final : public ITextureSystem {
 private:

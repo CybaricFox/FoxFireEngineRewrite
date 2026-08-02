@@ -83,6 +83,8 @@ void VulkanContext::clearImagesInFlight() {
 }
 
 void VulkanContext::destroyContext() {
+    geometries.shutdown();
+
     FF_Memory::ff_clear(&device.getSwapChainSupportInfo().capabilities, sizeof(device.getSwapChainSupportInfo().capabilities));
 
     device.getGraphicsQueueIndex() = -1;

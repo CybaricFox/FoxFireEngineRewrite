@@ -1,6 +1,6 @@
 #Comment
 
 version = 0.0
-name = TemplateMaterial
+name = MaterialTemplate
 diffuse_color = 1.0 1.0 1.0 1.0
 diffuse_map_name = whoishe

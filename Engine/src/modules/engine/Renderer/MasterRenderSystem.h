@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "IGeometrySystem.h"
 #include "IMaterialSystem.h"
 #include "IRenderSystem.h"
 #include "ITextureSystem.h"
@@ -19,12 +20,13 @@ private:
     Mat4 view{};
     float nearClip = 0.1f;
     float farClip = 1000.0f;
-    Material* testMaterial = nullptr; //remove me
 
     //Texture manager
     ITextureSystem* textureSystem = nullptr;
     //Material Manager
     IMaterialSystem* materialSystem = nullptr;
+    //Geometry Manager
+    IGeometrySystem* geometrySystem = nullptr;
 
     DynamicArray<IRenderSystem> renderSystems{};
 
@@ -36,15 +38,23 @@ public:
     bool initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, unsigned int width, unsigned int height);
     bool initializeTextureSystem(unsigned int initialCapacity, ITextureSystem* system);
     bool initializeMaterialSystem(unsigned int initialCapacity, IMaterialSystem* system);
+    bool initializeGeometrySystem(unsigned int initialCapacity, IGeometrySystem* system);
     void shutdown();
     MasterRenderSystem() = default;
     ~MasterRenderSystem();
 
     [[nodiscard]] RendererBackend* getBackend() const {return backend;}
+    [[nodiscard]] Texture& getDefaultTexture() const {return textureSystem->getDefaultTexture();}
+    [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefaultGeometry();}
 
     void setView(const Mat4 &newView);
 
-    [[nodiscard]] bool drawFrame(const RenderPacket &packet);
+    [[nodiscard]] bool drawFrame(const RenderPacket &packet) const;
     void onResize(unsigned short width, unsigned short height);
-    void onDebugEvent() const;
+    [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName, const String &subPath) const;
+    void releaseTexture(const String &name) const;
+    Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) const;
+
+    [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
+        float xTile, float yTile, const String &name, const String &materialName) const;
 };
