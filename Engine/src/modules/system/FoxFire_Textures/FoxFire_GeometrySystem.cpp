@@ -211,20 +211,12 @@ void FoxFire_GeometrySystem::destroyGeometry(Geometry &geometry) {
     geometry = Geometry{};
 }
 
-FoxFire_GeometrySystem::~FoxFire_GeometrySystem() {
-    shutdown();
-}
+FoxFire_GeometrySystem::~FoxFire_GeometrySystem() = default;
 
-void FoxFire_GeometrySystem::shutdown() {
-    materialSystemRef = nullptr;
-    backendRef = nullptr;
-}
+bool FoxFire_GeometrySystem::initialize(const unsigned initialCapacity, RendererBackend *backend, IMaterialSystem *materialSystem, ResourceSystem *resources) {
+    IGeometrySystem::initialize(initialCapacity, backend, materialSystem, resources);
 
-bool FoxFire_GeometrySystem::initialize(const unsigned initialCapacity, RendererBackend *backend, IMaterialSystem *materialSystem) {
     geometries.initialize(initialCapacity);
-
-    backendRef = backend;
-    materialSystemRef = materialSystem;
 
     if (!createDefaultGeometry()) {
         Logger::logFatal("Failed to create default geometry");

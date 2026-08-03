@@ -24,11 +24,15 @@ struct GeometryConfig {
 };
 
 class FOXFIRE_API IGeometrySystem {
-public:
-    virtual ~IGeometrySystem() = default;
+protected:
+    RendererBackend* backendRef = nullptr;
+    IMaterialSystem* materialSystemRef = nullptr;
+    ResourceSystem* resourceSystemRef = nullptr;
 
-    virtual bool initialize(unsigned int initialCapacity, RendererBackend* backend, IMaterialSystem* materialSystem) = 0;
-    virtual void shutdown() = 0;
+public:
+    virtual ~IGeometrySystem();
+
+    virtual bool initialize(unsigned int initialCapacity, RendererBackend* backend, IMaterialSystem* materialSystem, ResourceSystem* resources);
 
     virtual Geometry& getDefaultGeometry() = 0;
 

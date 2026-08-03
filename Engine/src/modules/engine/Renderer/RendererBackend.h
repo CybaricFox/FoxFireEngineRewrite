@@ -9,6 +9,7 @@
 #include "src/modules/engine/Core/Platform.h"
 #include "src/modules/engine/Library/FF_Math.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
+#include "src/modules/engine/Resources/ResourceSystem.h"
 
 enum RendererBackendType {
     VULKAN,
@@ -34,7 +35,7 @@ public:
 
     static RendererBackend* create(RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance);
 
-    virtual bool initialize(String appName, Platform& platform, unsigned int width, unsigned int height);
+    virtual bool initialize(String appName, Platform &platform, unsigned int width, unsigned int height, ResourceSystem &resources);
     virtual bool beginFrame(float deltaTime) = 0;
     virtual bool endFrame(float deltaTime) = 0;
     virtual void resize(unsigned short width, unsigned short height) = 0;

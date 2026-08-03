@@ -33,8 +33,8 @@ void MasterRenderSystem::onResize(const unsigned short width, const unsigned sho
     }
 }
 
-Texture & MasterRenderSystem::acquireTexture(const bool autoRelease, const String &fileName, const String &subPath) const {
-    return textureSystem->acquireTexture(autoRelease, fileName, subPath);
+Texture & MasterRenderSystem::acquireTexture(const bool autoRelease, const String &fileName) const {
+    return textureSystem->acquireTexture(autoRelease, fileName);
 }
 
 void MasterRenderSystem::releaseTexture(const String &name) const {
@@ -73,7 +73,7 @@ void MasterRenderSystem::setView(const Mat4 &newView) {
     view = newView;
 }
 
-bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, const unsigned int width, const unsigned int height) {
+bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, const unsigned int width, const unsigned int height, ResourceSystem& resources) {
     backend = RendererBackend::create(VULKAN, platform.getPlatformState(), gameInstance);
     if (backend == nullptr) {
         Logger::logFatal("Failed to create the backend renderer!");
@@ -82,7 +82,7 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
 
     backend->clearFrameNumber();
 
-    if (!backend->initialize(appName, platform, width, height)) {
+    if (!backend->initialize(appName, platform, width, height, resources)) {
         Logger::logFatal("Renderer Backend failed to initialize!");
         return false;
     }
@@ -94,19 +94,19 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
     return true;
 }
 
-bool MasterRenderSystem::initializeTextureSystem(const unsigned int initialCapacity, ITextureSystem *system) {
+bool MasterRenderSystem::initializeTextureSystem(const unsigned int initialCapacity, ITextureSystem *system, ResourceSystem* resourceSystem) {
     textureSystem = system;
-    return textureSystem->initialize(initialCapacity, backend);
+    return textureSystem->initialize(initialCapacity, backend, resourceSystem);
 }
 
-bool MasterRenderSystem::initializeMaterialSystem(const unsigned int initialCapacity, IMaterialSystem *system) {
+bool MasterRenderSystem::initializeMaterialSystem(const unsigned int initialCapacity, IMaterialSystem *system, ResourceSystem* resourceSystem) {
     materialSystem = system;
-    return materialSystem->initialize(initialCapacity, textureSystem, backend);
+    return materialSystem->initialize(initialCapacity, textureSystem, backend, resourceSystem);
 }
 
-bool MasterRenderSystem::initializeGeometrySystem(const unsigned int initialCapacity, IGeometrySystem *system) {
+bool MasterRenderSystem::initializeGeometrySystem(const unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem* resourceSystem) {
     geometrySystem = system;
-    return geometrySystem->initialize(initialCapacity, backend, materialSystem);
+    return geometrySystem->initialize(initialCapacity, backend, materialSystem, resourceSystem);
 }
 
 void MasterRenderSystem::shutdown() {

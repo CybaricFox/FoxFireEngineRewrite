@@ -18,23 +18,20 @@ class FOXFIRE_API FoxFire_MaterialSystem final : public IMaterialSystem{
 private:
     Material defaultMaterial{};
     AssetMap<Material, AssetContext> assets{};
-    RendererBackend* backendReference = nullptr;
-    ITextureSystem* textureSystemReference = nullptr;
 
     void shutdown();
 
     bool createDefaultMaterial();
-    bool loadMaterial(const MaterialConfig &config, Material& material) const;
+    bool loadMaterial(const MaterialResourceData &config, Material& material) const;
     void destroyMaterial(Material& material) const;
-    bool loadMaterialFile(const String &path, MaterialConfig& config);
 
 public:
     ~FoxFire_MaterialSystem() override;
 
-    bool initialize(unsigned int initialCapacity, ITextureSystem *system, RendererBackend *backend) override;
+    bool initialize(unsigned int initialCapacity, ITextureSystem *system, RendererBackend *backend, ResourceSystem* resources) override;
 
     Material& acquireMaterial(const String &name) override;
-    Material& acquireMaterial(const MaterialConfig &config) override;
+    Material& acquireMaterial(const MaterialResourceData &config) override;
     void releaseMaterial(const String &name) override;
 
     Material& getDefaultMaterial() override {return defaultMaterial;}

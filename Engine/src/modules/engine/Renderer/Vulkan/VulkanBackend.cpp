@@ -204,7 +204,7 @@ VulkanBackend::~VulkanBackend() {
     vulkanContext.destroyContext();
 }
 
-bool VulkanBackend::initialize(const String appName, Platform& platform, const unsigned int width, const unsigned int height) {
+bool VulkanBackend::initialize(const String appName, Platform& platform, const unsigned int width, const unsigned int height, ResourceSystem& resources) {
     vulkanContext.initializeGeometry();
 
     cachedWidth = width;
@@ -340,7 +340,7 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     vulkanContext.clearImagesInFlight();
 
     //Create shader system
-    if (!vulkanShader.initialize(vulkanContext)) {
+    if (!vulkanShader.initialize(vulkanContext, resources)) {
         Logger::logError("Failed to initialize Vulkan shaders.");
         return false;
     }
@@ -348,7 +348,7 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     vulkanShader.createBuffers(vulkanContext);
 
     Logger::logInfo("Vulkan renderer initialized");
-    return RendererBackend::initialize(appName, platform, width, height);
+    return RendererBackend::initialize(appName, platform, width, height, resources);
 }
 
 void VulkanBackend::setVersion(const GameInstance& gameInstance) {

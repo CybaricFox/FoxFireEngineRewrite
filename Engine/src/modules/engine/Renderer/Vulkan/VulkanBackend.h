@@ -48,7 +48,7 @@ public:
     static unsigned int cachedHeight;
 
 
-    bool initialize(String appName, Platform& platform, unsigned int width, unsigned int height) override;
+    bool initialize(String appName, Platform &platform, unsigned int width, unsigned int height, ResourceSystem &resources) override;
 
     void setVersion(const GameInstance& gameInstance);
 

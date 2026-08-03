@@ -12,22 +12,19 @@
 
 #define DEFAULT_MATERIAL_NAME "default"
 
-struct MaterialConfig {
-    String name{};
-    bool bAutoRelease = false;
-    Vector4f diffuseColor{};
-    String mapName{};
-};
-
 class FOXFIRE_API IMaterialSystem {
+protected:
+    RendererBackend* backendRef = nullptr;
+    ResourceSystem* resourceRef = nullptr;
+    ITextureSystem* textureSystemRef = nullptr;
 public:
-    virtual ~IMaterialSystem() = default;
+    virtual ~IMaterialSystem();
 
-    virtual bool initialize(unsigned int initialCapacity, ITextureSystem *system, RendererBackend *backend) = 0;
+    virtual bool initialize(unsigned int initialCapacity, ITextureSystem *system, RendererBackend *backend, ResourceSystem* resources);
 
     virtual Material& getDefaultMaterial() = 0;
 
     virtual Material& acquireMaterial(const String &name) = 0;
-    virtual Material& acquireMaterial(const MaterialConfig &config) = 0;
+    virtual Material& acquireMaterial(const MaterialResourceData &config) = 0;
     virtual void releaseMaterial(const String &name) = 0;
 };

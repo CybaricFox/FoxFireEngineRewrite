@@ -24,6 +24,8 @@ private:
     Clock clock{};
     //Handles the OS
     Platform platform{};
+    //Handles system resources
+    ResourceSystem resourceSystem{};
 
     //Holds a pointer to the derived Game
     Engine* engine = nullptr;
@@ -69,14 +71,14 @@ protected:
     void setView(const Mat4 &newView);
 
     void onDebugEvent() const {
-        const String files[2] = {"obamnaSODA", "whoishe"};
-        static char choice = 1;
+        const String files[3] = {"whoishe", "Test1", "Test2"};
+        static char choice = 2;
         const String oldName = files[choice];
         choice++;
-        choice %= 2;
+        choice %= 3;
 
         if (testGeometry) {
-            testGeometry->material->diffuseMap.texture = &masterRenderSystem.acquireTexture(true, files[choice], "");
+            testGeometry->material->diffuseMap.texture = &masterRenderSystem.acquireTexture(true, files[choice]);
             if (!testGeometry->material->diffuseMap.texture) {
                 Logger::logWarn("Debug event failed to acquire texture!");
                 testGeometry->material->diffuseMap.texture = &masterRenderSystem.getDefaultTexture();

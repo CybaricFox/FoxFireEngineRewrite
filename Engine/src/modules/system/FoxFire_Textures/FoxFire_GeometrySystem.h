@@ -21,8 +21,6 @@ private:
     //GeometryConfig config{};
     Geometry defaultGeometry{};
     ReusableArray<GeometryContext> geometries;
-    RendererBackend* backendRef = nullptr;
-    IMaterialSystem* materialSystemRef = nullptr;
 
     Geometry& acquireGeometry(unsigned int id);
     void releaseGeometry(const Geometry& geometry);
@@ -33,8 +31,7 @@ private:
 public:
     ~FoxFire_GeometrySystem() override;
 
-    bool initialize(unsigned initialCapacity, RendererBackend* backend, IMaterialSystem* materialSystem) override;
-    void shutdown() override;
+    bool initialize(unsigned initialCapacity, RendererBackend* backend, IMaterialSystem* materialSystem, ResourceSystem* resources) override;
 
     Geometry & getDefaultGeometry() override {return defaultGeometry;};
 

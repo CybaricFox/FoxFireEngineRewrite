@@ -6,11 +6,9 @@
 
 #include "src/modules/engine/Renderer/RendererBackend.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "../Engine/src/modules/engine/Renderer/stb/stb_image.h"
+bool FoxFire_TextureSystem::initialize(const unsigned int initialCapacity, RendererBackend *backend, ResourceSystem *resources) {
+    ITextureSystem::initialize(initialCapacity, backend, resources);
 
-bool FoxFire_TextureSystem::initialize(const unsigned int initialCapacity, RendererBackend* backend) {
-    backendRef = backend;
     assets.initialize(initialCapacity);
 
     createDefaultTextures();
@@ -25,10 +23,9 @@ void FoxFire_TextureSystem::shutdown() {
     }
 
     destroyDefaultTextures();
-    backendRef = nullptr;
 }
 
-Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const String& fileName, const String& subPath) {
+Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const String& fileName) {
     if (fileName == DEFAULT_TEXTURE_NAME) {
         Logger::logWarn("Texture system tried to acquire the default texture. Use getDefaultTexture() instead.");
         return defaultTexture;
@@ -46,8 +43,8 @@ Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const St
     if (texture == nullptr) return defaultTexture;
 
 
-    if (!loadTexture(*texture, fileName, subPath)) {
-        Logger::logError("Failed to load texture: " + fileName + " with subpath: " + subPath);
+    if (!loadTexture(*texture, fileName)) {
+        Logger::logError("Failed to load texture: " + fileName);
         return defaultTexture;
     }
 
@@ -110,67 +107,39 @@ void FoxFire_TextureSystem::destroyDefaultTextures() {
     destroyTexture(defaultTexture);
 }
 
-bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName, const String &subFolders = "") const {
-    String path{};
-
-    if (subFolders.empty()) {
-        path = "Assets/" + fileName + ".";
-    } else {
-        path = "Assets/" + subFolders + "/" + fileName + ".";
-    }
-
-    constexpr int requiredChannelCount = 4;
-    stbi_set_flip_vertically_on_load(true); //stb loads the image from down to top, this effectively makes it read top to down.
-    //In the future, this should check for the extension automatically
-    path.append("png");
-
-    Texture tempTexture{};
-    int width = static_cast<int>(tempTexture.width);
-    int height = static_cast<int>(tempTexture.height);
-    int channelCount = tempTexture.channelCount;
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channelCount, requiredChannelCount);
-    tempTexture.width = width;
-    tempTexture.height = height;
-    tempTexture.channelCount = channelCount;
-
-    //overwrite the texture channel count with the one we are using
-    tempTexture.channelCount = requiredChannelCount;
-
-    if (!data) {
-        if (stbi_failure_reason()) {
-            Logger::logWarn("#1 Failed to load texture file: " + path + ": " + stbi_failure_reason());
-            stbi__err(nullptr, 0);
-        }
+bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName) const {
+    Resource imageResource{};
+    if (!resourceRef->load(fileName, RESOURCE_TYPE_IMAGE, imageResource)) {
+        Logger::logError("Failed to load image resource for texture: " + fileName);
         return false;
     }
 
+    const auto* resourceData = static_cast<ImageResourceData *>(imageResource.data);
+
+    Texture tempTexture{};
+    tempTexture.width = resourceData->width;
+    tempTexture.height = resourceData->height;
+    tempTexture.channelCount = resourceData->channelCount;
+
     const unsigned int currentGeneration = texture.generation;
     texture.generation = INVALID_ID;
-    const unsigned long totalSize = tempTexture.width * tempTexture.height * requiredChannelCount;
+    const unsigned long totalSize = tempTexture.width * tempTexture.height * tempTexture.channelCount;
 
     //transparency
     bool isTransparent = false;
-    for (unsigned long i = 0; i < totalSize; i += requiredChannelCount) {
-        const unsigned char a = data[i + 3];
+    for (unsigned long i = 0; i < totalSize; i += tempTexture.channelCount) {
+        const unsigned char a = resourceData->pixels[i + 3];
         if (a < 255) {
             isTransparent = true;
             break;
         }
     }
 
-    /*
-    if (stbi_failure_reason()) {
-        Logger::logWarn("#2 Failed to load texture file: " + path + ": " + stbi_failure_reason());
-        stbi__err(nullptr, 0);
-        return false;
-    }
-    */
-
     tempTexture.name = fileName;
     tempTexture.generation = INVALID_ID;
     tempTexture.bIsTransparent = isTransparent;
 
-    backendRef->createTexture(data, tempTexture);
+    backendRef->createTexture(resourceData->pixels, tempTexture);
     destroyTexture(texture);
     texture = tempTexture;
 
@@ -180,7 +149,7 @@ bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName
         texture.generation = currentGeneration + 1;
     }
 
-    stbi_image_free(data);
+    resourceRef->unload(imageResource);
     return true;
 }
 

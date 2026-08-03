@@ -17,21 +17,20 @@ class FOXFIRE_API FoxFire_TextureSystem final : public ITextureSystem {
 private:
     Texture defaultTexture{};
     AssetMap<Texture, AssetContext> assets{};
-    RendererBackend* backendRef = nullptr;
 
     bool createDefaultTextures();
     void destroyDefaultTextures();
-    bool loadTexture(Texture &texture, const String &fileName, const String &subFolders) const;
+    bool loadTexture(Texture &texture, const String &fileName) const;
     void destroyTexture(Texture &texture) const;
 
 public:
     ~FoxFire_TextureSystem() override;
 
-    bool initialize(unsigned int initialCapacity, RendererBackend *backend) override;
+    bool initialize(unsigned int initialCapacity, RendererBackend *backend, ResourceSystem* resources) override;
     void shutdown();
 
     Texture& getDefaultTexture() override {return defaultTexture;}
 
-    Texture &acquireTexture(bool autoRelease, const String &fileName, const String &subPath) override;
+    Texture &acquireTexture(bool autoRelease, const String &fileName) override;
     void releaseTexture(String name) override;
 };

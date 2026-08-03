@@ -189,32 +189,38 @@ void Engine::initialize(GameInstance &instance) {
         return;
     }
 
+    //Initialize the resource system
+    if (!resourceSystem.initialize("Assets", 32)) {
+        Logger::logFatal("Failed to initialize the resource system!");
+        return;
+    }
+
     //Start renderer
-    if (!masterRenderSystem.initialize(gameInstance->config.appName, platform, *gameInstance, width, height)) {
+    if (!masterRenderSystem.initialize(gameInstance->config.appName, platform, *gameInstance, width, height, resourceSystem)) {
         Logger::logFatal("Failed to initialize the render system!");
         return;
     }
 
     //Start texture system
-    if (!masterRenderSystem.initializeTextureSystem(65536, textureSystem)) {
+    if (!masterRenderSystem.initializeTextureSystem(65536, textureSystem, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the texture system!");
         return;
     }
 
     //Start material system
-    if (!masterRenderSystem.initializeMaterialSystem(4096, materialSystem)) {
+    if (!masterRenderSystem.initializeMaterialSystem(4096, materialSystem, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the texture system!");
         return;
     }
 
     //Start geometry system
-    if (!masterRenderSystem.initializeGeometrySystem(4096, geometrySystem)) {
+    if (!masterRenderSystem.initializeGeometrySystem(4096, geometrySystem, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the geometry system!");
         return;
     }
 
     //Temp code
-    const GeometryConfig config = masterRenderSystem.generatePlaneConfig(10, 10, 5, 5, 2, 2, "test geometry", "templates/MaterialTemplate");
+    const GeometryConfig config = masterRenderSystem.generatePlaneConfig(10, 10, 5, 5, 2, 2, "test geometry", "MaterialTemplate");
     testGeometry = &masterRenderSystem.acquireGeometry(config, true);
     FF_Memory::ff_free(config.vertices, sizeof(Vertex3d) * config.vertexCount, ARRAY);
     FF_Memory::ff_free(config.indices, sizeof(unsigned int) * config.indexCount, ARRAY);
@@ -247,6 +253,8 @@ Engine::~Engine() {
         delete inputSystem;
         inputSystem = nullptr;
     }
+
+    resourceSystem.shutdown();
 
     platform.shutdown();
 

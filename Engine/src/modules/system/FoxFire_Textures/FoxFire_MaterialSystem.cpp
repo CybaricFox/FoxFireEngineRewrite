@@ -4,9 +4,8 @@
 
 #include "FoxFire_MaterialSystem.h"
 
-bool FoxFire_MaterialSystem::initialize(const unsigned int initialCapacity, ITextureSystem* system, RendererBackend* backend) {
-    backendReference = backend;
-    textureSystemReference = system;
+bool FoxFire_MaterialSystem::initialize(const unsigned int initialCapacity, ITextureSystem *system, RendererBackend *backend, ResourceSystem *resources) {
+    IMaterialSystem::initialize(initialCapacity, system, backend, resources);
 
     assets.initialize(initialCapacity);
 
@@ -25,25 +24,32 @@ void FoxFire_MaterialSystem::shutdown() {
         }
     }
 
-    //destroyMaterial(defaultMaterial);
-    backendReference = nullptr;
-    textureSystemReference = nullptr;
+    destroyMaterial(defaultMaterial);
 }
 
 Material & FoxFire_MaterialSystem::acquireMaterial(const String &name) {
-    MaterialConfig config{};
-
-    const String path = "Assets/" + name + ".FoxMaterial";
-
-    if (!loadMaterialFile(path, config)) {
-        Logger::logError("Failed to load material file: " + path);
+    Resource materialResource{};
+    if (!resourceRef->load(name, RESOURCE_TYPE_MATERIAL, materialResource)) {
+        Logger::logError("Failed to load material resource!");
         return defaultMaterial;
     }
 
-    return acquireMaterial(config);
+    Material* material = nullptr;
+    if (materialResource.data) {
+        material = &acquireMaterial(*static_cast<MaterialResourceData*>(materialResource.data));
+    }
+
+    resourceRef->unload(materialResource);
+
+    if (!material) {
+        Logger::logError("Failed to unload material resource!");
+        return defaultMaterial;
+    }
+
+    return *material;
 }
 
-Material & FoxFire_MaterialSystem::acquireMaterial(const MaterialConfig &config) {
+Material & FoxFire_MaterialSystem::acquireMaterial(const MaterialResourceData &config) {
     if (config.name == DEFAULT_MATERIAL_NAME) {
         return defaultMaterial;
     }
@@ -85,30 +91,30 @@ bool FoxFire_MaterialSystem::createDefaultMaterial() {
     defaultMaterial.name = DEFAULT_MATERIAL_NAME;
     defaultMaterial.diffuseColor = oneVector4f();
     defaultMaterial.diffuseMap.use = TEXTURE_USE_MAP_DIFFUSE;
-    defaultMaterial.diffuseMap.texture = &textureSystemReference->getDefaultTexture();
+    defaultMaterial.diffuseMap.texture = &textureSystemRef->getDefaultTexture();
 
-    backendReference->createMaterial(defaultMaterial);
+    backendRef->createMaterial(defaultMaterial);
 
     return true;
 }
 
-bool FoxFire_MaterialSystem::loadMaterial(const MaterialConfig &config, Material &material) const {
+bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Material &material) const {
     material = Material{};
     material.name = config.name;
     material.diffuseColor = config.diffuseColor;
     if (!config.mapName.empty()) {
         material.diffuseMap.use = TEXTURE_USE_MAP_DIFFUSE;
-        material.diffuseMap.texture = &textureSystemReference->acquireTexture(true, config.mapName, "");
+        material.diffuseMap.texture = &textureSystemRef->acquireTexture(true, config.mapName);
         if (material.diffuseMap.texture == nullptr) {
             Logger::logWarn("Unable to load texture: " + config.name + " for material: " + material.name);
-            material.diffuseMap.texture = &textureSystemReference->getDefaultTexture();
+            material.diffuseMap.texture = &textureSystemRef->getDefaultTexture();
         }
     } else {
         material.diffuseMap.use = TEXTURE_USE_UNKNOWN;
         material.diffuseMap.texture = nullptr;
     }
 
-    if (!backendReference->createMaterial(material)) {
+    if (!backendRef->createMaterial(material)) {
         Logger::logError("Failed to acquire resources for material: " + config.name);
         return false;
     }
@@ -120,72 +126,12 @@ void FoxFire_MaterialSystem::destroyMaterial(Material &material) const {
     Logger::logDebug("Destroying material: " + material.name);
 
     if (material.diffuseMap.texture != nullptr) {
-        textureSystemReference->releaseTexture(material.diffuseMap.texture->name);
+        textureSystemRef->releaseTexture(material.diffuseMap.texture->name);
     }
 
-    backendReference->destroyMaterial(material);
+    backendRef->destroyMaterial(material);
 
     material = Material{};
-}
-
-bool FoxFire_MaterialSystem::loadMaterialFile(const String &path, MaterialConfig &config) {
-    //Open material file
-    FileHandler file;
-    if (!file.openFile(path, READ, false)) {
-        Logger::logError("Failed to open material file: " + path);
-        return false;
-    }
-
-    String line;
-    unsigned int lineNumber = 0;
-    unsigned long bytesRead = 0;
-
-    //While there are lines to read
-    while (file.readLine(line, 511, bytesRead)) {
-        lineNumber++;
-
-        StringUtils::trim(line);
-
-        //Ignore if line is empty
-        if (line.empty()) continue;
-
-        //Ignore comments
-        if (line[0] == '#') continue;
-
-        //Find the equal sign on the line if it exists
-        const unsigned long equalIndex = line.find('=');
-        if (equalIndex == String::npos || equalIndex >= line.length()) {
-            Logger::logWarn("Potential format issue found in: " + path + " Failed to find '=' on line" + std::to_string(lineNumber));
-            continue;
-        }
-
-        //Get the name of the variable on the left and right of the =
-        String variable = line.substr(0, equalIndex);
-        String value = line.substr(equalIndex + 1);
-        StringUtils::trim(variable);
-        StringUtils::trim(value);
-
-        //Parse the line
-        if (variable == "version") Logger::logDebug("Version: " + value);
-        else if (variable == "name") {
-            Logger::logDebug("Name: " + value);
-            config.name = value;
-        }
-        else if (variable == "diffuse_color") {
-            Logger::logDebug("Diffuse Color: " + value);
-            if (!stringToVector4f(value, config.diffuseColor)) {
-                Logger::logWarn("Error reading diffuse_color in file: " + path);
-                config.diffuseColor = oneVector4f();
-            }
-        }
-        else if (variable == "diffuse_map_name") {
-            Logger::logDebug("Diffuse Map Name: " + value);
-            config.mapName = value;
-        }
-    }
-
-    file.closeFile();
-    return true;
 }
 
 FoxFire_MaterialSystem::~FoxFire_MaterialSystem() {

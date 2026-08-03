@@ -8,6 +8,7 @@
 #include "VulkanContext.h"
 #include "VulkanPipeline.h"
 #include "src/modules/engine/Renderer/GlobalUniform.h"
+#include "src/modules/engine/Resources/ResourceSystem.h"
 
 struct VulkanShaderStage {
     VkShaderModuleCreateInfo createInfo;
@@ -65,12 +66,13 @@ private:
     TextureUseCase samplerUses[SAMPLER_COUNT]{};
 
     //Creates a shader module from a .spv file. Name is the name of the file and TypeStr is the suffix (frag, vert). Do not include '.' in the typeStr!
-    bool createShaderModule(VulkanContext& context, const String &name, const String& typeStr, VkShaderStageFlagBits stageFlags, unsigned int stageIndex);
+    bool createShaderModule(VulkanContext &context, const String &name, const String &typeStr, VkShaderStageFlagBits stageFlags, unsigned int
+                            stageIndex, ResourceSystem &resources);
 
 public:
     GlobalUniform& getUBO() {return globalUBO;}
 
-    bool initialize(VulkanContext& context);
+    bool initialize(VulkanContext &context, ResourceSystem &resources);
     void destroy(VulkanContext &context);
     void use(const VulkanContext &context) const;
     void updateGlobalState(VulkanContext &context);

@@ -35,10 +35,11 @@ private:
     Texture createBlankTexture();
 
 public:
-    bool initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, unsigned int width, unsigned int height);
-    bool initializeTextureSystem(unsigned int initialCapacity, ITextureSystem* system);
-    bool initializeMaterialSystem(unsigned int initialCapacity, IMaterialSystem* system);
-    bool initializeGeometrySystem(unsigned int initialCapacity, IGeometrySystem* system);
+    bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, unsigned int width, unsigned int height, ResourceSystem
+                    &resources);
+    bool initializeTextureSystem(unsigned int initialCapacity, ITextureSystem *system, ResourceSystem *resourceSystem);
+    bool initializeMaterialSystem(unsigned int initialCapacity, IMaterialSystem *system, ResourceSystem *resourceSystem);
+    bool initializeGeometrySystem(unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem *resourceSystem);
     void shutdown();
     MasterRenderSystem() = default;
     ~MasterRenderSystem();
@@ -51,7 +52,7 @@ public:
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet) const;
     void onResize(unsigned short width, unsigned short height);
-    [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName, const String &subPath) const;
+    [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName) const;
     void releaseTexture(const String &name) const;
     Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) const;
 

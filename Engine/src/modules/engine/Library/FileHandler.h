@@ -20,12 +20,15 @@ private:
 public:
     ~FileHandler();
 
+    bool getFileSize(unsigned long& outSize) const;
+
     bool exists(const String& name);
     bool openFile(const String& path, FileMode mode, bool isBinary);
     void closeFile();
     bool readLine(String &line, unsigned long maxLength, unsigned long &outLength) const;
-    bool writeLine(const String& text) const;
-    bool read(unsigned long size, void* outData, unsigned long& outBytesRead);
-    bool readAll(unsigned char*& outBytes, unsigned long& outBytesRead);
-    bool write(unsigned long size, const void* inData, unsigned long& outBytesWritten);
+    [[nodiscard]] bool writeLine(const String& text) const;
+    bool read(unsigned long size, void* outData, unsigned long& outBytesRead) const;
+    bool readAll(unsigned char *&outBytes, unsigned long &outBytesRead) const;
+    bool readAll(String& outText, unsigned long& outBytesRead) const;
+    bool write(unsigned long size, const void* inData, unsigned long& outBytesWritten) const;
 };

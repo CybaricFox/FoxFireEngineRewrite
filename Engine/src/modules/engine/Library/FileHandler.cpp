@@ -10,6 +10,15 @@
 #include "Logger.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 
+bool FileHandler::getFileSize(unsigned long &outSize) const {
+    if (!handle) return false;
+
+    fseek(static_cast<FILE *>(handle), 0, SEEK_END);
+    outSize = ftell(static_cast<FILE *>(handle));
+    rewind(static_cast<FILE *>(handle));
+    return true;
+}
+
 FileHandler::~FileHandler() {
     closeFile();
 }
@@ -89,7 +98,7 @@ bool FileHandler::writeLine(const String &text) const {
     return false;
 }
 
-bool FileHandler::read(const unsigned long size, void *outData, unsigned long &outBytesRead) {
+bool FileHandler::read(const unsigned long size, void *outData, unsigned long &outBytesRead) const {
     if (!handle || !outData) return false;
 
     outBytesRead = fread(outData, 1, size, static_cast<FILE *>(handle));
@@ -100,21 +109,26 @@ bool FileHandler::read(const unsigned long size, void *outData, unsigned long &o
     return true;
 }
 
-bool FileHandler::readAll(unsigned char *&outBytes, unsigned long &outBytesRead) {
+bool FileHandler::readAll(unsigned char*& outBytes, unsigned long &outBytesRead) const {
     if (!handle) return false;
 
-    fseek(static_cast<FILE *>(handle), 0, SEEK_END);
-    const unsigned long size = ftell(static_cast<FILE *>(handle));
-    rewind(static_cast<FILE *>(handle));
+    unsigned long size = 0;
+    getFileSize(size);
 
-    outBytes = static_cast<unsigned char *>(FF_Memory::ff_allocate(sizeof(unsigned char) * size, CHAR_ARRAY));
     outBytesRead = fread(outBytes, 1, size, static_cast<FILE *>(handle));
-    if (outBytesRead != size) return false;
+    return outBytesRead == size;
+}
+bool FileHandler::readAll(String &outText, unsigned long &outBytesRead) const {
+    if (!handle) return false;
 
-    return true;
+    unsigned long size = 0;
+    getFileSize(size);
+
+    outBytesRead = fread(&outText, 1, size, static_cast<FILE *>(handle));
+    return outBytesRead == size;
 }
 
-bool FileHandler::write(const unsigned long size, const void *inData, unsigned long &outBytesWritten) {
+bool FileHandler::write(const unsigned long size, const void *inData, unsigned long &outBytesWritten) const {
     if (!handle) return false;
 
     outBytesWritten = fwrite(inData, 1, size, static_cast<FILE *>(handle));

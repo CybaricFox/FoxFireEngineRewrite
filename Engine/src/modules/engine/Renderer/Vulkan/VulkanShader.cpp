@@ -8,46 +8,34 @@
 #include "VulkanUtils.h"
 #include "src/defines.h"
 #include "src/modules/engine/Library/FF_Math.h"
-#include "src/modules/engine/Library/FileHandler.h"
+#include "src/modules/engine/Resources/ResourceSystem.h"
 
 #define FF_MATERIAL_SHADER "Vulkan_Material_Shader"
 
-bool VulkanShader::createShaderModule(VulkanContext &context, const String &name, const String &typeStr, VkShaderStageFlagBits stageFlags, unsigned int stageIndex) {
-    String fileName = "Shaders/" + name + "." + typeStr + ".spv";
+bool VulkanShader::createShaderModule(VulkanContext &context, const String &name, const String &typeStr, VkShaderStageFlagBits stageFlags, const unsigned int stageIndex, ResourceSystem& resources) {
+    const String fileName = "../Shaders/" + name + "." + typeStr + ".spv";
+
+    Resource binaryResource{};
+    if (!resources.load(fileName, RESOURCE_TYPE_BINARY, binaryResource)) {
+        Logger::logError("Unable to read shader module: " + fileName);
+        return false;
+    }
 
     FF_Memory::ff_clear(&stages[stageIndex].createInfo, sizeof(VkShaderModuleCreateInfo));
     stages[stageIndex].createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 
-    FileHandler fileHandler{};
-    if (!fileHandler.openFile(fileName, READ, true)) {
-        Logger::logError("Can't open shader module file: " + name);
-        return false;
-    }
-
-    unsigned long size = 0;
-    unsigned char* buffer = nullptr;
-    if (!fileHandler.readAll(buffer, size)) {
-        Logger::logError("Unable to read binary shader module file: " + name);
-        return false;
-    }
-
-    stages[stageIndex].createInfo.codeSize = size;
-    stages[stageIndex].createInfo.pCode = reinterpret_cast<unsigned int*>(buffer);
-
-    fileHandler.closeFile();
+    stages[stageIndex].createInfo.codeSize = binaryResource.dataSize;
+    stages[stageIndex].createInfo.pCode = static_cast<unsigned int*>(binaryResource.data);
 
     VulkanUtils::vulkanCheck(vkCreateShaderModule(context.getDevice().getLogicalDevice(), &stages[stageIndex].createInfo, nullptr, &stages[stageIndex].handle));
+
+    resources.unload(binaryResource);
 
     FF_Memory::ff_clear(&stages[stageIndex].shaderStageCreateInfo, sizeof(VkPipelineShaderStageCreateInfo));
     stages[stageIndex].shaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stages[stageIndex].shaderStageCreateInfo.stage = stageFlags;
     stages[stageIndex].shaderStageCreateInfo.module = stages[stageIndex].handle;
     stages[stageIndex].shaderStageCreateInfo.pName = "main";
-
-    if (buffer) {
-        FF_Memory::ff_free(buffer, sizeof(unsigned char) * size, CHAR_ARRAY);
-        buffer = nullptr;
-    }
 
     return true;
 }
@@ -249,12 +237,12 @@ void VulkanShader::setModel(VulkanContext &context, const Mat4 &model) {
     vkCmdPushConstants(commandBuffer, pipeline.getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model), &model);
 }
 
-bool VulkanShader::initialize(VulkanContext &context) {
+bool VulkanShader::initialize(VulkanContext &context, ResourceSystem& resources) {
     const String stageTypeStrings[STAGE_COUNT] = {"vert", "frag"};
     constexpr VkShaderStageFlagBits stageTypes[STAGE_COUNT] = {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT};
 
     for (unsigned int i = 0; i < STAGE_COUNT; i++) {
-        if (!createShaderModule(context, FF_MATERIAL_SHADER, stageTypeStrings[i], stageTypes[i], i)) {
+        if (!createShaderModule(context, FF_MATERIAL_SHADER, stageTypeStrings[i], stageTypes[i], i, resources)) {
             Logger::logError("Unable to create " + stageTypeStrings[i] + " for " + FF_MATERIAL_SHADER);
             return false;
         }

@@ -11,10 +11,11 @@ enum MemoryTag {
     ARRAY,
     LINEAR_ALLOCATOR,
     DYNAMIC_ARRAY,
-    CHAR_ARRAY,
+    AVAILABLE_TAG_SLOT,
     TEXTURE,
     HASHMAP,
     REUSABLE_ARRAY,
+    MATERIAL,
     MAX_TAGS
 };
 

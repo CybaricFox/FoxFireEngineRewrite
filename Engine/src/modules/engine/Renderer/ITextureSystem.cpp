@@ -3,3 +3,15 @@
 //
 
 #include "ITextureSystem.h"
+
+ITextureSystem::~ITextureSystem() {
+    backendRef = nullptr;
+    resourceRef = nullptr;
+}
+
+bool ITextureSystem::initialize(unsigned int initialCapacity, RendererBackend *backend, ResourceSystem *resources) {
+    backendRef = backend;
+    resourceRef = resources;
+
+    return true;
+}

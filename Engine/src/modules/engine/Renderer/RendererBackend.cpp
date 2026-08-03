@@ -7,7 +7,8 @@
 #include "Vulkan/VulkanBackend.h"
 #include "../Library/Logger.h"
 
-bool RendererBackend::initialize(String appName, Platform& platform, unsigned int width, unsigned int height) {
+bool RendererBackend::initialize(const String appName, Platform &platform, const unsigned int width, const unsigned int height, ResourceSystem &
+                                 resources) {
     return true;
 }
 

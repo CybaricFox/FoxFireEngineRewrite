@@ -4,10 +4,20 @@
 
 #pragma once
 #include "src/defines.h"
+#include "src/modules/engine/Library/FF_Math.h"
 
 enum TextureUseCase {
     TEXTURE_USE_UNKNOWN,
     TEXTURE_USE_MAP_DIFFUSE
+};
+
+enum ResourceType {
+    RESOURCE_TYPE_TEXT,
+    RESOURCE_TYPE_BINARY,
+    RESOURCE_TYPE_IMAGE,
+    RESOURCE_TYPE_MATERIAL,
+    RESOURCE_TYPE_STATIC_MESH,
+    RESOURCE_TYPE_CUSTOM
 };
 
 struct Texture {
@@ -41,6 +51,28 @@ struct Geometry {
     unsigned int generation = INVALID_ID;
     String name{};
     Material* material = nullptr;
+};
+
+struct Resource {
+    unsigned int loaderId = INVALID_ID;
+    String name{};
+    String path{};
+    unsigned long dataSize = 0;
+    void* data = nullptr;
+};
+
+struct ImageResourceData {
+    unsigned char channelCount = 0;
+    unsigned int width = 0;
+    unsigned int height = 0;
+    unsigned char* pixels = nullptr;
+};
+
+struct MaterialResourceData {
+    String name{};
+    bool bAutoRelease = false;
+    Vector4f diffuseColor{};
+    String mapName{};
 };
 
 
