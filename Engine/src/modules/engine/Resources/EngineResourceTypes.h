@@ -75,4 +75,44 @@ struct MaterialResourceData {
     String mapName{};
 };
 
+enum RenderpassClearFlag {
+    RENDERPASS_CLEAR_NONE = 0x0,
+    RENDERPASS_CLEAR_COLOR = 0x1,
+    RENDERPASS_CLEAR_DEPTH = 0x2,
+    RENDERPASS_CLEAR_STENCIL = 0x4
+};
+
+enum EngineRenderpasses {
+    ENGINE_RENDER_PASS_WORLD = 0x1,
+    ENGINE_RENDER_PASS_UI = 0x2
+};
+
+struct RenderpassProfile {
+    EngineRenderpasses id{};
+    unsigned char clearFlags = 0;
+    Vector4f clearColor{};
+};
+
+struct RenderSystemProfile {
+    EngineRenderpasses type{};
+    bool bIs2D = false;
+    bool bDepthTestEnabled = false;
+};
+
+struct GeometryRenderData {
+    Mat4 model;
+    Geometry* geometry;
+};
+
+struct GeometryData {
+    unsigned int id = INVALID_ID;
+    unsigned int generation = INVALID_ID;
+    unsigned int vertexCount = 0;
+    unsigned int vertexBufferOffset = 0;
+    unsigned int vertexBufferSize = 0;
+    unsigned int indexCount = 0;
+    unsigned int indexBufferOffset = 0;
+    unsigned int indexBufferSize = 0;
+};
+
 

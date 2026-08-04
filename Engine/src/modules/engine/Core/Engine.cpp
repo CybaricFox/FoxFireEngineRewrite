@@ -77,6 +77,8 @@ void Engine::run() {
             testData.model = matrixIdentity();
             packet.geometryCount = 1;
             packet.geometries = &testData;
+            packet.uiGeometryCount = 0;
+            packet.uiGeometries = nullptr;
             //end temp code
 
             if (!masterRenderSystem.drawFrame(packet)) {

@@ -10,7 +10,8 @@
 #include "src/modules/engine/Library/FF_Math.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
 
-#define FF_MATERIAL_SHADER "Vulkan_Material_Shader"
+#define FF_WORLD_SHADER "Engine_World_Shader"
+#define FF_UI_SHADER "Engine_UI_Shader"
 
 bool VulkanShader::createShaderModule(VulkanContext &context, const String &name, const String &typeStr, VkShaderStageFlagBits stageFlags, const unsigned int stageIndex, ResourceSystem& resources) {
     const String fileName = "../Shaders/" + name + "." + typeStr + ".spv";
@@ -113,16 +114,10 @@ void VulkanShader::applyMaterial(VulkanContext &context, Material& material, Tex
     //Descriptor #0 - Uniform Buffer
     unsigned int range = sizeof(MaterialUniform);
     unsigned long offset = sizeof(MaterialUniform) * material.internalId;
-    MaterialUniform obo{};
+    MaterialUniform materialUBO{};
 
-    //For Testing
-    //static float accumulator = 0.0f;
-    //accumulator += context.getDeltaTime();
-    //const float s = (FF_Math::sin(accumulator) + 1) / 2; //Changes the scale form -1, 1 to 0, 1
-    //obo.diffuse = createVector4f(s, s, s, 1);
-
-    obo.diffuse = material.diffuseColor;
-    entityUniformBuffer.loadBufferData(context.getDevice(), offset, range, &obo);
+    materialUBO.diffuse = material.diffuseColor;
+    entityUniformBuffer.loadBufferData(context.getDevice(), offset, range, &materialUBO);
 
     unsigned int& uboGeneration = entityState->descriptorStates[descriptorIndex].generations[imageIndex];
 
@@ -237,13 +232,13 @@ void VulkanShader::setModel(VulkanContext &context, const Mat4 &model) {
     vkCmdPushConstants(commandBuffer, pipeline.getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model), &model);
 }
 
-bool VulkanShader::initialize(VulkanContext &context, ResourceSystem& resources) {
+bool VulkanShader::initialize(VulkanContext &context, ResourceSystem &resources) {
     const String stageTypeStrings[STAGE_COUNT] = {"vert", "frag"};
     constexpr VkShaderStageFlagBits stageTypes[STAGE_COUNT] = {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT};
 
     for (unsigned int i = 0; i < STAGE_COUNT; i++) {
-        if (!createShaderModule(context, FF_MATERIAL_SHADER, stageTypeStrings[i], stageTypes[i], i, resources)) {
-            Logger::logError("Unable to create " + stageTypeStrings[i] + " for " + FF_MATERIAL_SHADER);
+        if (!createShaderModule(context, FF_WORLD_SHADER, stageTypeStrings[i], stageTypes[i], i, resources)) {
+            Logger::logError("Unable to create " + stageTypeStrings[i] + " for " + FF_WORLD_SHADER);
             return false;
         }
     }
@@ -323,9 +318,11 @@ bool VulkanShader::initialize(VulkanContext &context, ResourceSystem& resources)
     //attributes
     unsigned int offset = 0;
     constexpr int attributeCount = 2; //Attribute count is equal to the number of fields in Vertex3d.
+    unsigned long attribute0Size = profile.bIs2D ? sizeof(Vector2f) : sizeof(Vector3f);
+
     VkVertexInputAttributeDescription attributeDescriptions[attributeCount];
-    constexpr VkFormat formats[attributeCount] = {VK_FORMAT_R32G32B32_SFLOAT, VK_FORMAT_R32G32_SFLOAT};
-    constexpr unsigned long sizes[attributeCount] = {sizeof(Vector3f), sizeof(Vector2f)};
+    VkFormat formats[attributeCount] = {profile.bIs2D ? VK_FORMAT_R32G32_SFLOAT : VK_FORMAT_R32G32B32_SFLOAT, VK_FORMAT_R32G32_SFLOAT};
+    unsigned long sizes[attributeCount] = {attribute0Size, sizeof(Vector2f)};
     for (unsigned int i = 0; i < attributeCount; i++) {
         attributeDescriptions[i].binding = 0;
         attributeDescriptions[i].location = i;
@@ -347,7 +344,12 @@ bool VulkanShader::initialize(VulkanContext &context, ResourceSystem& resources)
         shaderStageCreateInfos[i] = stages[i].shaderStageCreateInfo;
     }
 
-    if (!pipeline.createPipeline(context.getRenderpass(), attributeCount, attributeDescriptions, descriptorSetLayoutCount, layouts, STAGE_COUNT, shaderStageCreateInfos, viewport, scissor, false,context.getDevice())) {
+    if (!pipeline.createPipeline(context.getRenderpass(renderType),
+    profile.bIs2D ? sizeof(Vertex2d) : sizeof(Vertex3d),
+        attributeCount, attributeDescriptions, descriptorSetLayoutCount, layouts,
+        STAGE_COUNT, shaderStageCreateInfos, viewport, scissor, false, profile.bDepthTestEnabled,
+        context.getDevice())) {
+
         Logger::logError("Failed to load graphics pipeline for object shader!");
         return false;
     }

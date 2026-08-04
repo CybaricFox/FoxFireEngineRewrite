@@ -7,7 +7,7 @@
 
 #include "VulkanContext.h"
 #include "VulkanPipeline.h"
-#include "src/modules/engine/Renderer/GlobalUniform.h"
+#include "VulkanTypes.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
 
 struct VulkanShaderStage {
@@ -48,7 +48,7 @@ struct MaterialState {
     }
 };
 
-class VulkanShader {
+class VulkanShader{
 private:
     VulkanShaderStage stages[STAGE_COUNT]{};
     VulkanPipeline pipeline{};
@@ -64,6 +64,8 @@ private:
     unsigned int entityUniformBufferIndex = 0;
     DynamicArray<MaterialState> materialStates{};
     TextureUseCase samplerUses[SAMPLER_COUNT]{};
+    EngineRenderpasses renderType{};
+    RenderSystemProfile profile{};
 
     //Creates a shader module from a .spv file. Name is the name of the file and TypeStr is the suffix (frag, vert). Do not include '.' in the typeStr!
     bool createShaderModule(VulkanContext &context, const String &name, const String &typeStr, VkShaderStageFlagBits stageFlags, unsigned int
@@ -71,6 +73,10 @@ private:
 
 public:
     GlobalUniform& getUBO() {return globalUBO;}
+    [[nodiscard]] unsigned char getType() const {return renderType;}
+
+    void setRenderType(const EngineRenderpasses type) {renderType = type;}
+    void setProfile(const RenderSystemProfile newProfile) {profile = newProfile;}
 
     bool initialize(VulkanContext &context, ResourceSystem &resources);
     void destroy(VulkanContext &context);

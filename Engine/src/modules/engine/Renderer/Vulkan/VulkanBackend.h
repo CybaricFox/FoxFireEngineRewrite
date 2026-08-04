@@ -22,7 +22,7 @@ private:
     int minorVersion = 0;
     int patchVersion = 0;
 
-    VulkanShader vulkanShader{};
+    DynamicArray<VulkanShader> shaders{};
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -47,7 +47,6 @@ public:
     static unsigned int cachedWidth;
     static unsigned int cachedHeight;
 
-
     bool initialize(String appName, Platform &platform, unsigned int width, unsigned int height, ResourceSystem &resources) override;
 
     void setVersion(const GameInstance& gameInstance);
@@ -55,7 +54,8 @@ public:
     void resize(unsigned short width, unsigned short height) override;
     bool beginFrame(float deltaTime) override;
     bool endFrame(float deltaTime) override;
-    void updateGlobalState(Mat4 projection, Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) override;
+    void updateWorldGlobalState(Mat4 projection, Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) override;
+    void updateUIGlobalState(Mat4 projection, Mat4 view, int mode) override;
     void drawGeometry(const GeometryRenderData &data, Texture &defaultTexture, Material &defaultMaterial) override;
     void createTexture(const unsigned char *pixels, Texture &texture) override;
     void destroyTexture(Texture &texture) override;
@@ -63,4 +63,8 @@ public:
     void destroyMaterial(Material &material) override;
     bool createGeometry(Geometry &geometry, unsigned vertexCount, const Vertex3d *vertices, unsigned indexCount, const unsigned *indices) override;
     void destroyGeometry(Geometry &geometry) override;
+    void createRenderpass(RenderpassProfile profile) override;
+    void createRenderSystem(RenderSystemProfile profile) override;
+    bool beginRenderpass(unsigned char renderpassId) override;
+    bool endRenderpass(unsigned char renderpassId) override;
 };

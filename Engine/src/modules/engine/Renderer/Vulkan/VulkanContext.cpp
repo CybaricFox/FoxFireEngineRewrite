@@ -22,19 +22,10 @@ void VulkanContext::destroyCommandBuffers() {
     commandBuffers = nullptr;
 }
 
-void VulkanContext::destroyFences() {
-    //FF_Memory::ff_free(inFlightFences, sizeof(VulkanFence) * swapchain.maxFramesInFlight, ARRAY);
-    //inFlightFences = nullptr;
-    //FF_Memory::ff_free(imagesInFlight, sizeof(VulkanFence*) * swapchain.imageCount, ARRAY);
-    //imagesInFlight = nullptr;
-}
-
 void VulkanContext::createSyncObjects() {
     imageAvailableSemaphores = static_cast<VkSemaphore *>(FF_Memory::ff_allocate(sizeof(VkSemaphore) * swapchain.getMaxFramesInFlight(), ARRAY));
     queueCompleteSemaphores = static_cast<VkSemaphore *>(FF_Memory::ff_allocate(sizeof(VkSemaphore) * swapchain.getImageCount(), ARRAY));
-    inFlightFences = static_cast<VulkanFence *>(FF_Memory::ff_allocate(sizeof(VulkanFence) * swapchain.getMaxFramesInFlight(), ARRAY));
 
-    //IF AN ERROR OCCURS, THIS MIGHT BE WHY. THIS SHOULD BE CALLED SEPERATELY FROM THE OTHERS.
     imagesInFlight.initialize(swapchain.getImageCount());
 }
 
@@ -48,6 +39,8 @@ void VulkanContext::destroySyncObjects() {
                 vkDestroySemaphore(device.getLogicalDevice(), imageAvailableSemaphores[i], nullptr);
                 imageAvailableSemaphores[i] = nullptr;
             }
+
+            vkDestroyFence(device.getLogicalDevice(), inFlightFences[i], nullptr);
         }
         FF_Memory::ff_free(imageAvailableSemaphores, sizeof(VkSemaphore) * swapchain.getMaxFramesInFlight(), ARRAY);
         imageAvailableSemaphores = nullptr;
@@ -64,15 +57,6 @@ void VulkanContext::destroySyncObjects() {
         queueCompleteSemaphores = nullptr;
     }
 
-    if (inFlightFences) {
-        for (unsigned char i = 0; i < swapchain.getMaxFramesInFlight(); i++) {
-            inFlightFences[i].destroyFence(device);
-        }
-        FF_Memory::ff_free(inFlightFences, sizeof(VulkanFence) * swapchain.getMaxFramesInFlight(), ARRAY);
-        inFlightFences = nullptr;
-        inFlightFenceCount = 0;
-    }
-
     imagesInFlight.shutdown();
 }
 
@@ -82,8 +66,70 @@ void VulkanContext::clearImagesInFlight() {
     }
 }
 
+void VulkanContext::addRenderpass(VulkanRenderpass& newRenderpass) {
+    if (renderpasses.getLength() == 0) renderpasses.initialize(1);
+
+    for (VulkanRenderpass& pass : renderpasses) {
+        if (pass.getId() == newRenderpass.getId()) {
+            Logger::logError("Cannot add renderpass because it already exists: " + std::to_string(pass.getId()));
+            return;
+        }
+    }
+
+    const unsigned int index = renderpasses.getLength();
+    if (index == 0) {
+        newRenderpass.setPreviousPass(false);
+    } else {
+        newRenderpass.setPreviousPass(true);
+        renderpasses[index - 1].setNextPass(true);
+    }
+
+    renderpasses.push(std::move(newRenderpass));
+}
+
+void VulkanContext::createFramebuffers() {
+    for (VulkanRenderpass& renderpass : renderpasses) {
+        renderpass.setupFramebuffers(swapchain.getImageCount());
+    }
+}
+
+void VulkanContext::destroyRenderpasses() {
+    for (VulkanRenderpass& renderpass : renderpasses) {
+        renderpass.destroyRenderpass(device);
+    }
+}
+
+void VulkanContext::destroyFramebuffers() {
+    for (VulkanRenderpass& renderpass : renderpasses) {
+        renderpass.destroyFramebuffers(device);
+    }
+}
+
+VulkanRenderpass & VulkanContext::getRenderpass(const unsigned char id) {
+    for (VulkanRenderpass &pass : renderpasses) {
+        if ((id & pass.getId()) != 0) {
+            return pass;
+        }
+    }
+
+    Logger::logFatal("Failed to retrieve renderpass: " + std::to_string(id));
+    return renderpasses[0];
+}
+
+VkFramebuffer& VulkanContext::getCurrentFramebuffer(const EngineRenderpasses id) {
+    for (VulkanRenderpass &pass : renderpasses) {
+        if (pass.getId() == id) {
+            return pass.getFramebuffer(imageIndex);
+        }
+    }
+
+    Logger::logFatal("Renderpass does not exist: " + std::to_string(id));
+    throw;
+}
+
 void VulkanContext::destroyContext() {
     geometries.shutdown();
+    renderpasses.shutdown();
 
     FF_Memory::ff_clear(&device.getSwapChainSupportInfo().capabilities, sizeof(device.getSwapChainSupportInfo().capabilities));
 

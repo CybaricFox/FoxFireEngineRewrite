@@ -346,6 +346,11 @@ struct Vertex3d {
     Vector2f textureCoordinate;
 };
 
+struct Vertex2d {
+    Vector2f position;
+    Vector2f textureCoordinate;
+};
+
 inline constexpr float FF_PI = 3.14159265358979323846f;
 inline constexpr float FF_INFINITY = 1e30f;
 inline constexpr float FF_EPSILON = 1.192092869e-07f;

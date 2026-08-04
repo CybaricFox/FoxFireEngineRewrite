@@ -5,7 +5,6 @@
 #pragma once
 #include "IGeometrySystem.h"
 #include "IMaterialSystem.h"
-#include "IRenderSystem.h"
 #include "ITextureSystem.h"
 #include "RendererBackend.h"
 #include "src/defines.h"
@@ -16,8 +15,10 @@ private:
     //Backend Renderer
     RendererBackend* backend = nullptr;
     //Camera projection
-    Mat4 projection{};
-    Mat4 view{};
+    Mat4 worldProjection{};
+    Mat4 worldView{};
+    Mat4 uiProjection{};
+    Mat4 uiView{};
     float nearClip = 0.1f;
     float farClip = 1000.0f;
 
@@ -28,11 +29,13 @@ private:
     //Geometry Manager
     IGeometrySystem* geometrySystem = nullptr;
 
-    DynamicArray<IRenderSystem> renderSystems{};
+    DynamicArray<RenderpassProfile> renderpassProfiles{};
+    DynamicArray<RenderSystemProfile> renderSystemProfiles{};
+    bool bIsInitialized = false;
 
-    [[nodiscard]] bool beginFrame(float deltaTime) const;
-    [[nodiscard]] bool endFrame(float deltaTime) const;
     Texture createBlankTexture();
+    void createRenderpasses();
+    void createRenderSystems();
 
 public:
     bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, unsigned int width, unsigned int height, ResourceSystem
@@ -55,6 +58,8 @@ public:
     [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName) const;
     void releaseTexture(const String &name) const;
     Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) const;
+    void addRenderpassProfile(const RenderpassProfile &profile);
+    void addRenderSystemprofile(const RenderSystemProfile& profile);
 
     [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
         float xTile, float yTile, const String &name, const String &materialName) const;

@@ -4,28 +4,38 @@
 
 #include "VulkanRenderpass.h"
 
+#include "VulkanBackend.h"
 #include "VulkanUtils.h"
 
-void VulkanRenderpass::beginRenderpass(VulkanCommandBuffer& commandBuffer, VkFramebuffer frameBuffer) {
+void VulkanRenderpass::beginRenderpass(VulkanCommandBuffer& commandBuffer, VkFramebuffer frameBuffer) const {
     VkRenderPassBeginInfo beginInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     beginInfo.renderPass = handle;
     beginInfo.framebuffer = frameBuffer;
-    beginInfo.renderArea.offset.x = x;
-    beginInfo.renderArea.offset.y = y;
-    beginInfo.renderArea.extent.width = w;
-    beginInfo.renderArea.extent.height = h;
+    beginInfo.renderArea.offset.x = renderArea.x;
+    beginInfo.renderArea.offset.y = renderArea.y;
+    beginInfo.renderArea.extent.width = renderArea.z;
+    beginInfo.renderArea.extent.height = renderArea.w;
+
+    beginInfo.clearValueCount = 0;
+    beginInfo.pClearValues = nullptr;
 
     VkClearValue clearValues[2];
     FF_Memory::ff_clear(clearValues, sizeof(VkClearValue) * 2);
-    clearValues[0].color.float32[0] = r;
-    clearValues[0].color.float32[1] = g;
-    clearValues[0].color.float32[2] = b;
-    clearValues[0].color.float32[3] = a;
-    clearValues[1].depthStencil.depth = depth;
-    clearValues[1].depthStencil.stencil = stencil;
 
-    beginInfo.clearValueCount = 2;
-    beginInfo.pClearValues = clearValues;
+    if ((clearFlags & RENDERPASS_CLEAR_COLOR) != 0) {
+        FF_Memory::ff_copy(clearValues[beginInfo.clearValueCount].color.float32, clearColor.elements, sizeof(float) * 4);
+        beginInfo.clearValueCount++;
+    }
+    if ((clearFlags & RENDERPASS_CLEAR_DEPTH) != 0) {
+        FF_Memory::ff_copy(clearValues[beginInfo.clearValueCount].color.float32, clearColor.elements, sizeof(float) * 4);
+        clearValues[beginInfo.clearValueCount].depthStencil.depth = depth;
+
+        const bool doClearStencil = (clearFlags & RENDERPASS_CLEAR_STENCIL) != 0;
+        clearValues[beginInfo.clearValueCount].depthStencil.stencil = doClearStencil ? stencil : 0;
+        beginInfo.clearValueCount++;
+    }
+
+    beginInfo.pClearValues = beginInfo.clearValueCount > 0 ? clearValues : nullptr;
 
     vkCmdBeginRenderPass(commandBuffer.getHandle(), &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
     commandBuffer.setState(IN_RENDER_PASS);
@@ -36,40 +46,30 @@ void VulkanRenderpass::endRenderpass(VulkanCommandBuffer& commandBuffer) {
     commandBuffer.setState(RECORDING);
 }
 
-void VulkanRenderpass::createRenderpass(float newX, float newY, float newW, float newH, float newR,
-                                                    float newG, float newB, float newA, float newDepth,
-                                                    unsigned int newStencil, VkSurfaceFormatKHR &format,
-                                                    VulkanDevice &device) {
-    x = newX;
-    y = newY;
-    w = newW;
-    h = newH;
-    r = newR;
-    g = newG;
-    b = newB;
-    a = newA;
+void VulkanRenderpass::createRenderpass(Vector4f render, float newDepth, unsigned int newStencil, VkSurfaceFormatKHR &format, VulkanDevice &device) {
+    renderArea = render;
     depth = newDepth;
     stencil = newStencil;
 
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-    constexpr unsigned int attachmentCount = 2;
-    VkAttachmentDescription attachments[attachmentCount];
+    DynamicArray<VkAttachmentDescription> attachments{1};
 
     //Color attachment
+    bool doClearColor = (clearFlags & RENDERPASS_CLEAR_COLOR) != 0;
     VkAttachmentDescription colorAttachment;
     colorAttachment.format = format.format;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.loadOp = doClearColor ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    colorAttachment.initialLayout = bHasPreviousPass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = bHasNextPass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     colorAttachment.flags = 0;
 
-    attachments[0] = colorAttachment;
+    attachments.push(colorAttachment);
 
     VkAttachmentReference colorAttachmentReference;
     colorAttachmentReference.attachment = 0;
@@ -79,23 +79,28 @@ void VulkanRenderpass::createRenderpass(float newX, float newY, float newW, floa
     subpass.pColorAttachments = &colorAttachmentReference;
 
     //Depth attachment
-    VkAttachmentDescription depthAttachment{};
-    depthAttachment.format = device.getDepthFormat();
-    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    bool doClearDepth = (clearFlags & RENDERPASS_CLEAR_DEPTH) != 0;
+    if (doClearDepth) {
+        VkAttachmentDescription depthAttachment{};
+        depthAttachment.format = device.getDepthFormat();
+        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachment.loadOp = doClearDepth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-    attachments[1] = depthAttachment;
+        attachments.push(depthAttachment);
 
-    VkAttachmentReference depthAttachmentReference;
-    depthAttachmentReference.attachment = 1;
-    depthAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        VkAttachmentReference depthAttachmentReference;
+        depthAttachmentReference.attachment = 1;
+        depthAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-    subpass.pDepthStencilAttachment = &depthAttachmentReference;
+        subpass.pDepthStencilAttachment = &depthAttachmentReference;
+    } else {
+        subpass.pDepthStencilAttachment = nullptr;
+    }
 
     //Input from a shader
     subpass.inputAttachmentCount = 0;
@@ -120,8 +125,8 @@ void VulkanRenderpass::createRenderpass(float newX, float newY, float newW, floa
 
     //Create render pass
     VkRenderPassCreateInfo renderPassCreateInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    renderPassCreateInfo.attachmentCount = attachmentCount;
-    renderPassCreateInfo.pAttachments = attachments;
+    renderPassCreateInfo.attachmentCount = attachments.getLength();
+    renderPassCreateInfo.pAttachments = attachments.getData();
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpass;
     renderPassCreateInfo.dependencyCount = 1;
@@ -132,9 +137,25 @@ void VulkanRenderpass::createRenderpass(float newX, float newY, float newW, floa
     VulkanUtils::vulkanCheck(vkCreateRenderPass(device.getLogicalDevice(), &renderPassCreateInfo, nullptr, &handle));
 }
 
+void VulkanRenderpass::setupFramebuffers(const unsigned int count) {
+    framebuffers.initialize(count);
+    for (int i = 0; i < count; ++i) {
+        framebuffers.emplace();
+    }
+}
+
+void VulkanRenderpass::destroyFramebuffers(VulkanDevice &device) {
+    for (VkFramebuffer& framebuffer : framebuffers) {
+        vkDestroyFramebuffer(device.getLogicalDevice(), framebuffer, nullptr);
+    }
+}
+
 void VulkanRenderpass::destroyRenderpass(VulkanDevice& device) {
     if (handle) {
+        destroyFramebuffers(device);
         vkDestroyRenderPass(device.getLogicalDevice(), handle, nullptr);
         handle = nullptr;
     }
+
+    framebuffers.shutdown();
 }

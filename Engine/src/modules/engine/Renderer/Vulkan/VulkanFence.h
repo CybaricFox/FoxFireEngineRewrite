@@ -7,7 +7,7 @@
 #include "VulkanDevice.h"
 
 
-class VulkanFence {
+class FOXFIRE_DEPRECATED VulkanFence {
 private:
     VkFence handle{};
     bool bIsSignaled = false;

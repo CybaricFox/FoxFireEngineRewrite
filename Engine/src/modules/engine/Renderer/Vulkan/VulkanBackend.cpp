@@ -65,9 +65,8 @@ bool VulkanBackend::recreateSwapchain() {
             vulkanContext.getCommandBuffer(i).freeCommandBuffer(vulkanContext.getDevice());
         }
     }
-    for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
-        vulkanContext.getSwapchain().destroyFramebuffer(i, vulkanContext.getDevice());
-    }
+
+    vulkanContext.destroyFramebuffers();
 
     vulkanContext.getSwapchain().destroySwapchain(vulkanContext.getDevice());
 
@@ -78,18 +77,16 @@ bool VulkanBackend::recreateSwapchain() {
 
     vulkanContext.setWidth(cachedWidth);
     vulkanContext.setHeight(cachedHeight);
-    vulkanContext.getRenderpass().setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
-    vulkanContext.getRenderpass().setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
+    vulkanContext.getRenderpass(ENGINE_RENDER_PASS_WORLD).setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
+    vulkanContext.getRenderpass(ENGINE_RENDER_PASS_WORLD).setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
     cachedWidth = 0;
     cachedHeight = 0;
+
     vulkanContext.getSwapchain().finishResize();
 
-    vulkanContext.getRenderpass().setX(0);
-    vulkanContext.getRenderpass().setY(0);
-    vulkanContext.getRenderpass().setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
-    vulkanContext.getRenderpass().setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
+    vulkanContext.getRenderpass(ENGINE_RENDER_PASS_WORLD).setRenderArea({0, 0, static_cast<float>(vulkanContext.getFrameBufferWidth()), static_cast<float>(vulkanContext.getFrameBufferHeight())});
 
-    vulkanContext.getSwapchain().regenerateFramebuffers(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getRenderpass(), vulkanContext.getDevice());
+    vulkanContext.getSwapchain().regenerateFramebuffers(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getRenderpasses(), vulkanContext.getDevice());
 
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
         vulkanContext.getCommandBuffer(i).allocateCommandBuffer(true, vulkanContext.getDevice());
@@ -163,6 +160,30 @@ void VulkanBackend::freeRangeOfData(VulkanBuffer &buffer, unsigned long offset, 
 
 }
 
+bool VulkanBackend::beginRenderpass(const unsigned char renderpassId) {
+    VulkanRenderpass& renderpass = vulkanContext.getRenderpass(renderpassId);
+    VkFramebuffer frameBuffer = renderpass.getFramebuffer(vulkanContext.getImageIndex());
+    VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
+
+    renderpass.beginRenderpass(commandBuffer, frameBuffer);
+
+    for (VulkanShader& shader : shaders) {
+        if ((shader.getType() & renderpass.getId()) != 0) {
+            shader.use(vulkanContext);
+        }
+    }
+
+    return true;
+}
+
+bool VulkanBackend::endRenderpass(const unsigned char renderpassId) {
+    VulkanRenderpass& renderpass = vulkanContext.getRenderpass(renderpassId);
+    VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
+
+    renderpass.endRenderpass(commandBuffer);
+    return true;
+}
+
 void VulkanBackend::resize(const unsigned short width, const unsigned short height) {
     cachedWidth = width;
     cachedHeight = height;
@@ -175,7 +196,10 @@ VulkanBackend::~VulkanBackend() {
     vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
 
     //Destroy shader modules
-    vulkanShader.destroy(vulkanContext);
+    for (VulkanShader& shader : shaders) {
+        shader.destroy(vulkanContext);
+    }
+    shaders.shutdown();
 
     Logger::logDebug("Destroying sync objects");
     //Destroy sync objects
@@ -192,13 +216,9 @@ VulkanBackend::~VulkanBackend() {
     }
     vulkanContext.destroyCommandBuffers();
 
-    Logger::logDebug("Destroying frame buffers.");
-    for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
-        vulkanContext.getSwapchain().destroyFramebuffer(i, vulkanContext.getDevice());
-    }
+    Logger::logDebug("Destroying Renderpasses and Framebuffers.");
+    vulkanContext.destroyRenderpasses();
 
-    Logger::logDebug("Destroying Renderpass.");
-    vulkanContext.getRenderpass().destroyRenderpass(vulkanContext.getDevice());
     Logger::logDebug("Destroying Swapchain.");
     vulkanContext.getSwapchain().destroySwapchain(vulkanContext.getDevice());
     vulkanContext.destroyContext();
@@ -310,14 +330,14 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
 
     vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame());
 
-    vulkanContext.getRenderpass().createRenderpass(0, 0,
-        static_cast<float>(vulkanContext.getFrameBufferWidth()),
-        static_cast<float>(vulkanContext.getFrameBufferHeight()), 0, 0, 0.2f, 1,
-        1, 0, vulkanContext.getSwapchain().getImageFormat(), vulkanContext.getDevice());
+    for (VulkanRenderpass& renderpass : vulkanContext.getRenderpasses()) {
+        renderpass.createRenderpass(
+            {0, 0, static_cast<float>(vulkanContext.getFrameBufferWidth()), static_cast<float>(vulkanContext.getFrameBufferHeight())},
+            1, 0, vulkanContext.getSwapchain().getImageFormat(), vulkanContext.getDevice());
+    }
 
-    vulkanContext.getSwapchain().createFramebuffers();
-
-    vulkanContext.getSwapchain().regenerateFramebuffers(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getRenderpass(), vulkanContext.getDevice());
+    vulkanContext.createFramebuffers();
+    vulkanContext.getSwapchain().regenerateFramebuffers(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getRenderpasses(), vulkanContext.getDevice());
 
     Logger::logInfo("Creating and allocating command buffers");
     allocateCommandBuffers();
@@ -329,7 +349,10 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     for (unsigned char i = 0; i < vulkanContext.getSwapchain().getMaxFramesInFlight(); i++) {
         VkSemaphoreCreateInfo semCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
         vkCreateSemaphore(vulkanContext.getDevice().getLogicalDevice(), &semCreateInfo, nullptr, &vulkanContext.getImageAvailableSemaphores()[i]);
-        vulkanContext.getFenceInFlight(i).createFence(vulkanContext.getDevice(), true);
+
+        VkFenceCreateInfo fenceCreateInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        VulkanUtils::vulkanCheck(vkCreateFence(vulkanContext.getDevice().getLogicalDevice(), &fenceCreateInfo, nullptr, &vulkanContext.getFenceInFlight(i)));
     }
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
         VkSemaphoreCreateInfo semCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
@@ -340,15 +363,17 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     vulkanContext.clearImagesInFlight();
 
     //Create shader system
-    if (!vulkanShader.initialize(vulkanContext, resources)) {
-        Logger::logError("Failed to initialize Vulkan shaders.");
-        return false;
+    for (VulkanShader& shader : shaders) {
+        if (!shader.initialize(vulkanContext, resources)) {
+            Logger::logError("Failed to initialize Vulkan shaders.");
+            return false;
+        }
     }
 
-    vulkanShader.createBuffers(vulkanContext);
+    shaders[0].createBuffers(vulkanContext);
 
     Logger::logInfo("Vulkan renderer initialized");
-    return RendererBackend::initialize(appName, platform, width, height, resources);
+    return true;
 }
 
 void VulkanBackend::setVersion(const GameInstance& gameInstance) {
@@ -385,9 +410,9 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
         return false;
     }
 
-    if (!vulkanContext.getCurrentInFlightFence().waitForFence(vulkanContext.getDevice(), UINT32_MAX)) {
-        Logger::logWarn("In flight fence failed to wait.");
-        return false;
+    VkResult result = vkWaitForFences(vulkanContext.getDevice().getLogicalDevice(), 1, &vulkanContext.getCurrentInFlightFence(), true, UINT64_MAX);
+    if (!VulkanUtils::vulkanCheck(result)) {
+        Logger::logError("In Flight Fence failed to wait! Error: " + VulkanUtils::getResultAsString(result, true));
     }
 
     if (!swapchainAcquireNextImageIndex(UINT32_MAX, vulkanContext.getCurrentImageAvailable(), nullptr, vulkanContext.getImageIndex())) {
@@ -414,25 +439,26 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
     vkCmdSetViewport(vulkanContext.getCurrentCommandBuffer().getHandle(), 0, 1, &viewport);
     vkCmdSetScissor(vulkanContext.getCurrentCommandBuffer().getHandle(), 0, 1, &scissor);
 
-    vulkanContext.getRenderpass().setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
-    vulkanContext.getRenderpass().setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
-
-    vulkanContext.getRenderpass().beginRenderpass(vulkanContext.getCurrentCommandBuffer(), vulkanContext.getCurrentFramebuffer().handle);
+    vulkanContext.getRenderpass(ENGINE_RENDER_PASS_WORLD).setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
+    vulkanContext.getRenderpass(ENGINE_RENDER_PASS_WORLD).setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
 
     return true;
 }
 
 bool VulkanBackend::endFrame(const float deltaTime) {
-    vulkanContext.getRenderpass().endRenderpass(vulkanContext.getCurrentCommandBuffer());
     vulkanContext.getCurrentCommandBuffer().endCommandBuffer();
 
-    //make sure the precious fence cannot grab this new frame
+    //make sure the previous fence cannot grab this new frame
     if (vulkanContext.getCurrentImageInFlight() != nullptr) {
-        vulkanContext.getCurrentImageInFlight()->waitForFence(vulkanContext.getDevice(), UINT32_MAX);
+        VkResult result = vkWaitForFences(vulkanContext.getDevice().getLogicalDevice(), 1, vulkanContext.getCurrentImageInFlight(), true, UINT64_MAX);
+        if (!VulkanUtils::vulkanCheck(result)) {
+            Logger::logFatal("Image in flight failed to wait: " + VulkanUtils::getResultAsString(result, true));
+            return false;
+        }
     }
 
     vulkanContext.updateCurrentImageInFlight();
-    vulkanContext.getCurrentInFlightFence().resetFence(vulkanContext.getDevice());
+    VulkanUtils::vulkanCheck(vkResetFences(vulkanContext.getDevice().getLogicalDevice(), 1, &vulkanContext.getCurrentInFlightFence()));
 
     VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submitInfo.commandBufferCount = 1;
@@ -444,7 +470,7 @@ bool VulkanBackend::endFrame(const float deltaTime) {
     constexpr VkPipelineStageFlags flags[1]{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.pWaitDstStageMask = flags;
 
-    VkResult result = vkQueueSubmit(vulkanContext.getDevice().getGraphicsQueue(), 1, &submitInfo, vulkanContext.getCurrentInFlightFence().getFence());
+    VkResult result = vkQueueSubmit(vulkanContext.getDevice().getGraphicsQueue(), 1, &submitInfo, vulkanContext.getCurrentInFlightFence());
 
     if (!VulkanUtils::vulkanCheck(result)) {
         Logger::logError("vkQueueSubmit failed with result: " + VulkanUtils::getResultAsString(result, true));
@@ -457,13 +483,30 @@ bool VulkanBackend::endFrame(const float deltaTime) {
     return true;
 }
 
-void VulkanBackend::updateGlobalState(const Mat4 projection, const Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) {
-    vulkanShader.use(vulkanContext);
+void VulkanBackend::updateWorldGlobalState(const Mat4 projection, const Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) {
+    for (VulkanShader& shader : shaders) {
+        if ((shader.getType() & ENGINE_RENDER_PASS_WORLD) != 0) {
+            shader.use(vulkanContext);
 
-    vulkanShader.getUBO().projection = projection;
-    vulkanShader.getUBO().view = view;
+            shader.getUBO().projection = projection;
+            shader.getUBO().view = view;
 
-    vulkanShader.updateGlobalState(vulkanContext);
+            shader.updateGlobalState(vulkanContext);
+        }
+    }
+}
+
+void VulkanBackend::updateUIGlobalState(const Mat4 projection, const Mat4 view, int mode) {
+    for (VulkanShader& shader : shaders) {
+        if ((shader.getType() & ENGINE_RENDER_PASS_UI) != 0) {
+            shader.use(vulkanContext);
+
+            shader.getUBO().projection = projection;
+            shader.getUBO().view = view;
+
+            shader.updateGlobalState(vulkanContext);
+        }
+    }
 }
 
 void VulkanBackend::drawGeometry(const GeometryRenderData &data, Texture& defaultTexture, Material& defaultMaterial) {
@@ -475,8 +518,8 @@ void VulkanBackend::drawGeometry(const GeometryRenderData &data, Texture& defaul
     const GeometryData& bufferData = vulkanContext.getGeometry(data.geometry->internalId);
     VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
 
-    vulkanShader.use(vulkanContext);
-    vulkanShader.setModel(vulkanContext, data.model);
+    shaders[0].use(vulkanContext);
+    shaders[0].setModel(vulkanContext, data.model);
 
     Material* material = nullptr;
     if (data.geometry->material) {
@@ -485,7 +528,7 @@ void VulkanBackend::drawGeometry(const GeometryRenderData &data, Texture& defaul
         material = &defaultMaterial;
     }
 
-    vulkanShader.applyMaterial(vulkanContext, *material, defaultTexture);
+    shaders[0].applyMaterial(vulkanContext, *material, defaultTexture);
 
     VkDeviceSize offsets[1] = {bufferData.vertexBufferOffset};
 
@@ -569,7 +612,7 @@ void VulkanBackend::destroyTexture(Texture &texture) {
 }
 
 bool VulkanBackend::createMaterial(Material &material) {
-    if (!vulkanShader.aquireResources(vulkanContext, material)) {
+    if (!shaders[0].aquireResources(vulkanContext, material)) {
         Logger::logError("Vulkan Backend failed to acquire material resources.");
         return false;
     }
@@ -580,7 +623,7 @@ bool VulkanBackend::createMaterial(Material &material) {
 
 void VulkanBackend::destroyMaterial(Material &material) {
     if (material.internalId != INVALID_ID) {
-        vulkanShader.releaseResources(vulkanContext, material);
+        shaders[0].releaseResources(vulkanContext, material);
     } else {
         Logger::logWarn("Vulkan Backend tried to destroy a material with an INVALID_ID.");
     }
@@ -671,4 +714,25 @@ void VulkanBackend::destroyGeometry(Geometry &geometry) {
 
     //Reset data
     data = GeometryData{};
+}
+
+void VulkanBackend::createRenderpass(const RenderpassProfile profile) {
+    VulkanRenderpass renderpass{};
+    renderpass.setId(profile.id);
+    renderpass.setClearFlags(profile.clearFlags);
+    renderpass.setClearColor(profile.clearColor);
+
+    vulkanContext.addRenderpass(renderpass);
+}
+
+void VulkanBackend::createRenderSystem(const RenderSystemProfile profile) {
+    if (shaders.getLength() == 0) shaders.initialize(1);
+
+    VulkanShader shader{};
+    shader.setRenderType(profile.type);
+    //Make a copy of profile because it will get deleted
+    const RenderSystemProfile copyProfile = profile;
+    shader.setProfile(copyProfile);
+
+    shaders.push(std::move(shader));
 }

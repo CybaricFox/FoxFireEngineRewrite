@@ -154,48 +154,26 @@ bool VulkanSwapchain::detectDepthFormat(VulkanDevice& device) {
     return false;
 }
 
-void VulkanSwapchain::destroyFramebuffer(const unsigned int index, VulkanDevice& device) {
-    if (framebuffers[index].handle) {
-        vkDestroyFramebuffer(device.getLogicalDevice(), framebuffers[index].handle, nullptr);
-        framebuffers[index].handle = nullptr;
+void VulkanSwapchain::regenerateFramebuffers(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, DynamicArray<VulkanRenderpass>& renderpasses, VulkanDevice& device) {
+    for (VulkanRenderpass& renderpass : renderpasses) {
+        for (unsigned int i = 0; i < imageCount; i++) {
+            DynamicArray<VkImageView> attachments{1};
+            attachments.push(imageViews[i]);
+
+            if (renderpass.usesDepth()) attachments.push(depthAttachment.getImageView());
+
+            unsigned int attachmentCount = attachments.getLength();
+            VkFramebufferCreateInfo frameBufferCreateInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+            frameBufferCreateInfo.renderPass = renderpass.getHandle();
+            frameBufferCreateInfo.attachmentCount = attachmentCount;
+            frameBufferCreateInfo.pAttachments = attachments.getData();
+            frameBufferCreateInfo.width = frameBufferWidth;
+            frameBufferCreateInfo.height = frameBufferHeight;
+            frameBufferCreateInfo.layers = 1;
+
+            VulkanUtils::vulkanCheck(vkCreateFramebuffer(device.getLogicalDevice(), &frameBufferCreateInfo, nullptr, &renderpass.getFramebuffer(i)));
+        }
     }
-
-    if (framebuffers[index].attachments) {
-        FF_Memory::ff_free(framebuffers[index].attachments, sizeof(VkImageView) * framebuffers[index].attachmentCount, RENDER);
-        framebuffers[index].attachments = nullptr;
-    }
-
-    framebuffers[index].attachmentCount = 0;
-    framebuffers[index].renderpass = nullptr;
-}
-
-void VulkanSwapchain::regenerateFramebuffers(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, VulkanRenderpass& renderpass, VulkanDevice& device) {
-    for (unsigned int i = 0; i < imageCount; i++) {
-        constexpr unsigned int attachmentCount = 2;
-        const VkImageView attachments[]{imageViews[i], depthAttachment.getImageView()};
-
-        createFramebuffer(frameBufferWidth, frameBufferHeight, attachmentCount, attachments, framebuffers[i], renderpass, device);
-    }
-}
-
-void VulkanSwapchain::createFramebuffer(const unsigned int width, const unsigned int height, const unsigned int attachmentCount, const VkImageView* view, VulkanFramebuffer& framebuffer, VulkanRenderpass& renderpass, VulkanDevice& device) {
-    framebuffer.attachments = static_cast<VkImageView*>(FF_Memory::ff_allocate(sizeof(VkImageView) * attachmentCount, RENDER));
-    for (unsigned int i = 0; i < attachmentCount; i++) {
-        framebuffer.attachments[i] = view[i];
-    }
-
-    framebuffer.renderpass = &renderpass;
-    framebuffer.attachmentCount = attachmentCount;
-
-    VkFramebufferCreateInfo frameBufferCreateInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    frameBufferCreateInfo.renderPass = renderpass.getHandle();
-    frameBufferCreateInfo.attachmentCount = attachmentCount;
-    frameBufferCreateInfo.pAttachments = framebuffer.attachments;
-    frameBufferCreateInfo.width = width;
-    frameBufferCreateInfo.height = height;
-    frameBufferCreateInfo.layers = 1;
-
-    VulkanUtils::vulkanCheck(vkCreateFramebuffer(device.getLogicalDevice(), &frameBufferCreateInfo, nullptr, &framebuffer.handle));
 }
 
 void VulkanSwapchain::destroySwapchain(VulkanDevice& device) {
@@ -226,8 +204,4 @@ void VulkanSwapchain::destroySwapchain(VulkanDevice& device) {
     }
 
     imageCount = 0;
-}
-
-void VulkanSwapchain::createFramebuffers() {
-    framebuffers = static_cast<VulkanFramebuffer *>(FF_Memory::ff_allocate(sizeof(VulkanFramebuffer) * imageCount, ARRAY));
 }

@@ -20,6 +20,7 @@ public:
 
     bool createPipeline(
         VulkanRenderpass &renderpass,
+        unsigned int stride,
         unsigned int attributeCount,
         VkVertexInputAttributeDescription *attributes,
         unsigned int descriptorSetLayoutCount,
@@ -28,6 +29,8 @@ public:
         VkPipelineShaderStageCreateInfo *shaderStages,
         VkViewport viewport,
         VkRect2D scissor,
-        bool bIsWireframe, VulkanDevice &device
+        bool bIsWireframe,
+        bool bDepthTestEnabled,
+        VulkanDevice &device
     );
 };

@@ -137,5 +137,31 @@ void Game::initialize(GameInstance &instance) {
     state->view = invertMatrix(state->view);
     state->bIsCameraDirty = true;
 
+    //User defined renderpasses
+    RenderpassProfile mainProfile{};
+    mainProfile.id = ENGINE_RENDER_PASS_WORLD;
+    mainProfile.clearFlags = RENDERPASS_CLEAR_COLOR | RENDERPASS_CLEAR_DEPTH | RENDERPASS_CLEAR_STENCIL;
+    mainProfile.clearColor = {0, 0, 0.2, 1};
+    masterRenderSystem.addRenderpassProfile(mainProfile);
+
+    RenderpassProfile uiProfile{};
+    uiProfile.id = ENGINE_RENDER_PASS_UI;
+    uiProfile.clearFlags = RENDERPASS_CLEAR_NONE;
+    uiProfile.clearColor = {0, 0, 0, 0};
+    masterRenderSystem.addRenderpassProfile(uiProfile);
+
+    //User defined shaders
+    RenderSystemProfile worldRenderSystem{};
+    worldRenderSystem.type = ENGINE_RENDER_PASS_WORLD;
+    worldRenderSystem.bIs2D = false;
+    worldRenderSystem.bDepthTestEnabled = true;
+    masterRenderSystem.addRenderSystemprofile(worldRenderSystem);
+
+    RenderSystemProfile uiRenderSystem{};
+    uiRenderSystem.type = ENGINE_RENDER_PASS_UI;
+    uiRenderSystem.bIs2D = false;
+    worldRenderSystem.bDepthTestEnabled = false;
+    masterRenderSystem.addRenderSystemprofile(uiRenderSystem);
+
     Engine::initialize(instance);
 }

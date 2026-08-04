@@ -5,39 +5,47 @@
 #pragma once
 #include <vulkan/vulkan.h>
 
-#include "VulkanState.h"
 #include "VulkanCommandBuffer.h"
-
+#include "src/modules/engine/Core/Engine.h"
+#include "src/modules/engine/Library/FF_Math.h"
+#include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 class VulkanRenderpass {
 private:
     VkRenderPass handle{};
-    float x = 0;
-    float y = 0;
-    float w = 0;
-    float h = 0;
-    float r = 0;
-    float g = 0;
-    float b = 0;
-    float a = 0;
+    Vector4f renderArea{};
+    Vector4f clearColor{};
     float depth = 0;
     unsigned int stencil = 0;
-    VulkanState state{};
+    unsigned char clearFlags = 0;
+    bool bHasPreviousPass = false;
+    bool bHasNextPass = false;
+
+    EngineRenderpasses id{};
+    DynamicArray<VkFramebuffer> framebuffers{};
 
 public:
     VkRenderPass& getHandle() { return handle; }
+    EngineRenderpasses getId() const { return id; }
+    [[nodiscard]] bool usesDepth() const { return (clearFlags & RENDERPASS_CLEAR_DEPTH) != 0; }
+    VkFramebuffer& getFramebuffer(const unsigned int index) { return framebuffers[index]; }
 
-    void setWidth(const float width) {w = width;}
-    void setHeight(const float height) {h = height;}
-    void setX(const float newX) {x = newX;}
-    void setY(const float newY) {y = newY;}
+    void setRenderArea(const Vector4f newRenderArea) { renderArea = newRenderArea; }
+    void setClearColor(const Vector4f color) { clearColor = color; }
+    void setClearFlags(const unsigned char newClearFlags) {clearFlags = newClearFlags;}
+    void setPreviousPass(const bool hasPrevious) { bHasPreviousPass = hasPrevious; }
+    void setNextPass(const bool hasNext) { bHasNextPass = hasNext; }
+    void setWidth(const float width) { renderArea.z = width; }
+    void setHeight(const float height) { renderArea.w = height; }
+    void setId(const EngineRenderpasses newId) {id = newId;}
 
     void destroyRenderpass(VulkanDevice &device);
-    void beginRenderpass(VulkanCommandBuffer& commandBuffer, VkFramebuffer frameBuffer);
+    void beginRenderpass(VulkanCommandBuffer& commandBuffer, VkFramebuffer frameBuffer) const;
     void endRenderpass(VulkanCommandBuffer& commandBuffer);
 
-    void createRenderpass(float newX, float newY, float newW, float newH, float newR, float newG,
-                                      float newB,
-                                      float newA, float newDepth, unsigned int newStencil, VkSurfaceFormatKHR &format,
-                                      VulkanDevice &device);
+    void createRenderpass(
+        Vector4f render, float newDepth,
+        unsigned int newStencil, VkSurfaceFormatKHR &format, VulkanDevice &device);
+    void setupFramebuffers(unsigned int count);
+    void destroyFramebuffers(VulkanDevice &device);
 };

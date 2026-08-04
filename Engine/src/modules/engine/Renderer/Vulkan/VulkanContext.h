@@ -7,11 +7,9 @@
 
 #include "VulkanBuffer.h"
 #include "VulkanCommandBuffer.h"
-#include "VulkanFence.h"
 #include "VulkanSwapchain.h"
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/engine/Library/ReusableArray.h"
-#include "src/modules/engine/Renderer/GlobalUniform.h"
 
 class VulkanContext {
 private:
@@ -24,19 +22,19 @@ private:
     unsigned int currentFrame = 0;
     VulkanDevice device{};
     VulkanSwapchain swapchain{};
-    VulkanRenderpass renderpass{};
     VulkanCommandBuffer* commandBuffers = nullptr;
     VkSemaphore* imageAvailableSemaphores = nullptr;
     VkSemaphore* queueCompleteSemaphores = nullptr;
     unsigned int inFlightFenceCount = 0;
-    VulkanFence* inFlightFences = nullptr;
-    DynamicArray<VulkanFence*> imagesInFlight{};
+    VkFence inFlightFences[2]{};
+    DynamicArray<VkFence*> imagesInFlight{};
     VulkanBuffer vertexBuffer{};
     VulkanBuffer indexBuffer{};
     unsigned long geometryVertexOffset = 0;
     unsigned long geometryIndexOffset = 0;
     float deltaTime = 0.0f;
     ReusableArray<GeometryData> geometries{};
+    DynamicArray<VulkanRenderpass> renderpasses{};
 
 #if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT debugMessenger{};
@@ -50,26 +48,27 @@ public:
     VkInstance& getInstance() {return instance;}
     [[nodiscard]] unsigned int getFrameBufferWidth() const { return frameBufferWidth; }
     [[nodiscard]] unsigned int getFrameBufferHeight() const { return frameBufferHeight; }
-    VulkanRenderpass& getRenderpass() { return renderpass; }
+    VulkanRenderpass& getRenderpass(unsigned char id);
     [[nodiscard]] VulkanCommandBuffer* getCommandBuffers() const {return commandBuffers;}
     [[nodiscard]] VulkanCommandBuffer& getCommandBuffer(const unsigned int i) const {return commandBuffers[i];}
     VkSemaphore* getImageAvailableSemaphores() const { return imageAvailableSemaphores; }
     VkSemaphore* getQueueCompleteSemaphores() const { return queueCompleteSemaphores; }
-    [[nodiscard]] VulkanFence* getInFlightFences() const { return inFlightFences; }
-    [[nodiscard]] VulkanFence& getFenceInFlight(const unsigned int i) const {return inFlightFences[i];}
-    [[nodiscard]] VulkanFence& getCurrentInFlightFence() const {return inFlightFences[currentFrame];}
+    VkFence* getInFlightFences() { return inFlightFences; }
+    VkFence& getFenceInFlight(const unsigned int i) {return inFlightFences[i];}
+    VkFence& getCurrentInFlightFence() {return inFlightFences[currentFrame];}
     VkSemaphore& getCurrentImageAvailable() const {return imageAvailableSemaphores[currentFrame];}
     unsigned int& getImageIndex() { return imageIndex; }
     [[nodiscard]] VulkanCommandBuffer& getCurrentCommandBuffer() const {return commandBuffers[imageIndex];}
-    VulkanFence*& getCurrentImageInFlight() {return imagesInFlight[imageIndex];}
+    VkFence*& getCurrentImageInFlight() {return imagesInFlight[imageIndex];}
     VkSemaphore& getCurrentQueueCompleteSemaphore() const {return queueCompleteSemaphores[imageIndex];}
-    [[nodiscard]] VulkanFramebuffer& getCurrentFramebuffer() const {return swapchain.getFramebuffer(imageIndex);}
+    VkFramebuffer& getCurrentFramebuffer(EngineRenderpasses id);
     VulkanBuffer& getVertexBuffer() { return vertexBuffer; }
     VulkanBuffer& getIndexBuffer() { return indexBuffer; }
     [[nodiscard]] float getDeltaTime() const { return deltaTime; }
     GeometryData& getGeometry(const unsigned int id) { return geometries.get(id); }
     [[nodiscard]] unsigned long getGeometryVertexOffset() const { return geometryVertexOffset; }
     [[nodiscard]] unsigned long getGeometryIndexOffset() const { return geometryIndexOffset; }
+    DynamicArray<VulkanRenderpass>& getRenderpasses() { return renderpasses; }
 
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
     void setHeight(const unsigned int height) {frameBufferHeight = height;}
@@ -82,15 +81,19 @@ public:
     void setGeometryVertexOffset(const unsigned long offset) {geometryVertexOffset = offset;}
     void setGeometryIndexOffset(const unsigned long offset) {geometryIndexOffset = offset;}
     void initializeGeometry() {geometries.initialize(0);}
+    void initializeRenderpasses() {renderpasses.initialize(2);}
 
     VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}
 
     void destroyContext();
     void createCommandBuffers();
     void destroyCommandBuffers();
-    void destroyFences();
     void createSyncObjects();
     void destroySyncObjects();
     void clearImagesInFlight();
     [[nodiscard]] bool isCommandBufferValid(const unsigned int i) const {return &commandBuffers[i] != nullptr;}
+    void addRenderpass(VulkanRenderpass &newRenderpass);
+    void createFramebuffers();
+    void destroyRenderpasses();
+    void destroyFramebuffers();
 };

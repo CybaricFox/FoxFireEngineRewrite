@@ -23,10 +23,11 @@ void VulkanPipeline::bindPipeline(VulkanCommandBuffer &commandBuffer, VkPipeline
     vkCmdBindPipeline(commandBuffer.getHandle(), pipelineBindPoint, handle);
 }
 
-bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int attributeCount,
-    VkVertexInputAttributeDescription *attributes, unsigned int descriptorSetLayoutCount,
-    VkDescriptorSetLayout*descriptorSetLayouts, unsigned int stageCount, VkPipelineShaderStageCreateInfo *shaderStages,
-    VkViewport viewport, VkRect2D scissor, const bool bIsWireframe, VulkanDevice& device) {
+bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int stride,
+                                    unsigned int attributeCount, VkVertexInputAttributeDescription *attributes,
+                                    unsigned int descriptorSetLayoutCount, VkDescriptorSetLayout *descriptorSetLayouts, unsigned int stageCount,
+                                    VkPipelineShaderStageCreateInfo *shaderStages, VkViewport viewport, VkRect2D scissor, bool bIsWireframe, bool
+                                    bDepthTestEnabled, VulkanDevice &device) {
 
     VkPipelineViewportStateCreateInfo viewportState{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
     viewportState.viewportCount = 1;
@@ -54,13 +55,17 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int a
     multisampleInfo.alphaToCoverageEnable = false;
     multisampleInfo.alphaToOneEnable = false;
 
+    //Depth and stencil testing
     VkPipelineDepthStencilStateCreateInfo depthStencil{VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
-    depthStencil.depthTestEnable = true;
-    depthStencil.depthWriteEnable = true;
-    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
-    depthStencil.depthBoundsTestEnable = false;
-    depthStencil.stencilTestEnable = false;
+    if (bDepthTestEnabled) {
+        depthStencil.depthTestEnable = true;
+        depthStencil.depthWriteEnable = true;
+        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depthStencil.depthBoundsTestEnable = false;
+        depthStencil.stencilTestEnable = false;
+    }
 
+    //Color blend
     VkPipelineColorBlendAttachmentState colorBlendAttachmentState;
     FF_Memory::ff_clear(&colorBlendAttachmentState, sizeof(VkPipelineColorBlendAttachmentState));
     colorBlendAttachmentState.blendEnable = true;
@@ -88,7 +93,7 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int a
     //Vertex input
     VkVertexInputBindingDescription bindingDescription;
     bindingDescription.binding = 0; // index
-    bindingDescription.stride = sizeof(Vertex3d);
+    bindingDescription.stride = stride;
     bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; //input rate is 1 per vertex
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
@@ -124,7 +129,7 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int a
     graphicsPipelineInfo.pViewportState = &viewportState;
     graphicsPipelineInfo.pRasterizationState = &rasterizerInfo;
     graphicsPipelineInfo.pMultisampleState = &multisampleInfo;
-    graphicsPipelineInfo.pDepthStencilState = &depthStencil;
+    graphicsPipelineInfo.pDepthStencilState = bDepthTestEnabled ? &depthStencil : nullptr;
     graphicsPipelineInfo.pColorBlendState = &colorBlendInfo;
     graphicsPipelineInfo.pDynamicState = &dynamicStateInfo;
     graphicsPipelineInfo.pTessellationState = nullptr;

@@ -7,18 +7,49 @@
 #include "../Library/Logger.h"
 
 bool MasterRenderSystem::drawFrame(const RenderPacket& packet) const {
-    if (beginFrame(packet.deltaTime)) {
-        backend->updateGlobalState(projection, view, zeroVector3f(), oneVector4f(), 0);
+    if (!backend->beginFrame(packet.deltaTime)) {
+        return true;
+    }
 
-        const unsigned int count = packet.geometryCount;
-        for (unsigned int i = 0; i < count; i++) {
-            backend->drawGeometry(packet.geometries[i], textureSystem->getDefaultTexture(), materialSystem->getDefaultMaterial());
-        }
+    if (!backend->beginRenderpass(ENGINE_RENDER_PASS_WORLD)) {
+        Logger::logError("Backend failed to begin world renderpass!");
+        return false;
+    }
 
-        if (!endFrame(packet.deltaTime)) {
-            Logger::logFatal("Failed to end frame!");
-            return false;
-        }
+    backend->updateWorldGlobalState(worldProjection, worldView, zeroVector3f(), oneVector4f(), 0);
+
+    unsigned int count = packet.geometryCount;
+    for (unsigned int i = 0; i < count; i++) {
+        backend->drawGeometry(packet.geometries[i], textureSystem->getDefaultTexture(), materialSystem->getDefaultMaterial());
+    }
+
+    if (!backend->endRenderpass(ENGINE_RENDER_PASS_WORLD)) {
+        Logger::logFatal("Failed to end renderpass world!");
+        return false;
+    }
+
+    if (!backend->beginRenderpass(ENGINE_RENDER_PASS_UI)) {
+        Logger::logError("Backend failed to begin ui renderpass!");
+        return false;
+    }
+
+    backend->updateUIGlobalState(uiProjection, uiView, 0);
+
+    count = packet.uiGeometryCount;
+    for (unsigned int i = 0; i < count; i++) {
+        backend->drawGeometry(packet.uiGeometries[i], textureSystem->getDefaultTexture(), materialSystem->getDefaultMaterial());
+    }
+
+    if (!backend->endRenderpass(ENGINE_RENDER_PASS_UI)) {
+        Logger::logFatal("Failed to end renderpass ui!");
+        return false;
+    }
+
+    const bool result = backend->endFrame(packet.deltaTime);
+    backend->incrementFrameNumber();
+    if (!result) {
+        Logger::logError("Failed to end frame!");
+        return false;
     }
 
     return true;
@@ -26,7 +57,8 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) const {
 
 void MasterRenderSystem::onResize(const unsigned short width, const unsigned short height) {
     if (backend) {
-        projection = perspective(degreesToRadians(45.0f), static_cast<float>(width) / static_cast<float>(height), nearClip, farClip);
+        worldProjection = perspective(degreesToRadians(45.0f), static_cast<float>(width) / static_cast<float>(height), nearClip, farClip);
+        uiProjection = orthographic(0, width, height, 0, -100, 100);
         backend->resize(width, height);
     } else {
         Logger::logWarn("Backend cannot resize because it does not exist.");
@@ -46,21 +78,43 @@ Geometry & MasterRenderSystem::acquireGeometry(const GeometryConfig &config, con
     return geometrySystem->acquireGeometry(config, autoRelease);
 }
 
+void MasterRenderSystem::createRenderpasses() {
+    if (bIsInitialized || renderpassProfiles.getLength() == 0) return;
+
+    for (const RenderpassProfile& profile : renderpassProfiles) {
+        backend->createRenderpass(profile);
+    }
+
+    renderpassProfiles.shutdown();
+}
+
+void MasterRenderSystem::createRenderSystems() {
+    if (bIsInitialized || renderSystemProfiles.getLength() == 0) return;
+
+    for (const RenderSystemProfile& profile : renderSystemProfiles) {
+        backend->createRenderSystem(profile);
+    }
+
+    renderSystemProfiles.shutdown();
+}
+
+void MasterRenderSystem::addRenderpassProfile(const RenderpassProfile &profile) {
+    if (bIsInitialized) return;
+    if (renderpassProfiles.getLength() == 0) renderpassProfiles.initialize(1);
+    renderpassProfiles.push(profile);
+}
+
+void MasterRenderSystem::addRenderSystemprofile(const RenderSystemProfile &profile) {
+    if (bIsInitialized) return;
+    if (renderSystemProfiles.getLength() == 0) renderSystemProfiles.initialize(1);
+    renderSystemProfiles.push(profile);
+}
+
 GeometryConfig MasterRenderSystem::generatePlaneConfig(const float width, const float height, const unsigned int xCount,
                                                        const unsigned int yCount, const float xTile, const float yTile,
                                                        const String &name, const String &materialName) const {
 
     return geometrySystem->generatePlaneConfig(width, height, xCount, yCount, xTile, yTile, name, materialName);
-}
-
-bool MasterRenderSystem::beginFrame(const float deltaTime) const {
-    return backend->beginFrame(deltaTime);
-}
-
-bool MasterRenderSystem::endFrame(const float deltaTime) const {
-    const bool result = backend->endFrame(deltaTime);
-    backend->incrementFrameNumber();
-    return result;
 }
 
 Texture MasterRenderSystem::createBlankTexture() {
@@ -70,7 +124,7 @@ Texture MasterRenderSystem::createBlankTexture() {
 }
 
 void MasterRenderSystem::setView(const Mat4 &newView) {
-    view = newView;
+    worldView = newView;
 }
 
 bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, const unsigned int width, const unsigned int height, ResourceSystem& resources) {
@@ -82,14 +136,20 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
 
     backend->clearFrameNumber();
 
+    createRenderpasses();
+    createRenderSystems();
+    bIsInitialized = true;
     if (!backend->initialize(appName, platform, width, height, resources)) {
         Logger::logFatal("Renderer Backend failed to initialize!");
         return false;
     }
 
-    projection = perspective(degreesToRadians(45.0f), 1280 / 720.0f, nearClip, farClip);
-    view = createTranslationMatrix({0, 0, -30});
-    view = invertMatrix(view);
+    worldProjection = perspective(degreesToRadians(45.0f), 1280 / 720.0f, nearClip, farClip);
+    worldView = createTranslationMatrix({0, 0, -30});
+    worldView = invertMatrix(worldView);
+
+    uiProjection = orthographic(0, 1280, 720, 0, -100, 100);
+    uiView = invertMatrix(matrixIdentity());
 
     return true;
 }
