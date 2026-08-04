@@ -7,6 +7,7 @@
 MaterialLoader::MaterialLoader() {
     type = RESOURCE_TYPE_MATERIAL;
     path = "Materials";
+    memoryTag = MATERIAL;
 }
 
 bool MaterialLoader::load(const String name, Resource &outResource, const String basePath) {
@@ -14,15 +15,16 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
 
     const String finalPath = basePath + "/" + path + "/" + name + ".FoxMaterial";
 
-    outResource.path = finalPath;
-
     FileHandler file{};
     if (!file.openFile(finalPath, READ, false)) {
         Logger::logError("Material Loader failed to open material file for reading: " + finalPath);
         return false;
     }
 
+    outResource.path = finalPath;
+
     const auto resourceData = static_cast<MaterialResourceData *>(FF_Memory::ff_allocate(sizeof(MaterialResourceData), MATERIAL));
+    resourceData->materialType = MATERIAL_TYPE_WORLD;
     resourceData->bAutoRelease = true;
     resourceData->diffuseColor = oneVector4f();
     resourceData->name = name;
@@ -70,6 +72,9 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
             Logger::logDebug("Diffuse Map Name: " + value);
             resourceData->mapName = value;
         }
+        else if (variable == "type") {
+            if (value == "ui") resourceData->materialType = MATERIAL_TYPE_UI;
+        }
     }
 
     file.closeFile();
@@ -79,14 +84,4 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
     outResource.name = name;
 
     return true;
-}
-
-void MaterialLoader::unload(Resource &resource) {
-    if (resource.data) {
-        FF_Memory::ff_free(resource.data, resource.dataSize, MATERIAL);
-        resource.data = nullptr;
-        resource.dataSize = 0;
-        resource.loaderId = INVALID_ID;
-        resource.path.clear();
-    }
 }

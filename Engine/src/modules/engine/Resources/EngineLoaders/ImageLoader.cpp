@@ -11,6 +11,7 @@
 ImageLoader::ImageLoader() {
     type = RESOURCE_TYPE_IMAGE;
     path = "Textures";
+    memoryTag = TEXTURE;
 }
 
 bool ImageLoader::load(const String name, Resource &outResource, const String basePath) {
@@ -54,14 +55,4 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     outResource.name = name;
 
     return true;
-}
-
-void ImageLoader::unload(Resource &resource) {
-    if (resource.data) {
-        FF_Memory::ff_free(resource.data, resource.dataSize, TEXTURE);
-        resource.data = nullptr;
-        resource.dataSize = 0;
-        resource.loaderId = INVALID_ID;
-        resource.path.clear();
-    }
 }

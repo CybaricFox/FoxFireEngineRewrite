@@ -159,7 +159,7 @@ void Game::initialize(GameInstance &instance) {
 
     RenderSystemProfile uiRenderSystem{};
     uiRenderSystem.type = ENGINE_RENDER_PASS_UI;
-    uiRenderSystem.bIs2D = false;
+    uiRenderSystem.bIs2D = true;
     worldRenderSystem.bDepthTestEnabled = false;
     masterRenderSystem.addRenderSystemprofile(uiRenderSystem);
 

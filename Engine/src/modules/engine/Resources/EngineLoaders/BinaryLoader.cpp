@@ -6,6 +6,7 @@
 
 BinaryLoader::BinaryLoader() {
     type = RESOURCE_TYPE_BINARY;
+    memoryTag = ARRAY;
 }
 
 bool BinaryLoader::load(const String name, Resource &outResource, const String basePath) {
@@ -13,13 +14,13 @@ bool BinaryLoader::load(const String name, Resource &outResource, const String b
 
     const String finalPath = basePath + path + "/" + name;
 
-    outResource.path = finalPath;
-
     FileHandler file{};
     if (!file.openFile(finalPath, READ, true)) {
         Logger::logError("Binary Loader failed to open file for reading: " + finalPath);
         return false;
     }
+
+    outResource.path = finalPath;
 
     unsigned long fileSize = 0;
     if (!file.getFileSize(fileSize)) {
@@ -42,14 +43,4 @@ bool BinaryLoader::load(const String name, Resource &outResource, const String b
     outResource.name = name;
 
     return true;
-}
-
-void BinaryLoader::unload(Resource &resource) {
-    if (resource.data) {
-        FF_Memory::ff_free(resource.data, resource.dataSize, ARRAY);
-        resource.data = nullptr;
-        resource.dataSize = 0;
-        resource.loaderId = INVALID_ID;
-        resource.path.clear();
-    }
 }

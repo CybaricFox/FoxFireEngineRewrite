@@ -237,8 +237,8 @@ bool VulkanShader::initialize(VulkanContext &context, ResourceSystem &resources)
     constexpr VkShaderStageFlagBits stageTypes[STAGE_COUNT] = {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT};
 
     for (unsigned int i = 0; i < STAGE_COUNT; i++) {
-        if (!createShaderModule(context, FF_WORLD_SHADER, stageTypeStrings[i], stageTypes[i], i, resources)) {
-            Logger::logError("Unable to create " + stageTypeStrings[i] + " for " + FF_WORLD_SHADER);
+        if (!createShaderModule(context, (renderType & ENGINE_RENDER_PASS_WORLD) != 0 ? FF_WORLD_SHADER : FF_UI_SHADER, stageTypeStrings[i], stageTypes[i], i, resources)) {
+            Logger::logError("Unable to create " + stageTypeStrings[i] + " for " + ((renderType & ENGINE_RENDER_PASS_WORLD) != 0 ? FF_WORLD_SHADER : FF_UI_SHADER));
             return false;
         }
     }

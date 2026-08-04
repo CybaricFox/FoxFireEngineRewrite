@@ -101,6 +101,7 @@ bool FoxFire_MaterialSystem::createDefaultMaterial() {
 bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Material &material) const {
     material = Material{};
     material.name = config.name;
+    material.materialType = config.materialType;
     material.diffuseColor = config.diffuseColor;
     if (!config.mapName.empty()) {
         material.diffuseMap.use = TEXTURE_USE_MAP_DIFFUSE;

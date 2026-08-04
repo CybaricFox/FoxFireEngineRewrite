@@ -7,7 +7,7 @@
 Geometry & FoxFire_GeometrySystem::acquireGeometry(const unsigned int id) {
     if (id == INVALID_ID || geometries.get(id).geometry.id == INVALID_ID) {
         Logger::logError("Geometry system cannot load geometry with an invalid id!");
-        return defaultGeometry;
+        return default3DGeometry;
     }
 
     geometries.get(id).referenceCount++;
@@ -27,7 +27,7 @@ Geometry & FoxFire_GeometrySystem::acquireGeometry(const GeometryConfig &config,
 
     if (!createGeometry(config, *geometry)) {
         Logger::logError("Failed to create geometry!");
-        return defaultGeometry;
+        return default3DGeometry;
     }
 
     return *geometry;
@@ -84,10 +84,13 @@ GeometryConfig FoxFire_GeometrySystem::generatePlaneConfig(float width, float he
     }
 
     GeometryConfig config{};
+    config.vertexSize = sizeof(Vertex3d);
     config.vertexCount = xCount * yCount * 4; //4 vertices per segment
-    config.vertices = static_cast<Vertex3d *>(FF_Memory::ff_allocate(sizeof(Vertex3d) * config.vertexCount, ARRAY));
+    config.vertices = FF_Memory::ff_allocate(config.vertexSize * config.vertexCount, ARRAY);
+    config.indexSize = sizeof(unsigned int);
     config.indexCount = xCount * yCount * 6; //6 indices per segment
-    config.indices = static_cast<unsigned int *>(FF_Memory::ff_allocate(sizeof(unsigned int) * config.indexCount, ARRAY));
+    config.indices = FF_Memory::ff_allocate(config.indexSize * config.indexCount, ARRAY);
+
 
     const float segmentWidth = width / static_cast<float>(xCount);
     const float segmentHeight = height / static_cast<float>(yCount);
@@ -106,10 +109,10 @@ GeometryConfig FoxFire_GeometrySystem::generatePlaneConfig(float width, float he
             const float maxUVY = (static_cast<float>(y + 1) / static_cast<float>(yCount)) * yTile;
 
             const unsigned int vOffset = ((y * xCount) + x) * 4;
-            Vertex3d& v0 = config.vertices[vOffset + 0];
-            Vertex3d& v1 = config.vertices[vOffset + 1];
-            Vertex3d& v2 = config.vertices[vOffset + 2];
-            Vertex3d& v3 = config.vertices[vOffset + 3];
+            Vertex3d& v0 = static_cast<Vertex3d *>(config.vertices)[vOffset + 0];
+            Vertex3d& v1 = static_cast<Vertex3d *>(config.vertices)[vOffset + 1];
+            Vertex3d& v2 = static_cast<Vertex3d *>(config.vertices)[vOffset + 2];
+            Vertex3d& v3 = static_cast<Vertex3d *>(config.vertices)[vOffset + 3];
 
             v0.position.x = minX;
             v0.position.y = minY;
@@ -132,12 +135,12 @@ GeometryConfig FoxFire_GeometrySystem::generatePlaneConfig(float width, float he
             v3.textureCoordinate.y = minUVY;
 
             const unsigned int iOffset = ((y * xCount) + x) * 6;
-            config.indices[iOffset + 0] = vOffset + 0;
-            config.indices[iOffset + 1] = vOffset + 1;
-            config.indices[iOffset + 2] = vOffset + 2;
-            config.indices[iOffset + 3] = vOffset + 0;
-            config.indices[iOffset + 4] = vOffset + 3;
-            config.indices[iOffset + 5] = vOffset + 1;
+            static_cast<unsigned int *>(config.indices)[iOffset + 0] = vOffset + 0;
+            static_cast<unsigned int *>(config.indices)[iOffset + 1] = vOffset + 1;
+            static_cast<unsigned int *>(config.indices)[iOffset + 2] = vOffset + 2;
+            static_cast<unsigned int *>(config.indices)[iOffset + 3] = vOffset + 0;
+            static_cast<unsigned int *>(config.indices)[iOffset + 4] = vOffset + 3;
+            static_cast<unsigned int *>(config.indices)[iOffset + 5] = vOffset + 1;
         }
     }
 
@@ -156,35 +159,58 @@ GeometryConfig FoxFire_GeometrySystem::generatePlaneConfig(float width, float he
     return config;
 }
 
-bool FoxFire_GeometrySystem::createDefaultGeometry() {
-    Vertex3d vertices[4];
-    FF_Memory::ff_clear(vertices, sizeof(Vertex3d) * 4);
-
+bool FoxFire_GeometrySystem::createDefaultGeometries() {
     constexpr float f = 10.0f;
 
-    vertices[0].position = {-0.5 * f, -0.5f * f, 0};
-    vertices[0].textureCoordinate = {0, 0};
-    vertices[1].position = {0.5f * f, 0.5f * f, 0};
-    vertices[1].textureCoordinate = {1, 1};
-    vertices[2].position = {-0.5 * f, 0.5f * f, 0};
-    vertices[2].textureCoordinate = {0, 1};
-    vertices[3].position = {0.5 * f, -0.5f * f, 0};
-    vertices[3].textureCoordinate = {1, 0};
+    //3d geometry
+    Vertex3d vertices3D[4];
+    FF_Memory::ff_clear(vertices3D, sizeof(Vertex3d) * 4);
 
-    constexpr unsigned int indices[6] = {0, 1, 2, 0, 3, 1};
+    vertices3D[0].position = {-0.5 * f, -0.5f * f, 0};
+    vertices3D[0].textureCoordinate = {0, 0};
+    vertices3D[1].position = {0.5f * f, 0.5f * f, 0};
+    vertices3D[1].textureCoordinate = {1, 1};
+    vertices3D[2].position = {-0.5 * f, 0.5f * f, 0};
+    vertices3D[2].textureCoordinate = {0, 1};
+    vertices3D[3].position = {0.5 * f, -0.5f * f, 0};
+    vertices3D[3].textureCoordinate = {1, 0};
 
-    if (!backendRef->createGeometry(defaultGeometry, 4, vertices, 6, indices)) {
-        Logger::logFatal("Failed to create default geometry!");
+    unsigned int indices3D[6] = {0, 1, 2, 0, 3, 1};
+
+    if (!backendRef->createGeometry(default3DGeometry, sizeof(Vertex3d), 4, vertices3D, sizeof(unsigned int),6 , indices3D)) {
+        Logger::logFatal("Failed to create default 3D geometry!");
         return false;
     }
 
-    defaultGeometry.material = &materialSystemRef->getDefaultMaterial();
+    default3DGeometry.material = &materialSystemRef->getDefaultMaterial();
+
+    //2d geometry
+    Vertex3d vertices2D[4];
+    FF_Memory::ff_clear(vertices2D, sizeof(Vertex3d) * 4);
+
+    vertices2D[0].position = {-0.5 * f, -0.5f * f, 0};
+    vertices2D[0].textureCoordinate = {0, 0};
+    vertices2D[1].position = {0.5f * f, 0.5f * f, 0};
+    vertices2D[1].textureCoordinate = {1, 1};
+    vertices2D[2].position = {-0.5 * f, 0.5f * f, 0};
+    vertices2D[2].textureCoordinate = {0, 1};
+    vertices2D[3].position = {0.5 * f, -0.5f * f, 0};
+    vertices2D[3].textureCoordinate = {1, 0};
+
+    unsigned int indices2D[6] = {2, 1, 0, 3, 0, 1};
+
+    if (!backendRef->createGeometry(default2DGeometry, sizeof(Vertex2d), 4, vertices2D, sizeof(unsigned int),6 , indices2D)) {
+        Logger::logFatal("Failed to create default 2D geometry!");
+        return false;
+    }
+
+    default2DGeometry.material = &materialSystemRef->getDefaultMaterial();
 
     return true;
 }
 
 bool FoxFire_GeometrySystem::createGeometry(const GeometryConfig &config, Geometry &geometry) {
-    if (!backendRef->createGeometry(geometry, config.vertexCount, config.vertices, config.indexCount, config.indices)) {
+    if (!backendRef->createGeometry(geometry, config.vertexSize, config.vertexCount, config.vertices, config.indexSize, config.indexCount, config.indices)) {
         geometries.get(geometry.id).referenceCount = 0;
         geometries.get(geometry.id).bAutoRelease = false;
         geometry.id = INVALID_ID;
@@ -218,7 +244,7 @@ bool FoxFire_GeometrySystem::initialize(const unsigned initialCapacity, Renderer
 
     geometries.initialize(initialCapacity);
 
-    if (!createDefaultGeometry()) {
+    if (!createDefaultGeometries()) {
         Logger::logFatal("Failed to create default geometry");
         return false;
     }

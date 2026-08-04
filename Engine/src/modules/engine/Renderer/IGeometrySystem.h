@@ -14,10 +14,12 @@
 #define DEFAULT_GEOMETRY_NAME "default"
 
 struct GeometryConfig {
+    unsigned int vertexSize = 0;
     unsigned int vertexCount = 0;
-    Vertex3d* vertices = nullptr;
+    void* vertices = nullptr;
+    unsigned int indexSize = 0;
     unsigned int indexCount = 0;
-    unsigned int* indices = nullptr;
+    void* indices = nullptr;
     String name{};
     String materialName{};
     String materialPath{};
@@ -34,7 +36,8 @@ public:
 
     virtual bool initialize(unsigned int initialCapacity, RendererBackend* backend, IMaterialSystem* materialSystem, ResourceSystem* resources);
 
-    virtual Geometry& getDefaultGeometry() = 0;
+    virtual Geometry& getDefault3DGeometry() = 0;
+    virtual Geometry& getDefault2DGeometry() = 0;
 
     virtual GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount, float xTile, float yTile, const String &name, const String &materialName) = 0;
     virtual Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) = 0;

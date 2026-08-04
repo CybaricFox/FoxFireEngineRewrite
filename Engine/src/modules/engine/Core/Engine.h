@@ -41,6 +41,7 @@ private:
 
     //Remove Me
     Geometry* testGeometry = nullptr;
+    Geometry* testUIGeometry = nullptr;
 
     void initializeMemory();
 

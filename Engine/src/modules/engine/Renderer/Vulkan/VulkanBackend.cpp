@@ -77,14 +77,19 @@ bool VulkanBackend::recreateSwapchain() {
 
     vulkanContext.setWidth(cachedWidth);
     vulkanContext.setHeight(cachedHeight);
-    vulkanContext.getRenderpass(ENGINE_RENDER_PASS_WORLD).setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
-    vulkanContext.getRenderpass(ENGINE_RENDER_PASS_WORLD).setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
+    for (VulkanRenderpass& renderpass : vulkanContext.getRenderpasses()) {
+        renderpass.setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
+        renderpass.setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
+    }
+
     cachedWidth = 0;
     cachedHeight = 0;
 
     vulkanContext.getSwapchain().finishResize();
 
-    vulkanContext.getRenderpass(ENGINE_RENDER_PASS_WORLD).setRenderArea({0, 0, static_cast<float>(vulkanContext.getFrameBufferWidth()), static_cast<float>(vulkanContext.getFrameBufferHeight())});
+    for (VulkanRenderpass& renderpass : vulkanContext.getRenderpasses()) {
+        renderpass.setRenderArea({0, 0, static_cast<float>(vulkanContext.getFrameBufferWidth()), static_cast<float>(vulkanContext.getFrameBufferHeight())});
+    }
 
     vulkanContext.getSwapchain().regenerateFramebuffers(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getRenderpasses(), vulkanContext.getDevice());
 
@@ -439,8 +444,10 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
     vkCmdSetViewport(vulkanContext.getCurrentCommandBuffer().getHandle(), 0, 1, &viewport);
     vkCmdSetScissor(vulkanContext.getCurrentCommandBuffer().getHandle(), 0, 1, &scissor);
 
-    vulkanContext.getRenderpass(ENGINE_RENDER_PASS_WORLD).setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
-    vulkanContext.getRenderpass(ENGINE_RENDER_PASS_WORLD).setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
+    for (VulkanRenderpass& renderpass : vulkanContext.getRenderpasses()) {
+        renderpass.setWidth(static_cast<float>(vulkanContext.getFrameBufferWidth()));
+        renderpass.setHeight(static_cast<float>(vulkanContext.getFrameBufferHeight()));
+    }
 
     return true;
 }
@@ -518,9 +525,6 @@ void VulkanBackend::drawGeometry(const GeometryRenderData &data, Texture& defaul
     const GeometryData& bufferData = vulkanContext.getGeometry(data.geometry->internalId);
     VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
 
-    shaders[0].use(vulkanContext);
-    shaders[0].setModel(vulkanContext, data.model);
-
     Material* material = nullptr;
     if (data.geometry->material) {
         material = data.geometry->material;
@@ -528,7 +532,20 @@ void VulkanBackend::drawGeometry(const GeometryRenderData &data, Texture& defaul
         material = &defaultMaterial;
     }
 
-    shaders[0].applyMaterial(vulkanContext, *material, defaultTexture);
+    unsigned int index = INVALID_ID;
+    switch (material->materialType) {
+        case MATERIAL_TYPE_WORLD: {
+            index = 0;
+            break;
+        }
+        case MATERIAL_TYPE_UI: {
+            index = 1;
+            break;
+        }
+    }
+
+    shaders[index].setModel(vulkanContext, data.model);
+    shaders[index].applyMaterial(vulkanContext, *material, defaultTexture);
 
     VkDeviceSize offsets[1] = {bufferData.vertexBufferOffset};
 
@@ -612,7 +629,19 @@ void VulkanBackend::destroyTexture(Texture &texture) {
 }
 
 bool VulkanBackend::createMaterial(Material &material) {
-    if (!shaders[0].aquireResources(vulkanContext, material)) {
+    unsigned int index = INVALID_ID;
+    switch (material.materialType) {
+        case MATERIAL_TYPE_WORLD: {
+            index = 0;
+            break;
+        }
+        case MATERIAL_TYPE_UI: {
+            index = 1;
+            break;
+        }
+    }
+
+    if (!shaders[index].aquireResources(vulkanContext, material)) {
         Logger::logError("Vulkan Backend failed to acquire material resources.");
         return false;
     }
@@ -622,14 +651,27 @@ bool VulkanBackend::createMaterial(Material &material) {
 }
 
 void VulkanBackend::destroyMaterial(Material &material) {
+    unsigned int index = INVALID_ID;
+    switch (material.materialType) {
+        case MATERIAL_TYPE_WORLD: {
+            index = 0;
+            break;
+        }
+        case MATERIAL_TYPE_UI: {
+            index = 1;
+            break;
+        }
+    }
+
     if (material.internalId != INVALID_ID) {
-        shaders[0].releaseResources(vulkanContext, material);
+        shaders[index].releaseResources(vulkanContext, material);
     } else {
         Logger::logWarn("Vulkan Backend tried to destroy a material with an INVALID_ID.");
     }
 }
 
-bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned vertexCount, const Vertex3d *vertices, const unsigned indexCount, const unsigned *indices) {
+bool VulkanBackend::createGeometry(Geometry &geometry, unsigned int vertexSize, const unsigned int vertexCount,
+    void *vertices, unsigned int indexSize, const unsigned int indexCount, void *indices) {
     if (vertexCount == 0 || !vertices) {
         Logger::logError("No Vertex data was supplied for geometry creation! Vertex Count: " + std::to_string(vertexCount));
         return false;
@@ -643,10 +685,10 @@ bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned vertexCoun
         data = &vulkanContext.getGeometry(geometry.internalId);
         oldData.indexBufferOffset = data->indexBufferOffset;
         oldData.indexCount = data->indexCount;
-        oldData.indexBufferSize = data->indexBufferSize;
+        oldData.indexElementSize = data->indexElementSize;
         oldData.vertexBufferOffset = data->vertexBufferOffset;
         oldData.vertexCount = data->vertexCount;
-        oldData.vertexBufferSize = data->vertexBufferSize;
+        oldData.vertexElementSize = data->vertexElementSize;
     } else {
         const unsigned int index = vulkanContext.assignGeometry();
         geometry.internalId = index;
@@ -665,19 +707,21 @@ bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned vertexCoun
     //upload vertexes
     data->vertexBufferOffset = vulkanContext.getGeometryVertexOffset();
     data->vertexCount = vertexCount;
-    data->vertexBufferSize = sizeof(Vertex3d) * vertexCount;
-    uploadRangeOfData(pool, nullptr, queue, vulkanContext.getVertexBuffer(), data->vertexBufferOffset, data->vertexBufferSize, vertices);
+    data->vertexElementSize = vertexSize;
+    const unsigned int vertexTotalSize = data->vertexElementSize * vertexCount;
+    uploadRangeOfData(pool, nullptr, queue, vulkanContext.getVertexBuffer(), data->vertexBufferOffset, vertexTotalSize, vertices);
 
-    vulkanContext.setGeometryVertexOffset(vulkanContext.getGeometryVertexOffset() + data->vertexBufferSize);
+    vulkanContext.setGeometryVertexOffset(vulkanContext.getGeometryVertexOffset() + vertexTotalSize);
 
     //Upload indexes if they exist
     if (indexCount > 0 && indices) {
         data->indexBufferOffset = vulkanContext.getGeometryIndexOffset();
         data->indexCount = indexCount;
-        data->indexBufferSize = sizeof(unsigned int) * indexCount;
-        uploadRangeOfData(pool, nullptr, queue, vulkanContext.getIndexBuffer(), data->indexBufferOffset, data->indexBufferSize, indices);
+        data->indexElementSize = indexSize;
+        const unsigned int indexTotalSize = data->indexElementSize * indexCount;
+        uploadRangeOfData(pool, nullptr, queue, vulkanContext.getIndexBuffer(), data->indexBufferOffset, indexTotalSize, indices);
 
-        vulkanContext.setGeometryIndexOffset(vulkanContext.getGeometryIndexOffset() + data->indexBufferSize);
+        vulkanContext.setGeometryIndexOffset(vulkanContext.getGeometryIndexOffset() + indexTotalSize);
     }
 
     if (data->generation == INVALID_ID) {
@@ -688,9 +732,9 @@ bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned vertexCoun
 
     //Free old data
     if (isReupload) {
-        freeRangeOfData(vulkanContext.getVertexBuffer(), oldData.vertexBufferOffset, oldData.vertexBufferSize);
+        freeRangeOfData(vulkanContext.getVertexBuffer(), oldData.vertexBufferOffset, oldData.vertexElementSize * oldData.vertexCount);
         if (oldData.indexCount > 0) {
-            freeRangeOfData(vulkanContext.getIndexBuffer(), oldData.indexBufferOffset, oldData.indexBufferSize);
+            freeRangeOfData(vulkanContext.getIndexBuffer(), oldData.indexBufferOffset, oldData.indexElementSize * oldData.indexCount);
         }
     }
 
@@ -705,11 +749,11 @@ void VulkanBackend::destroyGeometry(Geometry &geometry) {
     GeometryData& data = vulkanContext.getGeometry(geometry.internalId);
 
     //Free vertexes
-    freeRangeOfData(vulkanContext.getVertexBuffer(), data.vertexBufferOffset, data.vertexBufferSize);
+    freeRangeOfData(vulkanContext.getVertexBuffer(), data.vertexBufferOffset, data.vertexElementSize * data.vertexCount);
 
     //Free indices if they exist
     if (data.indexCount > 0) {
-        freeRangeOfData(vulkanContext.getIndexBuffer(), data.indexBufferOffset, data.indexBufferSize);
+        freeRangeOfData(vulkanContext.getIndexBuffer(), data.indexBufferOffset, data.indexElementSize * data.indexCount);
     }
 
     //Reset data

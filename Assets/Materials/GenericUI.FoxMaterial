@@ -1,0 +1,7 @@
+#Comment
+
+version = 0.0
+name = GenericUI
+diffuse_color = 1.0 1.0 1.0 1.0
+diffuse_map_name = Test1
+type = ui

@@ -14,6 +14,7 @@ protected:
     ResourceType type{};
     String customType{};
     String path{};
+    MemoryTag memoryTag = UNKNOWN;
 
 public:
     virtual ~ResourceLoader() = default;
@@ -32,6 +33,6 @@ public:
     }
 
     virtual bool load(String name, Resource& outResource, String basePath) = 0;
-    virtual void unload(Resource& resource) = 0;
+    virtual void unload(Resource &resource);
 
 };

@@ -49,7 +49,7 @@ public:
 
     [[nodiscard]] RendererBackend* getBackend() const {return backend;}
     [[nodiscard]] Texture& getDefaultTexture() const {return textureSystem->getDefaultTexture();}
-    [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefaultGeometry();}
+    [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefault3DGeometry();}
 
     void setView(const Mat4 &newView);
 

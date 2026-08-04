@@ -11,5 +11,4 @@ public:
     TextLoader();
 
     bool load(String name, Resource &outResource, String basePath) override;
-    void unload(Resource &resource) override;
 };

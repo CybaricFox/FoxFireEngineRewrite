@@ -11,10 +11,10 @@ void VulkanRenderpass::beginRenderpass(VulkanCommandBuffer& commandBuffer, VkFra
     VkRenderPassBeginInfo beginInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     beginInfo.renderPass = handle;
     beginInfo.framebuffer = frameBuffer;
-    beginInfo.renderArea.offset.x = renderArea.x;
-    beginInfo.renderArea.offset.y = renderArea.y;
-    beginInfo.renderArea.extent.width = renderArea.z;
-    beginInfo.renderArea.extent.height = renderArea.w;
+    beginInfo.renderArea.offset.x = static_cast<int>(renderArea.x);
+    beginInfo.renderArea.offset.y = static_cast<int>(renderArea.y);
+    beginInfo.renderArea.extent.width = static_cast<int>(renderArea.z);
+    beginInfo.renderArea.extent.height = static_cast<int>(renderArea.w);
 
     beginInfo.clearValueCount = 0;
     beginInfo.pClearValues = nullptr;

@@ -6,6 +6,7 @@
 
 TextLoader::TextLoader() {
     type = RESOURCE_TYPE_TEXT;
+    memoryTag = ARRAY;
 }
 
 bool TextLoader::load(const String name, Resource &outResource, const String basePath) {
@@ -13,13 +14,13 @@ bool TextLoader::load(const String name, Resource &outResource, const String bas
 
     const String finalPath = basePath + path + "/" + name;
 
-    outResource.path = finalPath;
-
     FileHandler file{};
     if (!file.openFile(finalPath, READ, false)) {
         Logger::logError("Text Loader failed to open file for reading: " + finalPath);
         return false;
     }
+
+    outResource.path = finalPath;
 
     unsigned long fileSize = 0;
     if (!file.getFileSize(fileSize)) {
@@ -46,14 +47,4 @@ bool TextLoader::load(const String name, Resource &outResource, const String bas
     outResource.name = name;
 
     return true;
-}
-
-void TextLoader::unload(Resource &resource) {
-    if (resource.data) {
-        FF_Memory::ff_free(resource.data, resource.dataSize, ARRAY);
-        resource.data = nullptr;
-        resource.dataSize = 0;
-        resource.loaderId = INVALID_ID;
-        resource.path.clear();
-    }
 }

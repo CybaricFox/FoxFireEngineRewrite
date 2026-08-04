@@ -47,7 +47,7 @@ public:
     virtual void destroyTexture(Texture& texture) = 0;
     virtual bool createMaterial(Material& material) = 0;
     virtual void destroyMaterial(Material& material) = 0;
-    virtual bool createGeometry(Geometry& geometry, unsigned int vertexCount, const Vertex3d* vertices, unsigned int indexCount, const unsigned int* indices) = 0;
+    virtual bool createGeometry(Geometry& geometry, unsigned int vertexSize, unsigned int vertexCount, void* vertices, unsigned int indexSize, unsigned int indexCount, void* indices) = 0;
     virtual void destroyGeometry(Geometry& geometry) = 0;
     virtual void createRenderpass(RenderpassProfile profile) = 0;
     virtual void createRenderSystem(RenderSystemProfile profile) = 0;

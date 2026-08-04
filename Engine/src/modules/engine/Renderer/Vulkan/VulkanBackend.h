@@ -61,7 +61,7 @@ public:
     void destroyTexture(Texture &texture) override;
     bool createMaterial(Material &material) override;
     void destroyMaterial(Material &material) override;
-    bool createGeometry(Geometry &geometry, unsigned vertexCount, const Vertex3d *vertices, unsigned indexCount, const unsigned *indices) override;
+    bool createGeometry(Geometry& geometry, unsigned int vertexSize, unsigned int vertexCount, void* vertices, unsigned int indexSize, unsigned int indexCount, void* indices) override;
     void destroyGeometry(Geometry &geometry) override;
     void createRenderpass(RenderpassProfile profile) override;
     void createRenderSystem(RenderSystemProfile profile) override;
