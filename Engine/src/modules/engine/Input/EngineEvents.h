@@ -1,3 +1,15 @@
+/**
+ *   @file EngineEvents.h
+ *  @layer Engine
+ *  @module Input
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
+
 #pragma once
 #include <functional>
 
@@ -7,7 +19,9 @@
 
 #define DEFINE_KEY(name, code) KEY_##name = code
 
-//Engine event codes.
+/**
+ * @brief Engine event codes
+ */
 enum EngineEventCode {
     QUIT,
     KEY_PRESSED,
@@ -149,21 +163,35 @@ enum Keys {
     MAX_KEYS
 };
 
+/**
+ * @brief Context used to pass callback data from this to the input system.
+ */
 struct FOXFIRE_API EngineInputContext {
+    /** @brief Mouse x position */
     unsigned short mouseX;
+    /** @brief Mouse y position */
     unsigned short mouseY;
+    /** @brief Scrollwheel value */
     unsigned short mouseZ;
+    /** @brief Key Pressed/Released */
     unsigned short key;
 };
 
+/**
+ * @brief Event struct that holds the id of the event, the function to call, and the key the event is listening for.
+ */
 struct EngineEventCallback {
+    /** @brief Unique Id of this listener */
     String id;
+    /** @brief Function to call */
     std::function<void(EngineInputContext)> function;
+    /** @brief Required key press */
     Keys expectedKey;
 };
 
 class EngineEvents {
 private:
+    /** @brief Array of Listeners. There is one array per event code. */
     static DynamicArray<EngineEventCallback>* subscribers;
 
 public:
@@ -175,8 +203,27 @@ public:
         subscribers = nullptr;
     }
 
+    /**
+     * @brief Subscribes a listener to a specific event code.
+     * @param code The event code
+     * @param function The function that will be called
+     * @param id Id of the listener
+     * @param key The key to listen for (If Applicable)
+     */
     static void subscribe(EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String& id, Keys key = MAX_KEYS);
+
+    /**
+     * @brief Removes a listener from an event code.
+     * @param code Code to check
+     * @param id Id of the Listener to remove
+     */
     static void unsubscribe(EngineEventCode code, const String& id) ;
+
+    /**
+     * @brief Call all listeners for this event code. Checks the required key for each listener before calling.
+     * @param code The event code to call.
+     * @param context Input context to pass to the function.
+     */
     static void callEvent(EngineEventCode code, EngineInputContext context);
 };
 

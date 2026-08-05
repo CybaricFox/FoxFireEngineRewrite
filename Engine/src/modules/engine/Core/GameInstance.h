@@ -1,14 +1,35 @@
+/**
+ *  @file GameInstance.h
+ *  @layer Engine
+ *  @module Core
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
+
 #pragma once
 
 #include <string>
 #include "../../../defines.h"
 #include "foxfire_export.h"
+#include "src/modules/engine/Memory/FF_Memory.h"
 
+/**
+ * @brief Config data for this application set by the user
+ */
 struct GameConfig {
+    /** @brief Name of the application */
     String appName;
+    /** @brief Starting x screen position of the window */
     short startingX;
+    /** @brief Starting y height position of the window */
     short startingY;
+    /** @brief Starting width of the window */
     short startingWidth;
+    /** @brief Starting height of the window */
     short startingHeight;
 
     int gameVersionMajor;
@@ -16,17 +37,19 @@ struct GameConfig {
     int gameVersionPatch;
 };
 
+/**
+ * @brief Game-specific config data set by the user
+ */
 struct FOXFIRE_API GameInstance {
     GameConfig config;
 
-    //Game State
+    /** @brief Game State struct defined by the user */
     void* state;
+    unsigned long memoryRequirement = 0;
 
-    ~GameInstance() {
-        if (state != nullptr) {
-            free(state);
-            state = nullptr;
-        }
+    void shutdown() {
+        FF_Memory::ff_free(state, memoryRequirement, GAME);
+        state = nullptr;
     }
 };
 

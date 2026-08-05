@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 8/1/2026.
-//
+/**
+*   @file FoxFire_MaterialSystem.h
+ *  @layer System
+ *  @module FoxFire_Textures
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 
@@ -14,6 +22,9 @@
 #include "src/modules/engine/Resources/Contexts.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
+/**
+ * @brief Default material system.
+ */
 class FOXFIRE_API FoxFire_MaterialSystem final : public IMaterialSystem{
 private:
     Material defaultMaterial{};

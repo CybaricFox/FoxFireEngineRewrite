@@ -271,6 +271,7 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     Logger::logDebug("Debug mode enable. Starting validation layers.");
 
     validationLayers.push("VK_LAYER_KHRONOS_validation");
+    //validationLayers.push("VK_LAYER_LUNARG_api_dump"); //Every vulkan call will be appended to the log
     layerCount = validationLayers.getLength();
     unsigned int availableLayerCount = 0;
     VulkanUtils::vulkanCheck(vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr));

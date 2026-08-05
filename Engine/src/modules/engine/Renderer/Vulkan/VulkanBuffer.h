@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/30/2026.
-//
+/**
+*   @file VulkanBuffer.h
+ *  @layer Engine
+ *  @module Renderer
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 

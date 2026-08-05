@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/4/2026.
-//
+/**
+*   @file FF_Math.h
+ *  @layer Engine
+ *  @module Library
+ *  @author CybaricFox
+ *  @brief Collection of Mathematic structures and functions.
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 

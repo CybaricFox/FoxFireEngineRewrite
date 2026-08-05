@@ -37,8 +37,8 @@ void Game::increaseCameraRoll(GameState *state, const float amount) {
     state->bIsCameraDirty = true;
 }
 
-Game::Game()
-    :Engine()
+Game::Game(GameInstance& instance)
+    :Engine(instance)
 {
     inputSystem = new FoxFire_InputSystem();
     textureSystem = new FoxFire_TextureSystem();
@@ -128,8 +128,8 @@ bool Game::update(const float deltaTime) {
     return Engine::update(deltaTime);
 }
 
-void Game::initialize(GameInstance &instance) {
-    const auto state = static_cast<GameState *>(instance.state);
+void Game::initialize() {
+    const auto state = static_cast<GameState *>(gameInstance->state);
     state->cameraPos = {0, 0, 30};
     state->cameraEuler = zeroVector3f();
 
@@ -163,5 +163,5 @@ void Game::initialize(GameInstance &instance) {
     worldRenderSystem.bDepthTestEnabled = false;
     masterRenderSystem.addRenderSystemprofile(uiRenderSystem);
 
-    Engine::initialize(instance);
+    Engine::initialize();
 }

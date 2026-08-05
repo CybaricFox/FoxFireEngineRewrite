@@ -8,8 +8,9 @@
 #include <iomanip>
 
 #include "../Library/Logger.h"
+#include "../Core/Platform.h"
 
-MemoryBlock* FF_Memory::memoryData = nullptr;
+FF_Memory* FF_Memory::memorySystem = nullptr;
 
 String FF_Memory::getStringFromTag(const unsigned long tag) {
     switch (tag) {
@@ -36,31 +37,34 @@ void FF_Memory::ff_free(void * block, const unsigned long size, const MemoryTag 
         Logger::logWarn("Free called with Unknown tag. Add a tag for this allocation!");
     }
 
-    if (!memoryData) {
-        cerr << "ff_free called after memoryData was destroyed!" << endl;
-        return;
+    if (!memorySystem) {
+        cerr << "ff_free called after memorySystem was destroyed!" << endl;
+        Platform::platform_free(block, false);
     }
 
-    if (memoryData->taggedAllocations[tag] < size) {
+    if (memorySystem->memoryData.taggedAllocations[tag] < size) {
         Logger::logError(
             "Memory underflow detected for tag " +
             std::string(getStringFromTag(tag)) +
-            ". Current: " + std::to_string(memoryData->taggedAllocations[tag]) +
+            ". Current: " + std::to_string(memorySystem->memoryData.taggedAllocations[tag]) +
             ", freeing: " + std::to_string(size)
         );
-        memoryData->totalAllocated -= memoryData->taggedAllocations[tag];
-        memoryData->taggedAllocations[tag] = 0;
-        free(block);
+        memorySystem->memoryData.totalAllocated -= memorySystem->memoryData.taggedAllocations[tag];
+        memorySystem->memoryData.taggedAllocations[tag] = 0;
+        Platform::platform_free(block, false);
         return;
     }
 
-    memoryData->totalAllocated -= size;
-    memoryData->taggedAllocations[tag] -= size;
-    free(block);
+    memorySystem->memoryData.totalAllocated -= size;
+    memorySystem->memoryData.taggedAllocations[tag] -= size;
+
+    if (!memorySystem->allocator->free(block, size)) {
+        Platform::platform_free(block, false);
+    }
 }
 
 void * FF_Memory::ff_clear(void *block, const unsigned long size) {
-    memset(block, 0, size);
+    Platform::platform_clear(block, size);
     return block;
 }
 
@@ -88,19 +92,19 @@ String FF_Memory::getMemoryUsage() {
     for (unsigned int i = 0; i < MAX_TAGS; i++) {
         char unit[3] = "XB";
         float amount = 0.0f;
-        if (memoryData->taggedAllocations[i] > gb) {
+        if (memorySystem->memoryData.taggedAllocations[i] > gb) {
             unit[0] = 'G';
-            amount = static_cast<float>(memoryData->taggedAllocations[i]) / static_cast<float>(gb);
-        } else if (memoryData->taggedAllocations[i] > mb) {
+            amount = static_cast<float>(memorySystem->memoryData.taggedAllocations[i]) / static_cast<float>(gb);
+        } else if (memorySystem->memoryData.taggedAllocations[i] > mb) {
             unit[0] = 'M';
-            amount = static_cast<float>(memoryData->taggedAllocations[i]) / mb;
-        } else if (memoryData->taggedAllocations[i] > kb) {
+            amount = static_cast<float>(memorySystem->memoryData.taggedAllocations[i]) / mb;
+        } else if (memorySystem->memoryData.taggedAllocations[i] > kb) {
             unit[0] = 'K';
-            amount = static_cast<float>(memoryData->taggedAllocations[i]) / kb;
+            amount = static_cast<float>(memorySystem->memoryData.taggedAllocations[i]) / kb;
         } else {
             unit[0] = 'B';
             unit[1] = 0;
-            amount = static_cast<float>(memoryData->taggedAllocations[i]);
+            amount = static_cast<float>(memorySystem->memoryData.taggedAllocations[i]);
         }
 
         std::ostringstream oss;
@@ -111,18 +115,45 @@ String FF_Memory::getMemoryUsage() {
     return outString;
 }
 
-void FF_Memory::initialize(MemoryBlock& memoryBlock) {
-    memoryData = &memoryBlock;
-    ff_clear(memoryData, sizeof(MemoryBlock));
+bool FF_Memory::initialize(const MemoryConfig config) {
+    constexpr unsigned long systemMemoryRequirement = sizeof(FF_Memory);
+    const unsigned long allocationRequirement = DynamicAllocator::getMemoryRequirement(config.totalAllocationSize);
+
+    void* memory = Platform::platform_allocate(systemMemoryRequirement + allocationRequirement, false);
+    if (!memory) {
+        Logger::logFatal("Memory system failed to allocate.");
+        return false;
+    }
+
+    memorySystem = new (memory) FF_Memory();
+    memorySystem->config = config;
+    memorySystem->allocationCount = 0;
+    memorySystem->allocationMemoryRequirement = allocationRequirement;
+    memorySystem->memoryData = MemoryStats{};
+    memorySystem->allocatorMemory = static_cast<unsigned char *>(memory) + systemMemoryRequirement;
+    memorySystem->allocator = DynamicAllocator::createDynamicAllocator(config.totalAllocationSize, memorySystem->allocatorMemory);
+
+    if (memorySystem->allocator == nullptr) {
+        Logger::logFatal("Memory system failed to create internal allocator.");
+        return false;
+    }
+
+    Logger::logDebug("Memory system allocated successfully with " + std::to_string(config.totalAllocationSize) + " bytes.");
+    return true;
 }
 
 void FF_Memory::shutdown() {
-    memoryData = nullptr;
+    if (memorySystem) {
+        memorySystem->allocator->shutdown();
+        std::destroy_at(memorySystem);
+        Platform::platform_free(memorySystem, false);
+        memorySystem = nullptr;
+    }
 }
 
 unsigned long FF_Memory::getAllocationCount() {
-    if (memoryData) {
-        return memoryData->allocationCount;
+    if (memorySystem) {
+        return memorySystem->allocationCount;
     }
 
     return 0;
@@ -133,13 +164,22 @@ void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag) {
         Logger::logWarn("Allocate called with Unknown tag. Add a tag for this allocation!");
     }
 
-    if (memoryData) {
-        memoryData->totalAllocated += size;
-        memoryData->taggedAllocations[tag] += size;
-        memoryData->allocationCount++;
+    void* memory = nullptr;
+    if (memorySystem) {
+        memorySystem->memoryData.totalAllocated += size;
+        memorySystem->memoryData.taggedAllocations[tag] += size;
+        memorySystem->allocationCount++;
+        memory = memorySystem->allocator->allocate(size);
+    } else {
+        Logger::logError("Allocate called before memory system is initialized!");
+        memory = Platform::platform_allocate(size, false);
     }
 
-    void* block = malloc(size);
-    ff_clear(block, size);
-    return block;
+    if (memory) {
+        Platform::platform_clear(memory, size);
+        return memory;
+    }
+
+    Logger::logFatal("FF_Allocate failed to allocate memory!");
+    return nullptr;
 }

@@ -1,16 +1,28 @@
-//
-// Created by cmorg on 8/3/2026.
-//
+/**
+*   @file ResourceSystem.h
+ *  @layer Engine
+ *  @module Resources
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 #include "ResourceLoader.h"
 #include "src/defines.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 
+/**
+ * @brief Controls resource loading and management
+ */
 class ResourceSystem {
 private:
-    //Relative path to assets folder
+    /** @brief The relative path to the Assets folder */
     String assetsPath;
+    /** @brief An array of loaders */
     DynamicArray<ResourceLoader*> loaders{};
 
     bool registerLoader(ResourceLoader *loader);

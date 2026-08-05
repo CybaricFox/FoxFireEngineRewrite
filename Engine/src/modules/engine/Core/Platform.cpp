@@ -272,6 +272,18 @@ bool Platform::createSurface() {
     return true;
 }
 
+void* Platform::platform_allocate(const unsigned long size, bool align) {
+    return malloc(size);
+}
+
+void Platform::platform_free(void *memory, bool align) {
+    free(memory);
+}
+
+void Platform::platform_clear(void *memory, const unsigned long size) {
+    memset(memory, 0, size);
+}
+
 void Platform::printConsoleMessage(const String& message, const unsigned char color) {
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     if (!(color > 4 || color < 0)) {
@@ -903,6 +915,18 @@ void Platform::shutdown() {
 
         free(platformState.unknownState);
         platformState.unknownState = nullptr;
+    }
+
+void* Platform::platform_allocate(const unsigned long size, bool align) {
+        return malloc(size);
+    }
+
+void Platform::platform_free(void *memory, bool align) {
+        free(memory);
+    }
+
+void Platform::platform_clear(void *memory, const unsigned long size) {
+        memset(memory, 0, size);
     }
 
 

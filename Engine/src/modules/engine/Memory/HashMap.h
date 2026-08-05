@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/30/2026.
-//
+/**
+*   @file HashMap.h
+ *  @layer Engine
+ *  @module Memory
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 
@@ -15,7 +23,11 @@ inline constexpr unsigned int TREE_THRESHOLD = 10; //Not implemented
 template<typename>
 inline constexpr bool alwaysFalse = false;
 
-//Struct for returning keys with their value.
+/**
+ * @brief Contains a key and value pair. Does not actually contain the originals.
+ * @tparam K Key Type
+ * @tparam V Value Type
+ */
 template<typename K, typename V>
 struct KeyValuePair {
     K key;
@@ -25,9 +37,17 @@ struct KeyValuePair {
 //Contains a parallel array of keys and values.
 //Hashmap stores a parallel array of hash keys paired to a HashValue since a hash can contain multiple values.
 //Each value here is paired to the raw key for lookup and reference purposes.
+/**
+ * @brief Contains a parallel array of raw keys and values.
+ * Hashkeys are paired to HashValues  in the hashmap since keys can have duplicate hashes.
+ * @tparam K Key Type
+ * @tparam V Value Type
+ */
 template<typename K, typename V>
 struct HashValue {
+    /** @brief Array of raw keys */
     DynamicArray<K> keyRefs{};
+    /** @brief Array of values */
     DynamicArray<V> values{};
 
     HashValue() {
@@ -43,9 +63,12 @@ struct HashValue {
     HashValue& operator=(HashValue&&) noexcept = default;
 };
 
-//ATTENTION, THIS IS AN UNORDERED HASH MAP!
-//THE MAP IS SORTED BY HASHES SO BINARY SEARCH CAN BE UTILIZED INTERNALLY!
-//HASHES ARE NOT ORDERED BY THE RAW KEY, SO RAW KEY ORDER WILL CHANGE!
+/**
+ * @brief Hashes keys and stores them parallel to their values.
+ * This is an unordered hashmap.
+ * @tparam K Type to use for the key. Only supports strings atm.
+ * @tparam V Type to use for the value.
+ */
 template<typename K, typename V>
 class FOXFIRE_API HashMap {
     static_assert(
@@ -53,13 +76,18 @@ class FOXFIRE_API HashMap {
         "HashMap currently only supports String keys."
     );
 private:
-    //Keys are stored binarily, this allows for binary searches on the key
+    /** @brief Array of hashkeys. This array is sorted and searched binarily. */
     DynamicArray<unsigned long> keys{};
-    //Values are stored in parallel to keys. Internal data is unordered and iterated.
-    DynamicArray<HashValue<K, V>> values{};//Should become a binary tree when there are MANY values
-    //The number of values that have been added to this map (Not the number of hash keys!)
+    /** @brief Array of hashvalues. This array is not sorted. Values are stored in parallel to their raw key. */
+    DynamicArray<HashValue<K, V>> values{};
+    /** @brief The number of values added to this map. Not the number of hash keys. */
     unsigned int size = 0;
 
+    /**
+     * @brief Hashes the key
+     * @param key The key to hash
+     * @return The hashed key.
+     */
     [[nodiscard]]
     unsigned long hashKey(const K& key) const {
         using KeyType = std::remove_cvref_t<K>;
@@ -78,6 +106,11 @@ private:
         values.initialize(0, HASHMAP);
     }
 
+    /**
+     * @brief Checks if the hash exists for the given key. Does not check if the key itself exists.
+     * @param key The key to hash and check.
+     * @return The index of the hashkey.
+     */
     unsigned int hashExists(const K& key) const {
         if (keys.getLength() == 0) return -1;
 
@@ -103,6 +136,12 @@ private:
         return -1;
     }
 
+    /**
+     * @brief Checks if the given raw key exists.
+     * @param key The key to check.
+     * @param index The index of its hash.
+     * @return The internal index of the key.
+     */
     unsigned int keyExists(const K& key, unsigned int index) const {
         for (int i = 0; i < values[index].keyRefs.getLength(); i++) {
             if (values[index].keyRefs[i] == key) {
@@ -113,6 +152,11 @@ private:
         return -1;
     }
 
+    /**
+     * @brief Returns the index that would keep the Hashkey array sorted
+     * @param hash The hashkey to store
+     * @return The index to store the hash at.
+     */
     unsigned int findInsertionIndex(const unsigned long hash) {
         unsigned int low = 0;
         auto high = static_cast<unsigned int>(keys.getLength());
@@ -134,6 +178,11 @@ public:
     HashMap() {createHashMap();}
     ~HashMap() = default;
 
+    /**
+     * @brief Adds a key, value pair to the hashmap.
+     * @param key The key of the value.
+     * @param value The value to store.
+     */
     void addEntry(const K& key, const V& value) {
         const unsigned long hash = hashKey(key);
         const unsigned int existingIndex = hashExists(key);
@@ -183,12 +232,19 @@ public:
         }
     }
 
+    /**
+     * @brief Removes all elements in the hashmap.
+     */
     void clearHashMap() {
         size = 0;
         keys.clear();
         values.clear();
     }
 
+    /**
+     * @brief Removes a key, value pair from the hashmap.
+     * @param key The key of the value.
+     */
     void removeValue(const K& key) {
         //Check that the key exists
         const unsigned int existingIndex = hashExists(key);
@@ -215,6 +271,11 @@ public:
         size--;
     }
 
+    /**
+     * @brief Gets a value from the key
+     * @param key The key of the value
+     * @return Pointer to the value.
+     */
     V* getValue(const K& key) {
         if (size == 0) {
             Logger::logWarn("Hashmap attempted to get the value of a key in an empty map!");
@@ -235,6 +296,10 @@ public:
         return &values[existingIndex].values[index];
     }
 
+    /**
+     * @brief Converts the hashmap to key, value pairs and returns them. The Pairs are copies.
+     * @return A DynamicArray of KeyValue pairs.
+     */
     DynamicArray<KeyValuePair<K, V>> getPairs() const {
         DynamicArray<KeyValuePair<K, V>> pairs{size};
 
@@ -254,6 +319,11 @@ public:
         return pairs;
     }
 
+    /**
+     * @brief Checks if the given hashkey and raw key exists.
+     * @param key The key to check.
+     * @return True if both exist, False if only the hashkey or neither exist.
+     */
     bool keyExists(const K& key) {
         const unsigned int existingIndex = hashExists(key);
         if (existingIndex == -1) {
@@ -267,6 +337,10 @@ public:
         return false;
     }
 
+    /**
+     * @brief Sets the capacity of the hashmap
+     * @param capacity Capacity to reserve.
+     */
     void setCapacity(unsigned int capacity) {
         if (capacity <= keys.getCapacity()) {
             Logger::logWarn("New Capcity is less than or equal to the current capacity of the hashmap. Command ignored.");

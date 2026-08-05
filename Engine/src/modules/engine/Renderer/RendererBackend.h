@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/2/2026.
-//
+/**
+*   @file RendererBackend.h
+ *  @layer Engine
+ *  @module Renderer
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 
@@ -15,6 +23,9 @@ enum RendererBackendType {
     DIRECTX
 };
 
+/**
+ * @brief Per frame packer containing geometry data.
+ */
 struct RenderPacket {
     float deltaTime;
     unsigned int geometryCount;
@@ -23,9 +34,14 @@ struct RenderPacket {
     GeometryRenderData* uiGeometries;
 };
 
+/**
+ * @brief The Abstract Backend used for this application.
+ */
 class RendererBackend {
 private:
+    /** @brief pointer to platform data */
     PlatformState* platformState = nullptr;
+    /** @brief Current frame*/
     unsigned long frameNumber = 0;
 
 protected:
@@ -34,6 +50,13 @@ protected:
 public:
     virtual ~RendererBackend();
 
+    /**
+     * @brief Creates the specific backend.
+     * @param type Type of backend to create.
+     * @param newPlatformState Platform specific data.
+     * @param gameInstance Game specific data.
+     * @return The specific backend to use.
+     */
     static RendererBackend* create(RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance);
 
     virtual bool initialize(String appName, Platform &platform, unsigned int width, unsigned int height, ResourceSystem &resources) = 0;

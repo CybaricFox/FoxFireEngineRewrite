@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/1/2026.
-//
+/**
+*   @file StringUtils.h
+ *  @layer Engine
+ *  @module Library
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 #include "src/defines.h"
@@ -13,13 +21,29 @@
  * string.find(char) returns the index of the first occurence of that char.
  */
 
+/**
+ * @brief Collection of string functions
+ */
 class FOXFIRE_API StringUtils {
 public:
-    //Checks if both strings are equal, ignoring their cases.
+    /**
+     * @brief Checks if strings are equal, ignoring their case.
+     * @return True if equal
+     */
     static bool equalsIgnoreCase(const String &a, const String &b);
-    //Copies the first n chars
+
+    /**
+     * @brief Copies the first n characters
+     * @param string String to copy
+     * @param size number of characters from index 0
+     * @return Substring of only the first n characters
+     */
     static String copyLimited(String string, long size);
-    //Removes whitespace from the edges of the string
+
+    /**
+     * @brief Removes whitespace from the start and end of the string
+     * @param out String to trim.
+     */
     static void trim(String &out);
     static bool stringToFloat(const String &string, float& out);
     static bool stringToDouble(const String &string, double& out);

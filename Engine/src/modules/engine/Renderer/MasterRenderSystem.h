@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/2/2026.
-//
+/**
+*   @file MasterRenderSystem.h
+ *  @layer Engine
+ *  @module Renderer
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 #include "IGeometrySystem.h"
@@ -10,27 +18,34 @@
 #include "src/defines.h"
 #include "src/modules/engine/Core/Platform.h"
 
+/**
+ * @brief Controls and coordinates all rendering.
+ */
 class FOXFIRE_API MasterRenderSystem {
 private:
-    //Backend Renderer
+    /** @brief pointer to the backend in use */
     RendererBackend* backend = nullptr;
-    //Camera projection
     Mat4 worldProjection{};
     Mat4 worldView{};
     Mat4 uiProjection{};
     Mat4 uiView{};
+    /** @brief How close geometry can get before it is clipped. */
     float nearClip = 0.1f;
+    /** @brief How far geometry can get before it is clipped. */
     float farClip = 1000.0f;
 
-    //Texture manager
+    /** @brief Pointer to the user defined texture system. */
     ITextureSystem* textureSystem = nullptr;
-    //Material Manager
+    /** @brief Pointer to the user defined material system. */
     IMaterialSystem* materialSystem = nullptr;
-    //Geometry Manager
+    /** @brief Pointer to the user defined Geometry system. */
     IGeometrySystem* geometrySystem = nullptr;
 
+    /** @brief Collection of renderpass profiles defined by the user. WARNING: Destroyed during initialization!*/
     DynamicArray<RenderpassProfile> renderpassProfiles{};
+    /** @brief Collection of render system profiles defined by the user. WARNING: Destroyed during initialization!*/
     DynamicArray<RenderSystemProfile> renderSystemProfiles{};
+    /** @brief Whether this is initialized. */
     bool bIsInitialized = false;
 
     Texture createBlankTexture();

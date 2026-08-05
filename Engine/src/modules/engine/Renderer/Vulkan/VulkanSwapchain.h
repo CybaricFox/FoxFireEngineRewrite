@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/10/2026.
-//
+/**
+*   @file VulkanSwapchain.h
+ *  @layer Engine
+ *  @module Renderer
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 
@@ -11,13 +19,6 @@
 #include "VulkanState.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 #include "src/modules/engine/Renderer/Vulkan/VulkanDevice.h"
-
-struct FOXFIRE_DEPRECATED VulkanFramebuffer {
-        VkFramebuffer handle;
-        unsigned int attachmentCount;
-        VkImageView* attachments;
-        VulkanRenderpass* renderpass;
-};
 
 class VulkanSwapchain {
 private:

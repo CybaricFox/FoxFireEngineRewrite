@@ -16,7 +16,7 @@ int main() {
         if (instance.state == nullptr) {
             Logger::logError("Engine instance is null!");
         }
-        engine->initialize(instance);
+        engine->initialize();
     }
 
     delete engine;

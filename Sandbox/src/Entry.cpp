@@ -15,8 +15,7 @@ void createGame(GameInstance& instance, Engine*& engine) {
     instance.config.gameVersionMinor = 0;
     instance.config.gameVersionPatch = 0;
 
-    instance.state = malloc(sizeof(GameState));
-    FF_Memory::ff_clear(instance.state, sizeof(GameState));
+    instance.memoryRequirement = sizeof(GameState);
 
-    engine = new Game();
+    engine = new Game(instance);
 }

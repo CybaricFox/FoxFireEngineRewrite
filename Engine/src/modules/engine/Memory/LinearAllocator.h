@@ -1,9 +1,20 @@
-//
-// Created by cmorg on 7/6/2026.
-//
+/**
+*   @file LinearAllocator.h
+ *  @layer Engine
+ *  @module Memory
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 
+/**
+ * @brief Stores data in a block of memory. The allocator can only free the entire block and does not track allocation sizes.
+ */
 class LinearAllocator {
 private:
     unsigned long totalSize = 0;

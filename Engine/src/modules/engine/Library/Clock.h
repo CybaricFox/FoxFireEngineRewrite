@@ -1,11 +1,22 @@
-//
-// Created by cmorg on 7/1/2026.
-//
+/**
+*   @file Clock.h
+ *  @layer Engine
+ *  @module Library
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 #include "../Core/Platform.h"
 
 
+/**
+ * @brief Handles system time calculations
+ */
 class Clock {
 private:
     double startTime = 0;

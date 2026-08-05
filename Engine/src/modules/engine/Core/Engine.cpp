@@ -5,6 +5,7 @@
 #include "Engine.h"
 
 #include "../Library/Logger.h"
+#include "src/modules/engine/Memory/DynamicAllocator.h"
 
 void Engine::startup()
 {
@@ -157,18 +158,24 @@ void Engine::setView(const Mat4 &newView) {
     masterRenderSystem.setView(newView);
 }
 
-Engine::Engine()
+Engine::Engine(GameInstance& instance)
 {
-    initializeMemory();
+    if (!initializeMemory()) throw;
     Logger::initializeFile(logHandler);
+    instance.state = FF_Memory::ff_allocate(instance.memoryRequirement, GAME);
+    gameInstance = &instance;
 }
 
-void Engine::initializeMemory() {
-    FF_Memory::initialize(memoryDataStore);
+bool Engine::initializeMemory() {
+    MemoryConfig config{};
+    config.totalAllocationSize = GIBIBYTES(1);
+    if (!FF_Memory::initialize(config)) {
+        Logger::logError("Failed to initialize memory!");
+        return false;
+    }
 
-    unsigned long totalMemorySize = 0;
-
-    linearAllocator.initialize(totalMemorySize, nullptr);
+    return true;
+    //linearAllocator.initialize(totalMemorySize, nullptr);
 }
 
 void Engine::quit() {
@@ -176,7 +183,7 @@ void Engine::quit() {
     bIsRunning = false;
 }
 
-void Engine::initialize(GameInstance &instance) {
+void Engine::initialize() {
     if (bIsInitialized) {
         Logger::logError("Initialize was already called!");
         return;
@@ -184,8 +191,9 @@ void Engine::initialize(GameInstance &instance) {
 
     Logger::logInfo("Initializing Game");
 
+    FF_Memory::ff_allocate(gameInstance->memoryRequirement, GAME);
+
     //Initialize event and input systems
-    gameInstance = &instance;
     EngineEvents::initialize(subscribers);
     inputSystem->initialize();
 
@@ -282,12 +290,14 @@ Engine::~Engine() {
 
     //Static destruction
     EngineEvents::shutdown();
+    gameInstance->shutdown();
 
     //Destroy resources in opposite order of creation
     geometrySystem = nullptr;
     materialSystem = nullptr;
     textureSystem = nullptr;
     masterRenderSystem.shutdown();
+
     if (inputSystem) {
         delete inputSystem;
         inputSystem = nullptr;
@@ -298,6 +308,7 @@ Engine::~Engine() {
     platform.shutdown();
 
     linearAllocator.shutdown();
+
     //THIS MUST ALWAYS SHUTDOWN LAST!
     FF_Memory::shutdown();
     //cleanup logger after memory shutdown so memory errors output to log file.

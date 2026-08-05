@@ -18,7 +18,7 @@ private:
     void increaseCameraRoll(GameState* state, float amount);
 
 public:
-    Game();
+    explicit Game(GameInstance& instance);
     ~Game() override;
 
     Event<void> swapTextureEvent{};
@@ -26,7 +26,7 @@ public:
 protected:
     void startup() override;
     bool update(float deltaTime) override;
-    void initialize(GameInstance &instance) override;
+    void initialize() override;
 };
 
 

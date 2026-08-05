@@ -1,3 +1,15 @@
+/**
+ *  @file Engine.h
+ *  @layer Engine
+ *  @module Core
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
+
 #pragma once
 
 #include "../Library/Clock.h"
@@ -10,62 +22,101 @@
 #include "src/modules/engine/Memory/LinearAllocator.h"
 #include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
-#include "src/modules/engine/Renderer/RendererBackend.h"
 
+/**
+ * @brief The core of the engine.
+ */
 class FOXFIRE_API Engine {
 private:
-    //Block of memory that holds system memory data.
-    MemoryBlock memoryDataStore{};
+    /** @brief Is supposed to hold the memory allocations for all systems, but currently does nothing. */
     LinearAllocator linearAllocator{};
 
-    //Holds the log file
+    /** @brief Handler for the log file */
     FileHandler logHandler{};
-    //Calculates system time
+    /** @brief Calculates system time */
     Clock clock{};
-    //Handles the OS
+    /** @brief Handles OS-specific variables */
     Platform platform{};
-    //Handles system resources
+    /** @brief Handles resource loading and management */
     ResourceSystem resourceSystem{};
 
-    //Holds a pointer to the derived Game
+    /** @brief Pointer to the derived game class set by the user. */
     Engine* engine = nullptr;
-    //Holds subscribers to engine related events
+    /** @brief A dynamic array of functions waiting for callback by the EngineEventSystem. */
     DynamicArray<EngineEventCallback> subscribers[MAX_EVENT];
 
+    /** @brief Whether the engine is running correctly. */
     bool bIsRunning = false;
+    /** @brief Whether the engine is paused for some reason. */
     bool bIsPaused = false;
+    /** @brief Whether the engine has finished initialization. */
     bool bIsInitialized = false;
+    /** @brief Width of the screen. */
     short width = 0;
+    /** @brief height of the screen. */
     short height = 0;
+    /** @brief The amount of time the previous frame took */
     double lastTime = 0;
 
     //Remove Me
     Geometry* testGeometry = nullptr;
     Geometry* testUIGeometry = nullptr;
 
-    void initializeMemory();
+    /**
+     * @brief Initializes FF_Memory and the Linear Allocator
+     */
+    bool initializeMemory();
 
 protected:
     //Holds config data
+    /** @brief Holds Game-specific config data */
     GameInstance* gameInstance = nullptr;
-    //Handle Input
+    /** @brief Pointer to the user-defined input system */
     IInputSystem* inputSystem = nullptr;
-    //Frontend Rendering
+    /** @brief Controls All Rendering */
     MasterRenderSystem masterRenderSystem{};
 
-    //Temp systems during startup. Not reliable!
-    //Texture manager reference
+    /** @brief Reference to the user-defined texture system. WARNING: VOLATILE REFERENCE! */
     ITextureSystem* textureSystem = nullptr;
-    //Material manager reference
+    /** @brief Reference to the user-defined material system. WARNING: VOLATILE REFERENCE! */
     IMaterialSystem* materialSystem = nullptr;
-    //Geometry manager reference
+    /** @brief Reference to the user-defined geometry system. WARNING: VOLATILE REFERENCE! */
     IGeometrySystem* geometrySystem = nullptr;
 
+    /**
+     * @brief Quits the application when called.
+     */
     void quit();
+
+    /**
+     * @brief Runs startup commands after all systems have been initialized.
+     */
     virtual void startup();
+
+    /**
+     * @brief Starts and continues the run loop.
+     */
+
     void run();
+    /**
+     * @brief Resizes the window
+     * @param newWidth The new width of the window.
+     * @param newHeight The new height of the window.
+     */
     void resize(unsigned short newWidth, unsigned short newHeight);
+
+    /**
+     * @brief Called once per frame.
+     * @param deltaTime Time this frame took.
+     * @return False if something went wrong.
+     */
     virtual bool update (float deltaTime);
+
+    /**
+     * @brief Tells the render system to render. Called once per frame.
+     * @param deltaTime Time this frame took.
+     * @return False if something went wrong.
+     */
     bool render(float deltaTime);
 
     //REMOVE THIS LATER
@@ -90,12 +141,25 @@ protected:
     }
 
 public:
-    explicit Engine();
+    explicit Engine(GameInstance& instance);
     virtual ~Engine();
 
+    /**
+     * @brief Sets the engine pointer. Do not call manually.
+     * @param derivedEngine The user-defined game instance.
+     */
     void setEngineRef(Engine& derivedEngine);
 
-    virtual void initialize(GameInstance& instance);
+    /**
+     * @brief Initializes systems.
+     * @param instance Game config data.
+     */
+    virtual void initialize();
 
+    /**
+     * @brief Returns the window size.
+     * @param bufferWidth OUT width of the window.
+     * @param bufferHeight OUT height of the window.
+     */
     void getFramebufferSize(unsigned int& bufferWidth, unsigned int& bufferHeight) const;
 };

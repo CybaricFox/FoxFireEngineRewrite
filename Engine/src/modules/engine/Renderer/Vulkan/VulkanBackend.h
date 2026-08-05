@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/2/2026.
-//
+/**
+*   @file VulkanBackend.h
+ *  @layer Engine
+ *  @module Renderer
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 
@@ -22,6 +30,7 @@ private:
     int minorVersion = 0;
     int patchVersion = 0;
 
+    /** @brief array of user defined shaders. */
     DynamicArray<VulkanShader> shaders{};
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(

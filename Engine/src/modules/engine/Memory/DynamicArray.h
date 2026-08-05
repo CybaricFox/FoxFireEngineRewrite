@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/8/2026.
-//
+/**
+*   @file DynamicArray.h
+ *  @layer Engine
+ *  @module Memory
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 
@@ -10,6 +18,10 @@
 #include "FF_Memory.h"
 #include "src/modules/engine/Library/Logger.h"
 
+/**
+ * @brief An array designed to be resized. WARNING: Does not update references to internal elements when a resize occurs.
+ * @tparam T Type to store in this array
+ */
 template<typename T>
 class FOXFIRE_API DynamicArray {
     static_assert(alignof(T) <= alignof(std::max_align_t),
@@ -19,14 +31,19 @@ private:
     unsigned long RESIZE_FACTOR = 2;
     MemoryTag tag = DYNAMIC_ARRAY;
 
-    //Max size
+    /** @brief the current reserved size of the array */
     unsigned long capacity = 0;
-    //Current size
+    /** @brief The number of elements in the array. */
     unsigned long length = 0;
 
-    //Memory Block
+    /** @brief The memory the array is using */
     T* memory = nullptr;
 
+    /**
+     * @brief Allocated memory space for the array
+     * @param size Number of elements in this array
+     * @return A pointer to the array.
+     */
     T* allocate(const unsigned long size) {
         if (!FF_Memory::isInitialized()) {
             Logger::logFatal("Dynamic Arrays cannot be created prior to FF_Memory!");
@@ -120,10 +137,18 @@ public:
         capacity = 0;
     }
 
+    /** @brief Returns the number of elements the array can currently support. */
     [[nodiscard]] unsigned long getCapacity() const {return capacity;}
+    /** @brief Returns the number of elements the array currently has. */
     [[nodiscard]] unsigned long getLength() const {return length;}
+    /** @brief Whether the array has any elements */
     [[nodiscard]] bool isEmpty() const {return length == 0;}
 
+    /**
+     * @brief Pushes a value to the back of the array.
+     * @param value The value to add.
+     * @return True on success, false on failure
+     */
     bool push(const T& value) {
         if (!memory) {
             Logger::logFatal("Attempted to push a value to a Dynamic Array, but memory is not initialized!");
@@ -141,6 +166,11 @@ public:
         length++;
         return true;
     }
+    /**
+     * @brief Pushes a value to the back of the array.
+     * @param value The value to add.
+     * @return True on success, false on failure
+     */
     bool push(T&& value) {
         if (!memory) {
             Logger::logFatal("Attempted to push a value to a Dynamic Array, but memory is not initialized!");
@@ -159,6 +189,11 @@ public:
         return true;
     }
 
+    /**
+     * @brief Pushes an uninstantiated value to the back of the array.
+     * @param args Variables for the struct/constructor
+     * @return The constructed element
+     */
     template<typename... Args>
     T* emplace(Args&&... args) {
         if (!memory) {
@@ -194,6 +229,10 @@ public:
         return destination;
     }
 
+    /**
+     * @brief Removes an element from the array at index. Greater indexes are moved down 1, keeping the array sorted.
+     * @param index The index of the element to remove.
+     */
     void pop(const unsigned long index) {
         if (index >= length) {
             Logger::logError("Index out of bounds! Length: " + std::to_string(length) + ", Index: " + std::to_string(index));
@@ -207,7 +246,12 @@ public:
         length--;
         std::destroy_at(&memory[length]);
     }
-    //Removes the target index without regard to the array's order. Perfect for the ECS system!
+
+    /**
+     * @brief Removes an element from the array at index by swapping it with the last element,
+     * and then deleting it. Faster than pop() but unsorts the array.
+     * @param index The index of the element to remove.
+     */
     void unorderedPop(const unsigned long index) {
         if (index >= length) {
             Logger::logError("Index out of bounds! Length: " + std::to_string(length) + ", Index: " + std::to_string(index));
@@ -225,6 +269,10 @@ public:
 
         length--;
     }
+
+    /**
+     * @brief Removes the last element from the array.
+     */
     void popBack() {
         if (length < 1) {
             Logger::logError("Attempted to pop an empty Dynamic Array!");
@@ -239,6 +287,9 @@ public:
 
     }
 
+    /**
+     * @brief Removes all elements in the array.
+     */
     void clear() {
         if (!memory) {
             Logger::logWarn("Clear called on Uninitialized Dynamic Array!");
@@ -248,6 +299,12 @@ public:
         destroy();
     }
 
+    /**
+     * @brief Inserts a new value to the array at the index. Elements from index and greater are moved up 1.
+     * @param value The value to add.
+     * @param index The index to add at.
+     * @return True on success, False on failure.
+     */
     bool insertAt(const T& value, unsigned long index) {
         if (!memory) {
             Logger::logFatal("Attempted to insert into an uninitialized Dynamic Array!");
@@ -292,6 +349,12 @@ public:
         length++;
         return true;
     }
+    /**
+     * @brief Inserts a new value to the array at the index. Elements from index and greater are moved up 1.
+     * @param value The value to add.
+     * @param index The index to add at.
+     * @return True on success, False on failure.
+     */
     bool insertAt(T&& value, unsigned long index) {
         if (!memory) {
             Logger::logFatal("Attempted to insert into an uninitialized Dynamic Array!");
@@ -333,6 +396,10 @@ public:
         return true;
     }
 
+    /**
+     * @brief Sets the capacity of the array to the give capacity.
+     * @param newCapacity Capacity to reserve.
+     */
     void ensureSize(const unsigned long newCapacity) {
         if (newCapacity > capacity) {
             if (memory) {
@@ -341,6 +408,10 @@ public:
         }
     }
 
+    /**
+     * @brief Creates a copy of an element.
+     * @return Returns the copy.
+     */
     T* duplicate() {
         Logger::logWarn("Duplicate is not fully setup and may cause unintended behavior!");
 
@@ -379,6 +450,11 @@ public:
     }
 
 private:
+    /**
+     * @brief Resizes the array. If requiredSize is given, Resizes it to that size instead.
+     * @param requiredSize Optional size to resize to.
+     * @return True on success, False on failure.
+     */
     bool resize(unsigned long requiredSize = 0) {
         if (!memory || capacity == 0) {
             Logger::logFatal("Dynamic Array resize called on an array of size 0!");

@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/28/2026.
-//
+/**
+*   @file EngineResourceTypes.h
+ *  @layer Engine
+ *  @module Resources
+ *  @author CybaricFox
+ *  @brief Various structures of resourcse
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 #include "src/defines.h"

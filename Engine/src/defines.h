@@ -6,6 +6,13 @@
 
 #define INVALID_ID 4294967295U
 
+#define GIBIBYTES(amount) (amount * 1024 * 1024 * 1024)
+#define MEBIBYTES(amount) (amount * 1024 * 1024)
+#define KIBIBYTES(amount) (amount * 1024)
+#define GIGABYTES(amount) (amount * 1000 * 1000 * 1000)
+#define MEGABYTES(amount) (amount * 1000 * 1000)
+#define KILOBYTES(amount) (amount * 1000)
+
 //Windows
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
     #define FOXFIRE_PLATFORM_WINDOWS 1

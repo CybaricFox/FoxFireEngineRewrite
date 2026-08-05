@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/31/2026.
-//
+/**
+*   @file FoxFire_TextureSystem.h
+ *  @layer System
+ *  @module FoxFire_Textures
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 
@@ -13,6 +21,9 @@
 #include "src/modules/engine/Resources/Contexts.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
+/**
+ * @brief Default texture system.
+ */
 class FOXFIRE_API FoxFire_TextureSystem final : public ITextureSystem {
 private:
     Texture defaultTexture{};

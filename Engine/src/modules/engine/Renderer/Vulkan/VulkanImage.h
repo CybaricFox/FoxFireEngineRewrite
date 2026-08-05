@@ -1,6 +1,14 @@
-//
-// Created by cmorg on 7/28/2026.
-//
+/**
+*   @file VulkanImage.h
+ *  @layer Engine
+ *  @module Renderer
+ *  @author CybaricFox
+ *  @brief
+ *  @version 1.0
+ *  @date 08-05-2026
+ *
+ *  @copyright (c) 2026
+ */
 
 #pragma once
 #include <vulkan/vulkan.h>
