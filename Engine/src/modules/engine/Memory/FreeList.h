@@ -84,7 +84,8 @@ public:
      * @return Number of bytes required in memory.
      */
     static unsigned long calculateMemoryRequirement(const unsigned long size) {
-        const unsigned long entries = size / (sizeof(void*) * sizeof(FreeListNode));
+        unsigned long entries = size / (sizeof(void*) * sizeof(FreeListNode));
+        if (entries == 0) entries = 1;
         return sizeof(FreeList) + (sizeof(FreeListNode) * entries);
     }
 
@@ -129,4 +130,6 @@ public:
     * @return True on success, False on failure
     */
     bool free(unsigned long size, unsigned long offset);
+
+    bool resize(FreeList *&list, void *newMemory, unsigned long newSize, void *&outOldMemory) const;
 };

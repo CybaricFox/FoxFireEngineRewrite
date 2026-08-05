@@ -12,6 +12,11 @@ bool VulkanBuffer::createBuffer(VulkanDevice& device, const unsigned long size, 
     usageFlags = usage;
     memoryPropertyFlags = memoryFlags;
 
+    //Create a new Free List
+    freeListMemoryRequirement = FreeList::calculateMemoryRequirement(size);
+    memoryBlock = FF_Memory::ff_allocate(freeListMemoryRequirement, RENDER);
+    bufferFreeList = FreeList::createFreeList(size, freeListMemoryRequirement, memoryBlock);
+
     VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bufferInfo.size = size;
     bufferInfo.usage = usage;
@@ -24,6 +29,7 @@ bool VulkanBuffer::createBuffer(VulkanDevice& device, const unsigned long size, 
     memoryIndex = VulkanUtils::findMemoryIndex(static_cast<int>(memRequirements.memoryTypeBits), memoryPropertyFlags, device.getPhysicalDevice());
     if (memoryIndex == -1) {
         Logger::logError("Can't find memory index for vulkan buffer!");
+        destroyFreeList();
         return false;
     }
 
@@ -34,6 +40,7 @@ bool VulkanBuffer::createBuffer(VulkanDevice& device, const unsigned long size, 
     VkResult result = vkAllocateMemory(device.getLogicalDevice(), &allocInfo, nullptr, &deviceMemory);
     if (result != VK_SUCCESS) {
         Logger::logError("Failed to allocate memory for a new vulkan buffer: " + VulkanUtils::getResultAsString(result, true));
+        destroyFreeList();
         return false;
     }
 
@@ -49,6 +56,10 @@ void VulkanBuffer::bindBuffer(VulkanDevice& device, const unsigned long offset) 
 }
 
 void VulkanBuffer::destroyBuffer(VulkanDevice& device) {
+    if (memoryBlock) {
+        destroyFreeList();
+    }
+
     if (deviceMemory) {
         vkFreeMemory(device.getLogicalDevice(), deviceMemory, nullptr);
         deviceMemory = nullptr;
@@ -62,6 +73,26 @@ void VulkanBuffer::destroyBuffer(VulkanDevice& device) {
 }
 
 bool VulkanBuffer::resizeBuffer(VulkanDevice& device, const unsigned long newSize, VkQueue queue, VkCommandPool pool) {
+    if (newSize < totalSize) {
+        Logger::logError("Buffer resize requires the new size to be larger than the old size!");
+        return false;
+    }
+
+    //Resize the free list
+    const unsigned long newMemoryRequirement = FreeList::calculateMemoryRequirement(newSize);
+    void* newBlock = FF_Memory::ff_allocate(newMemoryRequirement, RENDER);
+    void* oldBlock = nullptr;
+    if (!bufferFreeList->resize(bufferFreeList, newBlock, newSize, oldBlock)) {
+        Logger::logError("Vulkan Buffer failed to resize free list!");
+        FF_Memory::ff_free(newBlock, newMemoryRequirement, RENDER);
+        return false;
+    }
+    FF_Memory::ff_free(oldBlock, freeListMemoryRequirement, RENDER);
+    freeListMemoryRequirement = newMemoryRequirement;
+    memoryBlock = newBlock;
+    totalSize = newSize;
+
+    //Create the buffer
     VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bufferInfo.size = newSize;
     bufferInfo.usage = usageFlags;
@@ -129,6 +160,21 @@ void * VulkanBuffer::lockBuffer(VulkanDevice& device, const unsigned long offset
 
 void VulkanBuffer::unlockBuffer(VulkanDevice &device) const {
     vkUnmapMemory(device.getLogicalDevice(), deviceMemory);
+}
+
+bool VulkanBuffer::allocate(const unsigned long size, unsigned long &outOffset) const {
+    return bufferFreeList->allocate(size, outOffset);
+}
+
+bool VulkanBuffer::free(const unsigned long size, const unsigned long offset) const {
+    return bufferFreeList->free(size, offset);
+}
+
+void VulkanBuffer::destroyFreeList() {
+    bufferFreeList->shutdown();
+    FF_Memory::ff_free(memoryBlock, freeListMemoryRequirement, RENDER);
+    freeListMemoryRequirement = 0;
+    memoryBlock = nullptr;
 }
 
 void VulkanBuffer::loadBufferData(VulkanDevice &device, const unsigned long offset, const unsigned long size, const void *data) const {

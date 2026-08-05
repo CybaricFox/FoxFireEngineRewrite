@@ -123,10 +123,10 @@ struct GeometryData {
     unsigned int id = INVALID_ID;
     unsigned int generation = INVALID_ID;
     unsigned int vertexCount = 0;
-    unsigned int vertexBufferOffset = 0;
+    unsigned long vertexBufferOffset = 0;
     unsigned int vertexElementSize = 0;
     unsigned int indexCount = 0;
-    unsigned int indexBufferOffset = 0;
+    unsigned long indexBufferOffset = 0;
     unsigned int indexElementSize = 0;
 };
 

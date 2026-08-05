@@ -211,7 +211,6 @@ bool VulkanShader::createBuffers(VulkanContext &context) {
         Logger::logError("Error creating vertex buffer!");
         return false;
     }
-    context.setVertexOffset(0);
 
     constexpr unsigned long indexBufferSize = sizeof(unsigned int) * 1024 * 1024;
     if (!context.getIndexBuffer().createBuffer(context.getDevice(), indexBufferSize,
@@ -221,7 +220,6 @@ bool VulkanShader::createBuffers(VulkanContext &context) {
         Logger::logError("Error creating index buffer!");
         return false;
     }
-    context.setIndexOffset(0);
 
     return true;
 }

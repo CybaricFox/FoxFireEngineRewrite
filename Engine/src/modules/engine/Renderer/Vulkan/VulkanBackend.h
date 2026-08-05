@@ -46,8 +46,10 @@ private:
     bool swapchainAcquireNextImageIndex(unsigned long timeout, VkSemaphore semaphore, VkFence fence, unsigned int& outImageIndex);
     void presentSwapchain();
     void allocateCommandBuffers();
-    void uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, unsigned long offset, unsigned long size, const void *data);
-    void freeRangeOfData(VulkanBuffer &buffer, unsigned long offset, unsigned long size);
+
+    bool uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer,
+                           unsigned long &outOffset, unsigned long size, const void *data);
+    bool freeRangeOfData(const VulkanBuffer &buffer, unsigned long offset, unsigned long size);
 public:
     VulkanBackend() = default;
     ~VulkanBackend() override;

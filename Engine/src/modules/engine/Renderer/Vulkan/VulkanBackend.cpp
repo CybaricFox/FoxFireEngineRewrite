@@ -151,18 +151,28 @@ void VulkanBackend::allocateCommandBuffers() {
     Logger::logInfo("Vulkan command buffers created and allocated.");
 }
 
-void VulkanBackend::uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, const unsigned long offset, const unsigned long size, const void *data) {
+bool VulkanBackend::uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, unsigned long& outOffset, const unsigned long size, const void *data) {
+    //Allocate buffer space
+    if (!buffer.allocate(size, outOffset)) {
+        Logger::logError("Failed to allocate data range for upload.");
+        return false;
+    }
+
+    //Create staging buffer
     constexpr VkBufferUsageFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     VulkanBuffer stagingBuffer{};
     stagingBuffer.createBuffer(vulkanContext.getDevice(), size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, flags, true);
 
+    //Load staging buffer
     stagingBuffer.loadBufferData(vulkanContext.getDevice(), 0, size, data);
-    stagingBuffer.copyBufferData(vulkanContext.getDevice(), pool, fence, queue, stagingBuffer.getBuffer(), 0, buffer.getBuffer(), offset, size);
+    stagingBuffer.copyBufferData(vulkanContext.getDevice(), pool, fence, queue, stagingBuffer.getBuffer(), 0, buffer.getBuffer(), outOffset, size);
     stagingBuffer.destroyBuffer(vulkanContext.getDevice());
+
+    return true;
 }
 
-void VulkanBackend::freeRangeOfData(VulkanBuffer &buffer, unsigned long offset, unsigned long size) {
-
+bool VulkanBackend::freeRangeOfData(const VulkanBuffer &buffer, const unsigned long offset, const unsigned long size) {
+    return buffer.free(size, offset);
 }
 
 bool VulkanBackend::beginRenderpass(const unsigned char renderpassId) {
@@ -671,8 +681,8 @@ void VulkanBackend::destroyMaterial(Material &material) {
     }
 }
 
-bool VulkanBackend::createGeometry(Geometry &geometry, unsigned int vertexSize, const unsigned int vertexCount,
-    void *vertices, unsigned int indexSize, const unsigned int indexCount, void *indices) {
+bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertexSize, const unsigned int vertexCount,
+    void *vertices, const unsigned int indexSize, const unsigned int indexCount, void *indices) {
     if (vertexCount == 0 || !vertices) {
         Logger::logError("No Vertex data was supplied for geometry creation! Vertex Count: " + std::to_string(vertexCount));
         return false;
@@ -706,23 +716,23 @@ bool VulkanBackend::createGeometry(Geometry &geometry, unsigned int vertexSize, 
     VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
 
     //upload vertexes
-    data->vertexBufferOffset = vulkanContext.getGeometryVertexOffset();
     data->vertexCount = vertexCount;
     data->vertexElementSize = vertexSize;
     const unsigned int vertexTotalSize = data->vertexElementSize * vertexCount;
-    uploadRangeOfData(pool, nullptr, queue, vulkanContext.getVertexBuffer(), data->vertexBufferOffset, vertexTotalSize, vertices);
-
-    vulkanContext.setGeometryVertexOffset(vulkanContext.getGeometryVertexOffset() + vertexTotalSize);
+    if (!uploadRangeOfData(pool, nullptr, queue, vulkanContext.getVertexBuffer(), data->vertexBufferOffset, vertexTotalSize, vertices)) {
+        Logger::logError("Failed to upload geometry vertex data!");
+        return false;
+    }
 
     //Upload indexes if they exist
     if (indexCount > 0 && indices) {
-        data->indexBufferOffset = vulkanContext.getGeometryIndexOffset();
         data->indexCount = indexCount;
         data->indexElementSize = indexSize;
         const unsigned int indexTotalSize = data->indexElementSize * indexCount;
-        uploadRangeOfData(pool, nullptr, queue, vulkanContext.getIndexBuffer(), data->indexBufferOffset, indexTotalSize, indices);
-
-        vulkanContext.setGeometryIndexOffset(vulkanContext.getGeometryIndexOffset() + indexTotalSize);
+        if (!uploadRangeOfData(pool, nullptr, queue, vulkanContext.getIndexBuffer(), data->indexBufferOffset, indexTotalSize, indices)) {
+            Logger::logError("Failed to upload geometry index data!");
+            return false;
+        }
     }
 
     if (data->generation == INVALID_ID) {
@@ -773,11 +783,10 @@ void VulkanBackend::createRenderpass(const RenderpassProfile profile) {
 void VulkanBackend::createRenderSystem(const RenderSystemProfile profile) {
     if (shaders.getLength() == 0) shaders.initialize(1);
 
-    VulkanShader shader{};
-    shader.setRenderType(profile.type);
     //Make a copy of profile because it will get deleted
     const RenderSystemProfile copyProfile = profile;
-    shader.setProfile(copyProfile);
 
-    shaders.push(std::move(shader));
+    VulkanShader* shader = shaders.emplace(VulkanShader{});
+    shader->setRenderType(profile.type);
+    shader->setProfile(copyProfile);
 }

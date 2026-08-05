@@ -38,8 +38,6 @@ private:
     DynamicArray<VkFence*> imagesInFlight{};
     VulkanBuffer vertexBuffer{};
     VulkanBuffer indexBuffer{};
-    unsigned long geometryVertexOffset = 0;
-    unsigned long geometryIndexOffset = 0;
     float deltaTime = 0.0f;
     ReusableArray<GeometryData> geometries{};
     DynamicArray<VulkanRenderpass> renderpasses{};
@@ -74,20 +72,14 @@ public:
     VulkanBuffer& getIndexBuffer() { return indexBuffer; }
     [[nodiscard]] float getDeltaTime() const { return deltaTime; }
     GeometryData& getGeometry(const unsigned int id) { return geometries.get(id); }
-    [[nodiscard]] unsigned long getGeometryVertexOffset() const { return geometryVertexOffset; }
-    [[nodiscard]] unsigned long getGeometryIndexOffset() const { return geometryIndexOffset; }
     DynamicArray<VulkanRenderpass>& getRenderpasses() { return renderpasses; }
 
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
     void setHeight(const unsigned int height) {frameBufferHeight = height;}
     void updateCurrentImageInFlight() {imagesInFlight[imageIndex] = &inFlightFences[currentFrame];}
-    void setVertexOffset(const unsigned long offset) {geometryVertexOffset = offset;}
-    void setIndexOffset(const unsigned long offset) {geometryIndexOffset = offset;}
     void setDeltaTime(const float dt) {deltaTime = dt;}
     void setCurrentFrame(const unsigned int value) {currentFrame = value;}
     unsigned int assignGeometry() {return geometries.assign();}
-    void setGeometryVertexOffset(const unsigned long offset) {geometryVertexOffset = offset;}
-    void setGeometryIndexOffset(const unsigned long offset) {geometryIndexOffset = offset;}
     void initializeGeometry() {geometries.initialize(0);}
     void initializeRenderpasses() {renderpasses.initialize(2);}
 

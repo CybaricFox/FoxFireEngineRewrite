@@ -34,7 +34,7 @@ private:
 
 public:
     VkRenderPass& getHandle() { return handle; }
-    EngineRenderpasses getId() const { return id; }
+    [[nodiscard]] EngineRenderpasses getId() const { return id; }
     [[nodiscard]] bool usesDepth() const { return (clearFlags & RENDERPASS_CLEAR_DEPTH) != 0; }
     VkFramebuffer& getFramebuffer(const unsigned int index) { return framebuffers[index]; }
 

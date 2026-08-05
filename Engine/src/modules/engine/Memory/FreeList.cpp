@@ -9,7 +9,9 @@
 FreeList * FreeList::createFreeList(const unsigned long size, unsigned long memoryRequirement, void *memory) {
     if (!memory) return nullptr;
 
-    const unsigned long entries = size / (sizeof(void*) * sizeof(FreeListNode));
+    //This may become a point of issues
+    unsigned long entries = size / (sizeof(void*) * sizeof(FreeListNode));
+    if (entries == 0) entries = 1;
 
     //Free lists have a min memory recommendation. Warn the use if they are below this threshold.
     constexpr unsigned long minMemory = (sizeof(FreeList) + sizeof(FreeListNode)) * 8;
@@ -22,7 +24,7 @@ FreeList * FreeList::createFreeList(const unsigned long size, unsigned long memo
     const auto freeList = new (memory) FreeList();
     freeList->memoryBlock = memory;
 
-    freeList->nodes = reinterpret_cast<FreeListNode*>(static_cast<unsigned char *>(freeList->memoryBlock)) + sizeof(FreeList);
+    freeList->nodes = reinterpret_cast<FreeListNode*>(static_cast<unsigned char*>(freeList->memoryBlock) + sizeof(FreeList));
     freeList->maxEntries = entries;
     freeList->totalSize = size;
 
@@ -145,6 +147,61 @@ void FreeList::freeNode(FreeListNode &node) {
     node.offset = 0;
     node.size = 0;
     node.next = nullptr;
+}
+
+//This function needs testing
+bool FreeList::resize(FreeList*& list, void *newMemory, const unsigned long newSize, void*& outOldMemory) const {
+    if (totalSize > newSize) return false;
+
+    unsigned long memoryRequirement = calculateMemoryRequirement(newSize);
+
+    outOldMemory = memoryBlock;
+
+    //const auto* oldList = static_cast<FreeList *>(memoryBlock);
+    const unsigned long sizeDif = newSize - totalSize;
+
+    list = createFreeList(newSize, memoryRequirement, newMemory);
+    if (!list) return false;
+
+    list->nodes[0].offset = 0;
+    list->nodes[0].size = 0;
+    list->nodes[0].next = nullptr;
+
+    FreeListNode* newListNode = list->first;
+    const FreeListNode* oldListNode = first;
+    if (!oldListNode) {
+        list->first->offset = totalSize;
+        list->first->size = sizeDif;
+        list->first->next = nullptr;
+    } else {
+        while (oldListNode) {
+            FreeListNode* newNode = list->getNode();
+            newNode->offset = oldListNode->offset;
+            newNode->size = oldListNode->size;
+            newNode->next = nullptr;
+            newListNode->next = newNode;
+            newListNode = newListNode->next;
+
+            if (oldListNode->next) {
+                oldListNode = oldListNode->next;
+            } else {
+                if (oldListNode->offset + oldListNode->size == totalSize) {
+                    newListNode->size += sizeDif;
+                } else {
+                    FreeListNode* newNodeEnd = list->getNode();
+                    newNodeEnd->offset = totalSize;
+                    newNodeEnd->size = sizeDif;
+                    newNodeEnd->next = nullptr;
+                    newListNode->next = newNodeEnd;
+                }
+                break;
+            }
+        }
+    }
+
+    shutdown();
+
+    return true;
 }
 
 void FreeList::shutdown() const {
