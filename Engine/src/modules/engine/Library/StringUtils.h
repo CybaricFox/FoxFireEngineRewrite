@@ -14,6 +14,8 @@
 #include "src/defines.h"
 #include <foxfire_export.h>
 
+#include "src/modules/engine/Memory/DynamicArray.h"
+
 /*
  * REMINDER OF STRING FUNCTIONS THAT ARE USEFUL
  * string.substr(start, legnth) returns a substring.
@@ -56,6 +58,8 @@ public:
     static bool stringToUInt(const String &string, unsigned int& out);
     static bool stringToULong(const String &string, unsigned long& out);
     static bool stringToBool(const String &string, bool& out);
+    static unsigned int findAll(const String &string, char toFind);
+    static unsigned int recursiveSplit(const String &string, char regex, DynamicArray<String>& array);
 };
 
 

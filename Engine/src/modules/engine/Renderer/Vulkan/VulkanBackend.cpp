@@ -8,6 +8,7 @@
 #include <cstring>
 #include <iomanip>
 
+#include "VulkanBackendShader.h"
 #include "../../Library/Logger.h"
 #include "src/modules/engine/Library/FF_Math.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
@@ -15,6 +16,11 @@
 VulkanContext VulkanBackend::vulkanContext{};
 unsigned int VulkanBackend::cachedWidth = 0;
 unsigned int VulkanBackend::cachedHeight = 0;
+
+constexpr unsigned int BINDING_INDEX_UBO = 0;
+constexpr unsigned int BINDING_INDEX_SAMPLER = 1;
+constexpr unsigned int GLOBAL_DESCRIPTOR_SET_INDEX = 0;
+constexpr unsigned int  INSTANCE_DESCRIPTOR_SET_INDEX = 1;
 
 VkBool32 VulkanBackend::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
@@ -182,11 +188,18 @@ bool VulkanBackend::beginRenderpass(const unsigned char renderpassId) {
 
     renderpass.beginRenderpass(commandBuffer, frameBuffer);
 
-    for (VulkanShader& shader : shaders) {
-        if ((shader.getType() & renderpass.getId()) != 0) {
-            shader.use(vulkanContext);
+    /*
+    switch (renderpass.getId()) {
+        case ENGINE_RENDER_PASS_WORLD: {
+            shaders[0].use();
+            break;
+        }
+        case ENGINE_RENDER_PASS_UI: {
+            shaders[1].use();
+            break;
         }
     }
+    */
 
     return true;
 }
@@ -197,6 +210,336 @@ bool VulkanBackend::endRenderpass(const unsigned char renderpassId) {
 
     renderpass.endRenderpass(commandBuffer);
     return true;
+}
+
+bool VulkanBackend::createShader(Shader& shader, const unsigned char renderpassId, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages) {
+    shader.setBackendShader(FF_Memory::ff_allocate_class<VulkanBackendShader>(sizeof(VulkanBackendShader), RENDER));
+
+    VulkanRenderpass& renderpass = vulkanContext.getRenderpass(renderpassId);
+
+    VkShaderStageFlags vkStages[VULKAN_SHADER_MAX_STAGES]{};
+
+    for (unsigned char i = 0; i < stageCount; i++) {
+        switch (stages[i]) {
+            case SHADER_STAGE_FRAGMENT: {
+                vkStages[i] = VK_SHADER_STAGE_FRAGMENT_BIT;
+                break;
+            }
+            case SHADER_STAGE_VERTEX: {
+                vkStages[i] = VK_SHADER_STAGE_VERTEX_BIT;
+                break;
+            }
+            case SHADER_STAGE_GEOMETRY: {
+                Logger::logWarn("SHADER_STAGE_GEOMETRY is not supported at this time.");
+                vkStages[i] = VK_SHADER_STAGE_GEOMETRY_BIT;
+                break;
+            }
+            case SHADER_STAGE_COMPUTE: {
+                Logger::logWarn("SHADER_STAGE_COMPUTE is not supported at this time.");
+                vkStages[i] = VK_SHADER_STAGE_COMPUTE_BIT;
+                break;
+            }
+        }
+    }
+
+    constexpr unsigned int maxDescriptorAllocationCount = 1024;
+
+    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+
+    backendShader->setRenderpass(renderpass);
+    backendShader->setMaxDescriptorCount(maxDescriptorAllocationCount);
+
+    if (!backendShader->setStages(stageCount, stages, stageFileNames)) return false;
+
+    backendShader->initializeDescriptorSets(vulkanContext.getSwapchain().getImageCount());
+
+    backendShader->setPoolSizes();
+
+    backendShader->createUBOConfig(BINDING_INDEX_UBO, GLOBAL_DESCRIPTOR_SET_INDEX);
+
+    if (shader.useInstances()) {
+        backendShader->createUBOConfig(BINDING_INDEX_UBO, INSTANCE_DESCRIPTOR_SET_INDEX);
+    }
+
+    return true;
+}
+
+bool VulkanBackend::initializeShader(Shader &shader) {
+    VkAllocationCallbacks* vkAllocator = nullptr;
+    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+
+    for (unsigned int i = 0; i < backendShader->getStageCount(); i++) {
+        if (!createModule(backendShader->getConfig().stages[i], backendShader->getStage(i))) {
+            Logger::logError("Failed to create " + backendShader->getConfig().stages[i].fileName + " for shader " + shader.getName());
+            return false;
+        }
+    }
+
+    static VkFormat* types = nullptr;
+    static VkFormat t[11];
+    if (!types) {
+        t[SHADER_ATTRIBUTE_TYPE_FLOAT32] = VK_FORMAT_R32_SFLOAT;
+        t[SHADER_ATTRIBUTE_TYPE_FLOAT32_2] = VK_FORMAT_R32G32_SFLOAT;
+        t[SHADER_ATTRIBUTE_TYPE_FLOAT32_3] = VK_FORMAT_R32G32B32_SFLOAT;
+        t[SHADER_ATTRIBUTE_TYPE_FLOAT32_4] = VK_FORMAT_R32G32B32A32_SFLOAT;
+        t[SHADER_ATTRIBUTE_TYPE_INT8] = VK_FORMAT_R8_SINT;
+        t[SHADER_ATTRIBUTE_TYPE_UINT8] = VK_FORMAT_R8_UINT;
+        t[SHADER_ATTRIBUTE_TYPE_INT16] = VK_FORMAT_R16_SINT;
+        t[SHADER_ATTRIBUTE_TYPE_UINT16] = VK_FORMAT_R16_UINT;
+        t[SHADER_ATTRIBUTE_TYPE_INT32] = VK_FORMAT_R32_SINT;
+        t[SHADER_ATTRIBUTE_TYPE_UINT32] = VK_FORMAT_R32_UINT;
+        types = t;
+    }
+
+    //Process attributes
+    const unsigned int attributeCount = shader.getAttributes().getLength();
+    unsigned int offset = 0;
+    for (unsigned int i = 0; i < attributeCount; i++) {
+        backendShader->setAttribute(i, types[shader.getAttribute(i).type], offset);
+        offset += shader.getAttribute(i).size;
+    }
+
+    //Process uniforms
+    auto uniforms = shader.getUniforms();
+
+    for (ShaderUniform*& uniform : uniforms) {
+        if (uniform->type == SHADER_UNIFORM_TYPE_SAMPLER) {
+            const unsigned int descriptorIndex = uniform->scope == SHADER_SCOPE_GLOBAL ? GLOBAL_DESCRIPTOR_SET_INDEX : INSTANCE_DESCRIPTOR_SET_INDEX;
+            backendShader->setDescriptorSetConfig(descriptorIndex, BINDING_INDEX_SAMPLER);
+        }
+    }
+
+    //Create descriptor pool
+    if (!backendShader->createDescriptorPool(vulkanContext.getDevice(), vkAllocator)) return false;
+
+    //Create descriptor set layouts
+    for (unsigned int i = 0; i < backendShader->getConfig().descriptorSetCount; i++) {
+        if (!backendShader->createDescriptorSetLayout(i, vulkanContext.getDevice(), vkAllocator)) return false;
+    }
+
+    //Viewport
+    VkViewport viewport{};
+    viewport.x = 0;
+    viewport.y = static_cast<float>(vulkanContext.getFrameBufferHeight());
+    viewport.width = static_cast<float>(vulkanContext.getFrameBufferWidth());
+    viewport.height = static_cast<float>(vulkanContext.getFrameBufferHeight());
+    viewport.minDepth = 0;
+    viewport.maxDepth = 1;
+
+    //Scissor
+    VkRect2D scissor{};
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent.width = vulkanContext.getFrameBufferWidth();
+    scissor.extent.height = vulkanContext.getFrameBufferHeight();
+
+    VkPipelineShaderStageCreateInfo shaderStageCreateInfo[VULKAN_SHADER_MAX_STAGES]{};
+    for (unsigned int i = 0; i < backendShader->getStageCount(); i++) {
+        shaderStageCreateInfo[i] = backendShader->getStage(i).shaderStageCreateInfo;
+    }
+
+    const bool result = backendShader->createPipeline(shader.getAttributeStride(), shader.getAttributeCount(),
+        shaderStageCreateInfo, viewport, scissor, shader.getPushConstantRangeCount(), shader.getPushConstantRanges(),
+        vulkanContext.getDevice());
+
+    if (!result) {
+        Logger::logError("Failed to load pipeline for shader.");
+        return false;
+    }
+
+    shader.setRequiredAlignment(vulkanContext.getDevice().getPhysicalDeviceProperties().limits.minUniformBufferOffsetAlignment);
+    shader.setGlobalStride();
+    shader.setInstanceStride();
+
+    const unsigned int deviceLocalBits = vulkanContext.getDevice().supportsDeviceLocalBit() ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
+    const unsigned long totalBufferSize = shader.getGlobalStride() + (shader.getInstanceStride() * MAX_MATERIAL_COUNT);
+    if (!backendShader->getUniformBuffer().createBuffer(vulkanContext.getDevice(), totalBufferSize,
+        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | deviceLocalBits,
+        true)) {
+
+        Logger::logError("Failed to create uniform buffer for shader.");
+        return false;
+    }
+    if (!backendShader->getUniformBuffer().allocate(shader.getGlobalStride(), shader.getGlobalOffset())) {
+        Logger::logError("Failed to allocate space for a uniform buffer for a shader.");
+        return false;
+    }
+
+    backendShader->finalizeBuffer(vulkanContext.getDevice());
+    backendShader->finalizeDescriptorSets(vulkanContext.getSwapchain().getImageCount(), GLOBAL_DESCRIPTOR_SET_INDEX, vulkanContext.getDevice());
+
+    return true;
+}
+
+void VulkanBackend::destroyShader(Shader &shader) {
+    if (!shader.getBackendShader()) return;
+
+    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+
+    backendShader->shutdown(vulkanContext.getDevice(), nullptr);
+
+    FF_Memory::ff_free_class<VulkanBackendShader>(shader.getBackendShader(), sizeof(VulkanBackendShader), RENDER);
+    shader.setBackendShader(nullptr);
+}
+
+bool VulkanBackend::useShader(Shader &shader) {
+    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+    backendShader->getPipeline().bindPipeline(vulkanContext.getCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS);
+    return true;
+}
+
+bool VulkanBackend::bindShaderGlobals(Shader &shader) {
+    shader.setBoundOffset(shader.getGlobalOffset());
+    return true;
+}
+
+void VulkanBackend::bindShaderInstance(Shader &shader, unsigned instanceId) {
+    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+
+    shader.setBoundInstanceId(instanceId);
+    const VulkanShaderInstanceState& state = backendShader->getInstanceState(instanceId);
+    shader.setBoundOffset(state.offset);
+}
+
+bool VulkanBackend::setUniform(Shader &shader, ShaderUniform &uniform, void *value) {
+    const auto backendShader = shader.getBackendShader<VulkanBackendShader>();
+
+    if (uniform.type == SHADER_UNIFORM_TYPE_SAMPLER) {
+        if (uniform.scope == SHADER_SCOPE_GLOBAL) {
+            shader.setUniformTexture(uniform.location, *static_cast<Texture*>(value));
+        } else {
+            backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextures[uniform.location] = static_cast<Texture *>(value);
+        }
+    } else {
+        if (uniform.scope == SHADER_SCOPE_LOCAL) {
+            VkCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer().getHandle();
+            vkCmdPushConstants(commandBuffer, backendShader->getPipeline().getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, uniform.offset, uniform.size, value);
+        } else {
+            auto* address = static_cast<unsigned char*>(backendShader->getUniformBufferMemoryBlock());
+            address += shader.getBoundOffset() + uniform.offset;
+            FF_Memory::ff_copy(address, value, uniform.size);
+        }
+    }
+
+    return true;
+}
+
+bool VulkanBackend::applyShaderGlobals(Shader &shader) {
+    const unsigned int imageIndex = vulkanContext.getImageIndex();
+    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+    VkCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer().getHandle();
+    VkDescriptorSet& globalDescriptor = backendShader->getDescriptorSet(imageIndex);
+
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = backendShader->getUniformBuffer().getBuffer();
+    bufferInfo.offset = shader.getGlobalOffset();
+    bufferInfo.range = shader.getGlobalStride();
+
+    VkWriteDescriptorSet descriptorWrite = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    descriptorWrite.dstSet = globalDescriptor;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pBufferInfo = &bufferInfo;
+
+    VkWriteDescriptorSet descriptorWrites[2]{};
+    descriptorWrites[0] = descriptorWrite;
+
+    unsigned int globalSetBindingCount = backendShader->getConfig().descriptorSets[GLOBAL_DESCRIPTOR_SET_INDEX].bindingCount;
+    if (globalSetBindingCount > 1) {
+        globalSetBindingCount = 1;
+        Logger::logError("Global image samplers are not supported at this time.");
+    }
+
+    vkUpdateDescriptorSets(vulkanContext.getDevice().getLogicalDevice(), globalSetBindingCount, descriptorWrites, 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, backendShader->getPipeline().getPipelineLayout(), 0, 1, &globalDescriptor, 0, nullptr);
+    return true;
+}
+
+bool VulkanBackend::applyShaderInstance(Shader &shader) {
+    if (!shader.useInstances()) {
+        Logger::logError("Cannot apply shader because the shader does not support instances.");
+        return false;
+    }
+
+    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+    unsigned int imageIndex = vulkanContext.getImageIndex();
+    VkCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer().getHandle();
+
+    VulkanShaderInstanceState& state = backendShader->getInstanceState(shader.getBoundInstanceId());
+    VkDescriptorSet& instanceDescriptor = state.descriptorSetState.descriptorSets[imageIndex];
+
+    VkWriteDescriptorSet descriptorWrites[2]{};
+    unsigned int descriptorCount = 0;
+    unsigned int descriptorIndex = 0;
+
+    unsigned char& instanceGeneration = state.descriptorSetState.descriptorStates[descriptorIndex].generations[imageIndex];
+
+    VkWriteDescriptorSet instanceDescriptorWrite = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    VkDescriptorBufferInfo bufferInfo{};
+    if (instanceGeneration == INVALID_ID_U8) {
+        bufferInfo.buffer = backendShader->getUniformBuffer().getBuffer();
+        bufferInfo.offset = state.offset;
+        bufferInfo.range = shader.getInstanceStride();
+
+        instanceDescriptorWrite.dstSet = instanceDescriptor;
+        instanceDescriptorWrite.dstBinding = descriptorIndex;
+        instanceDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        instanceDescriptorWrite.descriptorCount = 1;
+        instanceDescriptorWrite.pBufferInfo = &bufferInfo;
+
+        descriptorWrites[descriptorCount] = instanceDescriptorWrite;
+        descriptorCount++;
+
+        instanceGeneration = 1;
+    }
+
+    descriptorIndex++;
+
+    VkDescriptorImageInfo imageInfos[VULKAN_SHADER_MAX_GLOBAL_TEXTURES]{};
+    VkWriteDescriptorSet samplerDescriptor{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    if (backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindingCount > 1) {
+        const unsigned int totalSamplerCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[BINDING_INDEX_SAMPLER].descriptorCount;
+        unsigned int updateSamplerCount = 0;
+        for (unsigned int i = 0; i < totalSamplerCount; i++) {
+            const Texture* texture = backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextures[i];
+            auto* textureData = static_cast<VulkanTextureData *>(texture->data);
+            imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfos[i].imageView = textureData->image.getImageView();
+            imageInfos[i].sampler = textureData->sampler;
+
+            updateSamplerCount++;
+        }
+
+        samplerDescriptor.dstSet = instanceDescriptor;
+        samplerDescriptor.dstBinding = descriptorIndex;
+        samplerDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        samplerDescriptor.descriptorCount = updateSamplerCount;
+        samplerDescriptor.pImageInfo = imageInfos;
+        descriptorWrites[descriptorCount] = samplerDescriptor;
+        descriptorCount++;
+    }
+
+    if (descriptorCount > 0) {
+        vkUpdateDescriptorSets(vulkanContext.getDevice().getLogicalDevice(), descriptorCount, descriptorWrites, 0, nullptr);
+    }
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, backendShader->getPipeline().getPipelineLayout(), 1, 1, &instanceDescriptor, 0, nullptr);
+    return true;
+}
+
+bool VulkanBackend::getRenderpassId(const String name, unsigned char &outId) {
+    for (VulkanRenderpass& renderpass : vulkanContext.getRenderpasses()) {
+        if (renderpass.getName() == name) {
+            outId = renderpass.getId();
+            return true;
+        }
+    }
+
+    Logger::logError("Cannot find renderpass with name: " + name);
+    return false;
 }
 
 void VulkanBackend::resize(const unsigned short width, const unsigned short height) {
@@ -210,11 +553,9 @@ void VulkanBackend::resize(const unsigned short width, const unsigned short heig
 VulkanBackend::~VulkanBackend() {
     vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
 
-    //Destroy shader modules
-    for (VulkanShader& shader : shaders) {
-        shader.destroy(vulkanContext);
-    }
-    shaders.shutdown();
+    //Destroy buffers
+    vulkanContext.getVertexBuffer().destroyBuffer(vulkanContext.getDevice());
+    vulkanContext.getIndexBuffer().destroyBuffer(vulkanContext.getDevice());
 
     Logger::logDebug("Destroying sync objects");
     //Destroy sync objects
@@ -239,7 +580,9 @@ VulkanBackend::~VulkanBackend() {
     vulkanContext.destroyContext();
 }
 
-bool VulkanBackend::initialize(const String appName, Platform& platform, const unsigned int width, const unsigned int height, ResourceSystem& resources) {
+bool VulkanBackend::initialize(const String appName, Platform& platform, const unsigned int width, const unsigned int height, ResourceSystem* resources) {
+    resourceSystemRef = resources;
+
     vulkanContext.initializeGeometry();
 
     cachedWidth = width;
@@ -378,15 +721,7 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
     //Set initial state to 0. This is allocated in createSyncObject().
     vulkanContext.clearImagesInFlight();
 
-    //Create shader system
-    for (VulkanShader& shader : shaders) {
-        if (!shader.initialize(vulkanContext, resources)) {
-            Logger::logError("Failed to initialize Vulkan shaders.");
-            return false;
-        }
-    }
-
-    shaders[0].createBuffers(vulkanContext);
+    createBuffers();
 
     Logger::logInfo("Vulkan renderer initialized");
     return true;
@@ -501,65 +836,16 @@ bool VulkanBackend::endFrame(const float deltaTime) {
     return true;
 }
 
-void VulkanBackend::updateWorldGlobalState(const Mat4 projection, const Mat4 view, Vector3f viewPosition, Vector4f ambientColor, int mode) {
-    for (VulkanShader& shader : shaders) {
-        if ((shader.getType() & ENGINE_RENDER_PASS_WORLD) != 0) {
-            shader.use(vulkanContext);
-
-            shader.getUBO().projection = projection;
-            shader.getUBO().view = view;
-
-            shader.updateGlobalState(vulkanContext);
-        }
-    }
-}
-
-void VulkanBackend::updateUIGlobalState(const Mat4 projection, const Mat4 view, int mode) {
-    for (VulkanShader& shader : shaders) {
-        if ((shader.getType() & ENGINE_RENDER_PASS_UI) != 0) {
-            shader.use(vulkanContext);
-
-            shader.getUBO().projection = projection;
-            shader.getUBO().view = view;
-
-            shader.updateGlobalState(vulkanContext);
-        }
-    }
-}
-
 void VulkanBackend::drawGeometry(const GeometryRenderData &data, Texture& defaultTexture, Material& defaultMaterial) {
     //Geometry must be valid
-    if (!data.geometry || data.geometry->internalId == INVALID_ID) {
+    if (!data.geometry || data.geometry->internalId == INVALID_ID_U32) {
         return;
     }
 
     const GeometryData& bufferData = vulkanContext.getGeometry(data.geometry->internalId);
     VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
 
-    Material* material = nullptr;
-    if (data.geometry->material) {
-        material = data.geometry->material;
-    } else {
-        material = &defaultMaterial;
-    }
-
-    unsigned int index = INVALID_ID;
-    switch (material->materialType) {
-        case MATERIAL_TYPE_WORLD: {
-            index = 0;
-            break;
-        }
-        case MATERIAL_TYPE_UI: {
-            index = 1;
-            break;
-        }
-    }
-
-    shaders[index].setModel(vulkanContext, data.model);
-    shaders[index].applyMaterial(vulkanContext, *material, defaultTexture);
-
     VkDeviceSize offsets[1] = {bufferData.vertexBufferOffset};
-
     vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, &vulkanContext.getVertexBuffer().getBuffer(), offsets);
 
     if (bufferData.indexCount > 0) {
@@ -571,7 +857,7 @@ void VulkanBackend::drawGeometry(const GeometryRenderData &data, Texture& defaul
 }
 
 void VulkanBackend::createTexture(const unsigned char *pixels, Texture &texture) {
-    texture.generation = INVALID_ID;
+    texture.generation = INVALID_ID_U32;
 
     texture.data = FF_Memory::ff_allocate(sizeof(VulkanTextureData), TEXTURE);
     auto* data = static_cast<VulkanTextureData *>(texture.data);
@@ -639,48 +925,6 @@ void VulkanBackend::destroyTexture(Texture &texture) {
     }
 }
 
-bool VulkanBackend::createMaterial(Material &material) {
-    unsigned int index = INVALID_ID;
-    switch (material.materialType) {
-        case MATERIAL_TYPE_WORLD: {
-            index = 0;
-            break;
-        }
-        case MATERIAL_TYPE_UI: {
-            index = 1;
-            break;
-        }
-    }
-
-    if (!shaders[index].aquireResources(vulkanContext, material)) {
-        Logger::logError("Vulkan Backend failed to acquire material resources.");
-        return false;
-    }
-
-    Logger::logDebug("Vulkan Backend created material successfully.");
-    return true;
-}
-
-void VulkanBackend::destroyMaterial(Material &material) {
-    unsigned int index = INVALID_ID;
-    switch (material.materialType) {
-        case MATERIAL_TYPE_WORLD: {
-            index = 0;
-            break;
-        }
-        case MATERIAL_TYPE_UI: {
-            index = 1;
-            break;
-        }
-    }
-
-    if (material.internalId != INVALID_ID) {
-        shaders[index].releaseResources(vulkanContext, material);
-    } else {
-        Logger::logWarn("Vulkan Backend tried to destroy a material with an INVALID_ID.");
-    }
-}
-
 bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertexSize, const unsigned int vertexCount,
     void *vertices, const unsigned int indexSize, const unsigned int indexCount, void *indices) {
     if (vertexCount == 0 || !vertices) {
@@ -688,7 +932,7 @@ bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertex
         return false;
     }
 
-    const bool isReupload = geometry.internalId != INVALID_ID;
+    const bool isReupload = geometry.internalId != INVALID_ID_U32;
     GeometryData oldData{};
     GeometryData* data = nullptr;
 
@@ -735,7 +979,7 @@ bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertex
         }
     }
 
-    if (data->generation == INVALID_ID) {
+    if (data->generation == INVALID_ID_U32) {
         data->generation = 0;
     } else {
         data->generation++;
@@ -753,7 +997,7 @@ bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertex
 }
 
 void VulkanBackend::destroyGeometry(Geometry &geometry) {
-    if (geometry.internalId == INVALID_ID) return;
+    if (geometry.internalId == INVALID_ID_U32) return;
 
     vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
 
@@ -773,20 +1017,145 @@ void VulkanBackend::destroyGeometry(Geometry &geometry) {
 
 void VulkanBackend::createRenderpass(const RenderpassProfile profile) {
     VulkanRenderpass renderpass{};
+    renderpass.setName(profile.name);
     renderpass.setId(profile.id);
     renderpass.setClearFlags(profile.clearFlags);
     renderpass.setClearColor(profile.clearColor);
+    renderpass.setName(profile.name);
 
     vulkanContext.addRenderpass(renderpass);
 }
 
-void VulkanBackend::createRenderSystem(const RenderSystemProfile profile) {
-    if (shaders.getLength() == 0) shaders.initialize(1);
+bool VulkanBackend::createBuffers() {
+    VkMemoryPropertyFlags memoryPropertyFlags{VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
 
-    //Make a copy of profile because it will get deleted
-    const RenderSystemProfile copyProfile = profile;
+    constexpr unsigned long vertexBufferSize = sizeof(Vertex3d) * 1024 * 1024; //Vertex Buffer should be 64mb with this
+    if (!vulkanContext.getVertexBuffer().createBuffer(vulkanContext.getDevice(), vertexBufferSize,
+        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
+        memoryPropertyFlags, true)) {
 
-    VulkanShader* shader = shaders.emplace(VulkanShader{});
-    shader->setRenderType(profile.type);
-    shader->setProfile(copyProfile);
+        Logger::logError("Error creating vertex buffer!");
+        return false;
+        }
+
+    constexpr unsigned long indexBufferSize = sizeof(unsigned int) * 1024 * 1024;
+    if (!vulkanContext.getIndexBuffer().createBuffer(vulkanContext.getDevice(), indexBufferSize,
+        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
+        memoryPropertyFlags, true)) {
+
+        Logger::logError("Error creating index buffer!");
+        return false;
+        }
+
+    return true;
+}
+
+bool VulkanBackend::createModule(const VulkanShaderStageConfig &config, VulkanShaderStage &stage) const {
+    Resource binaryResource{};
+
+    if (!resourceSystemRef->load(config.fileName, RESOURCE_TYPE_BINARY, binaryResource)) {
+        Logger::logError("Failed to read shader file " + config.fileName);
+        return false;
+    }
+
+    stage.createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    stage.createInfo.codeSize = binaryResource.dataSize;
+    stage.createInfo.pCode = static_cast<unsigned int *>(binaryResource.data);
+
+    VulkanUtils::vulkanCheck(vkCreateShaderModule(vulkanContext.getDevice().getLogicalDevice(), &stage.createInfo, nullptr, &stage.handle));
+
+    resourceSystemRef->unload(binaryResource);
+
+    stage.shaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stage.shaderStageCreateInfo.stage = config.stage;
+    stage.shaderStageCreateInfo.module = stage.handle;
+    stage.shaderStageCreateInfo.pName = "main";
+
+    return true;
+}
+
+bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture& defaultTexture) {
+    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+    outInstanceId = INVALID_ID_U32;
+
+    for (unsigned int i = 0; i < 1024; i++) {
+        if (backendShader->getInstanceState(i).id == INVALID_ID_U32) {
+            backendShader->getInstanceState(i).id = i;
+            outInstanceId = i;
+            break;
+        }
+    }
+
+    if (outInstanceId == INVALID_ID_U32) {
+        Logger::logError("Failed to acquire instance id!");
+        return false;
+    }
+
+    VulkanShaderInstanceState& instanceState = backendShader->getInstanceState(outInstanceId);
+    const unsigned int instanceTextureCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[BINDING_INDEX_SAMPLER].descriptorCount;
+    instanceState.instanceTextures.initialize(shader.getInstanceTextureCount());
+    instanceState.descriptorSetState.descriptorSets.initialize(vulkanContext.getSwapchain().getImageCount());
+
+    for (unsigned int i = 0; i < instanceTextureCount; i++) {
+        instanceState.instanceTextures.push(&defaultTexture);
+    }
+
+    const unsigned long size = shader.getInstanceStride();
+    if (!backendShader->getUniformBuffer().allocate(size, instanceState.offset)) {
+        Logger::logError("Failed to acquire space for instance resources!");
+        return false;
+    }
+
+    VulkanShaderDescriptorSetState& descriptorSetState = instanceState.descriptorSetState;
+
+    const unsigned int bindingCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindingCount;
+    const unsigned int imageCount = vulkanContext.getSwapchain().getImageCount();
+    for (unsigned int i = 0; i < bindingCount; i++) {
+        descriptorSetState.descriptorStates[i].generations.initialize(imageCount);
+        descriptorSetState.descriptorStates[i].ids.initialize(imageCount);
+
+        for (unsigned int j = 0; j < imageCount; j++) {
+            descriptorSetState.descriptorStates[i].generations.push(INVALID_ID_U8);
+            descriptorSetState.descriptorStates[i].ids.push(INVALID_ID_U8);
+        }
+    }
+
+    DynamicArray<VkDescriptorSetLayout> layouts{imageCount};
+    for (unsigned int i = 0; i < imageCount; i++) {
+        layouts.push(backendShader->getDescriptorSetLayout(INSTANCE_DESCRIPTOR_SET_INDEX));
+    }
+
+    VkDescriptorSetAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    allocateInfo.descriptorPool = backendShader->getDescriptorPool();
+    allocateInfo.descriptorSetCount = imageCount;
+    allocateInfo.pSetLayouts = layouts.getData();
+    VkResult result = vkAllocateDescriptorSets(vulkanContext.getDevice().getLogicalDevice(), &allocateInfo, instanceState.descriptorSetState.descriptorSets.getData());
+    if (result != VK_SUCCESS) {
+        Logger::logError("Failed to allocate instance descriptor set in shader. " + VulkanUtils::getResultAsString(result, true));
+        return false;
+    }
+
+    return true;
+}
+
+bool VulkanBackend::releaseInstanceResources(const Shader &shader, const unsigned int instanceId) {
+    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+    VulkanShaderInstanceState& instanceState = backendShader->getInstanceState(instanceId);
+
+    vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
+
+    VkResult result = vkFreeDescriptorSets(vulkanContext.getDevice().getLogicalDevice(), backendShader->getDescriptorPool(), vulkanContext.getSwapchain().getImageCount(), instanceState.descriptorSetState.descriptorSets.getData());
+    if (result != VK_SUCCESS) {
+        Logger::logError("Error freeing instance from shader descriptor sets!");
+    }
+
+    FF_Memory::ff_clear(instanceState.descriptorSetState.descriptorStates, sizeof(VulkanDescriptorState) * VULKAN_SHADER_MAX_BINDINGS);
+    instanceState.instanceTextures.shutdown();
+    instanceState.descriptorSetState.descriptorSets.shutdown();
+
+    const bool freeResult = backendShader->getUniformBuffer().free(shader.getInstanceStride(), instanceState.offset);
+    instanceState.offset = INVALID_ID_U32;
+    instanceState.id = INVALID_ID_U32;
+
+    return freeResult;
 }

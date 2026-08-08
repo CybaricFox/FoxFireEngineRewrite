@@ -4,7 +4,9 @@
 #include <iostream>
 #include <string>
 
-#define INVALID_ID 4294967295U
+#define INVALID_ID_U32 4294967295U
+#define INVALID_ID_U16 65535U
+#define INVALID_ID_U8 255U
 
 #define GIBIBYTES(amount) (amount * 1024 * 1024 * 1024)
 #define MEBIBYTES(amount) (amount * 1024 * 1024)
@@ -37,3 +39,16 @@ using String = std::string;
 using std::cout;
 using std::endl;
 using std::cerr;
+
+struct MemoryRange {
+    unsigned long offset = 0;
+    unsigned long size = 0;
+};
+
+inline unsigned long alignMemory(const unsigned long operand, const unsigned long granularity) {
+    return ((operand + (granularity - 1)) & ~(granularity - 1));
+}
+
+inline MemoryRange getAlignedRange(const unsigned long offset, const unsigned long size, const unsigned long granularity) {
+    return MemoryRange{alignMemory(offset, granularity), alignMemory(size, granularity)};
+}

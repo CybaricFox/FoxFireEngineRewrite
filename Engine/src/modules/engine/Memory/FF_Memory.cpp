@@ -20,7 +20,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 3: return "ARRAY";
         case 4: return "LINEAR ALLOCATOR";
         case 5: return "DYNAMIC ARRAY";
-        case 6: return "AVAILABLE_TAG_SLOT";
+        case 6: return "RESOURCE";
         case 7: return "TEXTURE";
         case 8: return "HASHMAP";
         case 9: return "REUSABLE_ARRAY";

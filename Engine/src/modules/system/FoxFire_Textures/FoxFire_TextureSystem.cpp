@@ -17,7 +17,7 @@ bool FoxFire_TextureSystem::initialize(const unsigned int initialCapacity, Rende
 
 void FoxFire_TextureSystem::shutdown() {
     for (Texture& texture : assets.getData().getData()) {
-        if (texture.generation != INVALID_ID) {
+        if (texture.generation != INVALID_ID_U32) {
             destroyTexture(texture);
         }
     }
@@ -95,7 +95,7 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
     defaultTexture.width = dimensions;
     defaultTexture.height = dimensions;
     defaultTexture.channelCount = 4;
-    defaultTexture.generation = INVALID_ID;
+    defaultTexture.generation = INVALID_ID_U32;
     defaultTexture.bIsTransparent = false;
     backendRef->createTexture(pixels, defaultTexture);
 
@@ -122,7 +122,7 @@ bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName
     tempTexture.channelCount = resourceData->channelCount;
 
     const unsigned int currentGeneration = texture.generation;
-    texture.generation = INVALID_ID;
+    texture.generation = INVALID_ID_U32;
     const unsigned long totalSize = tempTexture.width * tempTexture.height * tempTexture.channelCount;
 
     //transparency
@@ -136,14 +136,14 @@ bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName
     }
 
     tempTexture.name = fileName;
-    tempTexture.generation = INVALID_ID;
+    tempTexture.generation = INVALID_ID_U32;
     tempTexture.bIsTransparent = isTransparent;
 
     backendRef->createTexture(resourceData->pixels, tempTexture);
     destroyTexture(texture);
     texture = tempTexture;
 
-    if (currentGeneration == INVALID_ID) {
+    if (currentGeneration == INVALID_ID_U32) {
         texture.generation = 0;
     } else {
         texture.generation = currentGeneration + 1;

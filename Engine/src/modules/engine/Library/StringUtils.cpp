@@ -156,6 +156,42 @@ bool StringUtils::stringToBool(const String &string, bool &out) {
     return false;
 }
 
+unsigned int StringUtils::findAll(const String &string, const char toFind) {
+    unsigned int count = 0;
+    for (const char& c : string) {
+        if (c == toFind) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+unsigned int StringUtils::recursiveSplit(const String &string, const char regex, DynamicArray<String> &array) {
+    String remaining = string;
+
+    if (array.getCapacity() == 0) {
+        array.initialize();
+    }
+
+    while (!remaining.empty()) {
+        const unsigned int index = remaining.find(regex);
+        if (index == static_cast<unsigned int>(String::npos)) {
+            trim(remaining);
+            array.push(remaining);
+            remaining.clear();
+            continue;
+        }
+
+        String sub = remaining.substr(0, index);
+        trim(sub);
+        array.push(sub);
+        remaining = remaining.substr(index + 1);
+    }
+
+    return array.getLength();
+}
+
 bool StringUtils::stringToLong(const String &string, long &out) {
     try {
         out = std::stol(string);

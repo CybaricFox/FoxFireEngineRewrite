@@ -45,7 +45,7 @@ private:
 public:
     void initialize(unsigned int initialCapacity) {
         data.initialize(initialCapacity);
-        map.setCapacity(initialCapacity);
+        map.createHashMap(initialCapacity);
     }
 
     /**
@@ -53,6 +53,21 @@ public:
      * @return A ReusableArray of assets.
      */
     ReusableArray<V>& getData() { return data; }
+
+    /**
+     * @brief Gets all registered assets as an array. Use this when you need to iterate over all assets.
+     * @return Dynamic array of registered assets.
+     */
+    DynamicArray<V*> getAssetsAsArray() {
+        DynamicArray<V*> result{map.getLength()};
+        auto pairs = map.getPairs();
+
+        for (auto& pair : pairs) {
+            result.push(&data.get(pair.value->index));
+        }
+
+        return result;
+    }
 
     /**
      * @brief Gets the context of an asset
@@ -118,4 +133,16 @@ public:
         Logger::logDebug(name + " has one less reference. " + std::to_string(context->referenceCount) + " remains.");
         return false;
     }
+
+    void clear() {
+        map.clearHashMap();
+        data.clear();
+    }
+
+    void shutdown() {
+        map.shutdown();
+        data.shutdown();
+    }
+
+    [[nodiscard]] unsigned int getAssetCount() const { return map.getLength(); }
 };

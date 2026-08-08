@@ -30,8 +30,6 @@ private:
 
     void bindBuffer(VulkanDevice &device, unsigned long offset) const;
     bool resizeBuffer(VulkanDevice &device, unsigned long newSize, VkQueue queue, VkCommandPool pool);
-    void* lockBuffer(VulkanDevice &device, unsigned long offset, unsigned long size, unsigned int flags) const;
-    void unlockBuffer(VulkanDevice &device) const;
     void destroyFreeList();
 
 public:
@@ -43,4 +41,7 @@ public:
     void destroyBuffer(VulkanDevice &device);
     bool allocate(unsigned long size, unsigned long& outOffset) const;
     [[nodiscard]] bool free(unsigned long size, unsigned long offset) const;
+    void unlockBuffer(VulkanDevice &device) const;
+    void* lockBuffer(VulkanDevice &device, unsigned long offset, unsigned long size, unsigned int flags) const;
+    void* lockBufferWhole(VulkanDevice &device, unsigned long offset, unsigned int flags) const;
 };

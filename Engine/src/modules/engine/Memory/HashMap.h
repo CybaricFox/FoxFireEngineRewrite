@@ -30,8 +30,8 @@ inline constexpr bool alwaysFalse = false;
  */
 template<typename K, typename V>
 struct KeyValuePair {
-    K key;
-    V value;
+    K* key = nullptr;
+    V* value = nullptr;
 };
 
 //Contains a parallel array of keys and values.
@@ -53,6 +53,10 @@ struct HashValue {
     HashValue() {
         keyRefs.initialize(1, HASHMAP);
         values.initialize(1, HASHMAP);
+    }
+    ~HashValue() {
+        keyRefs.shutdown();
+        values.shutdown();
     }
     //TREE GOES HERE
 
@@ -99,11 +103,6 @@ private:
             static_assert(alwaysFalse<KeyType>, "HashMap does not support this key type.");
             return -1;
         }
-    }
-
-    void createHashMap() {
-        keys.initialize(0, HASHMAP);
-        values.initialize(0, HASHMAP);
     }
 
     /**
@@ -175,8 +174,14 @@ private:
     }
 
 public:
-    HashMap() {createHashMap();}
+    HashMap() = default;
     ~HashMap() = default;
+
+    HashMap(const HashMap&) = delete;
+    HashMap& operator=(const HashMap&) = delete;
+
+    HashMap(HashMap&&) noexcept = default;
+    HashMap& operator=(HashMap&&) noexcept = default;
 
     /**
      * @brief Adds a key, value pair to the hashmap.
@@ -297,15 +302,16 @@ public:
     }
 
     /**
-     * @brief Converts the hashmap to key, value pairs and returns them. The Pairs are copies.
+     * @brief Converts the hashmap to key, value pairs and returns them. The Pairs are references.
+     * Avoid using pairs for assigning references as this function does not track referenceCount.
      * @return A DynamicArray of KeyValue pairs.
      */
-    DynamicArray<KeyValuePair<K, V>> getPairs() const {
+    DynamicArray<KeyValuePair<K, V>> getPairs() {
         DynamicArray<KeyValuePair<K, V>> pairs{size};
 
-        for (const HashValue<K, V>& pair : values) {
+        for (auto& pair : values) {
             for (unsigned long i = 0; i < pair.keyRefs.getLength(); i++) {
-                if (!pairs.emplace(pair.keyRefs[i], pair.values[i])) {
+                if (!pairs.emplace(&pair.keyRefs[i], &pair.values[i])) {
                     Logger::logError("Failed to insert key value pair into dynamic array!");
                     break;
                 }
@@ -350,4 +356,18 @@ public:
         keys.ensureSize(capacity);
         values.ensureSize(capacity);
     }
+
+    void shutdown() {
+        keys.shutdown();
+        values.shutdown();
+        size = 0;
+    }
+
+    void createHashMap(unsigned int initialCapacity = 0) {
+        keys.initialize(initialCapacity, HASHMAP);
+        values.initialize(initialCapacity, HASHMAP);
+    }
+
+    [[nodiscard]] unsigned int getLength() const {return size;}
+
 };

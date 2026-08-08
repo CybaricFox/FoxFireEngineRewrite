@@ -1,7 +1,7 @@
 #Comment
 
-version = 0.0
+version = 1.0.0
 name = MaterialTemplate
 diffuse_color = 1.0 1.0 1.0 1.0
 diffuse_map_name = whoishe
-type = world
+shader = Fox_Fire_Material_Shader

@@ -24,7 +24,7 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
     outResource.path = finalPath;
 
     const auto resourceData = static_cast<MaterialResourceData *>(FF_Memory::ff_allocate(sizeof(MaterialResourceData), MATERIAL));
-    resourceData->materialType = MATERIAL_TYPE_WORLD;
+    resourceData->shaderName = "Fox_Fire_Material_Shader";
     resourceData->bAutoRelease = true;
     resourceData->diffuseColor = oneVector4f();
     resourceData->name = name;
@@ -72,9 +72,11 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
             Logger::logDebug("Diffuse Map Name: " + value);
             resourceData->mapName = value;
         }
-        else if (variable == "type") {
-            if (value == "ui") resourceData->materialType = MATERIAL_TYPE_UI;
+        else if (variable == "shader") {
+            resourceData->shaderName = value;
         }
+
+        line.clear();
     }
 
     file.closeFile();

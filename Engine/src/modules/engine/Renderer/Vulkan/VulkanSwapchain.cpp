@@ -157,16 +157,19 @@ bool VulkanSwapchain::detectDepthFormat(VulkanDevice& device) {
 void VulkanSwapchain::regenerateFramebuffers(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, DynamicArray<VulkanRenderpass>& renderpasses, VulkanDevice& device) {
     for (VulkanRenderpass& renderpass : renderpasses) {
         for (unsigned int i = 0; i < imageCount; i++) {
-            DynamicArray<VkImageView> attachments{1};
-            attachments.push(imageViews[i]);
+            VkImageView attachments[2]{};
+            attachments[0] = imageViews[i];
 
-            if (renderpass.usesDepth()) attachments.push(depthAttachment.getImageView());
+            unsigned int attachmentCount = 1;
+            if (renderpass.usesDepth()) {
+                attachments[1] = depthAttachment.getImageView();
+                attachmentCount = 2;
+            }
 
-            unsigned int attachmentCount = attachments.getLength();
             VkFramebufferCreateInfo frameBufferCreateInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
             frameBufferCreateInfo.renderPass = renderpass.getHandle();
             frameBufferCreateInfo.attachmentCount = attachmentCount;
-            frameBufferCreateInfo.pAttachments = attachments.getData();
+            frameBufferCreateInfo.pAttachments = attachments;
             frameBufferCreateInfo.width = frameBufferWidth;
             frameBufferCreateInfo.height = frameBufferHeight;
             frameBufferCreateInfo.layers = 1;

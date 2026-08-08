@@ -39,6 +39,8 @@ public:
         VkRect2D scissor,
         bool bIsWireframe,
         bool bDepthTestEnabled,
+        unsigned int pushConstantRangeCount,
+        MemoryRange* pushConstantRanges,
         VulkanDevice &device
     );
 };

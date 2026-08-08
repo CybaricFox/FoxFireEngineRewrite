@@ -54,7 +54,8 @@ void VulkanRenderpass::createRenderpass(Vector4f render, float newDepth, unsigne
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-    DynamicArray<VkAttachmentDescription> attachments{1};
+    unsigned int attachmentCount = 0;
+    VkAttachmentDescription attachmentDescriptions[2]{};
 
     //Color attachment
     bool doClearColor = (clearFlags & RENDERPASS_CLEAR_COLOR) != 0;
@@ -69,7 +70,8 @@ void VulkanRenderpass::createRenderpass(Vector4f render, float newDepth, unsigne
     colorAttachment.finalLayout = bHasNextPass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     colorAttachment.flags = 0;
 
-    attachments.push(colorAttachment);
+    attachmentDescriptions[attachmentCount] = colorAttachment;
+    attachmentCount++;
 
     VkAttachmentReference colorAttachmentReference;
     colorAttachmentReference.attachment = 0;
@@ -79,6 +81,7 @@ void VulkanRenderpass::createRenderpass(Vector4f render, float newDepth, unsigne
     subpass.pColorAttachments = &colorAttachmentReference;
 
     //Depth attachment
+    VkAttachmentReference depthAttachmentReference{};
     bool doClearDepth = (clearFlags & RENDERPASS_CLEAR_DEPTH) != 0;
     if (doClearDepth) {
         VkAttachmentDescription depthAttachment{};
@@ -91,9 +94,9 @@ void VulkanRenderpass::createRenderpass(Vector4f render, float newDepth, unsigne
         depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-        attachments.push(depthAttachment);
+        attachmentDescriptions[attachmentCount] = depthAttachment;
+        attachmentCount++;
 
-        VkAttachmentReference depthAttachmentReference;
         depthAttachmentReference.attachment = 1;
         depthAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
@@ -125,8 +128,8 @@ void VulkanRenderpass::createRenderpass(Vector4f render, float newDepth, unsigne
 
     //Create render pass
     VkRenderPassCreateInfo renderPassCreateInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    renderPassCreateInfo.attachmentCount = attachments.getLength();
-    renderPassCreateInfo.pAttachments = attachments.getData();
+    renderPassCreateInfo.attachmentCount = attachmentCount;
+    renderPassCreateInfo.pAttachments = attachmentDescriptions;
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpass;
     renderPassCreateInfo.dependencyCount = 1;

@@ -151,3 +151,27 @@ int VulkanUtils::findMemoryIndex(const int typeFilter, const unsigned int proper
     Logger::logWarn("Unable to find memory type!");
     return -1;
 }
+
+bool VulkanUtils::createShaderModule(VulkanContext &context, const String &name, const String &typeString, VkShaderStageFlagBits stageFlags, const unsigned int stageIndex, VulkanShaderStage* shaderStages, ResourceSystem& resources) {
+    const String fileName = "../Shaders/" + name + "." + typeString + ".spv";
+
+    Resource binaryResource{};
+    if (!resources.load(fileName, RESOURCE_TYPE_BINARY, binaryResource)) {
+        Logger::logError("Unable to read shader file: " + fileName);
+        return false;
+    }
+
+    shaderStages[stageIndex].createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    shaderStages[stageIndex].createInfo.codeSize = binaryResource.dataSize;
+    shaderStages[stageIndex].createInfo.pCode = static_cast<unsigned int *>(binaryResource.data);
+
+    vulkanCheck(vkCreateShaderModule(context.getDevice().getLogicalDevice(), &shaderStages[stageIndex].createInfo, nullptr, &shaderStages[stageIndex].handle));
+    resources.unload(binaryResource);
+
+    shaderStages[stageIndex].shaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[stageIndex].shaderStageCreateInfo.stage = stageFlags;
+    shaderStages[stageIndex].shaderStageCreateInfo.module = shaderStages[stageIndex].handle;
+    shaderStages[stageIndex].shaderStageCreateInfo.pName = "main";
+
+    return true;
+}

@@ -221,8 +221,13 @@ void Engine::initialize() {
         return;
     }
 
+    //Start the shader system
+    if (!masterRenderSystem.initializeShaderSystem(ShaderSystemConfig{1024, 128, 31, 31}, resourceSystem)) {
+        Logger::logFatal("Failed to initialize the shader system!");
+    }
+
     //Start material system
-    if (!masterRenderSystem.initializeMaterialSystem(4096, materialSystem, &resourceSystem)) {
+    if (!masterRenderSystem.initializeMaterialSystem(MaterialSystemConfig{4096}, materialSystem, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the texture system!");
         return;
     }

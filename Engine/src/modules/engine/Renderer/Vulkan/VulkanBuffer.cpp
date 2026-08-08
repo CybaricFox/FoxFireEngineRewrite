@@ -158,6 +158,12 @@ void * VulkanBuffer::lockBuffer(VulkanDevice& device, const unsigned long offset
     return data;
 }
 
+void * VulkanBuffer::lockBufferWhole(VulkanDevice &device, const unsigned long offset, const unsigned int flags) const {
+    void* data;
+    VulkanUtils::vulkanCheck(vkMapMemory(device.getLogicalDevice(), deviceMemory, offset, VK_WHOLE_SIZE, flags, &data));
+    return data;
+}
+
 void VulkanBuffer::unlockBuffer(VulkanDevice &device) const {
     vkUnmapMemory(device.getLogicalDevice(), deviceMemory);
 }

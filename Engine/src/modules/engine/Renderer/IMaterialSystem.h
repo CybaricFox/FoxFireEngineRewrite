@@ -15,10 +15,15 @@
 #include <foxfire_export.h>
 
 #include "ITextureSystem.h"
+#include "ShaderSystem.h"
 #include "src/defines.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 #define DEFAULT_MATERIAL_NAME "default"
+
+struct MaterialSystemConfig {
+    unsigned int maxMaterialCount = 0;
+};
 
 /**
  * @brief Abstract class that controls materials
@@ -28,10 +33,13 @@ protected:
     RendererBackend* backendRef = nullptr;
     ResourceSystem* resourceRef = nullptr;
     ITextureSystem* textureSystemRef = nullptr;
+    ShaderSystem* shaderRef = nullptr;
+
+    MaterialSystemConfig config{};
 public:
     virtual ~IMaterialSystem();
 
-    virtual bool initialize(unsigned int initialCapacity, ITextureSystem *system, RendererBackend *backend, ResourceSystem* resources);
+    virtual bool initialize(MaterialSystemConfig materialSystemConfig, ITextureSystem *system, RendererBackend *backend, ResourceSystem* resources, ShaderSystem* shaderSystem);
 
     virtual Material& getDefaultMaterial() = 0;
 
@@ -53,4 +61,8 @@ public:
      * @param name Name of the material
      */
     virtual void releaseMaterial(const String &name) = 0;
+
+    virtual bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view) const = 0;
+    virtual bool applyInstance(Material& material) const = 0;
+    virtual bool applyLocal(const Material &material, Mat4 *model) const = 0;
 };
