@@ -13,9 +13,9 @@
 bool FileHandler::getFileSize(unsigned long &outSize) const {
     if (!handle) return false;
 
-    fseek(static_cast<FILE *>(handle), 0, SEEK_END);
-    outSize = ftell(static_cast<FILE *>(handle));
-    rewind(static_cast<FILE *>(handle));
+    fseek(handle, 0, SEEK_END);
+    outSize = ftell(handle);
+    rewind(handle);
     return true;
 }
 
@@ -62,7 +62,7 @@ bool FileHandler::openFile(const String &path, const FileMode mode, const bool i
 
 void FileHandler::closeFile() {
     if (handle) {
-        fclose(static_cast<FILE *>(handle));
+        fclose(handle);
         handle = nullptr;
         bIsValid = false;
     }
@@ -74,7 +74,7 @@ bool FileHandler::readLine(String& line, const unsigned long maxLength, unsigned
     //ensures string is the size of the line being read.
     line.resize(maxLength);
 
-    if (fgets(line.data(), static_cast<int>(maxLength), static_cast<FILE *>(handle)) != nullptr) {
+    if (fgets(line.data(), static_cast<int>(maxLength), handle) != nullptr) {
         outLength = std::strlen(line.data());
         line.resize(outLength);
         return true;
@@ -85,13 +85,13 @@ bool FileHandler::readLine(String& line, const unsigned long maxLength, unsigned
 
 bool FileHandler::writeLine(const String &text) const {
     if (handle) {
-        int result = fputs(text.c_str(), static_cast<FILE *>(handle));
+        int result = fputs(text.c_str(), handle);
         if (result != EOF) {
-            result = fputc('\n', static_cast<FILE *>(handle));
+            result = fputc('\n', handle);
         }
 
         //If the program crashes and we dont flush, then the file will not save.
-        fflush(static_cast<FILE *>(handle));
+        fflush(handle);
         return result != EOF;
     }
 
@@ -101,7 +101,7 @@ bool FileHandler::writeLine(const String &text) const {
 bool FileHandler::read(const unsigned long size, void *outData, unsigned long &outBytesRead) const {
     if (!handle || !outData) return false;
 
-    outBytesRead = fread(outData, 1, size, static_cast<FILE *>(handle));
+    outBytesRead = fread(outData, 1, size, handle);
     if (outBytesRead != size) {
         return false;
     }
@@ -115,7 +115,7 @@ bool FileHandler::readAll(unsigned char*& outBytes, unsigned long &outBytesRead)
     unsigned long size = 0;
     getFileSize(size);
 
-    outBytesRead = fread(outBytes, 1, size, static_cast<FILE *>(handle));
+    outBytesRead = fread(outBytes, 1, size, handle);
     return outBytesRead == size;
 }
 bool FileHandler::readAll(String &outText, unsigned long &outBytesRead) const {
@@ -124,18 +124,18 @@ bool FileHandler::readAll(String &outText, unsigned long &outBytesRead) const {
     unsigned long size = 0;
     getFileSize(size);
 
-    outBytesRead = fread(&outText, 1, size, static_cast<FILE *>(handle));
+    outBytesRead = fread(&outText, 1, size, handle);
     return outBytesRead == size;
 }
 
 bool FileHandler::write(const unsigned long size, const void *inData, unsigned long &outBytesWritten) const {
     if (!handle) return false;
 
-    outBytesWritten = fwrite(inData, 1, size, static_cast<FILE *>(handle));
+    outBytesWritten = fwrite(inData, 1, size, handle);
     if (outBytesWritten != size) {
         return false;
     }
-    fflush(static_cast<FILE *>(handle));
+    fflush(handle);
 
     return true;
 }

@@ -22,6 +22,22 @@
 #include "src/modules/engine/Resources/Contexts.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
+struct MaterialShaderUniformLocations {
+    unsigned short projection = INVALID_ID_U16;
+    unsigned short view = INVALID_ID_U16;
+    unsigned short diffuseColor = INVALID_ID_U16;
+    unsigned short diffuseTexture = INVALID_ID_U16;
+    unsigned short model = INVALID_ID_U16;
+};
+
+struct UIShaderUniformLocations {
+    unsigned short projection = INVALID_ID_U16;
+    unsigned short view = INVALID_ID_U16;
+    unsigned short diffuseColor = INVALID_ID_U16;
+    unsigned short diffuseTexture = INVALID_ID_U16;
+    unsigned short model = INVALID_ID_U16;
+};
+
 /**
  * @brief Default material system.
  */
@@ -29,6 +45,10 @@ class FOXFIRE_API FoxFire_MaterialSystem final : public IMaterialSystem{
 private:
     Material defaultMaterial{};
     AssetMap<Material, AssetContext> assets{};
+    MaterialShaderUniformLocations materialLocations{};
+    unsigned int materialShaderId = INVALID_ID_U32;
+    UIShaderUniformLocations uiShaderLocations{};
+    unsigned int uiShaderId = INVALID_ID_U32;
 
     void shutdown();
 
@@ -39,11 +59,14 @@ private:
 public:
     ~FoxFire_MaterialSystem() override;
 
-    bool initialize(unsigned int initialCapacity, ITextureSystem *system, RendererBackend *backend, ResourceSystem* resources) override;
+    bool initialize(MaterialSystemConfig materialSystemConfig, ITextureSystem *system, RendererBackend *backend, ResourceSystem *resources, ShaderSystem* shaderSystem) override;
 
     Material& acquireMaterial(const String &name) override;
     Material& acquireMaterial(const MaterialResourceData &config) override;
     void releaseMaterial(const String &name) override;
+    bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view) const override;
+    bool applyInstance(Material& material) const override;
+    bool applyLocal(const Material &material, Mat4 *model) const override;
 
     Material& getDefaultMaterial() override {return defaultMaterial;}
 };

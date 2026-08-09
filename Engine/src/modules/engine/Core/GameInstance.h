@@ -17,6 +17,8 @@
 #include "foxfire_export.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 
+struct BaseGameState {};
+
 /**
  * @brief Config data for this application set by the user
  */
@@ -41,14 +43,15 @@ struct GameConfig {
  * @brief Game-specific config data set by the user
  */
 struct FOXFIRE_API GameInstance {
-    GameConfig config;
+    GameConfig config{};
 
     /** @brief Game State struct defined by the user */
-    void* state;
+    BaseGameState* state = nullptr;
     unsigned long memoryRequirement = 0;
 
     void shutdown() {
-        FF_Memory::ff_free(state, memoryRequirement, GAME);
+        if (!state) return;
+        FF_Memory::ff_free(state, memoryRequirement, GAME); //Game state does not use destruction, so ff_free is valid.
         state = nullptr;
     }
 };

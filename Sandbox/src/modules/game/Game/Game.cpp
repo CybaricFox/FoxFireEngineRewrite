@@ -123,13 +123,13 @@ bool Game::update(const float deltaTime) {
 
     //These should be removed eventually
     recalculateView(state);
-    setView(state->view);
+    masterRenderSystem.setView(state->view);
 
     return Engine::update(deltaTime);
 }
 
 void Game::initialize() {
-    const auto state = static_cast<GameState *>(gameInstance->state);
+    const auto state = createGameState<GameState>();
     state->cameraPos = {0, 0, 30};
     state->cameraEuler = zeroVector3f();
 
@@ -139,29 +139,18 @@ void Game::initialize() {
 
     //User defined renderpasses
     RenderpassProfile mainProfile{};
-    mainProfile.id = ENGINE_RENDER_PASS_WORLD;
+    mainProfile.name = "Fox_Fire_World_Renderpass";
+    mainProfile.id = 0;
     mainProfile.clearFlags = RENDERPASS_CLEAR_COLOR | RENDERPASS_CLEAR_DEPTH | RENDERPASS_CLEAR_STENCIL;
     mainProfile.clearColor = {0, 0, 0.2, 1};
     masterRenderSystem.addRenderpassProfile(mainProfile);
 
     RenderpassProfile uiProfile{};
-    uiProfile.id = ENGINE_RENDER_PASS_UI;
+    uiProfile.name = "Fox_Fire_UI_Renderpass";
+    uiProfile.id = 1;
     uiProfile.clearFlags = RENDERPASS_CLEAR_NONE;
     uiProfile.clearColor = {0, 0, 0, 0};
     masterRenderSystem.addRenderpassProfile(uiProfile);
-
-    //User defined shaders
-    RenderSystemProfile worldRenderSystem{};
-    worldRenderSystem.type = ENGINE_RENDER_PASS_WORLD;
-    worldRenderSystem.bIs2D = false;
-    worldRenderSystem.bDepthTestEnabled = true;
-    masterRenderSystem.addRenderSystemprofile(worldRenderSystem);
-
-    RenderSystemProfile uiRenderSystem{};
-    uiRenderSystem.type = ENGINE_RENDER_PASS_UI;
-    uiRenderSystem.bIs2D = true;
-    worldRenderSystem.bDepthTestEnabled = false;
-    masterRenderSystem.addRenderSystemprofile(uiRenderSystem);
 
     Engine::initialize();
 }

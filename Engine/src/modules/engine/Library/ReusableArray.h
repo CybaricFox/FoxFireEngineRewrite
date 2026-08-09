@@ -43,7 +43,7 @@ public:
      * @return The index that is now available for use.
      */
     unsigned int assign() {
-        unsigned int index = INVALID_ID;
+        unsigned int index = INVALID_ID_U32;
 
         if (freeIndexes.isEmpty()) {
             index = data.getLength();
@@ -78,4 +78,9 @@ public:
      * @return Reference to the dynamic array that stores the elements.
      */
     DynamicArray<T>& getData() {return data;}
+
+    void clear() {
+        data.clear();
+        freeIndexes.clear();
+    }
 };

@@ -67,7 +67,7 @@ public:
     [[nodiscard]] VulkanCommandBuffer& getCurrentCommandBuffer() const {return commandBuffers[imageIndex];}
     VkFence*& getCurrentImageInFlight() {return imagesInFlight[imageIndex];}
     VkSemaphore& getCurrentQueueCompleteSemaphore() const {return queueCompleteSemaphores[imageIndex];}
-    VkFramebuffer& getCurrentFramebuffer(EngineRenderpasses id);
+    VkFramebuffer& getCurrentFramebuffer(unsigned int id);
     VulkanBuffer& getVertexBuffer() { return vertexBuffer; }
     VulkanBuffer& getIndexBuffer() { return indexBuffer; }
     [[nodiscard]] float getDeltaTime() const { return deltaTime; }
@@ -80,7 +80,7 @@ public:
     void setDeltaTime(const float dt) {deltaTime = dt;}
     void setCurrentFrame(const unsigned int value) {currentFrame = value;}
     unsigned int assignGeometry() {return geometries.assign();}
-    void initializeGeometry() {geometries.initialize(0);}
+    void initializeGeometry() {geometries.initialize(MAX_GEOMETRY_COUNT);}
     void initializeRenderpasses() {renderpasses.initialize(2);}
 
     VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}

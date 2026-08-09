@@ -47,6 +47,8 @@ private:
 
     bool bIsInitialized = false;
 
+    EngineEvents* engineEventsSystemRef = nullptr;
+
 protected:
     [[nodiscard]] bool isButtonDown(Buttons button) const;
     [[nodiscard]] bool isButtonUp(Buttons button) const;
@@ -65,7 +67,7 @@ public:
      * @param deltaTime Time this frame took.
      */
     void update(double deltaTime);
-    void initialize();
+    void initialize(EngineEvents* engineEventsRef);
 
     /**
      * @brief Called when the platform detects keyboard input
@@ -92,7 +94,7 @@ public:
      * @brief Called when the platform detects mouse scrolling
      * @param z Value of the mouse scroll
      */
-    void processMouseScroll(char z);
+    void processMouseScroll(char z) const;
 
     [[nodiscard]] bool isKeyDown(Keys key) const;
     [[nodiscard]] bool isKeyUp(Keys key) const;
@@ -106,5 +108,5 @@ public:
      * @param id Unqiue Id of this listener
      * @param key Key to listen for (If Applicable)
      */
-    void subscribeToEngineEvent(EngineEventCode code, const std::function<void(EngineInputContext)> &function, const String &id, Keys key = MAX_KEYS);
+    void subscribeToEngineEvent(EngineEventCode code, const std::function<void(EngineInputContext)> &function, const String &id, Keys key = MAX_KEYS) const;
 };

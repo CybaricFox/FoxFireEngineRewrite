@@ -107,7 +107,7 @@ void VulkanContext::destroyFramebuffers() {
 
 VulkanRenderpass & VulkanContext::getRenderpass(const unsigned char id) {
     for (VulkanRenderpass &pass : renderpasses) {
-        if ((id & pass.getId()) != 0) {
+        if (pass.getId() == id) {
             return pass;
         }
     }
@@ -116,7 +116,7 @@ VulkanRenderpass & VulkanContext::getRenderpass(const unsigned char id) {
     return renderpasses[0];
 }
 
-VkFramebuffer& VulkanContext::getCurrentFramebuffer(const EngineRenderpasses id) {
+VkFramebuffer& VulkanContext::getCurrentFramebuffer(const unsigned int id) {
     for (VulkanRenderpass &pass : renderpasses) {
         if (pass.getId() == id) {
             return pass.getFramebuffer(imageIndex);

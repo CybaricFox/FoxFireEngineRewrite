@@ -19,26 +19,26 @@
  */
 class DynamicAllocator {
 private:
-    DynamicAllocator() = default;
-
-    void* allocatorMemory = nullptr;
+    /** @brief The memory available for allocation. Starts after the free list nodes */
     void* memoryBlock = nullptr;
     unsigned long totalSize = 0;
-    FreeList* freeList = nullptr;
-    void* freeListMemory = nullptr;
+    FreeList freeList{};
 
 public:
+    DynamicAllocator() = default;
+    DynamicAllocator(const unsigned long size, void *memory) {initialize(size, memory);}
     ~DynamicAllocator() = default;
+
+    void initialize(unsigned long size, void *memory);
     void shutdown();
 
     static unsigned long getMemoryRequirement(unsigned long size);
-    static DynamicAllocator *createDynamicAllocator(unsigned long size, void *memory);
 
     [[nodiscard]] unsigned long getFreeSpace() const {
-        return freeList->getFreeSpace();
+        return freeList.getFreeSpace();
     }
 
-    [[nodiscard]] void* allocate(unsigned long size) const;
-    bool free(void* memory, unsigned long size) const;
+    [[nodiscard]] void* allocate(unsigned long size);
+    bool free(void* memory, unsigned long size);
 
 };

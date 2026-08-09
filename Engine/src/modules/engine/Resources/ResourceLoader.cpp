@@ -10,7 +10,7 @@ void ResourceLoader::unload(Resource &resource) {
         FF_Memory::ff_free(resource.data, resource.dataSize, memoryTag);
         resource.data = nullptr;
         resource.dataSize = 0;
-        resource.loaderId = INVALID_ID;
+        resource.loaderId = INVALID_ID_U32;
         resource.path.clear();
     }
 }

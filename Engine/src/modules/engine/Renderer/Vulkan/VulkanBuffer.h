@@ -26,12 +26,10 @@ private:
     unsigned int memoryPropertyFlags = 0;
     unsigned long freeListMemoryRequirement = 0;
     void* memoryBlock = nullptr;
-    FreeList* bufferFreeList = nullptr;
+    FreeList bufferFreeList{};
 
     void bindBuffer(VulkanDevice &device, unsigned long offset) const;
     bool resizeBuffer(VulkanDevice &device, unsigned long newSize, VkQueue queue, VkCommandPool pool);
-    void* lockBuffer(VulkanDevice &device, unsigned long offset, unsigned long size, unsigned int flags) const;
-    void unlockBuffer(VulkanDevice &device) const;
     void destroyFreeList();
 
 public:
@@ -41,6 +39,9 @@ public:
     void copyBufferData(VulkanDevice& device, VkCommandPool pool, VkFence fence, VkQueue queue, VkBuffer source, unsigned long sourceOffset, VkBuffer dest, unsigned long destOffset, unsigned long size);
     void loadBufferData(VulkanDevice &device, unsigned long offset, unsigned long size, const void *data) const;
     void destroyBuffer(VulkanDevice &device);
-    bool allocate(unsigned long size, unsigned long& outOffset) const;
-    [[nodiscard]] bool free(unsigned long size, unsigned long offset) const;
+    bool allocate(unsigned long size, unsigned long& outOffset);
+    [[nodiscard]] bool free(unsigned long size, unsigned long offset);
+    void unlockBuffer(VulkanDevice &device) const;
+    void* lockBuffer(VulkanDevice &device, unsigned long offset, unsigned long size, unsigned int flags) const;
+    void* lockBufferWhole(VulkanDevice &device, unsigned long offset, unsigned int flags) const;
 };

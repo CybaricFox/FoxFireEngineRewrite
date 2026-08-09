@@ -27,7 +27,7 @@ enum MemoryTag {
     ARRAY,
     LINEAR_ALLOCATOR,
     DYNAMIC_ARRAY,
-    AVAILABLE_TAG_SLOT,
+    RESOURCE,
     TEXTURE,
     HASHMAP,
     REUSABLE_ARRAY,
@@ -55,8 +55,7 @@ private:;
     MemoryConfig config{};
     unsigned long allocationCount = 0;
     unsigned long allocationMemoryRequirement = 0;
-    DynamicAllocator* allocator = nullptr;
-    void* allocatorMemory = nullptr;
+    DynamicAllocator allocator{};
 
     FF_Memory() = default;
 
@@ -76,4 +75,30 @@ public:
     static void shutdown();
     static unsigned long getAllocationCount();
     static bool isInitialized(){return memorySystem != nullptr;}
+
+    template<typename T>
+    static T* ff_allocate_class(const unsigned long size, const MemoryTag tag) {
+        if (size < sizeof(T)) {
+            Logger::logError("ff_allocate_class requires that size be greater or equal to the class size.");
+            return nullptr;
+        }
+        //Allocate the memory block
+        void* destination = ff_allocate(size, tag);
+        if (!destination) return nullptr;
+        //construct the class
+        T* result = static_cast<T *>(destination);
+        return std::construct_at(result);
+    }
+    template<typename T>
+    static void ff_free_class(void* block, const unsigned long size, const MemoryTag tag) {
+        if (!block) return;
+
+        if (size < sizeof(T)) {
+            Logger::logError("ff_free_class requires that size be greater or equal to the class size.");
+            return;
+        }
+
+        std::destroy_at(static_cast<T*>(block));
+        ff_free(block, size, tag);
+    }
 };

@@ -71,6 +71,8 @@ void IInputSystem::getPreviousMousePosition(int& x, int& y) const {
 
 IInputSystem::~IInputSystem() {
     bIsInitialized = false;
+
+    engineEventsSystemRef = nullptr;
 }
 
 void IInputSystem::update(double deltaTime) {
@@ -83,11 +85,13 @@ void IInputSystem::update(double deltaTime) {
     FF_Memory::ff_copy(previousMouseButtons, mouseButtons, sizeof(mouseButtons));
 }
 
-void IInputSystem::initialize() {
+void IInputSystem::initialize(EngineEvents *engineEventsRef) {
     FF_Memory::ff_clear(keyboardState, sizeof(keyboardState));
     FF_Memory::ff_clear(previousKeyboardState, sizeof(previousKeyboardState));
     FF_Memory::ff_clear(mouseButtons, sizeof(mouseButtons));
     FF_Memory::ff_clear(previousMouseButtons, sizeof(previousMouseButtons));
+
+    engineEventsSystemRef = engineEventsRef;
 
     bIsInitialized = true;
     Logger::logInfo("Input subsystem initialized!");
@@ -101,7 +105,7 @@ void IInputSystem::processKey(const Keys key, const bool bIsPressed) {
 
     EngineInputContext context{};
     context.key = key;
-    EngineEvents::callEvent(bIsPressed ? KEY_PRESSED : KEY_RELEASED, context);
+    engineEventsSystemRef->callEvent(bIsPressed ? KEY_PRESSED : KEY_RELEASED, context);
 }
 
 void IInputSystem::processButton(const Buttons button, const bool bIsPressed) {
@@ -111,7 +115,7 @@ void IInputSystem::processButton(const Buttons button, const bool bIsPressed) {
     mouseButtons[button] = bIsPressed;
     EngineInputContext context{};
     context.key = button;
-    EngineEvents::callEvent(bIsPressed ? BUTTON_PRESSED : BUTTON_RELEASED, context);
+    engineEventsSystemRef->callEvent(bIsPressed ? BUTTON_PRESSED : BUTTON_RELEASED, context);
 }
 
 void IInputSystem::processMouseMove(const short x, const short y) {
@@ -122,15 +126,15 @@ void IInputSystem::processMouseMove(const short x, const short y) {
     EngineInputContext context{};
     context.mouseX = x;
     context.mouseY = y;
-    EngineEvents::callEvent(MOUSE_MOVED, context);
+    engineEventsSystemRef->callEvent(MOUSE_MOVED, context);
 }
 
-void IInputSystem::processMouseScroll(const char z) {
+void IInputSystem::processMouseScroll(const char z) const {
     EngineInputContext context{};
     context.mouseZ = static_cast<unsigned char>(z);
-    EngineEvents::callEvent(MOUSE_WHEEL, context);
+    engineEventsSystemRef->callEvent(MOUSE_WHEEL, context);
 }
 
-void IInputSystem::subscribeToEngineEvent(const EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String &id, const Keys key) {
-    EngineEvents::subscribe(code, function, id, key);
+void IInputSystem::subscribeToEngineEvent(const EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String &id, const Keys key) const {
+    engineEventsSystemRef->subscribe(code, function, id, key);
 }

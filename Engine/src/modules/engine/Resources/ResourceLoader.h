@@ -21,7 +21,7 @@
 class ResourceLoader {
 protected:
     /** @brief the id of the loader */
-    unsigned int id = INVALID_ID;
+    unsigned int id = INVALID_ID_U32;
     /** @brief the type of resource to load */
     ResourceType type{};
     /** @brief the type of custom resource to load */
@@ -40,7 +40,7 @@ public:
 
     bool isCustomType() const {return !customType.empty();}
     void setId(const unsigned int newId) {
-        if (id == INVALID_ID) {
+        if (id == INVALID_ID_U32) {
             id = newId;
         } else {
             Logger::logError("Resource system cannot assign an id to a loader because the loader already has an id! New ID: " + std::to_string(newId) + " Existing Id: " + std::to_string(id));

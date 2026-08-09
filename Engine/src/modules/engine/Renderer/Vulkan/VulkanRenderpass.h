@@ -29,14 +29,17 @@ private:
     bool bHasPreviousPass = false;
     bool bHasNextPass = false;
 
-    EngineRenderpasses id{};
+    String name{};
+    unsigned int id{};
     DynamicArray<VkFramebuffer> framebuffers{};
 
 public:
     VkRenderPass& getHandle() { return handle; }
-    [[nodiscard]] EngineRenderpasses getId() const { return id; }
+    [[nodiscard]] unsigned int getId() const { return id; }
     [[nodiscard]] bool usesDepth() const { return (clearFlags & RENDERPASS_CLEAR_DEPTH) != 0; }
     VkFramebuffer& getFramebuffer(const unsigned int index) { return framebuffers[index]; }
+    [[nodiscard]] String getName() const { return name; }
+
 
     void setRenderArea(const Vector4f newRenderArea) { renderArea = newRenderArea; }
     void setClearColor(const Vector4f color) { clearColor = color; }
@@ -45,7 +48,8 @@ public:
     void setNextPass(const bool hasNext) { bHasNextPass = hasNext; }
     void setWidth(const float width) { renderArea.z = width; }
     void setHeight(const float height) { renderArea.w = height; }
-    void setId(const EngineRenderpasses newId) {id = newId;}
+    void setId(const unsigned int newId) {id = newId;}
+    void setName(const String &newName) { name = newName; }
 
     void destroyRenderpass(VulkanDevice &device);
     void beginRenderpass(VulkanCommandBuffer& commandBuffer, VkFramebuffer frameBuffer) const;

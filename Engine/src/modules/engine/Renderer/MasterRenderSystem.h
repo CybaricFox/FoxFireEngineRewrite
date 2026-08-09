@@ -41,26 +41,30 @@ private:
     /** @brief Pointer to the user defined Geometry system. */
     IGeometrySystem* geometrySystem = nullptr;
 
+    ShaderSystem shaderSystem{};
+    unsigned int materialShaderId = INVALID_ID_U32;
+    unsigned int uiShaderId = INVALID_ID_U32;
+
     /** @brief Collection of renderpass profiles defined by the user. WARNING: Destroyed during initialization!*/
     DynamicArray<RenderpassProfile> renderpassProfiles{};
-    /** @brief Collection of render system profiles defined by the user. WARNING: Destroyed during initialization!*/
-    DynamicArray<RenderSystemProfile> renderSystemProfiles{};
     /** @brief Whether this is initialized. */
     bool bIsInitialized = false;
 
     Texture createBlankTexture();
     void createRenderpasses();
-    void createRenderSystems();
+    bool getRenderpassId(const String &name, unsigned char& outId);
+    bool createShader(Shader& shader, unsigned char renderpassId, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages);
+    void destroyShader(Shader &shader);
+    bool initializeShader(Shader& shader);
 
 public:
-    bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, unsigned int width, unsigned int height, ResourceSystem
-                    &resources);
+    bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, unsigned int width, unsigned int height, ResourceSystem& resources);
     bool initializeTextureSystem(unsigned int initialCapacity, ITextureSystem *system, ResourceSystem *resourceSystem);
-    bool initializeMaterialSystem(unsigned int initialCapacity, IMaterialSystem *system, ResourceSystem *resourceSystem);
+    bool initializeMaterialSystem(MaterialSystemConfig config, IMaterialSystem *system, ResourceSystem *resourceSystem);
     bool initializeGeometrySystem(unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem *resourceSystem);
+    bool initializeShaderSystem(const ShaderSystemConfig &config, ResourceSystem &resources);
     void shutdown();
     MasterRenderSystem() = default;
-    ~MasterRenderSystem();
 
     [[nodiscard]] RendererBackend* getBackend() const {return backend;}
     [[nodiscard]] Texture& getDefaultTexture() const {return textureSystem->getDefaultTexture();}
@@ -68,13 +72,12 @@ public:
 
     void setView(const Mat4 &newView);
 
-    [[nodiscard]] bool drawFrame(const RenderPacket &packet) const;
+    [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);
     [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName) const;
     void releaseTexture(const String &name) const;
     Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) const;
     void addRenderpassProfile(const RenderpassProfile &profile);
-    void addRenderSystemprofile(const RenderSystemProfile& profile);
 
     [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
         float xTile, float yTile, const String &name, const String &materialName) const;

@@ -83,4 +83,7 @@ public:
     VkQueue& getTransferQueue() {return transferQueue;}
     VkPhysicalDevice& getPhysicalDevice() {return physicalDevice;}
     VkFormat& getDepthFormat() {return depthFormat;}
+
+    VkPhysicalDeviceProperties& getPhysicalDeviceProperties() {return physicalDeviceProperties;}
+    VkPhysicalDeviceMemoryProperties& getPhysicalDeviceMemoryProperties() {return physicalDeviceMemoryProperties;}
 };

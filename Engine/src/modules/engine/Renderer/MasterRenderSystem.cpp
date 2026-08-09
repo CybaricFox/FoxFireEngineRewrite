@@ -6,41 +6,75 @@
 
 #include "../Library/Logger.h"
 
-bool MasterRenderSystem::drawFrame(const RenderPacket& packet) const {
+bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
     if (!backend->beginFrame(packet.deltaTime)) {
         return true;
     }
 
-    if (!backend->beginRenderpass(ENGINE_RENDER_PASS_WORLD)) {
+    if (!backend->beginRenderpass(0)) {
         Logger::logError("Backend failed to begin world renderpass!");
         return false;
     }
 
-    backend->updateWorldGlobalState(worldProjection, worldView, zeroVector3f(), oneVector4f(), 0);
+    if (!shaderSystem.use(materialShaderId)) {
+        Logger::logError("Failed to use material shader!");
+        return false;
+    }
+
+    if (!materialSystem->applyGlobal(materialShaderId, &worldProjection, &worldView)) {
+        Logger::logError("Failed to apply globals for materials!");
+        return false;
+    }
 
     unsigned int count = packet.geometryCount;
     for (unsigned int i = 0; i < count; i++) {
+        Material* material = packet.geometries[i].geometry->material;
+        if (!material) material = &materialSystem->getDefaultMaterial();
+
+        if (!materialSystem->applyInstance(*material)) {
+            Logger::logWarn("Failed to apply material: " + material->name);
+            continue;
+        }
+
+        materialSystem->applyLocal(*material, &packet.geometries[i].model);
         backend->drawGeometry(packet.geometries[i], textureSystem->getDefaultTexture(), materialSystem->getDefaultMaterial());
     }
 
-    if (!backend->endRenderpass(ENGINE_RENDER_PASS_WORLD)) {
+    if (!backend->endRenderpass(0)) {
         Logger::logFatal("Failed to end renderpass world!");
         return false;
     }
 
-    if (!backend->beginRenderpass(ENGINE_RENDER_PASS_UI)) {
+    if (!backend->beginRenderpass(1)) {
         Logger::logError("Backend failed to begin ui renderpass!");
         return false;
     }
 
-    backend->updateUIGlobalState(uiProjection, uiView, 0);
+    if (!shaderSystem.use(uiShaderId)) {
+        Logger::logError("Failed to use ui shader!");
+        return false;
+    }
+
+    if (!materialSystem->applyGlobal(uiShaderId, &uiProjection, &uiView)) {
+        Logger::logError("Failed to apply globals for uis!");
+        return false;
+    }
 
     count = packet.uiGeometryCount;
     for (unsigned int i = 0; i < count; i++) {
+        Material* material = packet.uiGeometries[i].geometry->material;
+        if (!material) material = &materialSystem->getDefaultMaterial();
+
+        if (!materialSystem->applyInstance(*material)) {
+            Logger::logWarn("Failed to apply material: " + material->name);
+            continue;
+        }
+
+        materialSystem->applyLocal(*material, &packet.uiGeometries[i].model);
         backend->drawGeometry(packet.uiGeometries[i], textureSystem->getDefaultTexture(), materialSystem->getDefaultMaterial());
     }
 
-    if (!backend->endRenderpass(ENGINE_RENDER_PASS_UI)) {
+    if (!backend->endRenderpass(1)) {
         Logger::logFatal("Failed to end renderpass ui!");
         return false;
     }
@@ -88,26 +122,25 @@ void MasterRenderSystem::createRenderpasses() {
     renderpassProfiles.shutdown();
 }
 
-void MasterRenderSystem::createRenderSystems() {
-    if (bIsInitialized || renderSystemProfiles.getLength() == 0) return;
-
-    for (const RenderSystemProfile& profile : renderSystemProfiles) {
-        backend->createRenderSystem(profile);
+bool MasterRenderSystem::getRenderpassId(const String &name, unsigned char &outId) {
+    if (name == "Fox_Fire_World_Renderpass") {
+        outId = 0;
+        return true;
+    }
+    if (name == "Fox_Fire_UI_Renderpass") {
+        outId = 1;
+        return true;
     }
 
-    renderSystemProfiles.shutdown();
+    Logger::logError("There is no renderpass named " + name);
+    outId = INVALID_ID_U8;
+    return false;
 }
 
 void MasterRenderSystem::addRenderpassProfile(const RenderpassProfile &profile) {
     if (bIsInitialized) return;
     if (renderpassProfiles.getLength() == 0) renderpassProfiles.initialize(1);
     renderpassProfiles.push(profile);
-}
-
-void MasterRenderSystem::addRenderSystemprofile(const RenderSystemProfile &profile) {
-    if (bIsInitialized) return;
-    if (renderSystemProfiles.getLength() == 0) renderSystemProfiles.initialize(1);
-    renderSystemProfiles.push(profile);
 }
 
 GeometryConfig MasterRenderSystem::generatePlaneConfig(const float width, const float height, const unsigned int xCount,
@@ -119,7 +152,7 @@ GeometryConfig MasterRenderSystem::generatePlaneConfig(const float width, const 
 
 Texture MasterRenderSystem::createBlankTexture() {
     Texture texture{};
-    texture.generation = INVALID_ID;
+    texture.generation = INVALID_ID_U32;
     return texture;
 }
 
@@ -137,13 +170,15 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
     backend->clearFrameNumber();
 
     createRenderpasses();
-    createRenderSystems();
+
     bIsInitialized = true;
-    if (!backend->initialize(appName, platform, width, height, resources)) {
+
+    if (!backend->initialize(appName, platform, width, height, &resources)) {
         Logger::logFatal("Renderer Backend failed to initialize!");
         return false;
     }
 
+    //UBOs
     worldProjection = perspective(degreesToRadians(45.0f), 1280 / 720.0f, nearClip, farClip);
     worldView = createTranslationMatrix({0, 0, -30});
     worldView = invertMatrix(worldView);
@@ -159,14 +194,48 @@ bool MasterRenderSystem::initializeTextureSystem(const unsigned int initialCapac
     return textureSystem->initialize(initialCapacity, backend, resourceSystem);
 }
 
-bool MasterRenderSystem::initializeMaterialSystem(const unsigned int initialCapacity, IMaterialSystem *system, ResourceSystem* resourceSystem) {
+bool MasterRenderSystem::initializeMaterialSystem(const MaterialSystemConfig config, IMaterialSystem *system, ResourceSystem* resourceSystem) {
     materialSystem = system;
-    return materialSystem->initialize(initialCapacity, textureSystem, backend, resourceSystem);
+    return materialSystem->initialize(config, textureSystem, backend, resourceSystem, &shaderSystem);
 }
 
 bool MasterRenderSystem::initializeGeometrySystem(const unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem* resourceSystem) {
     geometrySystem = system;
     return geometrySystem->initialize(initialCapacity, backend, materialSystem, resourceSystem);
+}
+
+bool MasterRenderSystem::initializeShaderSystem(const ShaderSystemConfig& config, ResourceSystem& resources) {
+    if (!shaderSystem.initialize(config, backend, textureSystem)) return false;
+
+    //Shaders
+    Resource configResource{};
+    ShaderConfig* shaderConfig = nullptr;
+
+    if (!resources.load(DEFAULT_MATERIAL_SHADER_NAME, RESOURCE_TYPE_SHADER, configResource)) {
+        Logger::logFatal("Failed to load material shader!");
+        return false;
+    }
+    shaderConfig = static_cast<ShaderConfig *>(configResource.data);
+    if (!shaderSystem.createShader(*shaderConfig)) {
+        Logger::logFatal("Failed to create shader from config!");
+        return false;
+    }
+    resources.unload(configResource);
+    materialShaderId = shaderSystem.getId(DEFAULT_MATERIAL_SHADER_NAME);
+
+    if (!resources.load(DEFAULT_UI_SHADER_NAME, RESOURCE_TYPE_SHADER, configResource)) {
+        Logger::logFatal("Failed to load ui shader!");
+        return false;
+    }
+    shaderConfig = static_cast<ShaderConfig *>(configResource.data);
+    if (!shaderSystem.createShader(*shaderConfig)) {
+        Logger::logFatal("Failed to create shader from config!");
+        return false;
+    }
+    resources.unload(configResource);
+    uiShaderId = shaderSystem.getId(DEFAULT_UI_SHADER_NAME);
+
+    return true;
 }
 
 void MasterRenderSystem::shutdown() {
@@ -178,6 +247,9 @@ void MasterRenderSystem::shutdown() {
         delete materialSystem;
         materialSystem = nullptr;
     }
+
+    shaderSystem.shutdown();
+
     //Destroy texture system
     if (textureSystem) {
         delete textureSystem;
@@ -186,8 +258,4 @@ void MasterRenderSystem::shutdown() {
 
     delete backend;
     backend = nullptr;
-}
-
-MasterRenderSystem::~MasterRenderSystem() {
-    shutdown();
 }

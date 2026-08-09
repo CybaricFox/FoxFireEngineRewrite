@@ -12,6 +12,9 @@
 
 #pragma once
 #include <vulkan/vulkan.h>
+
+#include "VulkanContext.h"
+#include "VulkanTypes.h"
 #include "src/defines.h"
 
 /**
@@ -35,4 +38,7 @@ public:
     static bool vulkanCheck(VkResult result);
 
     static int findMemoryIndex(int typeFilter, unsigned int propertyFlags, VkPhysicalDevice physicalDevice);
+
+    static bool createShaderModule(VulkanContext &context, const String &name, const String &typeString, VkShaderStageFlagBits stageFlags, unsigned int stageIndex, VulkanShaderStage
+                                   *shaderStages, ResourceSystem &resources);
 };

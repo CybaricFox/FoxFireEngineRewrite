@@ -9,6 +9,7 @@
 #include <ostream>
 
 #include "src/modules/engine/Memory/DynamicArray.h"
+#include "../Input/EngineEvents.h"
 
 struct KeyState {
     Buttons button;
@@ -24,21 +25,21 @@ struct MouseState {
 DynamicArray<KeyState> keyInputs;
 DynamicArray<MouseState> mouseInputs;
 
-void Platform::processInputs(IInputSystem &inputSystem) {
+void Platform::processInputs() {
     for (const KeyState& input : keyInputs) {
         if (input.key == MAX_KEYS) {
-            inputSystem.processButton(input.button, input.bIsPressed);
+            inputSystemRef->processButton(input.button, input.bIsPressed);
         } else {
-            inputSystem.processKey(input.key, input.bIsPressed);
+            inputSystemRef->processKey(input.key, input.bIsPressed);
         }
     }
     keyInputs.clear();
 
     for (const MouseState& mouse : mouseInputs) {
         if (mouse.z != 0) {
-            inputSystem.processMouseScroll(mouse.z);
+            inputSystemRef->processMouseScroll(mouse.z);
         } else {
-            inputSystem.processMouseMove(mouse.x, mouse.y);
+            inputSystemRef->processMouseMove(mouse.x, mouse.y);
         }
     }
     mouseInputs.clear();
@@ -52,7 +53,7 @@ void Platform::processInputs(IInputSystem &inputSystem) {
 #include "vulkan/vulkan.h"
 #include "vulkan/vulkan_win32.h"
 
-struct InternalState {
+struct WindowsState : PlatformState {
     HINSTANCE instance;
     HWND hwnd;
     VkSurfaceKHR surface;
@@ -68,14 +69,14 @@ void setupClock() {
     QueryPerformanceCounter(&startTime);
 }
 
-LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK win32ProcessMessage(HWND hwnd, unsigned int msg, WPARAM wParam, LPARAM lParam) {
     //These are overrides
     switch (msg) {
         case WM_ERASEBKGND:
             //Tells to OS that erasing will be handled by the engine to prevent flickering
             return 1;
         case WM_CLOSE:
-            EngineEvents::callEvent(QUIT, EngineInputContext{});
+            EngineEvents::closeApplication();
             return 1;
         case WM_DESTROY:
             PostQuitMessage(0);
@@ -85,7 +86,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
             GetClientRect(hwnd, &rect);
             const unsigned short width = rect.right - rect.left;
             const unsigned short height = rect.bottom - rect.top;
-            EngineEvents::callEvent(RESIZED, EngineInputContext{width, height});
+            EngineEvents::resizeApplication(EngineInputContext{width, height});
             break;
         }
         case WM_KEYDOWN:
@@ -161,9 +162,11 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, unsigned int msg, WPARAM wPara
     return DefWindowProcA(hwnd, msg, wParam, lParam);
 };
 
-bool Platform::initialize(const String &applicationName, const int x, const int y, const int width, const int height) {
-    platformState.unknownState = malloc( sizeof(InternalState) );
-    const auto castedState = static_cast<InternalState*>(platformState.unknownState);
+bool Platform::initialize(const String &applicationName, const int x, const int y, const int width, const int height, IInputSystem *inputSystem) {
+    platformState = FF_Memory::ff_allocate_class<WindowsState>(sizeof(WindowsState), GAME);
+    const auto castedState = reinterpret_cast<WindowsState*>(platformState);
+
+    inputSystemRef = inputSystem;
 
     keyInputs.initialize();
     mouseInputs.initialize();
@@ -173,7 +176,7 @@ bool Platform::initialize(const String &applicationName, const int x, const int 
     HICON icon = LoadIcon(castedState->instance, IDI_APPLICATION);
     WNDCLASSA wc = {};
     wc.style = CS_DBLCLKS;
-    wc.lpfnWndProc = win32_process_message;
+    wc.lpfnWndProc = win32ProcessMessage;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = castedState->instance;
@@ -255,9 +258,9 @@ void Platform::getRequiredExtensions(DynamicArray<const char*>& extensions) {
     extensions.push("VK_KHR_win32_surface");
 }
 
-bool Platform::createSurface() {
+bool Platform::createSurface() const {
     VulkanContext* vulkanContext = &VulkanBackend::vulkanContext;
-    const auto state = static_cast<InternalState *>(platformState.unknownState);
+    const auto state = static_cast<WindowsState *>(platformState);
 
     VkWin32SurfaceCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
     createInfo.hinstance = state->instance;
@@ -319,11 +322,13 @@ double Platform::getAbsoluteTime() {
 }
 
 Platform::~Platform() {
-    if (platformState.unknownState != nullptr) shutdown();
+    if (platformState != nullptr) shutdown();
 }
 
 void Platform::shutdown() {
-    if (const auto state = static_cast<InternalState *>(platformState.unknownState); state->hwnd != nullptr) {
+    const auto state = static_cast<WindowsState *>(platformState);
+
+    if (state->hwnd != nullptr) {
         DestroyWindow(state->hwnd);
         state->hwnd = nullptr;
     }
@@ -331,8 +336,8 @@ void Platform::shutdown() {
     keyInputs.shutdown();
     mouseInputs.shutdown();
 
-    free(platformState.unknownState);
-    platformState.unknownState = nullptr;
+    FF_Memory::ff_free(platformState, sizeof(WindowsState), GAME);
+    platformState = nullptr;
 }
 
 //Tells the platform to process the windows messages to OS.
@@ -367,7 +372,7 @@ bool Platform::processMessages() {
 #include <vulkan/vulkan.h>
 #include "src/modules/engine/Renderer/Vulkan/VulkanBackend.h"
 
-struct InternalState {
+struct LinuxState : PlatformState{
     Display* display;
     xcb_connection_t* connection;
     xcb_window_t window;
@@ -411,7 +416,7 @@ void Platform::printConsoleError(const String &message, const unsigned char colo
 
 bool Platform::createSurface() {
         VulkanContext* vulkanContext = &VulkanBackend::vulkanContext;
-        const auto state = static_cast<InternalState *>(platformState.unknownState);
+        const auto state = static_cast<WindowsState *>(platformState.unknownState);
 
         VkXcbSurfaceCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR};
         createInfo.connection = state->connection;
@@ -692,7 +697,7 @@ Keys translateKeycode(unsigned int keyCode) {
     }
 
 bool Platform::processMessages() {
-        const auto state = static_cast<InternalState *>(platformState.unknownState);
+        const auto state = static_cast<WindowsState *>(platformState.unknownState);
 
         xcb_generic_event_t* event = nullptr;
         xcb_client_message_event_t* message;
@@ -803,8 +808,8 @@ void ff_sleep(unsigned long ms) {
         }
 
 bool Platform::initialize(const String &applicationName, const int x, const int y, const int width, const int height) {
-        platformState.unknownState = malloc(sizeof(InternalState));
-        const auto castedState = static_cast<InternalState *>(platformState.unknownState);
+        platformState.unknownState = malloc(sizeof(WindowsState));
+        const auto castedState = static_cast<WindowsState *>(platformState.unknownState);
 
         castedState->display = XOpenDisplay(nullptr);
         XSetEventQueueOwner(castedState->display, XCBOwnsEventQueue);
@@ -903,7 +908,7 @@ bool Platform::initialize(const String &applicationName, const int x, const int 
     }
 
 void Platform::shutdown() {
-        const InternalState* castedState = static_cast<InternalState *>(platformState.unknownState);
+        const WindowsState* castedState = static_cast<WindowsState *>(platformState.unknownState);
 
         //Turn on repeating keys since this seems to toggle it in the os itself
         XAutoRepeatOn(castedState->display);

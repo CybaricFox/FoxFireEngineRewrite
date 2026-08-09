@@ -36,12 +36,6 @@ private:
     FreeListNode* first = nullptr;
     /** @brief The part of the memory block that contains the list of nodes.*/
     FreeListNode* nodes = nullptr;
-    //FreeList does not own its memory.
-    //FreeList itself is stored at the start of the block.
-    /** @brief The Free List's memory block.*/
-    void* memoryBlock = nullptr;
-
-    FreeList() = default;
 
     /**
      * @brief Gets the next free node in the FreeList.
@@ -71,12 +65,14 @@ private:
     void freeNode(FreeListNode& node);
 
 public:
+    FreeList() = default;
+    FreeList(const unsigned long size, const unsigned long memoryRequirement, void* memory){initialize(size, memoryRequirement, memory);}
     ~FreeList() = default;
 
     /**
      * @brief Destructs the Free List and clears the memory allocation. Does not de-allocate the memory block!
      */
-    void shutdown() const;
+    void shutdown();
 
     /**
      * Gets the memory requirement of the FreeList
@@ -86,24 +82,24 @@ public:
     static unsigned long calculateMemoryRequirement(const unsigned long size) {
         unsigned long entries = size / (sizeof(void*) * sizeof(FreeListNode));
         if (entries == 0) entries = 1;
-        return sizeof(FreeList) + (sizeof(FreeListNode) * entries);
+        return sizeof(FreeListNode) * entries;
     }
 
     /**
      * @brief Creates a free list using an allocated block of memory.
      * @param size Size of the memory block
      * @param memoryRequirement Required size of the memory block to create this FreeList
-     * @param memory The memory allocation
+     * @param memory Where the nodes memory begins
      * @return A pointer to a FreeList
      */
-    static FreeList* createFreeList(unsigned long size, unsigned long memoryRequirement, void* memory);
+    void initialize(unsigned long size, unsigned long memoryRequirement, void *memory);
 
     /**
      * @brief Returns the amount of free space left in this FreeList.
      * @return remaining bytes
      */
     [[nodiscard]] unsigned long getFreeSpace() const {
-        if (memoryBlock == nullptr) return 0;
+        if (nodes == nullptr) return 0;
 
         unsigned long runningTotal = 0;
         const FreeListNode* node = first;
@@ -131,5 +127,5 @@ public:
     */
     bool free(unsigned long size, unsigned long offset);
 
-    bool resize(FreeList *&list, void *newMemory, unsigned long newSize, void *&outOldMemory) const;
+    bool resize(void *newMemory, unsigned long newSize, void *&outOldMemory);
 };

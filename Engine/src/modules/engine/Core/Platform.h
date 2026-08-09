@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include "../Input/EngineEvents.h"
 #include "../Input/IInputSystem.h"
 #include "src/defines.h"
 
@@ -20,14 +19,15 @@
  * @brief Platform data is different per Platform. This stuct contains a pointer to the platform-specific state.
  * The platform state can be found in the .cpp file.
  */
-struct PlatformState {
-    void* unknownState = nullptr;
-};
+struct PlatformState {};
 
 /**
  * @brief Handles platform-specific operations.
  */
 class Platform {
+private:
+    IInputSystem* inputSystemRef = nullptr;
+
 public:
     Platform() = default;
     ~Platform();
@@ -63,7 +63,7 @@ public:
      * @brief Interfaces with the input system to process inputs in the order they were activated.
      * @param inputSystem Reference to the input system.
      */
-    void processInputs(IInputSystem& inputSystem);
+    void processInputs();
 
     /**
      * @brief
@@ -72,9 +72,10 @@ public:
      * @param y Starting y pos of the screen.
      * @param width Starting width of the screen.
      * @param height Starting height of the screen.
+     * @param inputSystem reference to the input system
      * @return True on success, False on failure.
      */
-    bool initialize(const String &applicationName, int x, int y, int width, int height);
+    bool initialize(const String &applicationName, int x, int y, int width, int height, IInputSystem* inputSystem);
 
     /**
      * @brief Pauses the application
@@ -88,9 +89,9 @@ public:
      * @brief Returns the Platform-specific platform state as a void pointer to be used elsewhere.
      * @return The Platform-specific platform state.
      */
-    PlatformState& getPlatformState() {return platformState;}
+    [[nodiscard]] PlatformState& getPlatformState() const {return *platformState;}
 
-    bool createSurface();
+    bool createSurface() const;
 
     static void *platform_allocate(unsigned long size, bool align);
 
@@ -99,7 +100,7 @@ public:
 
 private:
     /** @brief stored platform state */
-    PlatformState platformState{};
+    PlatformState* platformState = nullptr;
 
 };
 

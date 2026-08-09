@@ -17,8 +17,6 @@
 #include "GameInstance.h"
 #include "foxfire_export.h"
 #include "../Input/IInputSystem.h"
-#include "src/modules/engine/Memory/DynamicArray.h"
-#include "src/modules/engine/Memory/FF_Memory.h"
 #include "src/modules/engine/Memory/LinearAllocator.h"
 #include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
@@ -39,11 +37,11 @@ private:
     Platform platform{};
     /** @brief Handles resource loading and management */
     ResourceSystem resourceSystem{};
+    /** @brief Handles user input handling. Input systems interface with this */
+    EngineEvents engineEventsSystem{};
 
     /** @brief Pointer to the derived game class set by the user. */
     Engine* engine = nullptr;
-    /** @brief A dynamic array of functions waiting for callback by the EngineEventSystem. */
-    DynamicArray<EngineEventCallback> subscribers[MAX_EVENT];
 
     /** @brief Whether the engine is running correctly. */
     bool bIsRunning = false;
@@ -119,9 +117,6 @@ protected:
      */
     bool render(float deltaTime);
 
-    //REMOVE THIS LATER
-    void setView(const Mat4 &newView);
-
     void onDebugEvent() const {
         const String files[3] = {"whoishe", "Test1", "Test2"};
         static char choice = 2;
@@ -138,6 +133,19 @@ protected:
 
             masterRenderSystem.releaseTexture(oldName);
         }
+    }
+
+    /**
+     * @brief Creates the derived GameState, Must be called after gameInstance is set by the Engine.
+     * @tparam T Derived struct of BaseGameState set by the user.
+     * @return Pointer to the constructed GameState.
+     */
+    template<typename T>
+    requires std::derived_from<T, BaseGameState>
+    T* createGameState() {
+        T* derivedState = reinterpret_cast<T*>(gameInstance->state);
+        std::construct_at(derivedState);
+        return derivedState;
     }
 
 public:

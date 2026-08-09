@@ -11,8 +11,6 @@
  */
 
 #pragma once
-#include "../Core/Platform.h"
-
 
 /**
  * @brief Handles system time calculations
@@ -23,8 +21,8 @@ private:
     double elapsedTime = 0;
 
 public:
-    void update(const Platform& platform);
-    void start(const Platform& platform);
+    void update();
+    void start();
     void stop();
 
     [[nodiscard]] double getElapsedTime() const {return elapsedTime;}

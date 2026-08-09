@@ -5,7 +5,6 @@
 #include "Engine.h"
 
 #include "../Library/Logger.h"
-#include "src/modules/engine/Memory/DynamicAllocator.h"
 
 void Engine::startup()
 {
@@ -32,8 +31,8 @@ void Engine::startup()
 void Engine::run() {
     Logger::logInfo("Beginning run loop");
 
-    clock.start(platform);
-    clock.update(platform);
+    clock.start();
+    clock.update();
     lastTime = clock.getElapsedTime();
     double runTime = 0;
     unsigned char frameCount = 0;
@@ -54,7 +53,7 @@ void Engine::run() {
 
         if (!bIsPaused) {
             //Update clock
-            clock.update(platform);
+            clock.update();
             const double currentTime = clock.getElapsedTime();
             const double deltaTime = currentTime - lastTime;
             const double frameStartTime = Platform::getAbsoluteTime();
@@ -109,7 +108,7 @@ void Engine::run() {
             //Handle input at the end
             //Must be update -> processInputs or key state wont be tracked correctly
             inputSystem->update(deltaTime);
-            platform.processInputs(*inputSystem);
+            platform.processInputs();
 
             //Update last time
             lastTime = currentTime;
@@ -154,15 +153,11 @@ bool Engine::render(float deltaTime) {
     return true;
 }
 
-void Engine::setView(const Mat4 &newView) {
-    masterRenderSystem.setView(newView);
-}
-
 Engine::Engine(GameInstance& instance)
 {
     if (!initializeMemory()) throw;
     Logger::initializeFile(logHandler);
-    instance.state = FF_Memory::ff_allocate(instance.memoryRequirement, GAME);
+    instance.state = FF_Memory::ff_allocate_class<BaseGameState>(instance.memoryRequirement, GAME);
     gameInstance = &instance;
 }
 
@@ -194,11 +189,13 @@ void Engine::initialize() {
     FF_Memory::ff_allocate(gameInstance->memoryRequirement, GAME);
 
     //Initialize event and input systems
-    EngineEvents::initialize(subscribers);
-    inputSystem->initialize();
+    engineEventsSystem.initialize();
+    inputSystem->initialize(&engineEventsSystem);
 
     //Initialize platform class
-    if (!platform.initialize(gameInstance->config.appName, gameInstance->config.startingX, gameInstance->config.startingY, gameInstance->config.startingWidth, gameInstance->config.startingHeight)) {
+    if (!platform.initialize(gameInstance->config.appName, gameInstance->config.startingX,
+        gameInstance->config.startingY, gameInstance->config.startingWidth, gameInstance->config.startingHeight, inputSystem)) {
+
         Logger::logFatal("The platform failed to initialize!");
         return;
     }
@@ -221,8 +218,13 @@ void Engine::initialize() {
         return;
     }
 
+    //Start the shader system
+    if (!masterRenderSystem.initializeShaderSystem(ShaderSystemConfig{1024, 128, 31, 31}, resourceSystem)) {
+        Logger::logFatal("Failed to initialize the shader system!");
+    }
+
     //Start material system
-    if (!masterRenderSystem.initializeMaterialSystem(4096, materialSystem, &resourceSystem)) {
+    if (!masterRenderSystem.initializeMaterialSystem(MaterialSystemConfig{4096}, materialSystem, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the texture system!");
         return;
     }
@@ -289,7 +291,8 @@ Engine::~Engine() {
     engine = nullptr;
 
     //Static destruction
-    EngineEvents::shutdown();
+    engineEventsSystem.shutdown();
+
     gameInstance->shutdown();
 
     //Destroy resources in opposite order of creation

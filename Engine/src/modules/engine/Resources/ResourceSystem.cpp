@@ -7,6 +7,7 @@
 #include "EngineLoaders/BinaryLoader.h"
 #include "EngineLoaders/ImageLoader.h"
 #include "EngineLoaders/MaterialLoader.h"
+#include "EngineLoaders/ShaderLoader.h"
 #include "EngineLoaders/TextLoader.h"
 #include "src/modules/engine/Library/StringUtils.h"
 
@@ -19,6 +20,7 @@ bool ResourceSystem::initialize(const String &path, const unsigned int initialCa
     registerLoader(new MaterialLoader{});
     registerLoader(new BinaryLoader{});
     registerLoader(new TextLoader{});
+    registerLoader(new ShaderLoader{});
 
     Logger::logInfo("Resource system initialized with path: " + assetsPath);
     return true;
@@ -51,13 +53,13 @@ bool ResourceSystem::registerLoader(ResourceLoader* loader) {
 
 bool ResourceSystem::load(const String &name, const ResourceType type, Resource &outResource) {
     if (type == RESOURCE_TYPE_CUSTOM) {
-        outResource.loaderId = INVALID_ID;
+        outResource.loaderId = INVALID_ID_U32;
         Logger::logError("Load called for a custom type! Did you mean to call loadCustom?");
         return false;
     }
 
     for (ResourceLoader* loader : loaders) {
-        if (loader->getId() != INVALID_ID && loader->getType() == type) {
+        if (loader->getId() != INVALID_ID_U32 && loader->getType() == type) {
             outResource.loaderId = loader->getId();
             return loader->load(name, outResource, assetsPath);
         }
@@ -69,13 +71,13 @@ bool ResourceSystem::load(const String &name, const ResourceType type, Resource 
 
 bool ResourceSystem::loadCustom(const String &name, const String &type, Resource &outResource) {
     if (type.empty()) {
-        outResource.loaderId = INVALID_ID;
+        outResource.loaderId = INVALID_ID_U32;
         Logger::logError("LoadCustom called with an empty name!");
         return false;
     }
 
     for (ResourceLoader* loader : loaders) {
-        if (loader->getId() != INVALID_ID && loader->getType() == RESOURCE_TYPE_CUSTOM && StringUtils::equalsIgnoreCase(name, loader->getCustomType())) {
+        if (loader->getId() != INVALID_ID_U32 && loader->getType() == RESOURCE_TYPE_CUSTOM && StringUtils::equalsIgnoreCase(name, loader->getCustomType())) {
             outResource.loaderId = loader->getId();
             return loader->load(name, outResource, assetsPath);
         }
@@ -86,10 +88,10 @@ bool ResourceSystem::loadCustom(const String &name, const String &type, Resource
 }
 
 void ResourceSystem::unload(Resource &resource) {
-    if (resource.loaderId == INVALID_ID) return;
+    if (resource.loaderId == INVALID_ID_U32) return;
 
     ResourceLoader& loader = *loaders[resource.loaderId];
-    if (loader.getId() == INVALID_ID) return;
+    if (loader.getId() == INVALID_ID_U32) return;
 
     loader.unload(resource);
 }

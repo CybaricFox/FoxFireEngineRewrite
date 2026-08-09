@@ -1,0 +1,20 @@
+# UI shader for rendering the ui
+version = 1.0.0
+name = Fox_Fire_UI_Shader
+renderpass = Fox_Fire_UI_Renderpass
+stages = vertex, fragment
+stagefiles = ../Shaders/Engine_UI_Shader.vert.spv, ../Shaders/Engine_UI_Shader.frag.spv
+use_instance = true
+use_local = true
+
+#Attributes: Type,Name
+attribute = Vector2, in_position
+attribute = Vector2, in_texcoord
+
+#Uniforms: Type,Scope,Name
+#Scope: 0 = Global, 1 = Instance, 2 = Local
+uniform = Matrix4, 0, projection
+uniform = Matrix4, 0, view
+uniform = Vector4, 1, diffuse_color
+uniform = sampler, 1, diffuse_texture
+uniform = Matrix4, 2, model

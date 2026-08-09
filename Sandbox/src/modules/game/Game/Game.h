@@ -2,7 +2,7 @@
 #include "src/modules/engine/Core/Engine.h"
 #include "src/modules/system/FoxFire_Input/FoxFire_Events.h"
 
-struct GameState {
+struct GameState : BaseGameState {
     float deltaTime;
     Mat4 view;
     Vector3f cameraPos;

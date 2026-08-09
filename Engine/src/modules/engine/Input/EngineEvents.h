@@ -192,16 +192,17 @@ struct EngineEventCallback {
 class EngineEvents {
 private:
     /** @brief Array of Listeners. There is one array per event code. */
-    static DynamicArray<EngineEventCallback>* subscribers;
+    DynamicArray<DynamicArray<EngineEventCallback>> subscribers{};
+
+    /** @brief reference to the instance for use with platform static calls */
+    static EngineEvents* instance;
 
 public:
-    static void initialize(DynamicArray<EngineEventCallback>* vptr);
-    static void shutdown() {
-        for (int i = 0; i < MAX_EVENT; i++) {
-            subscribers[i].shutdown();
-        }
-        subscribers = nullptr;
-    }
+    void initialize();
+    void shutdown();
+
+    static void closeApplication();
+    static void resizeApplication(EngineInputContext context);
 
     /**
      * @brief Subscribes a listener to a specific event code.
@@ -210,21 +211,21 @@ public:
      * @param id Id of the listener
      * @param key The key to listen for (If Applicable)
      */
-    static void subscribe(EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String& id, Keys key = MAX_KEYS);
+    void subscribe(EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String& id, Keys key = MAX_KEYS);
 
     /**
      * @brief Removes a listener from an event code.
      * @param code Code to check
      * @param id Id of the Listener to remove
      */
-    static void unsubscribe(EngineEventCode code, const String& id) ;
+    void unsubscribe(EngineEventCode code, const String& id) ;
 
     /**
      * @brief Call all listeners for this event code. Checks the required key for each listener before calling.
      * @param code The event code to call.
      * @param context Input context to pass to the function.
      */
-    static void callEvent(EngineEventCode code, EngineInputContext context);
+    void callEvent(EngineEventCode code, EngineInputContext context);
 };
 
 

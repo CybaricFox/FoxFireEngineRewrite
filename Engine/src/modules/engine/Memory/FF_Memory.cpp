@@ -20,7 +20,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 3: return "ARRAY";
         case 4: return "LINEAR ALLOCATOR";
         case 5: return "DYNAMIC ARRAY";
-        case 6: return "AVAILABLE_TAG_SLOT";
+        case 6: return "RESOURCE";
         case 7: return "TEXTURE";
         case 8: return "HASHMAP";
         case 9: return "REUSABLE_ARRAY";
@@ -58,7 +58,7 @@ void FF_Memory::ff_free(void * block, const unsigned long size, const MemoryTag 
     memorySystem->memoryData.totalAllocated -= size;
     memorySystem->memoryData.taggedAllocations[tag] -= size;
 
-    if (!memorySystem->allocator->free(block, size)) {
+    if (!memorySystem->allocator.free(block, size)) {
         Platform::platform_free(block, false);
     }
 }
@@ -130,13 +130,10 @@ bool FF_Memory::initialize(const MemoryConfig config) {
     memorySystem->allocationCount = 0;
     memorySystem->allocationMemoryRequirement = allocationRequirement;
     memorySystem->memoryData = MemoryStats{};
-    memorySystem->allocatorMemory = static_cast<unsigned char *>(memory) + systemMemoryRequirement;
-    memorySystem->allocator = DynamicAllocator::createDynamicAllocator(config.totalAllocationSize, memorySystem->allocatorMemory);
 
-    if (memorySystem->allocator == nullptr) {
-        Logger::logFatal("Memory system failed to create internal allocator.");
-        return false;
-    }
+    //Initialize the dynamic allocator
+    void* allocatorMemory = static_cast<unsigned char *>(memory) + systemMemoryRequirement;
+    memorySystem->allocator.initialize(config.totalAllocationSize, allocatorMemory);
 
     Logger::logDebug("Memory system allocated successfully with " + std::to_string(config.totalAllocationSize) + " bytes.");
     return true;
@@ -144,7 +141,7 @@ bool FF_Memory::initialize(const MemoryConfig config) {
 
 void FF_Memory::shutdown() {
     if (memorySystem) {
-        memorySystem->allocator->shutdown();
+        memorySystem->allocator.shutdown();
         std::destroy_at(memorySystem);
         Platform::platform_free(memorySystem, false);
         memorySystem = nullptr;
@@ -169,7 +166,7 @@ void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag) {
         memorySystem->memoryData.totalAllocated += size;
         memorySystem->memoryData.taggedAllocations[tag] += size;
         memorySystem->allocationCount++;
-        memory = memorySystem->allocator->allocate(size);
+        memory = memorySystem->allocator.allocate(size);
     } else {
         Logger::logError("Allocate called before memory system is initialized!");
         memory = Platform::platform_allocate(size, false);

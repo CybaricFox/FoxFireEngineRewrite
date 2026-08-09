@@ -5,7 +5,7 @@
 #include "FoxFire_GeometrySystem.h"
 
 Geometry & FoxFire_GeometrySystem::acquireGeometry(const unsigned int id) {
-    if (id == INVALID_ID || geometries.get(id).geometry.id == INVALID_ID) {
+    if (id == INVALID_ID_U32 || geometries.get(id).geometry.id == INVALID_ID_U32) {
         Logger::logError("Geometry system cannot load geometry with an invalid id!");
         return default3DGeometry;
     }
@@ -34,7 +34,7 @@ Geometry & FoxFire_GeometrySystem::acquireGeometry(const GeometryConfig &config,
 }
 
 void FoxFire_GeometrySystem::releaseGeometry(const Geometry &geometry) {
-    if (geometry.id == INVALID_ID) {
+    if (geometry.id == INVALID_ID_U32) {
         Logger::logWarn("Cannot release geometry with an invalid id!");
         return;
     }
@@ -213,9 +213,9 @@ bool FoxFire_GeometrySystem::createGeometry(const GeometryConfig &config, Geomet
     if (!backendRef->createGeometry(geometry, config.vertexSize, config.vertexCount, config.vertices, config.indexSize, config.indexCount, config.indices)) {
         geometries.get(geometry.id).referenceCount = 0;
         geometries.get(geometry.id).bAutoRelease = false;
-        geometry.id = INVALID_ID;
-        geometry.generation = INVALID_ID;
-        geometry.internalId = INVALID_ID;
+        geometry.id = INVALID_ID_U32;
+        geometry.generation = INVALID_ID_U32;
+        geometry.internalId = INVALID_ID_U32;
 
         return false;
     }

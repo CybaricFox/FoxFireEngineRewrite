@@ -27,7 +27,7 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
                                     unsigned int attributeCount, VkVertexInputAttributeDescription *attributes,
                                     unsigned int descriptorSetLayoutCount, VkDescriptorSetLayout *descriptorSetLayouts, unsigned int stageCount,
                                     VkPipelineShaderStageCreateInfo *shaderStages, VkViewport viewport, VkRect2D scissor, bool bIsWireframe, bool
-                                    bDepthTestEnabled, VulkanDevice &device) {
+                                    bDepthTestEnabled, unsigned int pushConstantRangeCount, MemoryRange *pushConstantRanges, VulkanDevice &device) {
 
     VkPipelineViewportStateCreateInfo viewportState{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
     viewportState.viewportCount = 1;
@@ -84,7 +84,7 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
     colorBlendInfo.pAttachments = &colorBlendAttachmentState;
 
     constexpr unsigned int dynamicStateCount = 3;
-    VkDynamicState dynamicStates[dynamicStateCount] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_LINE_WIDTH};
+    VkDynamicState dynamicStates[dynamicStateCount]{VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_LINE_WIDTH};
 
     VkPipelineDynamicStateCreateInfo dynamicStateInfo{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
     dynamicStateInfo.dynamicStateCount = dynamicStateCount;
@@ -106,20 +106,33 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = false;
 
-    //Push constants
-    VkPushConstantRange pushConstant;
-    pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    pushConstant.offset = sizeof(Mat4) * 0;
-    pushConstant.size = sizeof(Mat4) * 2; //= 128 bytes
-
     //Pipeline layout
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    pipelineLayoutInfo.pushConstantRangeCount = 1;
-    pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
-    pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutCount;
-    pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts;
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    pipelineLayoutCreateInfo.setLayoutCount = descriptorSetLayoutCount;
+    pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayouts;
 
-    VulkanUtils::vulkanCheck(vkCreatePipelineLayout(device.getLogicalDevice(), &pipelineLayoutInfo, nullptr, &pipelineLayout));
+    //Push Constants
+    VkPushConstantRange ranges[32]{};
+    if (pushConstantRangeCount > 0) {
+        if (pushConstantRangeCount > 32) {
+            Logger::logError("Vulkans pipeline does not currently support more than 32 push constants.");
+            return false;
+        }
+
+        for (unsigned int i = 0; i < pushConstantRangeCount; i++) {
+            ranges[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            ranges[i].offset = pushConstantRanges[i].offset;
+            ranges[i].size = pushConstantRanges[i].size;
+        }
+        pipelineLayoutCreateInfo.pushConstantRangeCount = pushConstantRangeCount;
+        pipelineLayoutCreateInfo.pPushConstantRanges = ranges;
+    } else {
+        pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+        pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+    }
+
+    //Create the pipeline layout
+    VulkanUtils::vulkanCheck(vkCreatePipelineLayout(device.getLogicalDevice(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
 
     VkGraphicsPipelineCreateInfo graphicsPipelineInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
     graphicsPipelineInfo.stageCount = stageCount;

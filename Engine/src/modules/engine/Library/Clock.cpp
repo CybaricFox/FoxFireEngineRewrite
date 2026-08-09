@@ -6,14 +6,14 @@
 
 #include "../Core/Platform.h"
 
-void Clock::update(const Platform& platform) {
+void Clock::update() {
     if (startTime != 0) {
-        elapsedTime = platform.getAbsoluteTime() - startTime;
+        elapsedTime = Platform::getAbsoluteTime() - startTime;
     }
 }
 
-void Clock::start(const Platform& platform) {
-    startTime = platform.getAbsoluteTime();
+void Clock::start() {
+    startTime = Platform::getAbsoluteTime();
     elapsedTime = 0;
 }
 

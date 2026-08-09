@@ -26,7 +26,7 @@ enum FileMode {
 class FOXFIRE_API FileHandler {
 private:
     /** @brief pointer to a file */
-    void* handle = nullptr;
+    FILE* handle = nullptr;
     /** @brief Whether the file is valid */
     bool bIsValid = false;
 
