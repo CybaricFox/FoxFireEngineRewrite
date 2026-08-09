@@ -177,7 +177,7 @@ bool VulkanBackend::uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue
     return true;
 }
 
-bool VulkanBackend::freeRangeOfData(const VulkanBuffer &buffer, const unsigned long offset, const unsigned long size) {
+bool VulkanBackend::freeRangeOfData(VulkanBuffer &buffer, const unsigned long offset, const unsigned long size) {
     return buffer.free(size, offset);
 }
 

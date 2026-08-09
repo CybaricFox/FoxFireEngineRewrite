@@ -55,8 +55,7 @@ private:;
     MemoryConfig config{};
     unsigned long allocationCount = 0;
     unsigned long allocationMemoryRequirement = 0;
-    DynamicAllocator* allocator = nullptr;
-    void* allocatorMemory = nullptr;
+    DynamicAllocator allocator{};
 
     FF_Memory() = default;
 

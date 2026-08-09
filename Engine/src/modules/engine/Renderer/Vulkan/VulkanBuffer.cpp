@@ -15,7 +15,11 @@ bool VulkanBuffer::createBuffer(VulkanDevice& device, const unsigned long size, 
     //Create a new Free List
     freeListMemoryRequirement = FreeList::calculateMemoryRequirement(size);
     memoryBlock = FF_Memory::ff_allocate(freeListMemoryRequirement, RENDER);
-    bufferFreeList = FreeList::createFreeList(size, freeListMemoryRequirement, memoryBlock);
+    if (!memoryBlock) {
+        Logger::logError("Failed to allocate a free list for a Vulkan Buffer!");
+        return false;
+    }
+    bufferFreeList.initialize(size, freeListMemoryRequirement, memoryBlock);
 
     VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bufferInfo.size = size;
@@ -82,8 +86,9 @@ bool VulkanBuffer::resizeBuffer(VulkanDevice& device, const unsigned long newSiz
     const unsigned long newMemoryRequirement = FreeList::calculateMemoryRequirement(newSize);
     void* newBlock = FF_Memory::ff_allocate(newMemoryRequirement, RENDER);
     void* oldBlock = nullptr;
-    if (!bufferFreeList->resize(bufferFreeList, newBlock, newSize, oldBlock)) {
+    if (!bufferFreeList.resize(newBlock, newSize, oldBlock)) {
         Logger::logError("Vulkan Buffer failed to resize free list!");
+        bufferFreeList.shutdown();
         FF_Memory::ff_free(newBlock, newMemoryRequirement, RENDER);
         return false;
     }
@@ -168,16 +173,16 @@ void VulkanBuffer::unlockBuffer(VulkanDevice &device) const {
     vkUnmapMemory(device.getLogicalDevice(), deviceMemory);
 }
 
-bool VulkanBuffer::allocate(const unsigned long size, unsigned long &outOffset) const {
-    return bufferFreeList->allocate(size, outOffset);
+bool VulkanBuffer::allocate(const unsigned long size, unsigned long &outOffset) {
+    return bufferFreeList.allocate(size, outOffset);
 }
 
-bool VulkanBuffer::free(const unsigned long size, const unsigned long offset) const {
-    return bufferFreeList->free(size, offset);
+bool VulkanBuffer::free(const unsigned long size, const unsigned long offset) {
+    return bufferFreeList.free(size, offset);
 }
 
 void VulkanBuffer::destroyFreeList() {
-    bufferFreeList->shutdown();
+    bufferFreeList.shutdown();
     FF_Memory::ff_free(memoryBlock, freeListMemoryRequirement, RENDER);
     freeListMemoryRequirement = 0;
     memoryBlock = nullptr;

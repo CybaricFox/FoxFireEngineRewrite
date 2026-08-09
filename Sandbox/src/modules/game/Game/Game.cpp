@@ -123,13 +123,13 @@ bool Game::update(const float deltaTime) {
 
     //These should be removed eventually
     recalculateView(state);
-    setView(state->view);
+    masterRenderSystem.setView(state->view);
 
     return Engine::update(deltaTime);
 }
 
 void Game::initialize() {
-    const auto state = static_cast<GameState *>(gameInstance->state);
+    const auto state = createGameState<GameState>();
     state->cameraPos = {0, 0, 30};
     state->cameraEuler = zeroVector3f();
 

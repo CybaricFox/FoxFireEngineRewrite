@@ -9,21 +9,34 @@
 
 #include "src/modules/engine/Memory/DynamicArray.h"
 
-DynamicArray<EngineEventCallback>* EngineEvents::subscribers = nullptr;
+EngineEvents* EngineEvents::instance = nullptr;
 
-void EngineEvents::initialize(DynamicArray<EngineEventCallback>* vptr) {
-    subscribers = vptr;
+void EngineEvents::initialize() {
+    subscribers.initialize(MAX_EVENT);
     for (int i = 0; i < MAX_EVENT; i++) {
+        subscribers.emplace();
         subscribers[i].initialize();
     }
+
+    instance = this;
+}
+
+void EngineEvents::shutdown() {
+    for (int i = 0; i < MAX_EVENT; i++) {
+        subscribers[i].shutdown();
+    }
+    subscribers.shutdown();
+}
+
+void EngineEvents::closeApplication() {
+    instance->callEvent(QUIT, EngineInputContext{});
+}
+
+void EngineEvents::resizeApplication(const EngineInputContext context) {
+    instance->callEvent(RESIZED, context);
 }
 
 void EngineEvents::subscribe(const EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String& id, Keys key) {
-    if (subscribers == nullptr) {
-        Logger::logError("Subscribing event too early! Engine Events subscriber has not been initialized! Code: " + std::to_string(code) + ", id: " + id);
-        return;
-    }
-
     if (key == MAX_KEYS) {
         subscribers[code].emplace(id, function);
     } else {
