@@ -10,7 +10,7 @@ IGeometrySystem::~IGeometrySystem() {
     resourceSystemRef = nullptr;
 }
 
-bool IGeometrySystem::initialize(unsigned int initialCapacity, RendererBackend *backend, IMaterialSystem *materialSystem, ResourceSystem *resources) {
+bool IGeometrySystem::initialize(unsigned int initialCapacity, IRendererBackend *backend, IMaterialSystem *materialSystem, ResourceSystem *resources) {
     backendRef = backend;
     materialSystemRef = materialSystem;
     resourceSystemRef = resources;

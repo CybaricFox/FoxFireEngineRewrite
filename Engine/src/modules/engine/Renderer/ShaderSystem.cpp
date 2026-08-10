@@ -4,7 +4,7 @@
 
 #include "ShaderSystem.h"
 
-bool ShaderSystem::initialize(const ShaderSystemConfig newConfig, RendererBackend *backend, ITextureSystem *textureSystem) {
+bool ShaderSystem::initialize(const ShaderSystemConfig newConfig, IRendererBackend *backend, ITextureSystem *textureSystem) {
     backendRef = backend;
     textureSystemRef = textureSystem;
 

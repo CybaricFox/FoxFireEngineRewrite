@@ -9,12 +9,14 @@ use_local = true
 
 #Attributes: Type,Name
 attribute = Vector3, in_position
+attribute = Vector3, in_normal
 attribute = Vector2, in_texcoord
 
 #Uniforms: Type,Scope,Name
 #Scope: 0 = Global, 1 = Instance, 2 = Local
 uniform = Matrix4, 0, projection
 uniform = Matrix4, 0, view
+uniform = Vector4, 0, ambient_color
 uniform = Vector4, 1, diffuse_color
 uniform = sampler, 1, diffuse_texture
 uniform = Matrix4, 2, model

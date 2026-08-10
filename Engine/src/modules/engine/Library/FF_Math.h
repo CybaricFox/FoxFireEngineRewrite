@@ -351,6 +351,7 @@ inline Mat4 operator*(const Mat4& left, const Mat4& right) {
 
 struct Vertex3d {
     Vector3f position;
+    Vector3f normal;
     Vector2f textureCoordinate;
 };
 

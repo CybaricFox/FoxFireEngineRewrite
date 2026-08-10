@@ -21,7 +21,7 @@
 /**
  * @brief The Abstract Backend used for this application.
  */
-class RendererBackend {
+class IRendererBackend {
 private:
     /** @brief pointer to platform data */
     PlatformState* platformState = nullptr;
@@ -29,11 +29,11 @@ private:
     unsigned long frameNumber = 0;
 
 protected:
-    RendererBackend() = default;
+    IRendererBackend() = default;
     ResourceSystem* resourceSystemRef = nullptr;
 
 public:
-    virtual ~RendererBackend();
+    virtual ~IRendererBackend();
 
     /**
      * @brief Creates the specific backend.
@@ -42,7 +42,7 @@ public:
      * @param gameInstance Game specific data.
      * @return The specific backend to use.
      */
-    static RendererBackend* create(RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance);
+    static IRendererBackend* create(RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance);
 
     virtual bool getRenderpassId(String name, unsigned char& outId) = 0;
 

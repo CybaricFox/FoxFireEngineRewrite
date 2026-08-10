@@ -13,7 +13,7 @@
 #pragma once
 
 #include <foxfire_export.h>
-#include "RendererBackend.h"
+#include "IRendererBackend.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
 
 #define DEFAULT_TEXTURE_NAME "default"
@@ -25,14 +25,14 @@ class FOXFIRE_API ITextureSystem {
 private:
     unsigned long memorySize = 0;
 protected:
-    RendererBackend* backendRef = nullptr;
+    IRendererBackend* backendRef = nullptr;
     ResourceSystem* resourceRef = nullptr;
 
 public:
     explicit ITextureSystem(const unsigned long derivedSize) {memorySize = derivedSize;}
     virtual ~ITextureSystem();
 
-    virtual bool initialize(unsigned int initialCapacity, RendererBackend *backend, ResourceSystem* resources);
+    virtual bool initialize(unsigned int initialCapacity, IRendererBackend *backend, ResourceSystem* resources);
 
     virtual Texture& getDefaultTexture() = 0;
     [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}

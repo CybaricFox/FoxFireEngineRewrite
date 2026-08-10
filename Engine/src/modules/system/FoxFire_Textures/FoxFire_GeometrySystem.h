@@ -45,11 +45,12 @@ public:
     FoxFire_GeometrySystem();
     ~FoxFire_GeometrySystem() override;
 
-    bool initialize(unsigned initialCapacity, RendererBackend* backend, IMaterialSystem* materialSystem, ResourceSystem* resources) override;
+    bool initialize(unsigned initialCapacity, IRendererBackend* backend, IMaterialSystem* materialSystem, ResourceSystem* resources) override;
 
     Geometry & getDefault3DGeometry() override {return default3DGeometry;}
     Geometry & getDefault2DGeometry() override {return default2DGeometry;}
 
     GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount, float xTile, float yTile, const String &name, const String &materialName) override;
+    GeometryConfig generateCubeConfig(float width, float height, float depth, float xTile, float yTile, const String &name, const String &materialName) override;
     Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) override;
 };

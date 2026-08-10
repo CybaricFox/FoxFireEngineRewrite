@@ -74,7 +74,12 @@ void Engine::run() {
             //temp code
             GeometryRenderData testData{};
             testData.geometry = testGeometry;
-            testData.model = matrixIdentity();
+            //testData.model = matrixIdentity();
+            static float angle = 0;
+            angle += static_cast<float>(deltaTime);
+            const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, angle, true);
+            testData.model = convertQuatToMatrix(rotation);
+
             packet.geometryCount = 1;
             packet.geometries = &testData;
 
@@ -235,7 +240,7 @@ void Engine::initialize() {
     }
 
     //Temp code
-    const GeometryConfig config = masterRenderSystem.generatePlaneConfig(10, 10, 5, 5, 2, 2, "test geometry", "MaterialTemplate");
+    const GeometryConfig config = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube", "MaterialTemplate");
     testGeometry = &masterRenderSystem.acquireGeometry(config, true);
     FF_Memory::ff_free(config.vertices, sizeof(Vertex3d) * config.vertexCount, ARRAY);
     FF_Memory::ff_free(config.indices, sizeof(unsigned int) * config.indexCount, ARRAY);
@@ -249,21 +254,22 @@ void Engine::initialize() {
     configUI.materialName = "GenericUI";
     configUI.name = "test ui geometry";
 
-    constexpr float f = 512;
+    constexpr float w = 512;
+    constexpr float h = 256;
     Vertex2d uiVerts[4];
     uiVerts[0].position.x = 0;
     uiVerts[0].position.y = 0;
     uiVerts[0].textureCoordinate.x = 0;
     uiVerts[0].textureCoordinate.y = 0;
-    uiVerts[1].position.x = f;
-    uiVerts[1].position.y = f;
+    uiVerts[1].position.x = w;
+    uiVerts[1].position.y = h;
     uiVerts[1].textureCoordinate.x = 1;
     uiVerts[1].textureCoordinate.y = 1;
     uiVerts[2].position.x = 0;
-    uiVerts[2].position.y = f;
+    uiVerts[2].position.y = h;
     uiVerts[2].textureCoordinate.x = 0;
     uiVerts[2].textureCoordinate.y = 1;
-    uiVerts[3].position.x = f;
+    uiVerts[3].position.x = w;
     uiVerts[3].position.y = 0;
     uiVerts[3].textureCoordinate.x = 1;
     uiVerts[3].textureCoordinate.y = 0;

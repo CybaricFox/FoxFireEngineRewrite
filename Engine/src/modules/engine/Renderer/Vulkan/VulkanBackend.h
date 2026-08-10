@@ -13,7 +13,7 @@
 #pragma once
 
 #include "VulkanBackendShader.h"
-#include "../RendererBackend.h"
+#include "../IRendererBackend.h"
 
 #include "VulkanContext.h"
 #include "VulkanUtils.h"
@@ -24,7 +24,7 @@ struct VulkanTextureData {
     VkSampler sampler{};
 };
 
-class VulkanBackend final : public RendererBackend{
+class VulkanBackend final : public IRendererBackend{
 private:
     int majorVersion = 0;
     int minorVersion = 0;

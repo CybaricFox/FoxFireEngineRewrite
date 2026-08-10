@@ -2,13 +2,13 @@
 // Created by cmorg on 7/2/2026.
 //
 
-#include "RendererBackend.h"
+#include "IRendererBackend.h"
 
 #include "Vulkan/VulkanBackend.h"
 #include "../Library/Logger.h"
 
-RendererBackend* RendererBackend::create(const RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance) {
-    RendererBackend* backend;
+IRendererBackend* IRendererBackend::create(const RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance) {
+    IRendererBackend* backend;
 
     if (type == VULKAN) {
         auto* vulkanBackend = new VulkanBackend();
@@ -26,6 +26,6 @@ RendererBackend* RendererBackend::create(const RendererBackendType type, Platfor
     return backend;
 }
 
-RendererBackend::~RendererBackend() {
+IRendererBackend::~IRendererBackend() {
 
 }

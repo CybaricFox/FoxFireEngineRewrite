@@ -33,7 +33,7 @@ private:
     unsigned long memorySize = 0;
 
 protected:
-    RendererBackend* backendRef = nullptr;
+    IRendererBackend* backendRef = nullptr;
     ResourceSystem* resourceRef = nullptr;
     ITextureSystem* textureSystemRef = nullptr;
     ShaderSystem* shaderRef = nullptr;
@@ -43,7 +43,7 @@ public:
     explicit IMaterialSystem(const unsigned long derivedSize) {memorySize = derivedSize;}
     virtual ~IMaterialSystem();
 
-    virtual bool initialize(MaterialSystemConfig materialSystemConfig, ITextureSystem *system, RendererBackend *backend, ResourceSystem* resources, ShaderSystem* shaderSystem);
+    virtual bool initialize(MaterialSystemConfig materialSystemConfig, ITextureSystem *system, IRendererBackend *backend, ResourceSystem* resources, ShaderSystem* shaderSystem);
 
     virtual Material& getDefaultMaterial() = 0;
     [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}
@@ -67,7 +67,7 @@ public:
      */
     virtual void releaseMaterial(const String &name) = 0;
 
-    virtual bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view) const = 0;
+    virtual bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor) const = 0;
     virtual bool applyInstance(Material& material) const = 0;
     virtual bool applyLocal(const Material &material, Mat4 *model) const = 0;
 };

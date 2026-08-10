@@ -11,7 +11,7 @@ IMaterialSystem::~IMaterialSystem() {
     shaderRef = nullptr;
 }
 
-bool IMaterialSystem::initialize(const MaterialSystemConfig materialSystemConfig, ITextureSystem *system, RendererBackend *backend, ResourceSystem *resources, ShaderSystem* shaderSystem) {
+bool IMaterialSystem::initialize(const MaterialSystemConfig materialSystemConfig, ITextureSystem *system, IRendererBackend *backend, ResourceSystem *resources, ShaderSystem* shaderSystem) {
     if (materialSystemConfig.maxMaterialCount == 0) {
         Logger::logFatal("Material system max material count must be greater than 0!");
         return false;

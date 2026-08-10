@@ -4,7 +4,7 @@
 
 #include "FoxFire_MaterialSystem.h"
 
-bool FoxFire_MaterialSystem::initialize(const MaterialSystemConfig materialSystemConfig, ITextureSystem *system, RendererBackend *backend, ResourceSystem *resources, ShaderSystem* shaderSystem) {
+bool FoxFire_MaterialSystem::initialize(const MaterialSystemConfig materialSystemConfig, ITextureSystem *system, IRendererBackend *backend, ResourceSystem *resources, ShaderSystem* shaderSystem) {
     if (!IMaterialSystem::initialize(materialSystemConfig, system, backend, resources, shaderSystem)) return false;
 
     assets.initialize(config.maxMaterialCount);
@@ -75,6 +75,7 @@ Material & FoxFire_MaterialSystem::acquireMaterial(const MaterialResourceData &c
         materialShaderId = shader->getId();
         materialLocations.projection = shaderRef->getUniformIndex(*shader, "projection");
         materialLocations.view = shaderRef->getUniformIndex(*shader, "view");
+        materialLocations.ambientColor = shaderRef->getUniformIndex(*shader, "ambient_color");
         materialLocations.diffuseColor = shaderRef->getUniformIndex(*shader, "diffuse_color");
         materialLocations.diffuseTexture = shaderRef->getUniformIndex(*shader, "diffuse_texture");
         materialLocations.model = shaderRef->getUniformIndex(*shader, "model");
@@ -116,11 +117,13 @@ bool FoxFire_MaterialSystem::createDefaultMaterial() {
     defaultMaterial.diffuseMap.use = TEXTURE_USE_MAP_DIFFUSE;
     defaultMaterial.diffuseMap.texture = &textureSystemRef->getDefaultTexture();
 
-    Shader* shader = shaderRef->getShader(DEFAULT_MATERIAL_SHADER_NAME);
+    const Shader* shader = shaderRef->getShader(DEFAULT_MATERIAL_SHADER_NAME);
     if (!backendRef->acquireInstanceResources(*shader, defaultMaterial.internalId, textureSystemRef->getDefaultTexture())) {
         Logger::logFatal("Failed to acquire resources for the default material.");
         return false;
     }
+
+    defaultMaterial.shaderId = shader->getId();
 
     return true;
 }
@@ -176,13 +179,17 @@ FoxFire_MaterialSystem::FoxFire_MaterialSystem()
 
 }
 
-bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4* projection, Mat4* view) const {
+bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4* projection, Mat4* view, Vector4f* ambientColor) const {
     if (shaderId == materialShaderId) {
         if (!shaderRef->setUniform(materialLocations.projection, projection)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }
         if (!shaderRef->setUniform(materialLocations.view, view)) {
+            Logger::logError("Failed to apply global material.");
+            return false;
+        }
+        if (!shaderRef->setUniform(materialLocations.ambientColor, ambientColor)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }

@@ -8,7 +8,7 @@
 #include "VulkanRenderpass.h"
 #include "VulkanTypes.h"
 #include "src/defines.h"
-#include "src/modules/engine/Renderer/BackendShader.h"
+#include "src/modules/engine/Renderer/IBackendShader.h"
 
 /**
  *  @file VulkanBackendShader.h
@@ -22,7 +22,7 @@
  *  @copyright (c) 2026
  */
 
-class VulkanBackendShader : public BackendShader{
+class VulkanBackendShader : public IBackendShader{
 private:
     unsigned int id = INVALID_ID_U32;
     VulkanShaderConfig config{};

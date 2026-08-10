@@ -14,7 +14,7 @@
 #include "IGeometrySystem.h"
 #include "IMaterialSystem.h"
 #include "ITextureSystem.h"
-#include "RendererBackend.h"
+#include "IRendererBackend.h"
 #include "src/defines.h"
 #include "src/modules/engine/Core/Platform.h"
 
@@ -24,9 +24,10 @@
 class FOXFIRE_API MasterRenderSystem {
 private:
     /** @brief pointer to the backend in use */
-    RendererBackend* backend = nullptr;
+    IRendererBackend* backend = nullptr;
     Mat4 worldProjection{};
     Mat4 worldView{};
+    Vector4f ambientColor{};
     Mat4 uiProjection{};
     Mat4 uiView{};
     /** @brief How close geometry can get before it is clipped. */
@@ -53,6 +54,7 @@ private:
     Texture createBlankTexture();
     void createRenderpasses();
     bool getRenderpassId(const String &name, unsigned char& outId);
+
     bool createShader(Shader& shader, unsigned char renderpassId, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages);
     void destroyShader(Shader &shader);
     bool initializeShader(Shader& shader);
@@ -66,7 +68,7 @@ public:
     void shutdown();
     MasterRenderSystem() = default;
 
-    [[nodiscard]] RendererBackend* getBackend() const {return backend;}
+    [[nodiscard]] IRendererBackend* getBackend() const {return backend;}
     [[nodiscard]] Texture& getDefaultTexture() const {return textureSystem->getDefaultTexture();}
     [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefault3DGeometry();}
 
@@ -76,9 +78,10 @@ public:
     void onResize(unsigned short width, unsigned short height);
     [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName) const;
     void releaseTexture(const String &name) const;
-    Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) const;
+    [[nodiscard]] Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) const;
     void addRenderpassProfile(const RenderpassProfile &profile);
 
     [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
         float xTile, float yTile, const String &name, const String &materialName) const;
+    [[nodiscard]] GeometryConfig generateCubeConfig(float width, float height, float depth, float xTile, float yTile, const String &name, const String &materialName) const;
 };

@@ -237,6 +237,154 @@ void FoxFire_GeometrySystem::destroyGeometry(Geometry &geometry) {
     geometry = Geometry{};
 }
 
+GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float height, const float depth, float xTile, float yTile, const String &name, const String &materialName) {
+    if (width == 0) {
+        Logger::logWarn("Plane width cannot be 0.");
+        width = 1;
+    }
+    if (height == 0) {
+        Logger::logWarn("Plane height cannot be 0.");
+        height = 1;
+    }
+    if (xTile == 0) {
+        Logger::logWarn("Plane x tile cannot be 0.");
+        xTile = 1;
+    }
+    if (yTile == 0) {
+        Logger::logWarn("Plane y tile cannot be 0.");
+        yTile = 1;
+    }
+
+    GeometryConfig config{};
+    config.vertexSize = sizeof(Vertex3d);
+    config.vertexCount = 4 * 6;
+    config.vertices = FF_Memory::ff_allocate(config.vertexSize * config.vertexCount, ARRAY);
+    config.indexSize = sizeof(unsigned int);
+    config.indexCount = 6 * 6;
+    config.indices = FF_Memory::ff_allocate(config.indexSize * config.indexCount, ARRAY);
+
+    const float halfWidth = width * 0.5f;
+    const float halfHeight = height * 0.5f;
+    const float halfDepth = depth * 0.5f;
+    const float minX = -halfWidth;
+    const float maxX = halfWidth;
+    const float minY = -halfHeight;
+    const float maxY = halfHeight;
+    const float minZ = -halfDepth;
+    const float maxZ = halfDepth;
+    const float minUVX = 0;
+    const float minUVY = 0;
+    const float maxUVX = xTile;
+    const float maxUVY = yTile;
+
+    Vertex3d vertices[24];
+
+    vertices[(0 * 4) + 0].position = {minX, minY, maxZ};
+    vertices[(0 * 4) + 1].position = {maxX, maxY, maxZ};
+    vertices[(0 * 4) + 2].position = {minX, maxY, maxZ};
+    vertices[(0 * 4) + 3].position = {maxX, minY, maxZ};
+    vertices[(0 * 4) + 0].textureCoordinate = {minUVX, minUVY};
+    vertices[(0 * 4) + 1].textureCoordinate = {maxUVX, maxUVY};
+    vertices[(0 * 4) + 2].textureCoordinate = {minUVX, maxUVY};
+    vertices[(0 * 4) + 3].textureCoordinate = {maxUVX, minUVY};
+    vertices[(0 * 4) + 0].normal = {0, 0, 1};
+    vertices[(0 * 4) + 1].normal = {0, 0, 1};
+    vertices[(0 * 4) + 2].normal = {0, 0, 1};
+    vertices[(0 * 4) + 3].normal = {0, 0, 1};
+
+    vertices[(1 * 4) + 0].position = {maxX, minY, minZ};
+    vertices[(1 * 4) + 1].position = {minX, maxY, minZ};
+    vertices[(1 * 4) + 2].position = {maxX, maxY, minZ};
+    vertices[(1 * 4) + 3].position = {minX, minY, minZ};
+    vertices[(1 * 4) + 0].textureCoordinate = {minUVX, minUVY};
+    vertices[(1 * 4) + 1].textureCoordinate = {maxUVX, maxUVY};
+    vertices[(1 * 4) + 2].textureCoordinate = {minUVX, maxUVY};
+    vertices[(1 * 4) + 3].textureCoordinate = {maxUVX, minUVY};
+    vertices[(1 * 4) + 0].normal = {0, 0, -1};
+    vertices[(1 * 4) + 1].normal = {0, 0, -1};
+    vertices[(1 * 4) + 2].normal = {0, 0, -1};
+    vertices[(1 * 4) + 3].normal = {0, 0, -1};
+
+    vertices[(2 * 4) + 0].position = {minX, minY, minZ};
+    vertices[(2 * 4) + 1].position = {minX, maxY, maxZ};
+    vertices[(2 * 4) + 2].position = {minX, maxY, minZ};
+    vertices[(2 * 4) + 3].position = {minX, minY, maxZ};
+    vertices[(2 * 4) + 0].textureCoordinate = {minUVX, minUVY};
+    vertices[(2 * 4) + 1].textureCoordinate = {maxUVX, maxUVY};
+    vertices[(2 * 4) + 2].textureCoordinate = {minUVX, maxUVY};
+    vertices[(2 * 4) + 3].textureCoordinate = {maxUVX, minUVY};
+    vertices[(2 * 4) + 0].normal = {-1, 0, 0};
+    vertices[(2 * 4) + 1].normal = {-1, 0, 0};
+    vertices[(2 * 4) + 2].normal = {-1, 0, 0};
+    vertices[(2 * 4) + 3].normal = {-1, 0, 0};
+
+    vertices[(3 * 4) + 0].position = {maxX, minY, maxZ};
+    vertices[(3 * 4) + 1].position = {maxX, maxY, minZ};
+    vertices[(3 * 4) + 2].position = {maxX, maxY, maxZ};
+    vertices[(3 * 4) + 3].position = {maxX, minY, minZ};
+    vertices[(3 * 4) + 0].textureCoordinate = {minUVX, minUVY};
+    vertices[(3 * 4) + 1].textureCoordinate = {maxUVX, maxUVY};
+    vertices[(3 * 4) + 2].textureCoordinate = {minUVX, maxUVY};
+    vertices[(3 * 4) + 3].textureCoordinate = {maxUVX, minUVY};
+    vertices[(3 * 4) + 0].normal = {1, 0, 0};
+    vertices[(3 * 4) + 1].normal = {1, 0, 0};
+    vertices[(3 * 4) + 2].normal = {1, 0, 0};
+    vertices[(3 * 4) + 3].normal = {1, 0, 0};
+
+    vertices[(4 * 4) + 0].position = {maxX, minY, maxZ};
+    vertices[(4 * 4) + 1].position = {minX, minY, minZ};
+    vertices[(4 * 4) + 2].position = {maxX, minY, minZ};
+    vertices[(4 * 4) + 3].position = {minX, minY, maxZ};
+    vertices[(4 * 4) + 0].textureCoordinate = {minUVX, minUVY};
+    vertices[(4 * 4) + 1].textureCoordinate = {maxUVX, maxUVY};
+    vertices[(4 * 4) + 2].textureCoordinate = {minUVX, maxUVY};
+    vertices[(4 * 4) + 3].textureCoordinate = {maxUVX, minUVY};
+    vertices[(4 * 4) + 0].normal = {0, -1, 0};
+    vertices[(4 * 4) + 1].normal = {0, -1, 0};
+    vertices[(4 * 4) + 2].normal = {0, -1, 0};
+    vertices[(4 * 4) + 3].normal = {0, -1, 0};
+
+    vertices[(5 * 4) + 0].position = {minX, maxY, maxZ};
+    vertices[(5 * 4) + 1].position = {maxX, maxY, minZ};
+    vertices[(5 * 4) + 2].position = {minX, maxY, minZ};
+    vertices[(5 * 4) + 3].position = {maxX, maxY, maxZ};
+    vertices[(5 * 4) + 0].textureCoordinate = {minUVX, minUVY};
+    vertices[(5 * 4) + 1].textureCoordinate = {maxUVX, maxUVY};
+    vertices[(5 * 4) + 2].textureCoordinate = {minUVX, maxUVY};
+    vertices[(5 * 4) + 3].textureCoordinate = {maxUVX, minUVY};
+    vertices[(5 * 4) + 0].normal = {0, 1, 0};
+    vertices[(5 * 4) + 1].normal = {0, 1, 0};
+    vertices[(5 * 4) + 2].normal = {0, 1, 0};
+    vertices[(5 * 4) + 3].normal = {0, 1, 0};
+
+    FF_Memory::ff_copy(config.vertices, vertices, config.vertexSize * config.vertexCount);
+
+    for (unsigned int i = 0; i < 6; i++) {
+        const unsigned int vOffset = i * 4;
+        const unsigned int iOffset = i * 6;
+        static_cast<unsigned int *>(config.indices)[iOffset + 0] = vOffset + 0;
+        static_cast<unsigned int *>(config.indices)[iOffset + 1] = vOffset + 1;
+        static_cast<unsigned int *>(config.indices)[iOffset + 2] = vOffset + 2;
+        static_cast<unsigned int *>(config.indices)[iOffset + 3] = vOffset + 0;
+        static_cast<unsigned int *>(config.indices)[iOffset + 4] = vOffset + 3;
+        static_cast<unsigned int *>(config.indices)[iOffset + 5] = vOffset + 1;
+    }
+
+    if (!name.empty()) {
+        config.name = name;
+    } else {
+        config.name = DEFAULT_GEOMETRY_NAME;
+    }
+
+    if (!materialName.empty()) {
+        config.materialName = materialName;
+    } else {
+        config.materialName = DEFAULT_MATERIAL_NAME;
+    }
+
+    return config;
+}
+
 FoxFire_GeometrySystem::FoxFire_GeometrySystem()
     :IGeometrySystem(sizeof(FoxFire_GeometrySystem))
 {
@@ -245,7 +393,7 @@ FoxFire_GeometrySystem::FoxFire_GeometrySystem()
 
 FoxFire_GeometrySystem::~FoxFire_GeometrySystem() = default;
 
-bool FoxFire_GeometrySystem::initialize(const unsigned initialCapacity, RendererBackend *backend, IMaterialSystem *materialSystem, ResourceSystem *resources) {
+bool FoxFire_GeometrySystem::initialize(const unsigned initialCapacity, IRendererBackend *backend, IMaterialSystem *materialSystem, ResourceSystem *resources) {
     IGeometrySystem::initialize(initialCapacity, backend, materialSystem, resources);
 
     geometries.initialize(initialCapacity);

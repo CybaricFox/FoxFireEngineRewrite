@@ -17,7 +17,7 @@
 
 #include "src/modules/engine/Library/AssetMap.h"
 #include "src/modules/engine/Renderer/ITextureSystem.h"
-#include "src/modules/engine/Renderer/RendererBackend.h"
+#include "src/modules/engine/Renderer/IRendererBackend.h"
 #include "src/modules/engine/Resources/Contexts.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
@@ -38,7 +38,7 @@ public:
     FoxFire_TextureSystem();
     ~FoxFire_TextureSystem() override;
 
-    bool initialize(unsigned int initialCapacity, RendererBackend *backend, ResourceSystem* resources) override;
+    bool initialize(unsigned int initialCapacity, IRendererBackend *backend, ResourceSystem* resources) override;
     void shutdown();
 
     Texture& getDefaultTexture() override {return defaultTexture;}

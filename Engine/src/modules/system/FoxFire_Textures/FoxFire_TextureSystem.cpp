@@ -4,9 +4,9 @@
 
 #include "FoxFire_TextureSystem.h"
 
-#include "src/modules/engine/Renderer/RendererBackend.h"
+#include "src/modules/engine/Renderer/IRendererBackend.h"
 
-bool FoxFire_TextureSystem::initialize(const unsigned int initialCapacity, RendererBackend *backend, ResourceSystem *resources) {
+bool FoxFire_TextureSystem::initialize(const unsigned int initialCapacity, IRendererBackend *backend, ResourceSystem *resources) {
     ITextureSystem::initialize(initialCapacity, backend, resources);
 
     assets.initialize(initialCapacity);

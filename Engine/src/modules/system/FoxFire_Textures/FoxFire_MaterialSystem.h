@@ -25,6 +25,7 @@
 struct MaterialShaderUniformLocations {
     unsigned short projection = INVALID_ID_U16;
     unsigned short view = INVALID_ID_U16;
+    unsigned short ambientColor = INVALID_ID_U16;
     unsigned short diffuseColor = INVALID_ID_U16;
     unsigned short diffuseTexture = INVALID_ID_U16;
     unsigned short model = INVALID_ID_U16;
@@ -60,12 +61,12 @@ public:
     FoxFire_MaterialSystem();
     ~FoxFire_MaterialSystem() override;
 
-    bool initialize(MaterialSystemConfig materialSystemConfig, ITextureSystem *system, RendererBackend *backend, ResourceSystem *resources, ShaderSystem* shaderSystem) override;
+    bool initialize(MaterialSystemConfig materialSystemConfig, ITextureSystem *system, IRendererBackend *backend, ResourceSystem *resources, ShaderSystem* shaderSystem) override;
 
     Material& acquireMaterial(const String &name) override;
     Material& acquireMaterial(const MaterialResourceData &config) override;
     void releaseMaterial(const String &name) override;
-    bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view) const override;
+    bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor) const override;
     bool applyInstance(Material& material) const override;
     bool applyLocal(const Material &material, Mat4 *model) const override;
 

@@ -16,6 +16,6 @@
  *  @copyright (c) 2026
  */
 
-class BackendShader {
+class IBackendShader {
 
 };

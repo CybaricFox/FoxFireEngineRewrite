@@ -9,7 +9,7 @@ ITextureSystem::~ITextureSystem() {
     resourceRef = nullptr;
 }
 
-bool ITextureSystem::initialize(unsigned int initialCapacity, RendererBackend *backend, ResourceSystem *resources) {
+bool ITextureSystem::initialize(unsigned int initialCapacity, IRendererBackend *backend, ResourceSystem *resources) {
     backendRef = backend;
     resourceRef = resources;
 

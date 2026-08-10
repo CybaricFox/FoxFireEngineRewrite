@@ -5,7 +5,7 @@
 #pragma once
 #include "ITextureSystem.h"
 #include "Shader.h"
-#include "src/modules/engine/Renderer/RendererBackend.h"
+#include "src/modules/engine/Renderer/IRendererBackend.h"
 #include "src/defines.h"
 #include "src/modules/engine/Library/AssetMap.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
@@ -38,7 +38,7 @@ private:
     ShaderSystemConfig config{};
     AssetMap<Shader, AssetContext> assets{};
     unsigned int currentShaderId = INVALID_ID_U32;
-    RendererBackend* backendRef = nullptr;
+    IRendererBackend* backendRef = nullptr;
     ITextureSystem* textureSystemRef = nullptr;
 
     bool use(const String &name);
@@ -55,7 +55,7 @@ private:
     void destroyShader(const String &name);
 
 public:
-    bool initialize(ShaderSystemConfig newConfig, RendererBackend* backend, ITextureSystem* textureSystem);
+    bool initialize(ShaderSystemConfig newConfig, IRendererBackend* backend, ITextureSystem* textureSystem);
     void shutdown();
 
     Shader *getShader(unsigned int shaderId);

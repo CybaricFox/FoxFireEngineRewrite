@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "BackendShader.h"
+#include "IBackendShader.h"
 #include "src/defines.h"
 #include "src/modules/engine/Library/AssetMap.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
@@ -98,10 +98,10 @@ private:
     MemoryRange pushConstantRanges[32]{};
     unsigned short attributeStride = 0;
 
-    BackendShader* backendShader = nullptr;
+    IBackendShader* backendShader = nullptr;
 
 public:
-    [[nodiscard]] BackendShader* getBackendShader() const {return backendShader;}
+    [[nodiscard]] IBackendShader* getBackendShader() const {return backendShader;}
     [[nodiscard]] bool useInstances() const { return bUseInstances; }
     [[nodiscard]] String const& getName() const { return name; }
     [[nodiscard]] DynamicArray<ShaderAttribute> const& getAttributes() const { return attributes; }
@@ -132,10 +132,10 @@ public:
     [[nodiscard]] ShaderState getState() const {return state;}
 
     template<typename T>
-    requires std::derived_from<T, BackendShader>
+    requires std::derived_from<T, IBackendShader>
     T* getBackendShader() const {return reinterpret_cast<T*>(backendShader);}
 
-    void setBackendShader(BackendShader* shader) {backendShader = shader;}
+    void setBackendShader(IBackendShader* shader) {backendShader = shader;}
     void setRequiredAlignment(const unsigned long value) {requiredAlignment = value;}
     void setBoundOffset(const unsigned int value) {boundOffset = value;}
     void setBoundInstanceId(const unsigned int value) {boundInstanceId = value;}
