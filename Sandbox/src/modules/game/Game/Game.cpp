@@ -37,13 +37,13 @@ void Game::increaseCameraRoll(GameState *state, const float amount) {
     state->bIsCameraDirty = true;
 }
 
-Game::Game(GameInstance& instance)
+Game::Game(const GameInstance& instance)
     :Engine(instance)
 {
-    inputSystem = new FoxFire_InputSystem();
-    textureSystem = new FoxFire_TextureSystem();
-    materialSystem = new FoxFire_MaterialSystem();
-    geometrySystem = new FoxFire_GeometrySystem();
+    inputSystem = instantiateDerivedSubSystem<FoxFire_InputSystem>();
+    textureSystem = instantiateDerivedSubSystem<FoxFire_TextureSystem>();
+    materialSystem = instantiateDerivedSubSystem<FoxFire_MaterialSystem>();
+    geometrySystem = instantiateDerivedSubSystem<FoxFire_GeometrySystem>();
 }
 
 Game::~Game() {
@@ -68,7 +68,7 @@ bool Game::update(const float deltaTime) {
         Logger::logDebug("Allocations: " + std::to_string(allocationCount) + ". " + std::to_string(allocationCount - previousAllocationCount) + " this frame.");
     }
 
-    auto* state = static_cast<GameState*>(gameInstance->state);
+    auto* state = reinterpret_cast<GameState*>(gameInstance.state);
 
     if (inputSystem->isKeyDown(KEY_A) || inputSystem->isKeyDown(KEY_LEFT)) {
         increaseCameraYaw(state, 1.0f * deltaTime);

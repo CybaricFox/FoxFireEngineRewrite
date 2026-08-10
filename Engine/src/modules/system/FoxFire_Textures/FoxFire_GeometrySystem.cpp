@@ -237,6 +237,12 @@ void FoxFire_GeometrySystem::destroyGeometry(Geometry &geometry) {
     geometry = Geometry{};
 }
 
+FoxFire_GeometrySystem::FoxFire_GeometrySystem()
+    :IGeometrySystem(sizeof(FoxFire_GeometrySystem))
+{
+
+}
+
 FoxFire_GeometrySystem::~FoxFire_GeometrySystem() = default;
 
 bool FoxFire_GeometrySystem::initialize(const unsigned initialCapacity, RendererBackend *backend, IMaterialSystem *materialSystem, ResourceSystem *resources) {

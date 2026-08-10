@@ -76,6 +76,13 @@ public:
     static unsigned long getAllocationCount();
     static bool isInitialized(){return memorySystem != nullptr;}
 
+    /**
+     * @brief Adds the engines memory to the tracker without allocating it.
+     * @param size Size of the engine.
+     */
+    static void trackEngineMemory(unsigned long size);
+    static void untrackEngineMemory(unsigned long size);
+
     template<typename T>
     static T* ff_allocate_class(const unsigned long size, const MemoryTag tag) {
         if (size < sizeof(T)) {
@@ -87,6 +94,7 @@ public:
         if (!destination) return nullptr;
         //construct the class
         T* result = static_cast<T *>(destination);
+
         return std::construct_at(result);
     }
     template<typename T>

@@ -361,6 +361,7 @@ bool Platform::processMessages() {
 #include <X11/XKBlib.h>
 #include <X11/keysym.h>
 #include <sys/time.h>
+#include <cstring>
 
 #if _POSIX_C_SOURCE >= 199309L
     #include <ctime>
@@ -383,7 +384,7 @@ struct LinuxState : PlatformState{
 };
 
     Platform::~Platform() {
-        if (platformState.unknownState) shutdown();
+        if (platformState) shutdown();
     }
 
 void Platform::printConsoleMessage(const String &message, const unsigned char color) {
@@ -414,9 +415,9 @@ void Platform::printConsoleError(const String &message, const unsigned char colo
         if (color == 0) exit(-1);
     }
 
-bool Platform::createSurface() {
+bool Platform::createSurface() const {
         VulkanContext* vulkanContext = &VulkanBackend::vulkanContext;
-        const auto state = static_cast<WindowsState *>(platformState.unknownState);
+        const auto state = reinterpret_cast<LinuxState *>(platformState);
 
         VkXcbSurfaceCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR};
         createInfo.connection = state->connection;
@@ -697,7 +698,7 @@ Keys translateKeycode(unsigned int keyCode) {
     }
 
 bool Platform::processMessages() {
-        const auto state = static_cast<WindowsState *>(platformState.unknownState);
+        const auto state = reinterpret_cast<LinuxState *>(platformState);
 
         xcb_generic_event_t* event = nullptr;
         xcb_client_message_event_t* message;
@@ -760,7 +761,7 @@ bool Platform::processMessages() {
                     const auto* configureEvent = reinterpret_cast<xcb_configure_notify_event_t *>(event);
                     const unsigned short x = configureEvent->width;
                     const unsigned short y = configureEvent->height;
-                    EngineEvents::callEvent(RESIZED, EngineInputContext{x, y});
+                    EngineEvents::resizeApplication(EngineInputContext{x, y});
                     break;
                 }
                 case XCB_CLIENT_MESSAGE: {
@@ -807,9 +808,14 @@ void ff_sleep(unsigned long ms) {
 #endif
         }
 
-bool Platform::initialize(const String &applicationName, const int x, const int y, const int width, const int height) {
-        platformState.unknownState = malloc(sizeof(WindowsState));
-        const auto castedState = static_cast<WindowsState *>(platformState.unknownState);
+bool Platform::initialize(const String &applicationName, const int x, const int y, const int width, const int height, IInputSystem *inputSystem) {
+        platformState = FF_Memory::ff_allocate_class<LinuxState>(sizeof(LinuxState), GAME);
+        const auto castedState = reinterpret_cast<LinuxState *>(platformState);
+
+        inputSystemRef = inputSystem;
+
+        keyInputs.initialize();
+        mouseInputs.initialize();
 
         castedState->display = XOpenDisplay(nullptr);
         XSetEventQueueOwner(castedState->display, XCBOwnsEventQueue);
@@ -908,7 +914,7 @@ bool Platform::initialize(const String &applicationName, const int x, const int 
     }
 
 void Platform::shutdown() {
-        const WindowsState* castedState = static_cast<WindowsState *>(platformState.unknownState);
+        const LinuxState* castedState = reinterpret_cast<LinuxState *>(platformState);
 
         //Turn on repeating keys since this seems to toggle it in the os itself
         XAutoRepeatOn(castedState->display);
@@ -918,8 +924,8 @@ void Platform::shutdown() {
         keyInputs.shutdown();
         mouseInputs.shutdown();
 
-        free(platformState.unknownState);
-        platformState.unknownState = nullptr;
+        FF_Memory::ff_free(platformState, sizeof(LinuxState), GAME);
+        platformState = nullptr;
     }
 
 void* Platform::platform_allocate(const unsigned long size, bool align) {

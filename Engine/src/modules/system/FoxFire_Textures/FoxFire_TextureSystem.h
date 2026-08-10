@@ -35,6 +35,7 @@ private:
     void destroyTexture(Texture &texture) const;
 
 public:
+    FoxFire_TextureSystem();
     ~FoxFire_TextureSystem() override;
 
     bool initialize(unsigned int initialCapacity, RendererBackend *backend, ResourceSystem* resources) override;

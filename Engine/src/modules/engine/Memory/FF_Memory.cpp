@@ -51,12 +51,14 @@ void FF_Memory::ff_free(void * block, const unsigned long size, const MemoryTag 
         );
         memorySystem->memoryData.totalAllocated -= memorySystem->memoryData.taggedAllocations[tag];
         memorySystem->memoryData.taggedAllocations[tag] = 0;
+        memorySystem->allocationCount--;
         Platform::platform_free(block, false);
         return;
     }
 
     memorySystem->memoryData.totalAllocated -= size;
     memorySystem->memoryData.taggedAllocations[tag] -= size;
+    memorySystem->allocationCount--;
 
     if (!memorySystem->allocator.free(block, size)) {
         Platform::platform_free(block, false);
@@ -154,6 +156,22 @@ unsigned long FF_Memory::getAllocationCount() {
     }
 
     return 0;
+}
+
+void FF_Memory::trackEngineMemory(const unsigned long size) {
+    if (memorySystem) {
+        memorySystem->memoryData.totalAllocated += size;
+        memorySystem->memoryData.taggedAllocations[GAME] += size;
+        memorySystem->allocationCount++;
+    }
+}
+
+void FF_Memory::untrackEngineMemory(const unsigned long size) {
+    if (memorySystem) {
+        memorySystem->memoryData.totalAllocated -= size;
+        memorySystem->memoryData.taggedAllocations[GAME] -= size;
+        memorySystem->allocationCount--;
+    }
 }
 
 void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag) {

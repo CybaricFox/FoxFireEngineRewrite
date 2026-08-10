@@ -170,6 +170,12 @@ void FoxFire_MaterialSystem::destroyMaterial(Material &material) const {
     material = Material{};
 }
 
+FoxFire_MaterialSystem::FoxFire_MaterialSystem()
+    :IMaterialSystem(sizeof(FoxFire_MaterialSystem))
+{
+
+}
+
 bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4* projection, Mat4* view) const {
     if (shaderId == materialShaderId) {
         if (!shaderRef->setUniform(materialLocations.projection, projection)) {

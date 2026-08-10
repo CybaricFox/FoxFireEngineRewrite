@@ -57,6 +57,7 @@ private:
     void destroyMaterial(Material& material) const;
 
 public:
+    FoxFire_MaterialSystem();
     ~FoxFire_MaterialSystem() override;
 
     bool initialize(MaterialSystemConfig materialSystemConfig, ITextureSystem *system, RendererBackend *backend, ResourceSystem *resources, ShaderSystem* shaderSystem) override;

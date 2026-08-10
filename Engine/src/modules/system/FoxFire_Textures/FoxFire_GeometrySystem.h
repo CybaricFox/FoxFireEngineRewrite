@@ -42,6 +42,7 @@ private:
     void destroyGeometry(Geometry& geometry);
 
 public:
+    FoxFire_GeometrySystem();
     ~FoxFire_GeometrySystem() override;
 
     bool initialize(unsigned initialCapacity, RendererBackend* backend, IMaterialSystem* materialSystem, ResourceSystem* resources) override;

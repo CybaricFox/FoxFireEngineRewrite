@@ -158,6 +158,11 @@ void FoxFire_TextureSystem::destroyTexture(Texture &texture) const {
     texture = Texture{};
 }
 
+FoxFire_TextureSystem::FoxFire_TextureSystem()
+    : ITextureSystem(sizeof(FoxFire_TextureSystem))
+{
+}
+
 FoxFire_TextureSystem::~FoxFire_TextureSystem() {
     shutdown();
 }

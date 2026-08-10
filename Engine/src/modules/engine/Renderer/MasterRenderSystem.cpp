@@ -240,11 +240,11 @@ bool MasterRenderSystem::initializeShaderSystem(const ShaderSystemConfig& config
 
 void MasterRenderSystem::shutdown() {
     if (geometrySystem) {
-        delete geometrySystem;
+        FF_Memory::ff_free_class<IGeometrySystem>(geometrySystem, geometrySystem->getMemorySize(), GAME);
         geometrySystem = nullptr;
     }
     if (materialSystem) {
-        delete materialSystem;
+        FF_Memory::ff_free_class<IMaterialSystem>(materialSystem, materialSystem->getMemorySize(), GAME);
         materialSystem = nullptr;
     }
 
@@ -252,7 +252,7 @@ void MasterRenderSystem::shutdown() {
 
     //Destroy texture system
     if (textureSystem) {
-        delete textureSystem;
+        FF_Memory::ff_free_class<ITextureSystem>(textureSystem, textureSystem->getMemorySize(), GAME);
         textureSystem = nullptr;
     }
 

@@ -49,18 +49,23 @@ struct GeometryConfig {
  * @brief Abstract class that controls geometry.
  */
 class FOXFIRE_API IGeometrySystem {
+private:
+    unsigned long memorySize = 0;
+
 protected:
     RendererBackend* backendRef = nullptr;
     IMaterialSystem* materialSystemRef = nullptr;
     ResourceSystem* resourceSystemRef = nullptr;
 
 public:
+    explicit IGeometrySystem(const unsigned long derivedSize) {memorySize = derivedSize;}
     virtual ~IGeometrySystem();
 
     virtual bool initialize(unsigned int initialCapacity, RendererBackend* backend, IMaterialSystem* materialSystem, ResourceSystem* resources);
 
     virtual Geometry& getDefault3DGeometry() = 0;
     virtual Geometry& getDefault2DGeometry() = 0;
+    [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}
 
     virtual GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount, float xTile, float yTile, const String &name, const String &materialName) = 0;
 

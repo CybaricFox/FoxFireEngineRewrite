@@ -46,6 +46,7 @@ private:
     unsigned char previousMouseButtons[MAX_BUTTONS]{};
 
     bool bIsInitialized = false;
+    unsigned long memorySize = 0;
 
     EngineEvents* engineEventsSystemRef = nullptr;
 
@@ -60,7 +61,9 @@ protected:
 
 public:
     virtual ~IInputSystem();
-    IInputSystem() = default;
+    explicit IInputSystem(const unsigned long derivedSize) {memorySize = derivedSize;}
+
+    [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}
 
     /**
      * @brief Called once each frame

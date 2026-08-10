@@ -15,7 +15,7 @@ void Engine::startup()
 
     Logger::logInfo("Beginning startup sequence");
 
-    resize(gameInstance->config.startingWidth, gameInstance->config.startingHeight);
+    resize(gameInstance.config.startingWidth, gameInstance.config.startingHeight);
 
     //Setup builtin engine events
     inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
@@ -153,12 +153,12 @@ bool Engine::render(float deltaTime) {
     return true;
 }
 
-Engine::Engine(GameInstance& instance)
+Engine::Engine(const GameInstance& instance)
 {
     if (!initializeMemory()) throw;
     Logger::initializeFile(logHandler);
-    instance.state = FF_Memory::ff_allocate_class<BaseGameState>(instance.memoryRequirement, GAME);
-    gameInstance = &instance;
+    gameInstance = instance;
+    gameInstance.state = FF_Memory::ff_allocate_class<BaseGameState>(instance.memoryRequirement, GAME);
 }
 
 bool Engine::initializeMemory() {
@@ -169,8 +169,9 @@ bool Engine::initializeMemory() {
         return false;
     }
 
+    FF_Memory::trackEngineMemory(sizeof(Engine));
+
     return true;
-    //linearAllocator.initialize(totalMemorySize, nullptr);
 }
 
 void Engine::quit() {
@@ -186,15 +187,13 @@ void Engine::initialize() {
 
     Logger::logInfo("Initializing Game");
 
-    FF_Memory::ff_allocate(gameInstance->memoryRequirement, GAME);
-
     //Initialize event and input systems
     engineEventsSystem.initialize();
     inputSystem->initialize(&engineEventsSystem);
 
     //Initialize platform class
-    if (!platform.initialize(gameInstance->config.appName, gameInstance->config.startingX,
-        gameInstance->config.startingY, gameInstance->config.startingWidth, gameInstance->config.startingHeight, inputSystem)) {
+    if (!platform.initialize(gameInstance.config.appName, gameInstance.config.startingX,
+        gameInstance.config.startingY, gameInstance.config.startingWidth, gameInstance.config.startingHeight, inputSystem)) {
 
         Logger::logFatal("The platform failed to initialize!");
         return;
@@ -207,7 +206,7 @@ void Engine::initialize() {
     }
 
     //Start renderer
-    if (!masterRenderSystem.initialize(gameInstance->config.appName, platform, *gameInstance, width, height, resourceSystem)) {
+    if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance, width, height, resourceSystem)) {
         Logger::logFatal("Failed to initialize the render system!");
         return;
     }
@@ -285,15 +284,13 @@ void Engine::getFramebufferSize(unsigned int& bufferWidth, unsigned int& bufferH
 }
 
 Engine::~Engine() {
-    Logger::logInfo(FF_Memory::getMemoryUsage());
-
     bIsRunning = false;
     engine = nullptr;
 
     //Static destruction
     engineEventsSystem.shutdown();
 
-    gameInstance->shutdown();
+    gameInstance.shutdown();
 
     //Destroy resources in opposite order of creation
     geometrySystem = nullptr;
@@ -302,7 +299,7 @@ Engine::~Engine() {
     masterRenderSystem.shutdown();
 
     if (inputSystem) {
-        delete inputSystem;
+        FF_Memory::ff_free_class<IInputSystem>(inputSystem, inputSystem->getMemorySize(), GAME);
         inputSystem = nullptr;
     }
 
@@ -310,7 +307,7 @@ Engine::~Engine() {
 
     platform.shutdown();
 
-    linearAllocator.shutdown();
+    Logger::logInfo(FF_Memory::getMemoryUsage());
 
     //THIS MUST ALWAYS SHUTDOWN LAST!
     FF_Memory::shutdown();

@@ -6,7 +6,7 @@
 
 
 FoxFire_InputSystem::FoxFire_InputSystem()
-    : IInputSystem()
+    : IInputSystem(sizeof(FoxFire_InputSystem))
 {
 
 }

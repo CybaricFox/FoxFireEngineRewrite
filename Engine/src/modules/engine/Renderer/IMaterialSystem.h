@@ -29,6 +29,9 @@ struct MaterialSystemConfig {
  * @brief Abstract class that controls materials
  */
 class FOXFIRE_API IMaterialSystem {
+private:
+    unsigned long memorySize = 0;
+
 protected:
     RendererBackend* backendRef = nullptr;
     ResourceSystem* resourceRef = nullptr;
@@ -37,11 +40,13 @@ protected:
 
     MaterialSystemConfig config{};
 public:
+    explicit IMaterialSystem(const unsigned long derivedSize) {memorySize = derivedSize;}
     virtual ~IMaterialSystem();
 
     virtual bool initialize(MaterialSystemConfig materialSystemConfig, ITextureSystem *system, RendererBackend *backend, ResourceSystem* resources, ShaderSystem* shaderSystem);
 
     virtual Material& getDefaultMaterial() = 0;
+    [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}
 
     /**
      * @brief Fetches a material from wherever the user stores it, or creates it if it doesn't exist.

@@ -19,7 +19,6 @@
 class FOXFIRE_API FoxFire_InputSystem final : public IInputSystem {
 public:
     FoxFire_InputSystem();
-    ~FoxFire_InputSystem() override = default;
 };
 
 

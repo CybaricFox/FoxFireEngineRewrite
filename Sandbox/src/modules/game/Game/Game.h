@@ -18,7 +18,7 @@ private:
     void increaseCameraRoll(GameState* state, float amount);
 
 public:
-    explicit Game(GameInstance& instance);
+    explicit Game(const GameInstance& instance);
     ~Game() override;
 
     Event<void> swapTextureEvent{};

@@ -17,7 +17,6 @@
 #include "GameInstance.h"
 #include "foxfire_export.h"
 #include "../Input/IInputSystem.h"
-#include "src/modules/engine/Memory/LinearAllocator.h"
 #include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 
@@ -26,9 +25,6 @@
  */
 class FOXFIRE_API Engine {
 private:
-    /** @brief Is supposed to hold the memory allocations for all systems, but currently does nothing. */
-    LinearAllocator linearAllocator{};
-
     /** @brief Handler for the log file */
     FileHandler logHandler{};
     /** @brief Calculates system time */
@@ -50,9 +46,9 @@ private:
     /** @brief Whether the engine has finished initialization. */
     bool bIsInitialized = false;
     /** @brief Width of the screen. */
-    short width = 0;
+    unsigned short width = 0;
     /** @brief height of the screen. */
-    short height = 0;
+    unsigned short height = 0;
     /** @brief The amount of time the previous frame took */
     double lastTime = 0;
 
@@ -68,7 +64,7 @@ private:
 protected:
     //Holds config data
     /** @brief Holds Game-specific config data */
-    GameInstance* gameInstance = nullptr;
+    GameInstance gameInstance;
     /** @brief Pointer to the user-defined input system */
     IInputSystem* inputSystem = nullptr;
     /** @brief Controls All Rendering */
@@ -143,13 +139,18 @@ protected:
     template<typename T>
     requires std::derived_from<T, BaseGameState>
     T* createGameState() {
-        T* derivedState = reinterpret_cast<T*>(gameInstance->state);
+        T* derivedState = reinterpret_cast<T*>(gameInstance.state);
         std::construct_at(derivedState);
         return derivedState;
     }
 
+    template<typename T>
+    T* instantiateDerivedSubSystem() {
+        return FF_Memory::ff_allocate_class<T>(sizeof(T), GAME);
+    }
+
 public:
-    explicit Engine(GameInstance& instance);
+    explicit Engine(const GameInstance& instance);
     virtual ~Engine();
 
     /**

@@ -13,9 +13,6 @@ int main() {
     engine->setEngineRef(*engine);
 
     if (engine != nullptr) {
-        if (instance.state == nullptr) {
-            Logger::logError("Engine instance is null!");
-        }
         engine->initialize();
     }
 
