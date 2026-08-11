@@ -21,6 +21,7 @@ void Engine::startup()
     //Setup builtin engine events
     inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
     inputSystem->subscribeToEngineEvent(RESIZED, [this](const EngineInputContext context) {resize(context.mouseX, context.mouseY);}, "Static.resize");
+    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {masterRenderSystem.changeRenderMode(static_cast<Keys>(context.key));}, "MasterRender.default_render");
 
     bIsInitialized = true;
     bIsRunning = true;

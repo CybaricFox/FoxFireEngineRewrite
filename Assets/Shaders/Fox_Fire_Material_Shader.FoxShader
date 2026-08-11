@@ -20,6 +20,7 @@ uniform = Matrix4, 0, projection
 uniform = Matrix4, 0, view
 uniform = Vector4, 0, ambient_color
 uniform = Vector3, 0, view_position
+uniform = Uint, 0, mode
 uniform = Vector4, 1, diffuse_color
 uniform = sampler, 1, diffuse_texture
 uniform = sampler, 1, specular_texture

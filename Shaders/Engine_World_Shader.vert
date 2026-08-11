@@ -6,7 +6,7 @@ layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_color;
 layout(location = 4) in vec4 in_tangent;
 
-//layout(location = 0) out int out_mode;
+layout(location = 0) out int out_mode;
 layout(location = 1) out struct dto {
     vec4 ambient;
     vec2 tex_coord;
@@ -22,6 +22,7 @@ layout(set = 0, binding = 0) uniform global_uniform {
     mat4 view;
     vec4 ambient_color;
     vec3 view_position;
+    int mode;
 } global_ubo;
 
 layout(push_constant) uniform push_constants {
@@ -39,4 +40,5 @@ void main() {
     out_dto.color = in_color;
     out_dto.tangent = vec4(normalize(m3_model * in_tangent.xyz), in_tangent.w);
     gl_Position = global_ubo.projection * global_ubo.view * uniform_push_constants.model * vec4(in_position, 1.0);
+    out_mode = global_ubo.mode;
 }

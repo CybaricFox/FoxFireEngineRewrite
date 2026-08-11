@@ -18,6 +18,12 @@
 #include "src/defines.h"
 #include "src/modules/engine/Core/Platform.h"
 
+enum RenderViewMode {
+    RENDER_VIEW_DEFAULT,
+    RENDER_VIEW_LIGHTING,
+    RENDER_VIEW_NORMALS
+};
+
 /**
  * @brief Controls and coordinates all rendering.
  */
@@ -29,6 +35,7 @@ private:
     Mat4 worldView{};
     Vector4f ambientColor{};
     Vector3f viewPosition{};
+    unsigned int renderMode = 0;
     Mat4 uiProjection{};
     Mat4 uiView{};
     /** @brief How close geometry can get before it is clipped. */
@@ -83,6 +90,7 @@ public:
     void releaseTexture(const String &name) const;
     [[nodiscard]] Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) const;
     void addRenderpassProfile(const RenderpassProfile &profile);
+    void changeRenderMode(Keys key);
 
     [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
         float xTile, float yTile, const String &name, const String &materialName) const;

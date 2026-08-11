@@ -83,6 +83,7 @@ Material & FoxFire_MaterialSystem::acquireMaterial(const MaterialResourceData &c
         materialLocations.normalTexture = shaderRef->getUniformIndex(*shader, "normal_texture");
         materialLocations.shine = shaderRef->getUniformIndex(*shader, "shine");
         materialLocations.model = shaderRef->getUniformIndex(*shader, "model");
+        materialLocations.renderMode = shaderRef->getUniformIndex(*shader, "mode");
     } else if (uiShaderId == INVALID_ID_U32 && config.shaderName == DEFAULT_UI_SHADER_NAME){
         uiShaderId = shader->getId();
         uiShaderLocations.projection = shaderRef->getUniformIndex(*shader, "projection");
@@ -220,7 +221,7 @@ FoxFire_MaterialSystem::FoxFire_MaterialSystem()
 
 }
 
-bool FoxFire_MaterialSystem::applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f *viewPosition) const {
+bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f *viewPosition, unsigned int renderMode) const {
     if (shaderId == materialShaderId) {
         if (!shaderRef->setUniform(materialLocations.projection, projection)) {
             Logger::logError("Failed to apply global material.");
@@ -235,6 +236,10 @@ bool FoxFire_MaterialSystem::applyGlobal(unsigned int shaderId, Mat4 *projection
             return false;
         }
         if (!shaderRef->setUniform(materialLocations.viewPosition, viewPosition)) {
+            Logger::logError("Failed to apply global material.");
+            return false;
+        }
+        if (!shaderRef->setUniform(materialLocations.renderMode, &renderMode)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }

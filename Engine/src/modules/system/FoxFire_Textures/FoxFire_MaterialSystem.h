@@ -33,6 +33,7 @@ struct MaterialShaderUniformLocations {
     unsigned short normalTexture = INVALID_ID_U16;
     unsigned short shine = INVALID_ID_U16;
     unsigned short model = INVALID_ID_U16;
+    unsigned short renderMode = INVALID_ID_U16;
 };
 
 struct UIShaderUniformLocations {
@@ -70,7 +71,8 @@ public:
     Material& acquireMaterial(const String &name) override;
     Material& acquireMaterial(const MaterialResourceData &config) override;
     void releaseMaterial(const String &name) override;
-    bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f* viewPosition) const override;
+    bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f *viewPosition, unsigned int
+                     renderMode) const override;
     bool applyInstance(Material& material) const override;
     bool applyLocal(const Material &material, Mat4 *model) const override;
 

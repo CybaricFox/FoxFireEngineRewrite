@@ -37,6 +37,27 @@ bool MasterRenderSystem::getRenderpassId(const String &name, unsigned char &outI
     return false;
 }
 
+void MasterRenderSystem::changeRenderMode(const Keys key) {
+    switch (key) {
+        case KEY_1: {
+            Logger::logDebug("Render mode set to default.");
+            renderMode = RENDER_VIEW_DEFAULT;
+            break;
+        }
+        case KEY_2: {
+            Logger::logDebug("Render mode set to lighting.");
+            renderMode = RENDER_VIEW_LIGHTING;
+            break;
+        }
+        case KEY_3: {
+            Logger::logDebug("Render mode set to normals.");
+            renderMode = RENDER_VIEW_NORMALS;
+            break;
+        }
+        default: break;
+    }
+}
+
 bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, const unsigned int width, const unsigned int height, ResourceSystem& resources) {
     backend = IRendererBackend::create(VULKAN, platform.getPlatformState(), gameInstance);
     if (backend == nullptr) {
@@ -158,7 +179,7 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
         return false;
     }
 
-    if (!materialSystem->applyGlobal(materialShaderId, &worldProjection, &worldView, &ambientColor, &viewPosition)) {
+    if (!materialSystem->applyGlobal(materialShaderId, &worldProjection, &worldView, &ambientColor, &viewPosition, renderMode)) {
         Logger::logError("Failed to apply globals for materials!");
         return false;
     }
@@ -192,7 +213,7 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
         return false;
     }
 
-    if (!materialSystem->applyGlobal(uiShaderId, &uiProjection, &uiView, nullptr, nullptr)) {
+    if (!materialSystem->applyGlobal(uiShaderId, &uiProjection, &uiView, nullptr, nullptr, renderMode)) {
         Logger::logError("Failed to apply globals for uis!");
         return false;
     }

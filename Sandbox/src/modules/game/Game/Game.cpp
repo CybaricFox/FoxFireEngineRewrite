@@ -70,10 +70,10 @@ bool Game::update(const float deltaTime) {
 
     auto* state = reinterpret_cast<GameState*>(gameInstance.state);
 
-    if (inputSystem->isKeyDown(KEY_A) || inputSystem->isKeyDown(KEY_LEFT)) {
+    if (inputSystem->isKeyDown(KEY_LEFT)) {
         increaseCameraYaw(state, 1.0f * deltaTime);
     }
-    if (inputSystem->isKeyDown(KEY_D) || inputSystem->isKeyDown(KEY_RIGHT)) {
+    if (inputSystem->isKeyDown(KEY_RIGHT)) {
         increaseCameraYaw(state, -1.0f * deltaTime);
     }
 
@@ -97,12 +97,12 @@ bool Game::update(const float deltaTime) {
         velocity += backward;
     }
 
-    if (inputSystem->isKeyDown(KEY_Q)) {
+    if (inputSystem->isKeyDown(KEY_A)) {
         Vector3f left = getLeftDirection(state->view);
         velocity += left;
 
     }
-    if (inputSystem->isKeyDown(KEY_E)) {
+    if (inputSystem->isKeyDown(KEY_D)) {
         Vector3f right = getRightDirection(state->view);
         velocity += right;
     }
@@ -110,7 +110,7 @@ bool Game::update(const float deltaTime) {
     if (inputSystem->isKeyDown(KEY_SPACE)) {
         velocity.y += 1.0f;
     }
-    if (inputSystem->isKeyDown(KEY_X)) {
+    if (inputSystem->isKeyDown(KEY_LSHIFT)) {
         velocity.y -= 1.0f;
     }
 
