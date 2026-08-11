@@ -10,6 +10,8 @@ directional_light hard_light = {
     vec4(0.8, 0.8, 0.8, 1.0)
 };
 
+mat3 TBN;
+
 vec4 Calculate_Directional_Light(directional_light light, vec3 normal, vec3 view_direction);
 
 layout(location = 1) in struct dto {
@@ -18,6 +20,8 @@ layout(location = 1) in struct dto {
     vec3 normal;
     vec3 view_position;
     vec3 frag_position;
+    vec4 color;
+    vec4 tangent;
 } in_dto;
 
 layout(location = 0) out vec4 out_color;
@@ -29,11 +33,20 @@ layout(set = 1, binding = 0) uniform localUniformObject {
 
 const int SAMPLER_DIFFUSE = 0;
 const int SAMPLER_SPECULAR = 1;
-layout(set = 1, binding = 1) uniform sampler2D samplers[2];
+const int SAMPLER_NORMAL = 2;
+layout(set = 1, binding = 1) uniform sampler2D samplers[3];
 
 void main() {
+    vec3 normal = in_dto.normal;
+    vec3 tangent = in_dto.tangent.xyz;
+    tangent = (tangent - dot(tangent, normal) * normal);
+    vec3 bitangent = cross(in_dto.normal, in_dto.tangent.xyz) * in_dto.tangent.w;
+    TBN = mat3(tangent, bitangent, normal);
+    vec3 localNormal = 2.0* texture(samplers[SAMPLER_NORMAL], in_dto.tex_coord).rgb - 1.0;
+    normal = normalize(TBN * localNormal);
+
     vec3 view_direction = normalize(in_dto.view_position - in_dto.frag_position);
-    out_color = Calculate_Directional_Light(hard_light, in_dto.normal, view_direction);
+    out_color = Calculate_Directional_Light(hard_light, normal, view_direction);
 }
 
 vec4 Calculate_Directional_Light(directional_light light, vec3 normal, vec3 view_direction) {

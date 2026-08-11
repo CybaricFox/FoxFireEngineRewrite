@@ -25,10 +25,14 @@ void FoxFire_TextureSystem::shutdown() {
     destroyDefaultTextures();
 }
 
-Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const String& fileName) {
-    if (fileName == DEFAULT_DIFFUSE_TEXTURE_NAME) {
+Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const String& fileName, const TextureUseCase useCase) {
+    if (fileName.empty()) {
+        return getDefaultByCase(useCase);
+    }
+
+    if (fileName == DEFAULT_DIFFUSE_TEXTURE_NAME || fileName == DEFAULT_SPECULAR_TEXTURE_NAME || fileName == DEFAULT_NORMAL_TEXTURE_NAME) {
         Logger::logWarn("Texture system tried to acquire the default texture. Use getDefaultTexture() instead.");
-        return defaultDiffuseTexture;
+        return getDefaultByCase(useCase);
     }
 
     if (Texture* texture = assets.acquireAsset(fileName); texture) {
@@ -40,12 +44,12 @@ Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const St
 
     Texture* texture = assets.createAsset(fileName, context);
 
-    if (texture == nullptr) return defaultDiffuseTexture;
+    if (texture == nullptr) return getDefaultByCase(useCase);
 
 
     if (!loadTexture(*texture, fileName)) {
         Logger::logError("Failed to load texture: " + fileName);
-        return defaultDiffuseTexture;
+        return getDefaultByCase(useCase);
     }
 
     texture->id = context.index;
@@ -62,6 +66,15 @@ void FoxFire_TextureSystem::releaseTexture(const String name) {
 
     Texture* texture = nullptr;
     if (assets.releaseAsset(name, texture)) destroyTexture(*texture);
+}
+
+Texture & FoxFire_TextureSystem::getDefaultByCase(const TextureUseCase useCase) {
+    switch (useCase) {
+        case TEXTURE_USE_MAP_DIFFUSE: return defaultDiffuseTexture;
+        case TEXTURE_USE_MAP_SPECULAR: return defaultSpecularTexture;
+        case TEXTURE_USE_MAP_NORMAL: return defaultNormalTexture;
+        default: return defaultDiffuseTexture;
+    }
 }
 
 //Generates a default texture during runtime so dependency on a file system isn't necessary for niche scenarios.
@@ -109,12 +122,34 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
     defaultSpecularTexture.bIsTransparent = false;
     backendRef->createTexture(specularPixels, defaultSpecularTexture);
 
+    unsigned char normalPixels[16 * 16 * 4];
+    FF_Memory::ff_set(normalPixels, 0, 16 * 16 * 4 * sizeof(unsigned char));
+
+    for (unsigned long row = 0; row < 16; ++row) {
+        for (unsigned long column = 0; column < 16; ++column) {
+            const unsigned long index = (row * 16) + column;
+            const unsigned long index_bpp = index * bpp;
+            normalPixels[index_bpp + 0] = 128;
+            normalPixels[index_bpp + 1] = 128;
+            normalPixels[index_bpp + 2] = 255;
+            normalPixels[index_bpp + 3] = 255;
+        }
+    }
+    defaultNormalTexture.name = DEFAULT_NORMAL_TEXTURE_NAME;
+    defaultNormalTexture.width = 16;
+    defaultNormalTexture.height = 16;
+    defaultNormalTexture.channelCount = 4;
+    defaultNormalTexture.generation = INVALID_ID_U32;
+    defaultNormalTexture.bIsTransparent = false;
+    backendRef->createTexture(normalPixels, defaultNormalTexture);
+
     return true;
 }
 
 void FoxFire_TextureSystem::destroyDefaultTextures() {
     destroyTexture(defaultDiffuseTexture);
     destroyTexture(defaultSpecularTexture);
+    destroyTexture(defaultNormalTexture);
 }
 
 bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName) const {

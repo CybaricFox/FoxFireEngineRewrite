@@ -21,6 +21,7 @@ enum TextureUseCase {
     TEXTURE_USE_UNKNOWN,
     TEXTURE_USE_MAP_DIFFUSE,
     TEXTURE_USE_MAP_SPECULAR,
+    TEXTURE_USE_MAP_NORMAL
 };
 
 enum ResourceType {
@@ -112,6 +113,7 @@ struct Material {
     Vector4f diffuseColor{};
     TextureMap diffuseMap{};
     TextureMap specularMap{};
+    TextureMap normalMap{};
     float shine = 0;
     unsigned int shaderId = INVALID_ID_U32;
 };
@@ -146,6 +148,7 @@ struct MaterialResourceData {
     Vector4f diffuseColor{};
     String diffuseName{};
     String specularName{};
+    String normalName{};
     float shine = 0;
 };
 

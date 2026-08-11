@@ -76,6 +76,10 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
             Logger::logDebug("Specular Map Name: " + value);
             resourceData->specularName = value;
         }
+        else if (variable == "normal_map_name") {
+            Logger::logDebug("Normal Map Name: " + value);
+            resourceData->normalName = value;
+        }
         else if (variable == "shader") {
             resourceData->shaderName = value;
         }

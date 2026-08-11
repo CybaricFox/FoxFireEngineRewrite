@@ -28,7 +28,10 @@ class FOXFIRE_API FoxFire_TextureSystem final : public ITextureSystem {
 private:
     Texture defaultDiffuseTexture{};
     Texture defaultSpecularTexture{};
+    Texture defaultNormalTexture{};
     AssetMap<Texture, AssetContext> assets{};
+
+    Texture& getDefaultByCase(TextureUseCase useCase);
 
     bool createDefaultTextures();
     void destroyDefaultTextures();
@@ -44,7 +47,8 @@ public:
 
     Texture& getDefaultDiffuseTexture() override {return defaultDiffuseTexture;}
     Texture& getDefaultSpecularTexture() override {return defaultSpecularTexture;}
+    Texture& getDefaultNormalTexture() override {return defaultNormalTexture;}
 
-    Texture &acquireTexture(bool autoRelease, const String &fileName) override;
+    Texture &acquireTexture(bool autoRelease, const String &fileName, TextureUseCase useCase) override;
     void releaseTexture(String name) override;
 };

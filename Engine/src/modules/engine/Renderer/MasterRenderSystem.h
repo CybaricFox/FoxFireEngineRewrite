@@ -70,14 +70,16 @@ public:
     MasterRenderSystem() = default;
 
     [[nodiscard]] IRendererBackend* getBackend() const {return backend;}
-    [[nodiscard]] Texture& getDefaultTexture() const {return textureSystem->getDefaultDiffuseTexture();}
+    [[nodiscard]] Texture& getDefaultDiffuseTexture() const {return textureSystem->getDefaultDiffuseTexture();}
+    [[nodiscard]] Texture& getDefaultSpecularTexture() const {return textureSystem->getDefaultSpecularTexture();}
+    [[nodiscard]] Texture& getDefaultNormalTexture() const {return textureSystem->getDefaultNormalTexture();}
     [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefault3DGeometry();}
 
     void setView(const Mat4 &newView, Vector3f viewPosition);
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);
-    [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName) const;
+    [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName, TextureUseCase useCase) const;
     void releaseTexture(const String &name) const;
     [[nodiscard]] Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) const;
     void addRenderpassProfile(const RenderpassProfile &profile);

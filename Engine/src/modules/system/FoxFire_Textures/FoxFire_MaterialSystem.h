@@ -30,6 +30,7 @@ struct MaterialShaderUniformLocations {
     unsigned short diffuseColor = INVALID_ID_U16;
     unsigned short diffuseTexture = INVALID_ID_U16;
     unsigned short specularTexture = INVALID_ID_U16;
+    unsigned short normalTexture = INVALID_ID_U16;
     unsigned short shine = INVALID_ID_U16;
     unsigned short model = INVALID_ID_U16;
 };

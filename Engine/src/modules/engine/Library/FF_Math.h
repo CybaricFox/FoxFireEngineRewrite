@@ -353,6 +353,8 @@ struct Vertex3d {
     Vector3f position;
     Vector3f normal;
     Vector2f textureCoordinate;
+    Vector4f color;
+    Vector4f tangent;
 };
 
 struct Vertex2d {

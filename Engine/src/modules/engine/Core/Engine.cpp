@@ -5,6 +5,7 @@
 #include "Engine.h"
 
 #include "../Library/Logger.h"
+#include "src/modules/engine/Library/GeometryUtils.h"
 
 void Engine::startup()
 {
@@ -241,6 +242,7 @@ void Engine::initialize() {
 
     //Temp code
     const GeometryConfig config = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube", "MaterialTemplate");
+    GeometryUtils::generateTangents(config.vertexCount, static_cast<Vertex3d *>(config.vertices), config.indexCount, static_cast<unsigned int *>(config.indices));
     testGeometry = &masterRenderSystem.acquireGeometry(config, true);
     FF_Memory::ff_free(config.vertices, sizeof(Vertex3d) * config.vertexCount, ARRAY);
     FF_Memory::ff_free(config.indices, sizeof(unsigned int) * config.indexCount, ARRAY);

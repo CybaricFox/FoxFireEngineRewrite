@@ -11,6 +11,8 @@ use_local = true
 attribute = Vector3, in_position
 attribute = Vector3, in_normal
 attribute = Vector2, in_texcoord
+attribute = Vector4, in_color
+attribute = Vector4, in_tangent
 
 #Uniforms: Type,Scope,Name
 #Scope: 0 = Global, 1 = Instance, 2 = Local
@@ -21,5 +23,6 @@ uniform = Vector3, 0, view_position
 uniform = Vector4, 1, diffuse_color
 uniform = sampler, 1, diffuse_texture
 uniform = sampler, 1, specular_texture
+uniform = sampler, 1, normal_texture
 uniform = float, 1, shine
 uniform = Matrix4, 2, model

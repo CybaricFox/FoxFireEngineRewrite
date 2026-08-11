@@ -6,4 +6,5 @@ diffuse_color = 1.0 1.0 1.0 1.0
 shine = 64.0
 diffuse_map_name = Test1
 specular_map_name = Test1_SPEC
+normal_map_name = Test1_NORM
 shader = Fox_Fire_Material_Shader

@@ -236,8 +236,8 @@ void MasterRenderSystem::onResize(const unsigned short width, const unsigned sho
     }
 }
 
-Texture & MasterRenderSystem::acquireTexture(const bool autoRelease, const String &fileName) const {
-    return textureSystem->acquireTexture(autoRelease, fileName);
+Texture & MasterRenderSystem::acquireTexture(const bool autoRelease, const String &fileName, const TextureUseCase useCase) const {
+    return textureSystem->acquireTexture(autoRelease, fileName, useCase);
 }
 
 void MasterRenderSystem::releaseTexture(const String &name) const {
