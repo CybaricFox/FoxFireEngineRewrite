@@ -26,8 +26,11 @@ struct MaterialShaderUniformLocations {
     unsigned short projection = INVALID_ID_U16;
     unsigned short view = INVALID_ID_U16;
     unsigned short ambientColor = INVALID_ID_U16;
+    unsigned short viewPosition = INVALID_ID_U16;
     unsigned short diffuseColor = INVALID_ID_U16;
     unsigned short diffuseTexture = INVALID_ID_U16;
+    unsigned short specularTexture = INVALID_ID_U16;
+    unsigned short shine = INVALID_ID_U16;
     unsigned short model = INVALID_ID_U16;
 };
 
@@ -66,7 +69,7 @@ public:
     Material& acquireMaterial(const String &name) override;
     Material& acquireMaterial(const MaterialResourceData &config) override;
     void releaseMaterial(const String &name) override;
-    bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor) const override;
+    bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f* viewPosition) const override;
     bool applyInstance(Material& material) const override;
     bool applyLocal(const Material &material, Mat4 *model) const override;
 

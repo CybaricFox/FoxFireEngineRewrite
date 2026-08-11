@@ -138,8 +138,9 @@ void MasterRenderSystem::shutdown() {
     backend = nullptr;
 }
 
-void MasterRenderSystem::setView(const Mat4 &newView) {
+void MasterRenderSystem::setView(const Mat4 &newView, const Vector3f newViewPosition) {
     worldView = newView;
+    viewPosition = newViewPosition;
 }
 
 bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
@@ -157,7 +158,7 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
         return false;
     }
 
-    if (!materialSystem->applyGlobal(materialShaderId, &worldProjection, &worldView, &ambientColor)) {
+    if (!materialSystem->applyGlobal(materialShaderId, &worldProjection, &worldView, &ambientColor, &viewPosition)) {
         Logger::logError("Failed to apply globals for materials!");
         return false;
     }
@@ -173,7 +174,7 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
         }
 
         materialSystem->applyLocal(*material, &packet.geometries[i].model);
-        backend->drawGeometry(packet.geometries[i], textureSystem->getDefaultTexture(), materialSystem->getDefaultMaterial());
+        backend->drawGeometry(packet.geometries[i], textureSystem->getDefaultDiffuseTexture(), materialSystem->getDefaultMaterial());
     }
 
     if (!backend->endRenderpass(0)) {
@@ -191,7 +192,7 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
         return false;
     }
 
-    if (!materialSystem->applyGlobal(uiShaderId, &uiProjection, &uiView, nullptr)) {
+    if (!materialSystem->applyGlobal(uiShaderId, &uiProjection, &uiView, nullptr, nullptr)) {
         Logger::logError("Failed to apply globals for uis!");
         return false;
     }
@@ -207,7 +208,7 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
         }
 
         materialSystem->applyLocal(*material, &packet.uiGeometries[i].model);
-        backend->drawGeometry(packet.uiGeometries[i], textureSystem->getDefaultTexture(), materialSystem->getDefaultMaterial());
+        backend->drawGeometry(packet.uiGeometries[i], textureSystem->getDefaultDiffuseTexture(), materialSystem->getDefaultMaterial());
     }
 
     if (!backend->endRenderpass(1)) {

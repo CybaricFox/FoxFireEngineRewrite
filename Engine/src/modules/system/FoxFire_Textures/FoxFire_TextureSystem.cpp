@@ -26,9 +26,9 @@ void FoxFire_TextureSystem::shutdown() {
 }
 
 Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const String& fileName) {
-    if (fileName == DEFAULT_TEXTURE_NAME) {
+    if (fileName == DEFAULT_DIFFUSE_TEXTURE_NAME) {
         Logger::logWarn("Texture system tried to acquire the default texture. Use getDefaultTexture() instead.");
-        return defaultTexture;
+        return defaultDiffuseTexture;
     }
 
     if (Texture* texture = assets.acquireAsset(fileName); texture) {
@@ -40,12 +40,12 @@ Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const St
 
     Texture* texture = assets.createAsset(fileName, context);
 
-    if (texture == nullptr) return defaultTexture;
+    if (texture == nullptr) return defaultDiffuseTexture;
 
 
     if (!loadTexture(*texture, fileName)) {
         Logger::logError("Failed to load texture: " + fileName);
-        return defaultTexture;
+        return defaultDiffuseTexture;
     }
 
     texture->id = context.index;
@@ -55,7 +55,7 @@ Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const St
 }
 
 void FoxFire_TextureSystem::releaseTexture(const String name) {
-    if (name == DEFAULT_TEXTURE_NAME) {
+    if (name == DEFAULT_DIFFUSE_TEXTURE_NAME) {
         Logger::logWarn("Cannot release the default texture!");
         return;
     }
@@ -91,20 +91,30 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
         }
     }
 
-    defaultTexture.name = DEFAULT_TEXTURE_NAME;
-    defaultTexture.width = dimensions;
-    defaultTexture.height = dimensions;
-    defaultTexture.channelCount = 4;
-    defaultTexture.generation = INVALID_ID_U32;
-    defaultTexture.bIsTransparent = false;
-    backendRef->createTexture(pixels, defaultTexture);
+    defaultDiffuseTexture.name = DEFAULT_DIFFUSE_TEXTURE_NAME;
+    defaultDiffuseTexture.width = dimensions;
+    defaultDiffuseTexture.height = dimensions;
+    defaultDiffuseTexture.channelCount = 4;
+    defaultDiffuseTexture.generation = INVALID_ID_U32;
+    defaultDiffuseTexture.bIsTransparent = false;
+    backendRef->createTexture(pixels, defaultDiffuseTexture);
 
+    unsigned char specularPixels[16 * 16 * 4];
+    FF_Memory::ff_set(specularPixels, 0, 16 * 16 * 4 * sizeof(unsigned char));
+    defaultSpecularTexture.name = DEFAULT_SPECULAR_TEXTURE_NAME;
+    defaultSpecularTexture.width = 16;
+    defaultSpecularTexture.height = 16;
+    defaultSpecularTexture.channelCount = 4;
+    defaultSpecularTexture.generation = INVALID_ID_U32;
+    defaultSpecularTexture.bIsTransparent = false;
+    backendRef->createTexture(specularPixels, defaultSpecularTexture);
 
     return true;
 }
 
 void FoxFire_TextureSystem::destroyDefaultTextures() {
-    destroyTexture(defaultTexture);
+    destroyTexture(defaultDiffuseTexture);
+    destroyTexture(defaultSpecularTexture);
 }
 
 bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName) const {

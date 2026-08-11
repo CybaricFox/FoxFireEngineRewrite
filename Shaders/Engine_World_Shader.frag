@@ -10,34 +10,45 @@ directional_light hard_light = {
     vec4(0.8, 0.8, 0.8, 1.0)
 };
 
-vec4 Calculate_Directional_Light(directional_light light, vec3 normal);
+vec4 Calculate_Directional_Light(directional_light light, vec3 normal, vec3 view_direction);
 
 layout(location = 1) in struct dto {
     vec4 ambient;
     vec2 tex_coord;
     vec3 normal;
+    vec3 view_position;
+    vec3 frag_position;
 } in_dto;
 
 layout(location = 0) out vec4 out_color;
 
 layout(set = 1, binding = 0) uniform localUniformObject {
     vec4 diffuse_color;
+    float shine;
 } object_ubo;
 
-layout(set = 1, binding = 1) uniform sampler2D diffuse_sampler;
+const int SAMPLER_DIFFUSE = 0;
+const int SAMPLER_SPECULAR = 1;
+layout(set = 1, binding = 1) uniform sampler2D samplers[2];
 
 void main() {
-    out_color = Calculate_Directional_Light(hard_light, in_dto.normal);
+    vec3 view_direction = normalize(in_dto.view_position - in_dto.frag_position);
+    out_color = Calculate_Directional_Light(hard_light, in_dto.normal, view_direction);
 }
 
-vec4 Calculate_Directional_Light(directional_light light, vec3 normal) {
+vec4 Calculate_Directional_Light(directional_light light, vec3 normal, vec3 view_direction) {
     float diffuse_factor = max(dot(normal, -light.direction), 0);
-    vec4 samp = texture(diffuse_sampler, in_dto.tex_coord);
+    vec3 half_direction = normalize(view_direction - light.direction);
+    float specular_factor = pow(max(dot(half_direction, normal), 0.0), object_ubo.shine);
+
+    vec4 samp = texture(samplers[SAMPLER_DIFFUSE], in_dto.tex_coord);
     vec4 ambient = vec4(vec3(in_dto.ambient * object_ubo.diffuse_color), samp.a);
     vec4 diffuse = vec4(vec3(light.color * diffuse_factor), samp.a);
+    vec4 specular = vec4(vec3(light.color * specular_factor), samp.a);
 
     diffuse *= samp;
     ambient *= samp;
+    specular *= vec4(texture(samplers[SAMPLER_SPECULAR], in_dto.tex_coord).rgb, diffuse.a);
 
-    return (ambient + diffuse);
+    return (ambient + diffuse + specular);
 }

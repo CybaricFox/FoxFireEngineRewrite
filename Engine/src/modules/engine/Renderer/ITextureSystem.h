@@ -16,7 +16,8 @@
 #include "IRendererBackend.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
 
-#define DEFAULT_TEXTURE_NAME "default"
+#define DEFAULT_DIFFUSE_TEXTURE_NAME "default"
+#define DEFAULT_SPECULAR_TEXTURE_NAME "default_specular"
 
 /**
  * @brief Abstract class that controls textures.
@@ -34,7 +35,8 @@ public:
 
     virtual bool initialize(unsigned int initialCapacity, IRendererBackend *backend, ResourceSystem* resources);
 
-    virtual Texture& getDefaultTexture() = 0;
+    virtual Texture& getDefaultDiffuseTexture() = 0;
+    virtual Texture& getDefaultSpecularTexture() = 0;
     [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}
 
     /**

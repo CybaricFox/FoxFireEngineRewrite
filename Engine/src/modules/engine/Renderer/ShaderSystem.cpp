@@ -267,7 +267,7 @@ bool ShaderSystem::addSampler(Shader &shader, const ShaderUniformConfig &uniform
             return false;
         }
         location = globalTextureCount;
-        shader.addGlobalTexture(textureSystemRef->getDefaultTexture());
+        shader.addGlobalTexture(textureSystemRef->getDefaultDiffuseTexture());
     } else {
         if (shader.getInstanceTextureCount() + 1 > config.maxInstanceTextures) {
            Logger::logError("Shader instance texture count exceeds " + std::to_string(config.maxInstanceTextures));

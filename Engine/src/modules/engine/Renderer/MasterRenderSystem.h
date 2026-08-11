@@ -28,6 +28,7 @@ private:
     Mat4 worldProjection{};
     Mat4 worldView{};
     Vector4f ambientColor{};
+    Vector3f viewPosition{};
     Mat4 uiProjection{};
     Mat4 uiView{};
     /** @brief How close geometry can get before it is clipped. */
@@ -69,10 +70,10 @@ public:
     MasterRenderSystem() = default;
 
     [[nodiscard]] IRendererBackend* getBackend() const {return backend;}
-    [[nodiscard]] Texture& getDefaultTexture() const {return textureSystem->getDefaultTexture();}
+    [[nodiscard]] Texture& getDefaultTexture() const {return textureSystem->getDefaultDiffuseTexture();}
     [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefault3DGeometry();}
 
-    void setView(const Mat4 &newView);
+    void setView(const Mat4 &newView, Vector3f viewPosition);
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);

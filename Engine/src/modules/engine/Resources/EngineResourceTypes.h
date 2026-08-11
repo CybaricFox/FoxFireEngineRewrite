@@ -19,7 +19,8 @@
 
 enum TextureUseCase {
     TEXTURE_USE_UNKNOWN,
-    TEXTURE_USE_MAP_DIFFUSE
+    TEXTURE_USE_MAP_DIFFUSE,
+    TEXTURE_USE_MAP_SPECULAR,
 };
 
 enum ResourceType {
@@ -110,6 +111,8 @@ struct Material {
     unsigned int internalId = INVALID_ID_U32;
     Vector4f diffuseColor{};
     TextureMap diffuseMap{};
+    TextureMap specularMap{};
+    float shine = 0;
     unsigned int shaderId = INVALID_ID_U32;
 };
 
@@ -141,7 +144,9 @@ struct MaterialResourceData {
     String shaderName{};
     bool bAutoRelease = false;
     Vector4f diffuseColor{};
-    String mapName{};
+    String diffuseName{};
+    String specularName{};
+    float shine = 0;
 };
 
 struct RenderpassProfile {

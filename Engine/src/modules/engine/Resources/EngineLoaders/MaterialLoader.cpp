@@ -70,10 +70,20 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
         }
         else if (variable == "diffuse_map_name") {
             Logger::logDebug("Diffuse Map Name: " + value);
-            resourceData->mapName = value;
+            resourceData->diffuseName = value;
+        }
+        else if (variable == "specular_map_name") {
+            Logger::logDebug("Specular Map Name: " + value);
+            resourceData->specularName = value;
         }
         else if (variable == "shader") {
             resourceData->shaderName = value;
+        }
+        else if (variable == "shine") {
+            if (!StringUtils::stringToFloat(value, resourceData->shine)) {
+                Logger::logWarn("Error reading the 'shine' value in file: " + finalPath);
+                resourceData->shine = 32;
+            }
         }
 
         line.clear();

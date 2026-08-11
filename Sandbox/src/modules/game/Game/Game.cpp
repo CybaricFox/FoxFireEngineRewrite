@@ -123,7 +123,11 @@ bool Game::update(const float deltaTime) {
 
     //These should be removed eventually
     recalculateView(state);
-    masterRenderSystem.setView(state->view);
+    masterRenderSystem.setView(state->view, state->cameraPos);
+
+    if (inputSystem->isKeyUp(KEY_P) && inputSystem->wasKeyDown(KEY_P)) {
+        Logger::logDebug("Camera Pos: " + std::to_string(state->cameraPos.x) + " " + std::to_string(state->cameraPos.y) + " " + std::to_string(state->cameraPos.z));
+    }
 
     return Engine::update(deltaTime);
 }
