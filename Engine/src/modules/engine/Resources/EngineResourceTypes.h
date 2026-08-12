@@ -116,6 +116,7 @@ struct Material {
     TextureMap normalMap{};
     float shine = 0;
     unsigned int shaderId = INVALID_ID_U32;
+    unsigned int frameNumber = INVALID_ID_U32;
 };
 
 struct Geometry {
@@ -175,13 +176,19 @@ struct GeometryData {
     unsigned int indexElementSize = 0;
 };
 
+struct Mesh {
+    unsigned short geometryCount = 0;
+    DynamicArray<Geometry*> geometries{};
+    Mat4 model{};
+};
+
 /**
  * @brief Per frame packer containing geometry data.
  */
 struct RenderPacket {
     float deltaTime;
     unsigned int geometryCount;
-    GeometryRenderData* geometries;
+    DynamicArray<GeometryRenderData> geometries;
     unsigned int uiGeometryCount;
     GeometryRenderData* uiGeometries;
 };

@@ -33,6 +33,8 @@ String StringUtils::copyLimited(String string, const long size) {
 }
 
 void StringUtils::trim(String &out) {
+    if (out.empty()) return;
+
     String temp = "NULL";
     for (int i = 0; i <= out.length(); i++) {
         if (!isspace(out[i])) {

@@ -74,16 +74,31 @@ void Engine::run() {
             packet.deltaTime = static_cast<float>(deltaTime);
 
             //temp code
-            GeometryRenderData testData{};
-            testData.geometry = testGeometry;
-            //testData.model = matrixIdentity();
-            static float angle = 0;
-            angle += static_cast<float>(deltaTime);
-            const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, angle, true);
-            testData.model = convertQuatToMatrix(rotation);
+            const unsigned int meshCount = meshes.getLength();
+            if (meshCount > 0) {
+                packet.geometries.initialize();
 
-            packet.geometryCount = 1;
-            packet.geometries = &testData;
+                const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, 0.5f * static_cast<float>(deltaTime), false);
+                Mat4 rotationMatrix = convertQuatToMatrix(rotation);
+                meshes[0].model = meshes[0].model * rotationMatrix;
+
+                if (meshCount > 1) {
+                    meshes[1].model = createTranslationMatrix({10, 0, 1}) * meshes[0].model;
+                }
+
+                for (unsigned int i = 0; i < meshCount; i++) {
+                    for (unsigned int j = 0; j < meshes[i].geometryCount; j++) {
+                        GeometryRenderData data{};
+                        data.geometry = meshes[i].geometries[j];
+                        data.model = meshes[i].model;
+                        packet.geometries.push(data);
+                    }
+                }
+
+                packet.geometryCount = packet.geometries.getLength();
+            } else {
+                packet.geometryCount = 0;
+            }
 
             GeometryRenderData testUIData{};
             testUIData.geometry = testUIGeometry;
@@ -95,6 +110,10 @@ void Engine::run() {
             if (!masterRenderSystem.drawFrame(packet)) {
                 Logger::logFatal("Failed to draw frame!");
                 bIsRunning = false;
+            }
+
+            if (!packet.geometries.isEmpty()) {
+                packet.geometries.shutdown();
             }
 
             //How long did the frame take
@@ -242,11 +261,28 @@ void Engine::initialize() {
     }
 
     //Temp code
-    const GeometryConfig config = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube", "MaterialTemplate");
-    GeometryUtils::generateTangents(config.vertexCount, static_cast<Vertex3d *>(config.vertices), config.indexCount, static_cast<unsigned int *>(config.indices));
-    testGeometry = &masterRenderSystem.acquireGeometry(config, true);
-    FF_Memory::ff_free(config.vertices, sizeof(Vertex3d) * config.vertexCount, ARRAY);
-    FF_Memory::ff_free(config.indices, sizeof(unsigned int) * config.indexCount, ARRAY);
+    meshes.initialize();
+    Mesh cubeMesh{};
+    cubeMesh.geometryCount = 1;
+    cubeMesh.geometries.initialize(cubeMesh.geometryCount);
+    const GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
+    GeometryUtils::generateTangents(cubeConfig.vertexCount, static_cast<Vertex3d *>(cubeConfig.vertices), cubeConfig.indexCount, static_cast<unsigned int *>(cubeConfig.indices));
+    cubeMesh.geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
+    cubeMesh.model = matrixIdentity();
+    meshes.push(std::move(cubeMesh));
+    FF_Memory::ff_free(cubeConfig.vertices, sizeof(Vertex3d) * cubeConfig.vertexCount, ARRAY);
+    FF_Memory::ff_free(cubeConfig.indices, sizeof(unsigned int) * cubeConfig.indexCount, ARRAY);
+
+    Mesh cubeMesh2{};
+    cubeMesh2.geometryCount = 1;
+    cubeMesh2.geometries.initialize(cubeMesh2.geometryCount);
+    const GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
+    GeometryUtils::generateTangents(cubeConfig2.vertexCount, static_cast<Vertex3d *>(cubeConfig2.vertices), cubeConfig2.indexCount, static_cast<unsigned int *>(cubeConfig2.indices));
+    cubeMesh2.geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
+    cubeMesh2.model = createTranslationMatrix({10, 0, 1});
+    meshes.push(std::move(cubeMesh2));
+    FF_Memory::ff_free(cubeConfig2.vertices, sizeof(Vertex3d) * cubeConfig2.vertexCount, ARRAY);
+    FF_Memory::ff_free(cubeConfig2.indices, sizeof(unsigned int) * cubeConfig2.indexCount, ARRAY);
 
     //Ui geo
     GeometryConfig configUI{};
@@ -295,6 +331,11 @@ void Engine::getFramebufferSize(unsigned int& bufferWidth, unsigned int& bufferH
 Engine::~Engine() {
     bIsRunning = false;
     engine = nullptr;
+
+    for (Mesh& mesh : meshes) {
+        mesh.geometries.shutdown();
+    }
+    meshes.shutdown();
 
     //Static destruction
     engineEventsSystem.shutdown();

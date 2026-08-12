@@ -152,7 +152,7 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
         }
     } else {
         material.diffuseMap.use = TEXTURE_USE_UNKNOWN;
-        material.diffuseMap.texture = nullptr;
+        material.diffuseMap.texture = &textureSystemRef->getDefaultDiffuseTexture();
     }
 
     if (!config.specularName.empty()) {
@@ -164,7 +164,7 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
         }
     } else {
         material.specularMap.use = TEXTURE_USE_UNKNOWN;
-        material.specularMap.texture = nullptr;
+        material.specularMap.texture = &textureSystemRef->getDefaultSpecularTexture();;
     }
 
     if (!config.normalName.empty()) {
@@ -176,7 +176,7 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
         }
     } else {
         material.normalMap.use = TEXTURE_USE_UNKNOWN;
-        material.normalMap.texture = nullptr;
+        material.normalMap.texture = &textureSystemRef->getDefaultNormalTexture();;
     }
 
     Shader* shader = shaderRef->getShader(config.shaderName);

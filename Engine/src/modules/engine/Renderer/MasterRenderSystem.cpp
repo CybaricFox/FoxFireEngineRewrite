@@ -58,6 +58,14 @@ void MasterRenderSystem::changeRenderMode(const Keys key) {
     }
 }
 
+Material & MasterRenderSystem::acquireMaterial(const String &name) const {
+    return materialSystem->acquireMaterial(name);
+}
+
+void MasterRenderSystem::releaseMaterial(const String &name) const {
+    materialSystem->releaseMaterial(name);
+}
+
 bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, const unsigned int width, const unsigned int height, ResourceSystem& resources) {
     backend = IRendererBackend::create(VULKAN, platform.getPlatformState(), gameInstance);
     if (backend == nullptr) {
@@ -164,7 +172,9 @@ void MasterRenderSystem::setView(const Mat4 &newView, const Vector3f newViewPosi
     viewPosition = newViewPosition;
 }
 
-bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
+bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
+    backend->incrementFrameNumber();
+
     if (!backend->beginFrame(packet.deltaTime)) {
         return true;
     }
@@ -189,9 +199,13 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
         Material* material = packet.geometries[i].geometry->material;
         if (!material) material = &materialSystem->getDefaultMaterial();
 
-        if (!materialSystem->applyInstance(*material)) {
-            Logger::logWarn("Failed to apply material: " + material->name);
-            continue;
+        if (material->frameNumber != backend->getFrameNumber()) {
+            if (!materialSystem->applyInstance(*material)) {
+                Logger::logWarn("Failed to apply material: " + material->name);
+                continue;
+            }
+
+            material->frameNumber = backend->getFrameNumber();
         }
 
         materialSystem->applyLocal(*material, &packet.geometries[i].model);
@@ -238,7 +252,6 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
     }
 
     const bool result = backend->endFrame(packet.deltaTime);
-    backend->incrementFrameNumber();
     if (!result) {
         Logger::logError("Failed to end frame!");
         return false;

@@ -45,6 +45,7 @@ public:
     static IRendererBackend* create(RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance);
 
     virtual bool getRenderpassId(String name, unsigned char& outId) = 0;
+    virtual unsigned int getFrameNumber() {return frameNumber;}
 
     virtual bool initialize(String appName, Platform &platform, unsigned int width, unsigned int height, ResourceSystem* resources) = 0;
     virtual bool beginFrame(float deltaTime) = 0;
@@ -69,7 +70,6 @@ public:
     virtual bool applyShaderInstance(Shader& shader) = 0;
     virtual bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture) = 0;
     virtual bool releaseInstanceResources(const Shader &shader, unsigned int instanceId) = 0;
-
 
     void incrementFrameNumber() {frameNumber++;}
     void clearFrameNumber() {frameNumber = 0;}

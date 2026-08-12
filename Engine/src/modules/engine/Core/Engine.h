@@ -55,6 +55,7 @@ private:
     //Remove Me
     Geometry* testGeometry = nullptr;
     Geometry* testUIGeometry = nullptr;
+    DynamicArray<Mesh> meshes{};
 
     /**
      * @brief Initializes FF_Memory and the Linear Allocator
@@ -114,40 +115,16 @@ protected:
     bool render(float deltaTime);
 
     void onDebugEvent() const {
-        const String files[3] = {"whoishe", "Test1", "Test2"};
-        const String specFiles[3] = {"", "Test1_SPEC", "Test2_SPEC"};
-        const String normFiles[3] = {"", "Test1_NORM", ""};
+        const String files[3] = {"MaterialTemplate", "Test1_Material", "Test2_Material"};
         static char choice = 2;
         const String oldName = files[choice];
-        const String oldSpecName = specFiles[choice];
-        const String oldNormName = normFiles[choice];
         choice++;
         choice %= 3;
 
-        if (testGeometry) {
-            testGeometry->material->diffuseMap.texture = &masterRenderSystem.acquireTexture(true, files[choice], TEXTURE_USE_MAP_DIFFUSE);
-            if (!testGeometry->material->diffuseMap.texture) {
-                Logger::logWarn("Debug event failed to acquire texture!");
-                testGeometry->material->diffuseMap.texture = &masterRenderSystem.getDefaultDiffuseTexture();
-            }
-
-            masterRenderSystem.releaseTexture(oldName);
-
-            testGeometry->material->specularMap.texture = &masterRenderSystem.acquireTexture(true, specFiles[choice], TEXTURE_USE_MAP_SPECULAR);
-            if (!testGeometry->material->specularMap.texture) {
-                Logger::logWarn("Debug event failed to acquire texture!");
-                testGeometry->material->specularMap.texture = &masterRenderSystem.getDefaultSpecularTexture();
-            }
-
-            masterRenderSystem.releaseTexture(oldSpecName);
-
-            testGeometry->material->normalMap.texture = &masterRenderSystem.acquireTexture(true, normFiles[choice], TEXTURE_USE_MAP_NORMAL);
-            if (!testGeometry->material->normalMap.texture) {
-                Logger::logWarn("Debug event failed to acquire texture!");
-                testGeometry->material->normalMap.texture = &masterRenderSystem.getDefaultNormalTexture();
-            }
-
-            masterRenderSystem.releaseTexture(oldNormName);
+        Geometry* geometry = meshes[0].geometries[0];
+        if (geometry) {
+            geometry->material = &masterRenderSystem.acquireMaterial(files[choice]);
+            masterRenderSystem.releaseMaterial(oldName);
         }
     }
 

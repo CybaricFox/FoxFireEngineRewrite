@@ -505,6 +505,10 @@ bool VulkanBackend::applyShaderInstance(Shader &shader) {
         unsigned int updateSamplerCount = 0;
         for (unsigned int i = 0; i < totalSamplerCount; i++) {
             const Texture* texture = backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextures[i];
+            if (!texture) {
+                Logger::logFatal("Cannot apply shader instance because texture is null!");
+                continue;
+            }
             auto* textureData = static_cast<VulkanTextureData *>(texture->data);
             imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             imageInfos[i].imageView = textureData->image.getImageView();
@@ -1149,7 +1153,10 @@ bool VulkanBackend::releaseInstanceResources(const Shader &shader, const unsigne
         Logger::logError("Error freeing instance from shader descriptor sets!");
     }
 
-    FF_Memory::ff_clear(instanceState.descriptorSetState.descriptorStates, sizeof(VulkanDescriptorState) * VULKAN_SHADER_MAX_BINDINGS);
+    for (VulkanDescriptorState& descriptorState : instanceState.descriptorSetState.descriptorStates) {
+        descriptorState.generations.shutdown();
+        descriptorState.ids.shutdown();
+    }
     instanceState.instanceTextures.shutdown();
     instanceState.descriptorSetState.descriptorSets.shutdown();
 

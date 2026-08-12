@@ -84,13 +84,15 @@ public:
 
     void setView(const Mat4 &newView, Vector3f viewPosition);
 
-    [[nodiscard]] bool drawFrame(const RenderPacket &packet);
+    [[nodiscard]] bool drawFrame(RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);
     [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName, TextureUseCase useCase) const;
     void releaseTexture(const String &name) const;
     [[nodiscard]] Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) const;
     void addRenderpassProfile(const RenderpassProfile &profile);
     void changeRenderMode(Keys key);
+    Material& acquireMaterial(const String &name) const;
+    void releaseMaterial(const String &name) const;
 
     [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
         float xTile, float yTile, const String &name, const String &materialName) const;

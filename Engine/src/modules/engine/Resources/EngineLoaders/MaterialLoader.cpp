@@ -56,6 +56,8 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
         StringUtils::trim(variable);
         StringUtils::trim(value);
 
+        if (value.empty()) {continue;}
+
         //Parse the line
         if (variable == "version") Logger::logDebug("Version: " + value);
         else if (variable == "name") {
