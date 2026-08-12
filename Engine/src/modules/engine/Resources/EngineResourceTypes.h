@@ -12,6 +12,7 @@
 
 #pragma once
 #include "src/defines.h"
+#include "src/modules/engine/ECS/Engine_Components/Transform.h"
 #include "src/modules/engine/Library/FF_Math.h"
 
 #define MAX_MATERIAL_COUNT 1024
@@ -179,7 +180,7 @@ struct GeometryData {
 struct Mesh {
     unsigned short geometryCount = 0;
     DynamicArray<Geometry*> geometries{};
-    Mat4 model{};
+    Transform transform{};
 };
 
 /**

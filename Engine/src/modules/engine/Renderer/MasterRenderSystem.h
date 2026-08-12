@@ -93,6 +93,7 @@ public:
     void changeRenderMode(Keys key);
     Material& acquireMaterial(const String &name) const;
     void releaseMaterial(const String &name) const;
+    void destroyGeometryConfig(GeometryConfig* config) const;
 
     [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
         float xTile, float yTile, const String &name, const String &materialName) const;

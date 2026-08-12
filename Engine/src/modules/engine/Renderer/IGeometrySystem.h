@@ -77,4 +77,5 @@ public:
      * @return The acquired geometry, or default if something goes wrong.
      */
     virtual Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) = 0;
+    virtual void destroyConfig(GeometryConfig* config) = 0;
 };

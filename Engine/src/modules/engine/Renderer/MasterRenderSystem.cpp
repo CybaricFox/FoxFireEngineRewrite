@@ -66,6 +66,10 @@ void MasterRenderSystem::releaseMaterial(const String &name) const {
     materialSystem->releaseMaterial(name);
 }
 
+void MasterRenderSystem::destroyGeometryConfig(GeometryConfig *config) const {
+    geometrySystem->destroyConfig(config);
+}
+
 bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, const unsigned int width, const unsigned int height, ResourceSystem& resources) {
     backend = IRendererBackend::create(VULKAN, platform.getPlatformState(), gameInstance);
     if (backend == nullptr) {

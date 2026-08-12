@@ -53,4 +53,5 @@ public:
     GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount, float xTile, float yTile, const String &name, const String &materialName) override;
     GeometryConfig generateCubeConfig(float width, float height, float depth, float xTile, float yTile, const String &name, const String &materialName) override;
     Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) override;
+    void destroyConfig(GeometryConfig* config) override;
 };

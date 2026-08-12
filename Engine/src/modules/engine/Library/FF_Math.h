@@ -292,7 +292,7 @@ inline Quat multiplyQuat(const Quat a, const Quat b) {
 
     out.x = a.x * b.w + a.y * b.z - a.z * b.y + a.w * b.x;
     out.y = -a.x * b.z + a.y * b.w + a.z * b.x + a.w * b.y;
-    out.z = a.x * b.y - a.y * b.w + a.z * b.x + a.w * b.y;
+    out.z = a.x * b.y - a.y * b.x + a.z * b.w + a.w * b.z;
     out.w = -a.x * b.x - a.y * b.y - a.z * b.z + a.w * b.w;
 
     return out;

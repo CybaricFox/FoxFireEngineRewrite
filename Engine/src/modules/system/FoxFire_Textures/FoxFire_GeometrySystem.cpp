@@ -237,6 +237,25 @@ void FoxFire_GeometrySystem::destroyGeometry(Geometry &geometry) {
     geometry = Geometry{};
 }
 
+void FoxFire_GeometrySystem::destroyConfig(GeometryConfig *config) {
+    if (!config) return;
+
+    if (config->vertices) {
+        FF_Memory::ff_free(config->vertices, config->vertexSize * config->vertexCount, ARRAY);
+    }
+    if (config->indices) {
+        FF_Memory::ff_free(config->indices, config->indexSize * config->indexCount, ARRAY);
+    }
+
+    config->indexCount = 0;
+    config->vertexCount = 0;
+    config->vertexSize = 0;
+    config->indexSize = 0;
+    config->materialName.clear();
+    config->materialPath.clear();
+    config->name.clear();
+}
+
 GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float height, const float depth, float xTile, float yTile, const String &name, const String &materialName) {
     if (width == 0) {
         Logger::logWarn("Plane width cannot be 0.");

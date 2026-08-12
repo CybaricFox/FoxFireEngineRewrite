@@ -5,6 +5,7 @@
 #include "Engine.h"
 
 #include "../Library/Logger.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
 
 void Engine::startup()
@@ -79,25 +80,25 @@ void Engine::run() {
                 packet.geometries.initialize();
 
                 const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, 0.5f * static_cast<float>(deltaTime), false);
-                Mat4 rotationMatrix = convertQuatToMatrix(rotation);
-                meshes[0].model = meshes[0].model * rotationMatrix;
+                TransformUtils::addRotation(meshes[0].transform, rotation);
 
                 if (meshCount > 1) {
-                    meshes[1].model = createTranslationMatrix({10, 0, 1}) * meshes[0].model;
+                    TransformUtils::addRotation(meshes[1].transform, rotation);
+                }
+                if (meshCount > 2) {
+                    TransformUtils::addRotation(meshes[2].transform, rotation);
                 }
 
                 for (unsigned int i = 0; i < meshCount; i++) {
-                    for (unsigned int j = 0; j < meshes[i].geometryCount; j++) {
+                    Mesh& mesh = meshes[i];
+                    for (unsigned int j = 0; j < mesh.geometryCount; j++) {
                         GeometryRenderData data{};
-                        data.geometry = meshes[i].geometries[j];
-                        data.model = meshes[i].model;
+                        data.geometry = mesh.geometries[j];
+                        data.model = TransformUtils::getWorldPos(mesh.transform);
                         packet.geometries.push(data);
+                        packet.geometryCount++;
                     }
                 }
-
-                packet.geometryCount = packet.geometries.getLength();
-            } else {
-                packet.geometryCount = 0;
             }
 
             GeometryRenderData testUIData{};
@@ -261,28 +262,38 @@ void Engine::initialize() {
     }
 
     //Temp code
-    meshes.initialize();
+    meshes.initialize(10);
     Mesh cubeMesh{};
     cubeMesh.geometryCount = 1;
     cubeMesh.geometries.initialize(cubeMesh.geometryCount);
-    const GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
+    GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
     GeometryUtils::generateTangents(cubeConfig.vertexCount, static_cast<Vertex3d *>(cubeConfig.vertices), cubeConfig.indexCount, static_cast<unsigned int *>(cubeConfig.indices));
     cubeMesh.geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
-    cubeMesh.model = matrixIdentity();
+    cubeMesh.transform = Transform{};
     meshes.push(std::move(cubeMesh));
-    FF_Memory::ff_free(cubeConfig.vertices, sizeof(Vertex3d) * cubeConfig.vertexCount, ARRAY);
-    FF_Memory::ff_free(cubeConfig.indices, sizeof(unsigned int) * cubeConfig.indexCount, ARRAY);
+    masterRenderSystem.destroyGeometryConfig(&cubeConfig);
 
     Mesh cubeMesh2{};
     cubeMesh2.geometryCount = 1;
     cubeMesh2.geometries.initialize(cubeMesh2.geometryCount);
-    const GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
+    GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
     GeometryUtils::generateTangents(cubeConfig2.vertexCount, static_cast<Vertex3d *>(cubeConfig2.vertices), cubeConfig2.indexCount, static_cast<unsigned int *>(cubeConfig2.indices));
     cubeMesh2.geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
-    cubeMesh2.model = createTranslationMatrix({10, 0, 1});
+    cubeMesh2.transform = TransformUtils::createTransform(Vector3f{10, 0, 1});
+    cubeMesh2.transform.parent = &meshes[0].transform;
     meshes.push(std::move(cubeMesh2));
-    FF_Memory::ff_free(cubeConfig2.vertices, sizeof(Vertex3d) * cubeConfig2.vertexCount, ARRAY);
-    FF_Memory::ff_free(cubeConfig2.indices, sizeof(unsigned int) * cubeConfig2.indexCount, ARRAY);
+    masterRenderSystem.destroyGeometryConfig(&cubeConfig2);
+
+    Mesh cubeMesh3{};
+    cubeMesh3.geometryCount = 1;
+    cubeMesh3.geometries.initialize(cubeMesh3.geometryCount);
+    GeometryConfig cubeConfig3 = masterRenderSystem.generateCubeConfig(2, 2, 2, 1, 1, "Test_Cube_3", "MaterialTemplate");
+    GeometryUtils::generateTangents(cubeConfig3.vertexCount, static_cast<Vertex3d *>(cubeConfig3.vertices), cubeConfig3.indexCount, static_cast<unsigned int *>(cubeConfig3.indices));
+    cubeMesh3.geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig3, true));
+    cubeMesh3.transform = TransformUtils::createTransform(Vector3f{5, 0, 1});
+    cubeMesh3.transform.parent = &meshes[1].transform;
+    meshes.push(std::move(cubeMesh3));
+    masterRenderSystem.destroyGeometryConfig(&cubeConfig3);
 
     //Ui geo
     GeometryConfig configUI{};
