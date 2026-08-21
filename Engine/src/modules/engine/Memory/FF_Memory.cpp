@@ -25,6 +25,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 8: return "HASHMAP";
         case 9: return "REUSABLE_ARRAY";
         case 10: return "MATERIAL";
+        case 11: return "ECS";
         default: return " ";
     }
 }

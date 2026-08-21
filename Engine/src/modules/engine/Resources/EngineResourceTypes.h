@@ -177,12 +177,6 @@ struct GeometryData {
     unsigned int indexElementSize = 0;
 };
 
-struct Mesh {
-    unsigned short geometryCount = 0;
-    DynamicArray<Geometry*> geometries{};
-    Transform transform{};
-};
-
 /**
  * @brief Per frame packer containing geometry data.
  */

@@ -17,6 +17,8 @@
 #include "GameInstance.h"
 #include "foxfire_export.h"
 #include "../Input/IInputSystem.h"
+#include "src/modules/engine/ECS/MasterEntityComponentSystem.h"
+#include "src/modules/engine/ECS/Engine_Components/Mesh.h"
 #include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 
@@ -35,6 +37,8 @@ private:
     ResourceSystem resourceSystem{};
     /** @brief Handles user input handling. Input systems interface with this */
     EngineEvents engineEventsSystem{};
+
+    MasterEntityComponentSystem ECSSystem{};
 
     /** @brief Pointer to the derived game class set by the user. */
     Engine* engine = nullptr;
@@ -55,7 +59,6 @@ private:
     //Remove Me
     Geometry* testGeometry = nullptr;
     Geometry* testUIGeometry = nullptr;
-    DynamicArray<Mesh> meshes{};
 
     /**
      * @brief Initializes FF_Memory and the Linear Allocator
@@ -114,14 +117,14 @@ protected:
      */
     bool render(float deltaTime);
 
-    void onDebugEvent() const {
+    void onDebugEvent() {
         const String files[3] = {"MaterialTemplate", "Test1_Material", "Test2_Material"};
         static char choice = 2;
         const String oldName = files[choice];
         choice++;
         choice %= 3;
 
-        Geometry* geometry = meshes[0].geometries[0];
+        Geometry* geometry = ECSSystem.getComponent<Mesh>(0)->geometries[0];
         if (geometry) {
             geometry->material = &masterRenderSystem.acquireMaterial(files[choice]);
             masterRenderSystem.releaseMaterial(oldName);

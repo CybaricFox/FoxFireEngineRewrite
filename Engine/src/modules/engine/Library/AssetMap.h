@@ -32,16 +32,6 @@ private:
     /** @brief Holds the contexts */
     HashMap<String, C> map{};
 
-    /**
-     * @brief Returns a pointer to the asset. Does not increment reference count. Should be used internally.
-     * @param key Name of the asset
-     * @return Pointer to the asset
-     */
-    V* getAsset(const String& key) {
-        AssetContext* context = getContext(key);
-        if (!context) return nullptr;
-        return &data.get(context->index);
-    }
 public:
     void initialize(unsigned int initialCapacity) {
         data.initialize(initialCapacity);
@@ -145,4 +135,15 @@ public:
     }
 
     [[nodiscard]] unsigned int getAssetCount() const { return map.getLength(); }
+
+    /**
+     * @brief Returns a pointer to the asset. Does not increment reference count.
+     * @param key Name of the asset
+     * @return Pointer to the asset
+     */
+    V* getAsset(const String& key) {
+        AssetContext* context = getContext(key);
+        if (!context) return nullptr;
+        return &data.get(context->index);
+    }
 };

@@ -32,6 +32,7 @@ enum MemoryTag {
     HASHMAP,
     REUSABLE_ARRAY,
     MATERIAL,
+    ECS,
     MAX_TAGS
 };
 

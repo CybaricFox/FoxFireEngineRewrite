@@ -5,6 +5,7 @@
 #include "Engine.h"
 
 #include "../Library/Logger.h"
+#include "src/modules/engine/ECS/Engine_Components/Mesh.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
 
@@ -75,26 +76,26 @@ void Engine::run() {
             packet.deltaTime = static_cast<float>(deltaTime);
 
             //temp code
-            const unsigned int meshCount = meshes.getLength();
+            const unsigned int meshCount = ECSSystem.getEntityCount("Basic_Entity");
             if (meshCount > 0) {
                 packet.geometries.initialize();
 
                 const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, 0.5f * static_cast<float>(deltaTime), false);
-                TransformUtils::addRotation(meshes[0].transform, rotation);
+                TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(0), rotation);
 
                 if (meshCount > 1) {
-                    TransformUtils::addRotation(meshes[1].transform, rotation);
+                    TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(1), rotation);
                 }
                 if (meshCount > 2) {
-                    TransformUtils::addRotation(meshes[2].transform, rotation);
+                    TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(2), rotation);
                 }
 
                 for (unsigned int i = 0; i < meshCount; i++) {
-                    Mesh& mesh = meshes[i];
+                    Mesh& mesh = *ECSSystem.getComponent<Mesh>(i);
                     for (unsigned int j = 0; j < mesh.geometryCount; j++) {
                         GeometryRenderData data{};
                         data.geometry = mesh.geometries[j];
-                        data.model = TransformUtils::getWorldPos(mesh.transform);
+                        data.model = TransformUtils::getWorldPos(*mesh.transform);
                         packet.geometries.push(data);
                         packet.geometryCount++;
                     }
@@ -261,38 +262,41 @@ void Engine::initialize() {
         return;
     }
 
+    ECSSystem.initialize();
+
     //Temp code
-    meshes.initialize(10);
-    Mesh cubeMesh{};
-    cubeMesh.geometryCount = 1;
-    cubeMesh.geometries.initialize(cubeMesh.geometryCount);
+    unsigned int cube1 = ECSSystem.createEntity("Basic_Entity");
+    Mesh* cubeMesh = ECSSystem.getComponent<Mesh>(cube1);
+    cubeMesh->geometryCount = 1;
+    cubeMesh->geometries.initialize(cubeMesh->geometryCount);
     GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
     GeometryUtils::generateTangents(cubeConfig.vertexCount, static_cast<Vertex3d *>(cubeConfig.vertices), cubeConfig.indexCount, static_cast<unsigned int *>(cubeConfig.indices));
-    cubeMesh.geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
-    cubeMesh.transform = Transform{};
-    meshes.push(std::move(cubeMesh));
+    cubeMesh->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
+    cubeMesh->transform = ECSSystem.getComponent<Transform>(cube1);
     masterRenderSystem.destroyGeometryConfig(&cubeConfig);
 
-    Mesh cubeMesh2{};
-    cubeMesh2.geometryCount = 1;
-    cubeMesh2.geometries.initialize(cubeMesh2.geometryCount);
+    unsigned int cube2 = ECSSystem.createEntity("Basic_Entity");
+    Mesh* cubeMesh2 = ECSSystem.getComponent<Mesh>(cube2);
+    cubeMesh2->geometryCount = 1;
+    cubeMesh2->geometries.initialize(cubeMesh2->geometryCount);
     GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
     GeometryUtils::generateTangents(cubeConfig2.vertexCount, static_cast<Vertex3d *>(cubeConfig2.vertices), cubeConfig2.indexCount, static_cast<unsigned int *>(cubeConfig2.indices));
-    cubeMesh2.geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
-    cubeMesh2.transform = TransformUtils::createTransform(Vector3f{10, 0, 1});
-    cubeMesh2.transform.parent = &meshes[0].transform;
-    meshes.push(std::move(cubeMesh2));
+    cubeMesh2->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
+    cubeMesh2->transform = ECSSystem.getComponent<Transform>(cube2);
+    cubeMesh2->transform->position = Vector3f{10, 0, 1};
+    cubeMesh2->transform->parent = ECSSystem.getComponent<Transform>(0);
     masterRenderSystem.destroyGeometryConfig(&cubeConfig2);
 
-    Mesh cubeMesh3{};
-    cubeMesh3.geometryCount = 1;
-    cubeMesh3.geometries.initialize(cubeMesh3.geometryCount);
+    unsigned int cube3 = ECSSystem.createEntity("Basic_Entity");
+    Mesh* cubeMesh3 = ECSSystem.getComponent<Mesh>(cube3);
+    cubeMesh3->geometryCount = 1;
+    cubeMesh3->geometries.initialize(cubeMesh3->geometryCount);
     GeometryConfig cubeConfig3 = masterRenderSystem.generateCubeConfig(2, 2, 2, 1, 1, "Test_Cube_3", "MaterialTemplate");
     GeometryUtils::generateTangents(cubeConfig3.vertexCount, static_cast<Vertex3d *>(cubeConfig3.vertices), cubeConfig3.indexCount, static_cast<unsigned int *>(cubeConfig3.indices));
-    cubeMesh3.geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig3, true));
-    cubeMesh3.transform = TransformUtils::createTransform(Vector3f{5, 0, 1});
-    cubeMesh3.transform.parent = &meshes[1].transform;
-    meshes.push(std::move(cubeMesh3));
+    cubeMesh3->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig3, true));
+    cubeMesh3->transform = ECSSystem.getComponent<Transform>(cube3);
+    cubeMesh3->transform->position = Vector3f{5, 0, 1};
+    cubeMesh3->transform->parent = ECSSystem.getComponent<Transform>(1);
     masterRenderSystem.destroyGeometryConfig(&cubeConfig3);
 
     //Ui geo
@@ -343,10 +347,7 @@ Engine::~Engine() {
     bIsRunning = false;
     engine = nullptr;
 
-    for (Mesh& mesh : meshes) {
-        mesh.geometries.shutdown();
-    }
-    meshes.shutdown();
+    ECSSystem.shutdown();
 
     //Static destruction
     engineEventsSystem.shutdown();
