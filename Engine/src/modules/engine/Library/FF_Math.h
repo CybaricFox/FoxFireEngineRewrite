@@ -22,6 +22,31 @@
     #include <xmmintrin.h>
 #endif
 
+inline constexpr float FF_PI = 3.14159265358979323846f;
+inline constexpr float FF_INFINITY = 1e30f;
+inline constexpr float FF_EPSILON = 1.192092869e-07f;
+inline constexpr float FF_DEGREE_TO_RADIAN_MULTIPLIER = FF_PI / 180.0f;
+inline constexpr float FF_RADIAN_TO_DEGREE_MULTIPLIER = 180.0f / FF_PI;
+
+class FOXFIRE_API FF_Math {
+private:
+    static bool bIsSeeded;
+
+    static void setSeed();
+public:
+    static float sin(float value);
+    static float cos(float value);
+    static float acos(float value);
+    static float tan(float value);
+    static float sqrt(float value);
+    static float abs(float value);
+
+    static int randomInt();
+    static float randomFloat();
+    static int randomRange(int min, int max);
+    static float randomRange(float min, float max);
+};
+
 union FOXFIRE_API Vector2f {
     float elements[2];
 
@@ -75,6 +100,19 @@ inline Vector2f& operator/=(Vector2f& source,const Vector2f& other) {
 inline Vector2f operator/(Vector2f left, const Vector2f& right) {
     left /= right;
     return left;
+}
+inline bool compareVectors(Vector2f a, const Vector2f b, const float tolerance) {
+    a -= b;
+    if (FF_Math::abs(a.x) > tolerance) {
+        return false;
+    }
+    if (FF_Math::abs(a.y) > tolerance) {
+        return false;
+    }
+    return true;
+}
+inline bool operator==(const Vector2f& left, const Vector2f& right) {
+    return compareVectors(left,right,FF_EPSILON);
 }
 inline Vector2f zeroVector2f() {return Vector2f{0, 0};}
 inline Vector2f oneVector2f() {return Vector2f{1, 1};}
@@ -156,6 +194,22 @@ inline Vector3f& operator/=(Vector3f& source,const Vector3f& other) {
 inline Vector3f operator/(Vector3f left, const Vector3f& right) {
     left /= right;
     return left;
+}
+inline bool compareVectors(Vector3f a, const Vector3f b, const float tolerance) {
+    a -= b;
+    if (FF_Math::abs(a.x) > tolerance) {
+        return false;
+    }
+    if (FF_Math::abs(a.y) > tolerance) {
+        return false;
+    }
+    if (FF_Math::abs(a.z) > tolerance) {
+        return false;
+    }
+    return true;
+}
+inline bool operator==(const Vector3f& left, const Vector3f& right) {
+    return compareVectors(left, right, FF_EPSILON);
 }
 inline Vector3f zeroVector3f() {return Vector3f{0, 0, 0};}
 inline Vector3f oneVector3f() {return Vector3f{1, 1, 1};}
@@ -285,6 +339,25 @@ inline Vector4f operator/(Vector4f left, const Vector4f& right) {
     left /= right;
     return left;
 }
+inline bool compareVectors(Vector4f a, const Vector4f b, const float tolerance) {
+    a -= b;
+    if (FF_Math::abs(a.x) > tolerance) {
+        return false;
+    }
+    if (FF_Math::abs(a.y) > tolerance) {
+        return false;
+    }
+    if (FF_Math::abs(a.z) > tolerance) {
+        return false;
+    }
+    if (FF_Math::abs(a.w) > tolerance) {
+        return false;
+    }
+    return true;
+}
+inline bool operator==(const Vector4f& left, const Vector4f& right) {
+    return compareVectors(left, right, FF_EPSILON);
+}
 
 typedef Vector4f Quat;
 inline Quat multiplyQuat(const Quat a, const Quat b) {
@@ -349,24 +422,27 @@ inline Mat4 operator*(const Mat4& left, const Mat4& right) {
     return out;
 }
 
-struct Vertex3d {
+struct Vertex {};
+
+struct Vertex3d : Vertex{
     Vector3f position;
     Vector3f normal;
     Vector2f textureCoordinate;
     Vector4f color;
     Vector4f tangent;
 };
+inline bool operator==(const Vertex3d& left, const Vertex3d& right) {
+    return compareVectors(left.position, right.position, FF_EPSILON) &&
+        compareVectors(left.normal, right.normal, FF_EPSILON) &&
+            compareVectors(left.textureCoordinate, right.textureCoordinate, FF_EPSILON) &&
+                compareVectors(left.color, right.color, FF_EPSILON) &&
+                    compareVectors(left.tangent, right.tangent, FF_EPSILON);
+}
 
-struct Vertex2d {
+struct Vertex2d : Vertex{
     Vector2f position;
     Vector2f textureCoordinate;
 };
-
-inline constexpr float FF_PI = 3.14159265358979323846f;
-inline constexpr float FF_INFINITY = 1e30f;
-inline constexpr float FF_EPSILON = 1.192092869e-07f;
-inline constexpr float FF_DEGREE_TO_RADIAN_MULTIPLIER = FF_PI / 180.0f;
-inline constexpr float FF_RADIAN_TO_DEGREE_MULTIPLIER = 180.0f / FF_PI;
 
 inline bool isPowerOfTwo(const unsigned long value) {return value != 0 && ((value & (value - 1)) == 0);}
 //Returns the squared length of the vector
@@ -398,25 +474,6 @@ inline bool stringToVector2f(const String &string, Vector2f& out) {
     const int result = sscanf(string.c_str(), "%f %f", &out.x, &out.y);
     return result != -1;
 }
-
-class FOXFIRE_API FF_Math {
-private:
-    static bool bIsSeeded;
-
-    static void setSeed();
-public:
-    static float sin(float value);
-    static float cos(float value);
-    static float acos(float value);
-    static float tan(float value);
-    static float sqrt(float value);
-    static float abs(float value);
-
-    static int randomInt();
-    static float randomFloat();
-    static int randomRange(int min, int max);
-    static float randomRange(float min, float max);
-};
 
 //Returns the real length of a vector
 //EXPENSIVE
@@ -492,30 +549,6 @@ inline void normalize(Vector4f* vector) {
 }
 inline void normalize(Vector4f& vector) {
     normalize(&vector);
-}
-
-inline bool compareVectors(Vector2f a, const Vector2f b, const float tolerance) {
-    a -= b;
-    if (FF_Math::abs(a.x) > tolerance) {
-        return false;
-    }
-    if (FF_Math::abs(a.y) > tolerance) {
-        return false;
-    }
-    return true;
-}
-inline bool compareVectors(Vector3f a, const Vector3f b, const float tolerance) {
-    a -= b;
-    if (FF_Math::abs(a.x) > tolerance) {
-        return false;
-    }
-    if (FF_Math::abs(a.y) > tolerance) {
-        return false;
-    }
-    if (FF_Math::abs(a.z) > tolerance) {
-        return false;
-    }
-    return true;
 }
 
 inline Mat4 orthographic(const float left, const float right, const float bottom, const float top, const float ffNear, const float ffFar) {

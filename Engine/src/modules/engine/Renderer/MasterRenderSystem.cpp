@@ -66,10 +66,6 @@ void MasterRenderSystem::releaseMaterial(const String &name) const {
     materialSystem->releaseMaterial(name);
 }
 
-void MasterRenderSystem::destroyGeometryConfig(GeometryConfig *config) const {
-    geometrySystem->destroyConfig(config);
-}
-
 bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, const unsigned int width, const unsigned int height, ResourceSystem& resources) {
     backend = IRendererBackend::create(VULKAN, platform.getPlatformState(), gameInstance);
     if (backend == nullptr) {
@@ -203,14 +199,13 @@ bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
         Material* material = packet.geometries[i].geometry->material;
         if (!material) material = &materialSystem->getDefaultMaterial();
 
-        if (material->frameNumber != backend->getFrameNumber()) {
-            if (!materialSystem->applyInstance(*material)) {
-                Logger::logWarn("Failed to apply material: " + material->name);
-                continue;
-            }
-
-            material->frameNumber = backend->getFrameNumber();
+        bool needsUpdate = material->frameNumber != backend->getFrameNumber();
+        if (!materialSystem->applyInstance(*material, needsUpdate)) {
+            Logger::logWarn("Failed to apply material: " + material->name);
+            continue;
         }
+
+        material->frameNumber = backend->getFrameNumber();
 
         materialSystem->applyLocal(*material, &packet.geometries[i].model);
         backend->drawGeometry(packet.geometries[i], textureSystem->getDefaultDiffuseTexture(), materialSystem->getDefaultMaterial());
@@ -241,10 +236,13 @@ bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
         Material* material = packet.uiGeometries[i].geometry->material;
         if (!material) material = &materialSystem->getDefaultMaterial();
 
-        if (!materialSystem->applyInstance(*material)) {
+        bool needsUpdate = material->frameNumber != backend->getFrameNumber();
+        if (!materialSystem->applyInstance(*material, needsUpdate)) {
             Logger::logWarn("Failed to apply material: " + material->name);
             continue;
         }
+
+        material->frameNumber = backend->getFrameNumber();
 
         materialSystem->applyLocal(*material, &packet.uiGeometries[i].model);
         backend->drawGeometry(packet.uiGeometries[i], textureSystem->getDefaultDiffuseTexture(), materialSystem->getDefaultMaterial());
@@ -283,7 +281,7 @@ void MasterRenderSystem::releaseTexture(const String &name) const {
 }
 
 //Vertex and index arrays must be freed upon disposal!
-Geometry & MasterRenderSystem::acquireGeometry(const GeometryConfig &config, const bool autoRelease) const {
+Geometry & MasterRenderSystem::acquireGeometry(GeometryConfig &config, const bool autoRelease) const {
     return geometrySystem->acquireGeometry(config, autoRelease);
 }
 

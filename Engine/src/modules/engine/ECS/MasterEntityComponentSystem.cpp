@@ -61,7 +61,7 @@ void MasterEntityComponentSystem::shutdown() {
 
     for (Entity* entity : templates.getAssetsAsArray()) {
         for (EntityComponent* component : entity->components) {
-            FF_Memory::ff_free_class<EntityComponent>(component, component->componentSize, ECS);
+            FF_Memory::ff_free_class<EntityComponent>(component, component->getComponentSize(), ECS);
         }
         entity->components.shutdown();
     }

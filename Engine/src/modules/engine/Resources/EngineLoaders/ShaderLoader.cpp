@@ -10,6 +10,7 @@ ShaderLoader::ShaderLoader() {
     type = RESOURCE_TYPE_SHADER;
     path = "Shaders";
     memoryTag = RENDER;
+    memorySize = sizeof(ShaderLoader);
 }
 
 bool ShaderLoader::load(String name, Resource &outResource, String basePath) {

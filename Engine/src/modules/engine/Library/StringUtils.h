@@ -60,6 +60,12 @@ public:
     static bool stringToBool(const String &string, bool& out);
     static unsigned int findAll(const String &string, char toFind);
     static unsigned int recursiveSplit(const String &string, char regex, DynamicArray<String>& array);
+    static bool equalsN(const String &a, const String &b, unsigned long length);
+    static bool equalsIgnoreCaseN(const String &a, const String &b, unsigned long n);
+
+    static String getDirectoryFromPath(const String &path);
+    static String getFilenameFromPath(const String &path);
+    static String getFilenameNoExtensionFromPath(const String &path);
 };
 
 

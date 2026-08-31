@@ -17,33 +17,10 @@
 #include "IMaterialSystem.h"
 #include "IRendererBackend.h"
 #include "src/modules/engine/Library/FF_Math.h"
+#include "src/modules/engine/Library/GeometryUtils.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 #define DEFAULT_GEOMETRY_NAME "default"
-
-/**
- * @brief Holds config data for a piece of geometry
- */
-struct GeometryConfig {
-    /** @brief size of the vertex type */
-    unsigned int vertexSize = 0;
-    /** @brief number of vertices */
-    unsigned int vertexCount = 0;
-    /** @brief Vertex data */
-    void* vertices = nullptr;
-    /** @brief size of the index type */
-    unsigned int indexSize = 0;
-    /** @brief Number of indices */
-    unsigned int indexCount = 0;
-    /** @brief Index data */
-    void* indices = nullptr;
-    /** @brief Name of the geometry */
-    String name{};
-    /** @brief name of the material */
-    String materialName{};
-    /** @brief Path to the material */
-    String materialPath{};
-};
 
 /**
  * @brief Abstract class that controls geometry.
@@ -76,6 +53,5 @@ public:
      * @param autoRelease Whether to destroy the geometry when no references remain.
      * @return The acquired geometry, or default if something goes wrong.
      */
-    virtual Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) = 0;
-    virtual void destroyConfig(GeometryConfig* config) = 0;
+    virtual Geometry& acquireGeometry(GeometryConfig &config, bool autoRelease) = 0;
 };

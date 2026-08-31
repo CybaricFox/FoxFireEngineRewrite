@@ -11,14 +11,11 @@ LinearAllocator::~LinearAllocator() {
     shutdown();
 }
 
-void LinearAllocator::initialize(const unsigned long size, void *memory) {
+void LinearAllocator::initialize(const unsigned long size) {
     totalSize = size;
     allocated = 0;
-    bOwnsMemory = memory == nullptr;
 
-    if (memory) {
-        block = memory;
-    } else {
+    if (!block) {
         block = FF_Memory::ff_allocate(totalSize, LINEAR_ALLOCATOR);
     }
 }
@@ -26,13 +23,12 @@ void LinearAllocator::initialize(const unsigned long size, void *memory) {
 void LinearAllocator::shutdown() {
     allocated = 0;
 
-    if (bOwnsMemory && block) {
+    if (block) {
         FF_Memory::ff_free(block, totalSize, LINEAR_ALLOCATOR);
     }
 
     block = nullptr;
     totalSize = 0;
-    bOwnsMemory = false;
 }
 
 void* LinearAllocator::allocate(const unsigned long size) {

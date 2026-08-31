@@ -79,38 +79,15 @@ Texture & FoxFire_TextureSystem::getDefaultByCase(const TextureUseCase useCase) 
 
 //Generates a default texture during runtime so dependency on a file system isn't necessary for niche scenarios.
 bool FoxFire_TextureSystem::createDefaultTextures() {
-    //diffuse texture
-    constexpr unsigned int dimensions = 256;
-    constexpr unsigned int bpp = 4; //rgba
-    constexpr unsigned pixelCount = dimensions * dimensions;
-    unsigned char pixels[pixelCount * bpp];
-    FF_Memory::ff_set(pixels, 255, sizeof(unsigned char) * pixelCount * bpp);
-
-    for (unsigned long row = 0; row < dimensions; ++row) {
-        for (unsigned long column = 0; column < dimensions; ++column) {
-            const unsigned long index = (row * dimensions) + column;
-            const unsigned long index_bpp = index * bpp;
-            if (row % 2) {
-                if (column % 2) {
-                    pixels[index_bpp + 0] = 0;
-                    pixels[index_bpp + 1] = 0;
-                }
-            } else {
-                if (!(column % 2)) {
-                    pixels[index_bpp + 0] = 0;
-                    pixels[index_bpp + 1] = 0;
-                }
-            }
-        }
-    }
-
+    unsigned char diffusePixels[16 * 16 * 4];
+    FF_Memory::ff_set(diffusePixels, 255, 16 * 16 * 4 * sizeof(unsigned char));
     defaultDiffuseTexture.name = DEFAULT_DIFFUSE_TEXTURE_NAME;
-    defaultDiffuseTexture.width = dimensions;
-    defaultDiffuseTexture.height = dimensions;
+    defaultDiffuseTexture.width = 16;
+    defaultDiffuseTexture.height = 16;
     defaultDiffuseTexture.channelCount = 4;
     defaultDiffuseTexture.generation = INVALID_ID_U32;
     defaultDiffuseTexture.bIsTransparent = false;
-    backendRef->createTexture(pixels, defaultDiffuseTexture);
+    backendRef->createTexture(diffusePixels, defaultDiffuseTexture);
 
     unsigned char specularPixels[16 * 16 * 4];
     FF_Memory::ff_set(specularPixels, 0, 16 * 16 * 4 * sizeof(unsigned char));
@@ -128,7 +105,7 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
     for (unsigned long row = 0; row < 16; ++row) {
         for (unsigned long column = 0; column < 16; ++column) {
             const unsigned long index = (row * 16) + column;
-            const unsigned long index_bpp = index * bpp;
+            const unsigned long index_bpp = index * 4;
             normalPixels[index_bpp + 0] = 128;
             normalPixels[index_bpp + 1] = 128;
             normalPixels[index_bpp + 2] = 255;

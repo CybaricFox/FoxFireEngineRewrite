@@ -14,7 +14,7 @@ Geometry & FoxFire_GeometrySystem::acquireGeometry(const unsigned int id) {
     return geometries.get(id).geometry;
 }
 
-Geometry & FoxFire_GeometrySystem::acquireGeometry(const GeometryConfig &config, const bool autoRelease) {
+Geometry & FoxFire_GeometrySystem::acquireGeometry(GeometryConfig &config, const bool autoRelease) {
     Geometry* geometry = nullptr;
 
     const unsigned int index = geometries.assign();
@@ -84,13 +84,8 @@ GeometryConfig FoxFire_GeometrySystem::generatePlaneConfig(float width, float he
     }
 
     GeometryConfig config{};
-    config.vertexSize = sizeof(Vertex3d);
-    config.vertexCount = xCount * yCount * 4; //4 vertices per segment
-    config.vertices = FF_Memory::ff_allocate(config.vertexSize * config.vertexCount, ARRAY);
-    config.indexSize = sizeof(unsigned int);
-    config.indexCount = xCount * yCount * 6; //6 indices per segment
-    config.indices = FF_Memory::ff_allocate(config.indexSize * config.indexCount, ARRAY);
-
+    config.vertices.initialize<Vertex3d>(xCount * yCount * 4);
+    config.indices.initialize<unsigned int>(xCount * yCount * 6);
 
     const float segmentWidth = width / static_cast<float>(xCount);
     const float segmentHeight = height / static_cast<float>(yCount);
@@ -109,38 +104,38 @@ GeometryConfig FoxFire_GeometrySystem::generatePlaneConfig(float width, float he
             const float maxUVY = (static_cast<float>(y + 1) / static_cast<float>(yCount)) * yTile;
 
             const unsigned int vOffset = ((y * xCount) + x) * 4;
-            Vertex3d& v0 = static_cast<Vertex3d *>(config.vertices)[vOffset + 0];
-            Vertex3d& v1 = static_cast<Vertex3d *>(config.vertices)[vOffset + 1];
-            Vertex3d& v2 = static_cast<Vertex3d *>(config.vertices)[vOffset + 2];
-            Vertex3d& v3 = static_cast<Vertex3d *>(config.vertices)[vOffset + 3];
+            const auto v0 = reinterpret_cast<Vertex3d *>(config.vertices.getVertex(vOffset + 0));
+            const auto v1 = reinterpret_cast<Vertex3d *>(config.vertices.getVertex(vOffset + 1));
+            const auto v2 = reinterpret_cast<Vertex3d *>(config.vertices.getVertex(vOffset + 2));
+            const auto v3 = reinterpret_cast<Vertex3d *>(config.vertices.getVertex(vOffset + 3));
 
-            v0.position.x = minX;
-            v0.position.y = minY;
-            v0.textureCoordinate.x = minUVX;
-            v0.textureCoordinate.y = minUVY;
+            v0->position.x = minX;
+            v0->position.y = minY;
+            v0->textureCoordinate.x = minUVX;
+            v0->textureCoordinate.y = minUVY;
 
-            v1.position.x = maxX;
-            v1.position.y = maxY;
-            v1.textureCoordinate.x = maxUVX;
-            v1.textureCoordinate.y = maxUVY;
+            v1->position.x = maxX;
+            v1->position.y = maxY;
+            v1->textureCoordinate.x = maxUVX;
+            v1->textureCoordinate.y = maxUVY;
 
-            v2.position.x = minX;
-            v2.position.y = maxY;
-            v2.textureCoordinate.x = minUVX;
-            v2.textureCoordinate.y = maxUVY;
+            v2->position.x = minX;
+            v2->position.y = maxY;
+            v2->textureCoordinate.x = minUVX;
+            v2->textureCoordinate.y = maxUVY;
 
-            v3.position.x = maxX;
-            v3.position.y = minY;
-            v3.textureCoordinate.x = maxUVX;
-            v3.textureCoordinate.y = minUVY;
+            v3->position.x = maxX;
+            v3->position.y = minY;
+            v3->textureCoordinate.x = maxUVX;
+            v3->textureCoordinate.y = minUVY;
 
             const unsigned int iOffset = ((y * xCount) + x) * 6;
-            static_cast<unsigned int *>(config.indices)[iOffset + 0] = vOffset + 0;
-            static_cast<unsigned int *>(config.indices)[iOffset + 1] = vOffset + 1;
-            static_cast<unsigned int *>(config.indices)[iOffset + 2] = vOffset + 2;
-            static_cast<unsigned int *>(config.indices)[iOffset + 3] = vOffset + 0;
-            static_cast<unsigned int *>(config.indices)[iOffset + 4] = vOffset + 3;
-            static_cast<unsigned int *>(config.indices)[iOffset + 5] = vOffset + 1;
+            config.indices.setIndex(vOffset + 0, iOffset + 0);
+            config.indices.setIndex(vOffset + 1, iOffset + 1);
+            config.indices.setIndex(vOffset + 2, iOffset + 2);
+            config.indices.setIndex(vOffset + 0, iOffset + 3);
+            config.indices.setIndex(vOffset + 3, iOffset + 4);
+            config.indices.setIndex(vOffset + 1, iOffset + 5);
         }
     }
 
@@ -163,8 +158,7 @@ bool FoxFire_GeometrySystem::createDefaultGeometries() {
     constexpr float f = 10.0f;
 
     //3d geometry
-    Vertex3d vertices3D[4];
-    FF_Memory::ff_clear(vertices3D, sizeof(Vertex3d) * 4);
+    Vertex3d vertices3D[4]{};
 
     vertices3D[0].position = {-0.5 * f, -0.5f * f, 0};
     vertices3D[0].textureCoordinate = {0, 0};
@@ -209,8 +203,8 @@ bool FoxFire_GeometrySystem::createDefaultGeometries() {
     return true;
 }
 
-bool FoxFire_GeometrySystem::createGeometry(const GeometryConfig &config, Geometry &geometry) {
-    if (!backendRef->createGeometry(geometry, config.vertexSize, config.vertexCount, config.vertices, config.indexSize, config.indexCount, config.indices)) {
+bool FoxFire_GeometrySystem::createGeometry(GeometryConfig &config, Geometry &geometry) {
+    if (!backendRef->createGeometry(geometry, config.vertices.getSize(), config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getSize(), config.indices.getCount(), config.indices.getIndex(0))) {
         geometries.get(geometry.id).referenceCount = 0;
         geometries.get(geometry.id).bAutoRelease = false;
         geometry.id = INVALID_ID_U32;
@@ -237,25 +231,6 @@ void FoxFire_GeometrySystem::destroyGeometry(Geometry &geometry) {
     geometry = Geometry{};
 }
 
-void FoxFire_GeometrySystem::destroyConfig(GeometryConfig *config) {
-    if (!config) return;
-
-    if (config->vertices) {
-        FF_Memory::ff_free(config->vertices, config->vertexSize * config->vertexCount, ARRAY);
-    }
-    if (config->indices) {
-        FF_Memory::ff_free(config->indices, config->indexSize * config->indexCount, ARRAY);
-    }
-
-    config->indexCount = 0;
-    config->vertexCount = 0;
-    config->vertexSize = 0;
-    config->indexSize = 0;
-    config->materialName.clear();
-    config->materialPath.clear();
-    config->name.clear();
-}
-
 GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float height, const float depth, float xTile, float yTile, const String &name, const String &materialName) {
     if (width == 0) {
         Logger::logWarn("Plane width cannot be 0.");
@@ -275,12 +250,8 @@ GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float hei
     }
 
     GeometryConfig config{};
-    config.vertexSize = sizeof(Vertex3d);
-    config.vertexCount = 4 * 6;
-    config.vertices = FF_Memory::ff_allocate(config.vertexSize * config.vertexCount, ARRAY);
-    config.indexSize = sizeof(unsigned int);
-    config.indexCount = 6 * 6;
-    config.indices = FF_Memory::ff_allocate(config.indexSize * config.indexCount, ARRAY);
+    config.vertices.initialize<Vertex3d>(4 * 6);
+    config.indices.initialize<unsigned int>(6 * 6);
 
     const float halfWidth = width * 0.5f;
     const float halfHeight = height * 0.5f;
@@ -296,7 +267,7 @@ GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float hei
     const float maxUVX = xTile;
     const float maxUVY = yTile;
 
-    Vertex3d vertices[24];
+    Vertex3d vertices[24]{};
 
     vertices[(0 * 4) + 0].position = {minX, minY, maxZ};
     vertices[(0 * 4) + 1].position = {maxX, maxY, maxZ};
@@ -376,17 +347,19 @@ GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float hei
     vertices[(5 * 4) + 2].normal = {0, 1, 0};
     vertices[(5 * 4) + 3].normal = {0, 1, 0};
 
-    FF_Memory::ff_copy(config.vertices, vertices, config.vertexSize * config.vertexCount);
+    for (unsigned int i = 0; i < 24; i++) {
+        config.vertices.setVertex(&vertices[i], i);
+    }
 
     for (unsigned int i = 0; i < 6; i++) {
         const unsigned int vOffset = i * 4;
         const unsigned int iOffset = i * 6;
-        static_cast<unsigned int *>(config.indices)[iOffset + 0] = vOffset + 0;
-        static_cast<unsigned int *>(config.indices)[iOffset + 1] = vOffset + 1;
-        static_cast<unsigned int *>(config.indices)[iOffset + 2] = vOffset + 2;
-        static_cast<unsigned int *>(config.indices)[iOffset + 3] = vOffset + 0;
-        static_cast<unsigned int *>(config.indices)[iOffset + 4] = vOffset + 3;
-        static_cast<unsigned int *>(config.indices)[iOffset + 5] = vOffset + 1;
+        config.indices.setIndex(vOffset + 0, iOffset + 0);
+        config.indices.setIndex(vOffset + 1, iOffset + 1);
+        config.indices.setIndex(vOffset + 2, iOffset + 2);
+        config.indices.setIndex(vOffset + 0, iOffset + 3);
+        config.indices.setIndex(vOffset + 3, iOffset + 4);
+        config.indices.setIndex(vOffset + 1, iOffset + 5);
     }
 
     if (!name.empty()) {

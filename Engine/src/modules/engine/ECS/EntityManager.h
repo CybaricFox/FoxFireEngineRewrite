@@ -62,7 +62,7 @@ public:
                         return result;
                     }
 
-                    component = reinterpret_cast<EntityComponent *>(reinterpret_cast<unsigned char *>(component) + component->componentSize);
+                    component = reinterpret_cast<EntityComponent *>(reinterpret_cast<unsigned char *>(component) + component->getComponentSize());
                     componentCount++;
                 }
 

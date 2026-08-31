@@ -30,15 +30,18 @@ protected:
     String path{};
     /** @brief The memory tag to use for allocation tracking */
     MemoryTag memoryTag = UNKNOWN;
+    /** @brief Size of the derived class loader */
+    unsigned long memorySize = 0;
 
 public:
     virtual ~ResourceLoader() = default;
 
-    ResourceType getType() const {return type;}
-    String getCustomType() const {return customType;}
-    unsigned int getId() const {return id;}
+    [[nodiscard]] ResourceType getType() const {return type;}
+    [[nodiscard]] String getCustomType() const {return customType;}
+    [[nodiscard]] unsigned int getId() const {return id;}
+    [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}
 
-    bool isCustomType() const {return !customType.empty();}
+    [[nodiscard]] bool isCustomType() const {return !customType.empty();}
     void setId(const unsigned int newId) {
         if (id == INVALID_ID_U32) {
             id = newId;

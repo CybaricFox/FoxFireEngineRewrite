@@ -8,6 +8,7 @@
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
+#include "src/modules/engine/Library/JsonHandler.h"
 
 void Engine::startup()
 {
@@ -270,67 +271,86 @@ void Engine::initialize() {
     cubeMesh->geometryCount = 1;
     cubeMesh->geometries.initialize(cubeMesh->geometryCount);
     GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
-    GeometryUtils::generateTangents(cubeConfig.vertexCount, static_cast<Vertex3d *>(cubeConfig.vertices), cubeConfig.indexCount, static_cast<unsigned int *>(cubeConfig.indices));
+
+    GeometryUtils::generateTangents(cubeConfig.vertices.getCount(), cubeConfig.vertices.getVertex(0), cubeConfig.indices.getCount(), cubeConfig.indices.getIndex(0));
     cubeMesh->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
     cubeMesh->transform = ECSSystem.getComponent<Transform>(cube1);
-    masterRenderSystem.destroyGeometryConfig(&cubeConfig);
+    GeometryUtils::destroyConfig(&cubeConfig);
 
     unsigned int cube2 = ECSSystem.createEntity("Basic_Entity");
     Mesh* cubeMesh2 = ECSSystem.getComponent<Mesh>(cube2);
     cubeMesh2->geometryCount = 1;
     cubeMesh2->geometries.initialize(cubeMesh2->geometryCount);
     GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
-    GeometryUtils::generateTangents(cubeConfig2.vertexCount, static_cast<Vertex3d *>(cubeConfig2.vertices), cubeConfig2.indexCount, static_cast<unsigned int *>(cubeConfig2.indices));
+    GeometryUtils::generateTangents(cubeConfig2.vertices.getCount(), cubeConfig2.vertices.getVertex(0), cubeConfig2.indices.getCount(), cubeConfig2.indices.getIndex(0));
     cubeMesh2->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
     cubeMesh2->transform = ECSSystem.getComponent<Transform>(cube2);
     cubeMesh2->transform->position = Vector3f{10, 0, 1};
     cubeMesh2->transform->parent = ECSSystem.getComponent<Transform>(0);
-    masterRenderSystem.destroyGeometryConfig(&cubeConfig2);
+    GeometryUtils::destroyConfig(&cubeConfig2);
 
     unsigned int cube3 = ECSSystem.createEntity("Basic_Entity");
     Mesh* cubeMesh3 = ECSSystem.getComponent<Mesh>(cube3);
     cubeMesh3->geometryCount = 1;
     cubeMesh3->geometries.initialize(cubeMesh3->geometryCount);
     GeometryConfig cubeConfig3 = masterRenderSystem.generateCubeConfig(2, 2, 2, 1, 1, "Test_Cube_3", "MaterialTemplate");
-    GeometryUtils::generateTangents(cubeConfig3.vertexCount, static_cast<Vertex3d *>(cubeConfig3.vertices), cubeConfig3.indexCount, static_cast<unsigned int *>(cubeConfig3.indices));
+    GeometryUtils::generateTangents(cubeConfig3.vertices.getCount(), cubeConfig3.vertices.getVertex(0), cubeConfig3.indices.getCount(), cubeConfig3.indices.getIndex(0));
     cubeMesh3->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig3, true));
     cubeMesh3->transform = ECSSystem.getComponent<Transform>(cube3);
     cubeMesh3->transform->position = Vector3f{5, 0, 1};
     cubeMesh3->transform->parent = ECSSystem.getComponent<Transform>(1);
-    masterRenderSystem.destroyGeometryConfig(&cubeConfig3);
+    GeometryUtils::destroyConfig(&cubeConfig3);
+
+    unsigned int maxwell = ECSSystem.createEntity("Basic_Entity");
+    Mesh* maxwellMesh = ECSSystem.getComponent<Mesh>(maxwell);
+    Resource maxwellResource{};
+    if (!resourceSystem.load("Maxwell", RESOURCE_TYPE_MESH, maxwellResource)) {
+        Logger::logError("Failed to load Maxwell! NOOOOOOOOOOOOOOOOOOOOOOOOO!!!!!!!!!!!");
+    } else {
+        GeometryConfig* maxwellConfigs = &(*static_cast<DynamicArray<GeometryConfig>*>(maxwellResource.data))[0];
+        maxwellMesh->geometryCount = maxwellResource.dataSize; //Data size in this context is the number of geometries
+        maxwellMesh->geometries.initialize(maxwellMesh->geometryCount);
+        for (unsigned int i = 0; i < maxwellMesh->geometryCount; i++) {
+            GeometryConfig* currentConfig = &maxwellConfigs[i];
+            GeometryUtils::generateTangents(currentConfig->vertices.getCount(), currentConfig->vertices.getVertex(0), currentConfig->indices.getCount(), currentConfig->indices.getIndex(0));
+            maxwellMesh->geometries.push(&masterRenderSystem.acquireGeometry(maxwellConfigs[i], true));
+        }
+        maxwellMesh->transform = ECSSystem.getComponent<Transform>(maxwell);
+        maxwellMesh->transform->position = Vector3f{15, 0, 1};
+        resourceSystem.unload(maxwellResource);
+    }
 
     //Ui geo
     GeometryConfig configUI{};
-    configUI.vertexSize = sizeof(Vertex2d);
-    configUI.vertexCount = 4;
-    configUI.indexSize = sizeof(unsigned int);
-    configUI.indexCount = 6;
+    configUI.vertices.initialize<Vertex2d>(4);
+    configUI.indices.initialize<unsigned int>(6);
     configUI.materialName = "GenericUI";
     configUI.name = "test ui geometry";
 
     constexpr float w = 512;
     constexpr float h = 256;
-    Vertex2d uiVerts[4];
-    uiVerts[0].position.x = 0;
-    uiVerts[0].position.y = 0;
-    uiVerts[0].textureCoordinate.x = 0;
-    uiVerts[0].textureCoordinate.y = 0;
-    uiVerts[1].position.x = w;
-    uiVerts[1].position.y = h;
-    uiVerts[1].textureCoordinate.x = 1;
-    uiVerts[1].textureCoordinate.y = 1;
-    uiVerts[2].position.x = 0;
-    uiVerts[2].position.y = h;
-    uiVerts[2].textureCoordinate.x = 0;
-    uiVerts[2].textureCoordinate.y = 1;
-    uiVerts[3].position.x = w;
-    uiVerts[3].position.y = 0;
-    uiVerts[3].textureCoordinate.x = 1;
-    uiVerts[3].textureCoordinate.y = 0;
-    configUI.vertices = uiVerts;
+    auto array = reinterpret_cast<Vertex2d *>(configUI.vertices.getVertex(0));
+    array[0].position.x = 0;
+    array[0].position.y = 0;
+    array[0].textureCoordinate.x = 0;
+    array[0].textureCoordinate.y = 0;
+    array[1].position.x = w;
+    array[1].position.y = h;
+    array[1].textureCoordinate.x = 1;
+    array[1].textureCoordinate.y = 1;
+    array[2].position.x = 0;
+    array[2].position.y = h;
+    array[2].textureCoordinate.x = 0;
+    array[2].textureCoordinate.y = 1;
+    array[3].position.x = w;
+    array[3].position.y = 0;
+    array[3].textureCoordinate.x = 1;
+    array[3].textureCoordinate.y = 0;
 
-    unsigned int uiIndices[6] = {2, 1, 0, 3, 0, 1};
-    configUI.indices = uiIndices;
+    const unsigned int uiIndices[6] = {2, 1, 0, 3, 0, 1};
+    for (unsigned int i = 0; i < 6; i++) {
+        configUI.indices.setIndex(uiIndices[i], i);
+    }
 
     testUIGeometry = &masterRenderSystem.acquireGeometry(configUI, true);
     //End temp code

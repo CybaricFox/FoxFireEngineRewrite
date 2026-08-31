@@ -7,6 +7,7 @@
 TextLoader::TextLoader() {
     type = RESOURCE_TYPE_TEXT;
     memoryTag = ARRAY;
+    memorySize = sizeof(TextLoader);
 }
 
 bool TextLoader::load(const String name, Resource &outResource, const String basePath) {

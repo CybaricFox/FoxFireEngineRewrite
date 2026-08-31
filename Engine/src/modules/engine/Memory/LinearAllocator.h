@@ -20,12 +20,12 @@ private:
     unsigned long totalSize = 0;
     unsigned long allocated = 0;
     void* block = nullptr;
-    bool bOwnsMemory = false;
 
 public:
     LinearAllocator() = default;
+    explicit LinearAllocator(const unsigned long size) {initialize(size);}
     ~LinearAllocator();
-    void initialize(unsigned long size, void* memory);
+    void initialize(unsigned long size);
     void shutdown();
 
     void* allocate(unsigned long size);

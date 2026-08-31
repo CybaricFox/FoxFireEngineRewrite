@@ -182,8 +182,8 @@ bool ShaderSystem::applyGlobal() {
     return backendRef->applyShaderGlobals(assets.getData().get(currentShaderId));
 }
 
-bool ShaderSystem::applyInstance() {
-    return backendRef->applyShaderInstance(assets.getData().get(currentShaderId));
+bool ShaderSystem::applyInstance(const bool update) {
+    return backendRef->applyShaderInstance(assets.getData().get(currentShaderId), update);
 }
 
 bool ShaderSystem::bindInstance(const unsigned int instanceId) {

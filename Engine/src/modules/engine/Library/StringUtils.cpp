@@ -194,6 +194,70 @@ unsigned int StringUtils::recursiveSplit(const String &string, const char regex,
     return array.getLength();
 }
 
+bool StringUtils::equalsN(const String &a, const String &b, const unsigned long length) {
+    for (unsigned long i = 0; i < length; i++) {
+        if (a[i] != b[i]) return false;
+    }
+
+    return true;
+}
+
+bool StringUtils::equalsIgnoreCaseN(const String &a, const String &b, const unsigned long n) {
+    if (a.length() < n || b.length() < n) return false;
+
+    const char* ca = a.c_str();
+    const char* cb = b.c_str();
+
+    for (unsigned long i = 0; i < n; i++) {
+        if (std::tolower(static_cast<unsigned char>(ca[i])) !=
+            std::tolower(static_cast<unsigned char>(cb[i]))) {
+            return false;
+            }
+    }
+
+    return true;
+}
+
+String StringUtils::getDirectoryFromPath(const String &path) {
+    //Do not check 0 because /directory/file would return nothing.
+    unsigned int index = path.find('/', 1);
+    if (index == static_cast<unsigned int>(String::npos)) {
+        index = path.find('\\', 1);
+        if (index == static_cast<unsigned int>(String::npos)) {
+            Logger::logWarn("Failed to fetch a directory from the file path: " + path);
+            return "";
+        }
+    }
+
+    return path.substr(0, index);
+}
+
+String StringUtils::getFilenameFromPath(const String &path) {
+    //Do not check 0 because /directory/file would return nothing.
+    unsigned int index = path.find('/', 1);
+    if (index == static_cast<unsigned int>(String::npos)) {
+        index = path.find('\\', 1);
+        if (index == static_cast<unsigned int>(String::npos)) {
+            Logger::logWarn("Failed to fetch a filename from the file path: " + path);
+            return "";
+        }
+    }
+
+    return path.substr(index + 1);
+}
+
+String StringUtils::getFilenameNoExtensionFromPath(const String &path) {
+    const String fileName = getFilenameFromPath(path);
+
+    const unsigned int index = fileName.find_last_of('.');
+    if (index == static_cast<unsigned int>(String::npos)) {
+        Logger::logWarn("Failed to fetch a filename (no extension) from the file path: " + path);
+        return "";
+    }
+
+    return fileName.substr(0, index);
+}
+
 bool StringUtils::stringToLong(const String &string, long &out) {
     try {
         out = std::stol(string);

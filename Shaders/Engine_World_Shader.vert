@@ -33,7 +33,7 @@ void main() {
     mat3 m3_model = mat3(uniform_push_constants.model);
 
     out_dto.tex_coord = in_texcoord;
-    out_dto.normal = m3_model * in_normal;
+    out_dto.normal = normalize(m3_model * in_normal);
     out_dto.ambient = global_ubo.ambient_color;
     out_dto.view_position = global_ubo.view_position;
     out_dto.frag_position = vec3(uniform_push_constants.model * vec4(in_position, 1.0));

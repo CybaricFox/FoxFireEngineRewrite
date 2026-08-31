@@ -458,76 +458,80 @@ bool VulkanBackend::applyShaderGlobals(Shader &shader) {
     return true;
 }
 
-bool VulkanBackend::applyShaderInstance(Shader &shader) {
+bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
     if (!shader.useInstances()) {
         Logger::logError("Cannot apply shader because the shader does not support instances.");
         return false;
     }
 
     auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
-    unsigned int imageIndex = vulkanContext.getImageIndex();
+    const unsigned int imageIndex = vulkanContext.getImageIndex();
     VkCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer().getHandle();
 
     VulkanShaderInstanceState& state = backendShader->getInstanceState(shader.getBoundInstanceId());
     VkDescriptorSet& instanceDescriptor = state.descriptorSetState.descriptorSets[imageIndex];
 
-    VkWriteDescriptorSet descriptorWrites[2]{};
-    unsigned int descriptorCount = 0;
-    unsigned int descriptorIndex = 0;
+    if (update) {
+        VkWriteDescriptorSet descriptorWrites[2]{};
+        unsigned int descriptorCount = 0;
+        unsigned int descriptorIndex = 0;
 
-    unsigned char& instanceGeneration = state.descriptorSetState.descriptorStates[descriptorIndex].generations[imageIndex];
+        unsigned char &instanceGeneration = state.descriptorSetState.descriptorStates[descriptorIndex].generations[
+            imageIndex];
 
-    VkWriteDescriptorSet instanceDescriptorWrite = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    VkDescriptorBufferInfo bufferInfo{};
-    if (instanceGeneration == INVALID_ID_U8) {
-        bufferInfo.buffer = backendShader->getUniformBuffer().getBuffer();
-        bufferInfo.offset = state.offset;
-        bufferInfo.range = shader.getInstanceStride();
+        VkWriteDescriptorSet instanceDescriptorWrite = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        VkDescriptorBufferInfo bufferInfo{};
+        if (instanceGeneration == INVALID_ID_U8) {
+            bufferInfo.buffer = backendShader->getUniformBuffer().getBuffer();
+            bufferInfo.offset = state.offset;
+            bufferInfo.range = shader.getInstanceStride();
 
-        instanceDescriptorWrite.dstSet = instanceDescriptor;
-        instanceDescriptorWrite.dstBinding = descriptorIndex;
-        instanceDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        instanceDescriptorWrite.descriptorCount = 1;
-        instanceDescriptorWrite.pBufferInfo = &bufferInfo;
+            instanceDescriptorWrite.dstSet = instanceDescriptor;
+            instanceDescriptorWrite.dstBinding = descriptorIndex;
+            instanceDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            instanceDescriptorWrite.descriptorCount = 1;
+            instanceDescriptorWrite.pBufferInfo = &bufferInfo;
 
-        descriptorWrites[descriptorCount] = instanceDescriptorWrite;
-        descriptorCount++;
+            descriptorWrites[descriptorCount] = instanceDescriptorWrite;
+            descriptorCount++;
 
-        instanceGeneration = 1;
-    }
-
-    descriptorIndex++;
-
-    VkDescriptorImageInfo imageInfos[VULKAN_SHADER_MAX_GLOBAL_TEXTURES]{};
-    VkWriteDescriptorSet samplerDescriptor{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    if (backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindingCount > 1) {
-        const unsigned int totalSamplerCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[BINDING_INDEX_SAMPLER].descriptorCount;
-        unsigned int updateSamplerCount = 0;
-        for (unsigned int i = 0; i < totalSamplerCount; i++) {
-            const Texture* texture = backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextures[i];
-            if (!texture) {
-                Logger::logFatal("Cannot apply shader instance because texture is null!");
-                continue;
-            }
-            auto* textureData = static_cast<VulkanTextureData *>(texture->data);
-            imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfos[i].imageView = textureData->image.getImageView();
-            imageInfos[i].sampler = textureData->sampler;
-
-            updateSamplerCount++;
+            instanceGeneration = 1;
         }
 
-        samplerDescriptor.dstSet = instanceDescriptor;
-        samplerDescriptor.dstBinding = descriptorIndex;
-        samplerDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        samplerDescriptor.descriptorCount = updateSamplerCount;
-        samplerDescriptor.pImageInfo = imageInfos;
-        descriptorWrites[descriptorCount] = samplerDescriptor;
-        descriptorCount++;
-    }
+        descriptorIndex++;
 
-    if (descriptorCount > 0) {
-        vkUpdateDescriptorSets(vulkanContext.getDevice().getLogicalDevice(), descriptorCount, descriptorWrites, 0, nullptr);
+        VkDescriptorImageInfo imageInfos[VULKAN_SHADER_MAX_GLOBAL_TEXTURES]{};
+        VkWriteDescriptorSet samplerDescriptor{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        if (backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindingCount > 1) {
+            const unsigned int totalSamplerCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[BINDING_INDEX_SAMPLER].descriptorCount;
+            unsigned int updateSamplerCount = 0;
+            for (unsigned int i = 0; i < totalSamplerCount; i++) {
+                const Texture *texture = backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextures[
+                    i];
+                if (!texture) {
+                    Logger::logFatal("Cannot apply shader instance because texture is null!");
+                    continue;
+                }
+                auto *textureData = static_cast<VulkanTextureData *>(texture->data);
+                imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                imageInfos[i].imageView = textureData->image.getImageView();
+                imageInfos[i].sampler = textureData->sampler;
+
+                updateSamplerCount++;
+            }
+
+            samplerDescriptor.dstSet = instanceDescriptor;
+            samplerDescriptor.dstBinding = descriptorIndex;
+            samplerDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            samplerDescriptor.descriptorCount = updateSamplerCount;
+            samplerDescriptor.pImageInfo = imageInfos;
+            descriptorWrites[descriptorCount] = samplerDescriptor;
+            descriptorCount++;
+        }
+
+        if (descriptorCount > 0) {
+            vkUpdateDescriptorSets(vulkanContext.getDevice().getLogicalDevice(), descriptorCount, descriptorWrites, 0,nullptr);
+        }
     }
 
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, backendShader->getPipeline().getPipelineLayout(), 1, 1, &instanceDescriptor, 0, nullptr);
@@ -929,9 +933,8 @@ void VulkanBackend::destroyTexture(Texture &texture) {
     }
 }
 
-bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertexSize, const unsigned int vertexCount,
-    void *vertices, const unsigned int indexSize, const unsigned int indexCount, void *indices) {
-    if (vertexCount == 0 || !vertices) {
+bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertexSize, const unsigned int vertexCount, Vertex* vertices, const unsigned int indexSize, const unsigned int indexCount, void *indices) {
+    if (vertexCount == 0) {
         Logger::logError("No Vertex data was supplied for geometry creation! Vertex Count: " + std::to_string(vertexCount));
         return false;
     }

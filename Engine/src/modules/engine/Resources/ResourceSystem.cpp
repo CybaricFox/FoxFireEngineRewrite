@@ -7,6 +7,7 @@
 #include "EngineLoaders/BinaryLoader.h"
 #include "EngineLoaders/ImageLoader.h"
 #include "EngineLoaders/MaterialLoader.h"
+#include "EngineLoaders/MeshLoader.h"
 #include "EngineLoaders/ShaderLoader.h"
 #include "EngineLoaders/TextLoader.h"
 #include "src/modules/engine/Library/StringUtils.h"
@@ -16,19 +17,20 @@ bool ResourceSystem::initialize(const String &path, const unsigned int initialCa
     assetsPath = path;
 
     //Register engine loaders
-    registerLoader(new ImageLoader{});
-    registerLoader(new MaterialLoader{});
-    registerLoader(new BinaryLoader{});
-    registerLoader(new TextLoader{});
-    registerLoader(new ShaderLoader{});
+    registerLoader(FF_Memory::ff_allocate_class<ImageLoader>(sizeof(ImageLoader), RESOURCE));
+    registerLoader(FF_Memory::ff_allocate_class<MaterialLoader>(sizeof(MaterialLoader), RESOURCE));
+    registerLoader(FF_Memory::ff_allocate_class<BinaryLoader>(sizeof(BinaryLoader), RESOURCE));
+    registerLoader(FF_Memory::ff_allocate_class<TextLoader>(sizeof(TextLoader), RESOURCE));
+    registerLoader(FF_Memory::ff_allocate_class<ShaderLoader>(sizeof(ShaderLoader), RESOURCE));
+    registerLoader(FF_Memory::ff_allocate_class<MeshLoader>(sizeof(MeshLoader), RESOURCE));
 
     Logger::logInfo("Resource system initialized with path: " + assetsPath);
     return true;
 }
 
 void ResourceSystem::shutdown() {
-    for (const ResourceLoader* loader : loaders) {
-        delete loader;
+    for (ResourceLoader* loader : loaders) {
+        FF_Memory::ff_free_class<ResourceLoader>(loader, loader->getMemorySize(), RESOURCE);
     }
     loaders.shutdown();
 }

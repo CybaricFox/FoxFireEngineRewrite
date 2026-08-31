@@ -8,6 +8,7 @@ MaterialLoader::MaterialLoader() {
     type = RESOURCE_TYPE_MATERIAL;
     path = "Materials";
     memoryTag = MATERIAL;
+    memorySize = sizeof(MaterialLoader);
 }
 
 bool MaterialLoader::load(const String name, Resource &outResource, const String basePath) {

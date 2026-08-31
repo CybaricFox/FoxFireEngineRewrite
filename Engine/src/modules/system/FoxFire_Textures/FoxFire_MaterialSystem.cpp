@@ -261,49 +261,51 @@ bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4 *proj
     return true;
 }
 
-bool FoxFire_MaterialSystem::applyInstance(Material &material) const {
+bool FoxFire_MaterialSystem::applyInstance(Material &material, bool update) const {
     if (!shaderRef->bindInstance(material.internalId)) {
         Logger::logError("Failed to bind material.");
         return false;
     }
 
-    if (material.shaderId == materialShaderId) {
-        if (!shaderRef->setUniform(materialLocations.diffuseColor, &material.diffuseColor)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
-        if (!shaderRef->setUniform(materialLocations.diffuseTexture, material.diffuseMap.texture)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
-        if (!shaderRef->setUniform(materialLocations.specularTexture, material.specularMap.texture)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
-        if (!shaderRef->setUniform(materialLocations.normalTexture, material.normalMap.texture)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
-        if (!shaderRef->setUniform(materialLocations.shine, &material.shine)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
+    if (update) {
+        if (material.shaderId == materialShaderId) {
+            if (!shaderRef->setUniform(materialLocations.diffuseColor, &material.diffuseColor)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+            if (!shaderRef->setUniform(materialLocations.diffuseTexture, material.diffuseMap.texture)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+            if (!shaderRef->setUniform(materialLocations.specularTexture, material.specularMap.texture)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+            if (!shaderRef->setUniform(materialLocations.normalTexture, material.normalMap.texture)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+            if (!shaderRef->setUniform(materialLocations.shine, &material.shine)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
 
-    } else if (material.shaderId == uiShaderId) {
-        if (!shaderRef->setUniform(uiShaderLocations.diffuseColor, &material.diffuseColor)) {
-            Logger::logError("Failed to apply instance material.");
+        } else if (material.shaderId == uiShaderId) {
+            if (!shaderRef->setUniform(uiShaderLocations.diffuseColor, &material.diffuseColor)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+            if (!shaderRef->setUniform(uiShaderLocations.diffuseTexture, material.diffuseMap.texture)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+        } else {
+            Logger::logError("Invalid shader id: " + std::to_string(material.shaderId));
             return false;
         }
-        if (!shaderRef->setUniform(uiShaderLocations.diffuseTexture, material.diffuseMap.texture)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
-    } else {
-        Logger::logError("Invalid shader id: " + std::to_string(material.shaderId));
-        return false;
     }
 
-    shaderRef->applyInstance();
+    shaderRef->applyInstance(update);
     return true;
 }
 
