@@ -317,6 +317,7 @@ void Engine::initialize() {
         }
         maxwellMesh->transform = ECSSystem.getComponent<Transform>(maxwell);
         maxwellMesh->transform->position = Vector3f{15, 0, 1};
+        maxwellMesh->transform->bIsDirty = true;
         resourceSystem.unload(maxwellResource);
     }
 

@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "src/modules/engine/Library/JsonHandler.h"
 #include "src/modules/engine/Renderer/IGeometrySystem.h"
 #include "src/modules/engine/Resources/ResourceLoader.h"
 
@@ -105,6 +106,34 @@ struct MeshDataContext {
     unsigned long stride = 0;
 };
 
+struct MeshImage {
+    String mimeType{};
+    String name{};
+    String fileRef{};
+};
+
+struct MeshTexture {
+    unsigned int sampler = INVALID_ID_U32;
+    unsigned int source = INVALID_ID_U32;
+};
+
+struct MeshColorTexture {
+    unsigned int index = INVALID_ID_U32;
+};
+
+struct MeshPBR {
+    MeshColorTexture colorTexture{};
+    int metallic = 0;
+    float roughness = 0;
+};
+
+struct MeshMaterial {
+    bool doubleSided = false;
+    String name{};
+    MeshPBR pbr{};
+    String alphaMode{};
+};
+
 class MeshLoader final : public ResourceLoader{
 private:
     bool importOBJ(FileHandler& file, String& outFileName, DynamicArray<GeometryConfig>& outConfigs);
@@ -113,10 +142,10 @@ private:
 
     MeshDataContext processGLTFObject(const MeshAccessorData &accessorData, const MeshBufferView &bufferView, const MeshBuffer &buffer);
     void processExtents(GeometryConfig &config, const MeshAccessorData &positionData);
-    bool createGLTFMaterial(FileHandler& file);
+    bool createGLTFMaterials(FileHandler &file, JsonHandler &json, DynamicArray<String> &materialNames);
     bool loadFoxMesh(FileHandler& file, DynamicArray<GeometryConfig>& outConfigs);
     bool writeFoxMesh(String path, String name, unsigned int geometryCount, DynamicArray<GeometryConfig> &geometries);
-    bool writeFoxMaterial(String directory, MaterialResourceData& config);
+    bool writeFoxMaterial(const String &directory, const MaterialResourceData& config);
 public:
     MeshLoader();
 

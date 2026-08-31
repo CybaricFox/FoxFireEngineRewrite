@@ -23,12 +23,12 @@
 enum JsonType {
     JSON_UNKNOWN,
     //JSON_NULL,
-    //JSON_BOOL,
+    JSON_BOOL,
     JSON_NUMBER,
     JSON_FLOAT,
     JSON_STRING,
     JSON_ARRAY,
-    JSON_OBJECT
+    JSON_OBJECT,
 };
 
 struct JsonHeader {
@@ -58,7 +58,7 @@ private:
 public:
     explicit JsonHandler(FileHandler& file) : file(file) {beginParse();}
 
-    DynamicArray<JsonObject>* getArray(const String& name, JsonObject* object = nullptr, bool isOptional = false) {
+    DynamicArray<JsonObject>* getArray(const String& name, JsonObject* object = nullptr, const bool isOptional = false) {
         if (object == nullptr) object = &root;
         for (unsigned int i = 0; i < object->keys.getLength(); i++) {
             if (object->keys[i].name == name && object->keys[i].type == JSON_ARRAY) {
@@ -80,7 +80,7 @@ public:
         Logger::logError("Cannot find a json attribute with the expected type and name: " + name);
         return nullptr;
     }
-    String getString(const String &name, JsonObject* object = nullptr) {
+    String getString(const String &name, JsonObject* object = nullptr, const bool isOptional = false) {
         if (object == nullptr) object = &root;
         for (unsigned int i = 0; i < object->keys.getLength(); i++) {
             if (object->keys[i].name == name && object->keys[i].type == JSON_STRING) {
@@ -88,7 +88,7 @@ public:
             }
         }
 
-        Logger::logError("Cannot find a json attribute with the expected type and name: " + name);
+        if (!isOptional) Logger::logError("Cannot find a json attribute with the expected type and name: " + name);
         return "";
     }
     float getFloat(const String &name, JsonObject* object = nullptr) {
@@ -116,6 +116,25 @@ public:
         }
 
         return INVALID_ID_U32 / 2;
+    }
+
+    /**
+     * @brief Fetches a bool value from a json object.
+     * @param name Name of the json entry
+     * @param boolOut The bool value if it exists
+     * @param object The JsonObject to grab from
+     * @return True if the value exists, false if it does not
+     */
+    bool getBool(const String &name, bool& boolOut, JsonObject* object = nullptr) {
+        if (object == nullptr) object = &root;
+        for (unsigned int i = 0; i < object->keys.getLength(); i++) {
+            if (object->keys[i].name == name && object->keys[i].type == JSON_BOOL) {
+                boolOut = *static_cast<bool*>(object->values[i]);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     void beginParse();

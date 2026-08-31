@@ -192,8 +192,12 @@ bool MeshLoader::importOBJ(FileHandler &file, String &outFileName, DynamicArray<
 bool MeshLoader::importGLTF(FileHandler &file, String fileName, DynamicArray<GeometryConfig> &resourceData) {
     JsonHandler json{file};
 
-    //DynamicArray<JsonObject>& rawMaterials = *json.getArray("materials");
-    //Material processing would go here
+    //Materials
+    DynamicArray<String> materialNames{0};
+    if (!createGLTFMaterials(file, json, materialNames)) {
+        Logger::logError("Failed to create glTF materials for: " + fileName);
+        return false;
+    }
 
     //Process Mesh Data
     DynamicArray<JsonObject>& rawMeshes = *json.getArray("meshes");
@@ -370,6 +374,9 @@ bool MeshLoader::importGLTF(FileHandler &file, String fileName, DynamicArray<Geo
             GeometryConfig &config = *resourceData.emplace();
             processExtents(config, positionAccessor);
 
+            //Materials
+            config.materialName = materialNames[primitive.materialIndex];
+
             //Vertices
             config.vertices.initialize<Vertex3d>(positionAccessor.count);
             for (unsigned int i = 0; i < positionAccessor.count; i++) {
@@ -395,6 +402,7 @@ bool MeshLoader::importGLTF(FileHandler &file, String fileName, DynamicArray<Geo
                 } else {
                     float texCoord[2]{};
                     FF_Memory::ff_copy(texCoord, texCoordAddress, sizeof(float) * 2);
+                    texCoord[1] = 1 - texCoord[1]; //Invert the texCoord since all textures are inverted
                     vertex.textureCoordinate = {texCoord[0], texCoord[1]};
                 }
 
@@ -606,11 +614,158 @@ void MeshLoader::processExtents(GeometryConfig &config, const MeshAccessorData& 
     }
 }
 
+bool MeshLoader::createGLTFMaterials(FileHandler &file, JsonHandler& json, DynamicArray<String> &materialNames) {
+    DynamicArray<JsonObject>& rawImages = *json.getArray("images");
+    DynamicArray<MeshImage> images{rawImages.getLength()};
+
+    for (unsigned long i = 0; i < rawImages.getLength(); i++) {
+        MeshImage& image = *images.emplace();
+        JsonObject& rawImage = rawImages[i];
+
+        image.mimeType = json.getString("mimeType", &rawImage);
+        image.name = json.getString("name", &rawImage);
+        image.fileRef = json.getString("uri", &rawImage);
+    }
+
+    DynamicArray<JsonObject>& rawTextures = *json.getArray("textures");
+    DynamicArray<MeshTexture> textures{rawTextures.getLength()};
+
+    for (unsigned long i = 0; i < rawTextures.getLength(); i++) {
+        MeshTexture& texture = *textures.emplace();
+        JsonObject& rawTexture = rawTextures[i];
+
+        texture.sampler = json.getInt("sampler", &rawTexture);
+        texture.source = json.getInt("source", &rawTexture);
+    }
+
+    DynamicArray<JsonObject>& rawMaterials = *json.getArray("materials");
+    DynamicArray<MeshMaterial> materials{rawMaterials.getLength()};
+
+    for (unsigned int i = 0; i < rawMaterials.getLength(); i++) {
+        JsonObject& rawMaterial = rawMaterials[i];
+        JsonObject& rawPBR = *json.getObject("pbrMetallicRoughness", &rawMaterial);
+        JsonObject& rawColorTexture = *json.getObject("baseColorTexture", &rawPBR);
+        MeshMaterial& material = *materials.emplace();
+
+        material.alphaMode = json.getString("alphaMode", &rawMaterial, true);
+        json.getBool("doubleSided", material.doubleSided, &rawMaterial);
+        material.name = json.getString("name", &rawMaterial);
+        material.pbr.colorTexture.index = json.getInt("index", &rawColorTexture);
+        material.pbr.metallic = json.getInt("metallicFactor", &rawPBR);
+        material.pbr.roughness = json.getFloat("roughnessFactor", &rawPBR);
+    }
+
+    //Create materials
+    for (unsigned int i = 0; i < materials.getLength(); i++) {
+        //Skip this step if the material file already exists
+        if (file.exists("Assets/Materials/" + images[i].name + "_Material.FoxMaterial")) continue;
+
+        MaterialResourceData materialResourceData{};
+        unsigned int textureIndex = materials[i].pbr.colorTexture.index;
+        MeshTexture& texture = textures[textureIndex];
+        MeshImage& image = images[texture.source];
+        String name = image.fileRef;
+        unsigned int index = name.find('.');
+        name = name.substr(0, index);
+
+
+        materialResourceData.name = name + "_Material";
+        materialResourceData.diffuseName = name;
+        materialResourceData.specularName = name + "_SPEC";
+        materialResourceData.normalName = name + "_NORM";
+        materialResourceData.diffuseColor = createVector4f(0, 0, 0, 1);
+        materialResourceData.bAutoRelease = true;
+        materialResourceData.shine = 8; //GLTF does not contain this. Default it to 8.
+        materialResourceData.shaderName = "Fox_Fire_Material_Shader"; //Default material shader
+
+        writeFoxMaterial("Assets/Materials", materialResourceData);
+        materialNames.push(materialResourceData.name);
+    }
+
+    return true;
+}
+
 bool MeshLoader::loadFoxMesh(FileHandler &file, DynamicArray<GeometryConfig> &outConfigs) {
     return true;
 }
 
 bool MeshLoader::writeFoxMesh(String path, String name, unsigned int geometryCount, DynamicArray<GeometryConfig>& geometries) {
+    return true;
+}
+
+bool MeshLoader::writeFoxMaterial(const String &directory, const MaterialResourceData &config) {
+    FileHandler file{};
+
+    const String finalPath = directory + "/" + config.name + ".FoxMaterial";
+    if (!file.openFile(finalPath, WRITE, false)) {
+        Logger::logError("Failed to create file: " + finalPath);
+        return false;
+    }
+
+    bool result = file.writeLine("#Comment");
+    if (!result) {
+        Logger::logError("Failed to write file: " + finalPath);
+        file.closeFile();
+        return false;
+    }
+    result = file.writeLine(" ");
+    if (!result) {
+        Logger::logError("Failed to write file: " + finalPath);
+        file.closeFile();
+        return false;
+    }
+    result = file.writeLine("version = 1.0.0");
+    if (!result) {
+        Logger::logError("Failed to write file: " + finalPath);
+        file.closeFile();
+        return false;
+    }
+    result = file.writeLine("name = " + config.name);
+    if (!result) {
+        Logger::logError("Failed to write file: " + finalPath);
+        file.closeFile();
+        return false;
+    }
+    String diffuseString{};
+    vector4fToString(diffuseString, config.diffuseColor);
+    result = file.writeLine("diffuse_color = " + diffuseString);
+    if (!result) {
+        Logger::logError("Failed to write file: " + finalPath);
+        file.closeFile();
+        return false;
+    }
+    result = file.writeLine("shine = " + std::to_string(config.shine));
+    if (!result) {
+        Logger::logError("Failed to write file: " + finalPath);
+        file.closeFile();
+        return false;
+    }
+    result = file.writeLine("diffuse_map_name = " + config.diffuseName);
+    if (!result) {
+        Logger::logError("Failed to write file: " + finalPath);
+        file.closeFile();
+        return false;
+    }
+    result = file.writeLine("specular_map_name = " + config.specularName);
+    if (!result) {
+        Logger::logError("Failed to write file: " + finalPath);
+        file.closeFile();
+        return false;
+    }
+    result = file.writeLine("normal_map_name = " + config.normalName);
+    if (!result) {
+        Logger::logError("Failed to write file: " + finalPath);
+        file.closeFile();
+        return false;
+    }
+    result = file.writeLine("shader = " + config.shaderName);
+    if (!result) {
+        Logger::logError("Failed to write file: " + finalPath);
+        file.closeFile();
+        return false;
+    }
+
+    file.closeFile();
     return true;
 }
 

@@ -134,11 +134,18 @@ void JsonHandler::parseValue(JsonHeader& header, JsonObject& object, String& val
             return;
         }
         default: {
+            bool boolValue = false;
+            const bool result = StringUtils::stringToBool(value, boolValue);
             unsigned int index = value.find('.');
 
-            if (index == static_cast<unsigned int>(String::npos)) {
+            if (result) {
+                header.type = JSON_BOOL;
+                const auto boolOut = static_cast<bool *>(FF_Memory::ff_allocate(sizeof(bool), DYNAMIC_ARRAY));
+                *boolOut = boolValue;
+                object.values.push(boolOut);
+            } else if (index == static_cast<unsigned int>(String::npos)) {
                 header.type = JSON_NUMBER;
-                auto intValue = static_cast<int *>(FF_Memory::ff_allocate(sizeof(int), DYNAMIC_ARRAY));
+                const auto intValue = static_cast<int *>(FF_Memory::ff_allocate(sizeof(int), DYNAMIC_ARRAY));
                 StringUtils::stringToInt(value, *intValue);
                 object.values.push(intValue);
             } else {

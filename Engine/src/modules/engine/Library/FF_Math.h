@@ -464,6 +464,16 @@ inline bool stringToVector4f(const String &string, Vector4f& out) {
     const int result = sscanf(string.c_str(), "%f %f %f %f", &out.x, &out.y, &out.z, &out.w);
     return result != -1;
 }
+inline void vector4fToString(String& outString, const Vector4f vector) {
+    outString.clear();
+    outString.append(std::to_string(vector.x));
+    outString.append(" ");
+    outString.append(std::to_string(vector.y));
+    outString.append(" ");
+    outString.append(std::to_string(vector.z));
+    outString.append(" ");
+    outString.append(std::to_string(vector.w));
+}
 inline bool stringToVector3f(const String &string, Vector3f& out) {
     FF_Memory::ff_clear(&out, sizeof(Vector3f));
     const int result = sscanf(string.c_str(), "%f %f %f", &out.x, &out.y, &out.z);
