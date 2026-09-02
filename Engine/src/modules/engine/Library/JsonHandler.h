@@ -52,11 +52,14 @@ private:
     void parseObject(JsonHeader *header, JsonObject &object);
     void parseArray(JsonHeader &header, JsonObject &object);
     void parseValue(JsonHeader &header, JsonObject &object, String &value);
-
     void logJsonObject(JsonObject& object);
+    void shutdownJsonObject(JsonObject& object);
+    void shutdownJsonArray(DynamicArray<JsonObject>& array);
+    void shutdownJsonValue(const JsonHeader& header, void* value);
 
 public:
     explicit JsonHandler(FileHandler& file) : file(file) {beginParse();}
+    void shutdown();
 
     DynamicArray<JsonObject>* getArray(const String& name, JsonObject* object = nullptr, const bool isOptional = false) {
         if (object == nullptr) object = &root;

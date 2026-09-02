@@ -32,22 +32,6 @@ struct MeshFileContext {
     bool bIsBinary = false;
 };
 
-struct MeshVertexData {
-    unsigned int positionIndex = INVALID_ID_U32;
-    unsigned int normalIndex = INVALID_ID_U32;
-    unsigned int texcoordIndex = INVALID_ID_U32;
-};
-
-struct MeshFaceData {
-    MeshVertexData vertices[3]{};
-};
-
-struct MeshGroupData {
-    DynamicArray<MeshFaceData> faces{};
-};
-
-
-
 enum GLTFType {
     GLTF_TYPE_UNKNOWN,
     GLTF_TYPE_VEC3,
@@ -136,9 +120,7 @@ struct MeshMaterial {
 
 class MeshLoader final : public ResourceLoader{
 private:
-    bool importOBJ(FileHandler& file, String& outFileName, DynamicArray<GeometryConfig>& outConfigs);
-    bool importGLTF(FileHandler &file, String fileName, DynamicArray<GeometryConfig>& resourceData);
-    void processObject(DynamicArray<Vector3f> &positions, DynamicArray<Vector3f> &normals, DynamicArray<Vector2f> &texcoords, DynamicArray<MeshFaceData> &faces, GeometryConfig &outConfig);
+    bool importGLTF(FileHandler &file, const String& fileName, DynamicArray<GeometryConfig>& resourceData);
 
     MeshDataContext processGLTFObject(const MeshAccessorData &accessorData, const MeshBufferView &bufferView, const MeshBuffer &buffer);
     void processExtents(GeometryConfig &config, const MeshAccessorData &positionData);

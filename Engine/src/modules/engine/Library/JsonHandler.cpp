@@ -4,6 +4,7 @@
 
 #include "JsonHandler.h"
 
+#include <array>
 #include <bits/locale_facets_nonio.h>
 
 #include "StringUtils.h"
@@ -204,6 +205,63 @@ void JsonHandler::logJsonObject(JsonObject &object) {
         outputString.clear();
     }
     Logger::logDebug("}");
+}
+
+void JsonHandler::shutdownJsonObject(JsonObject &object) {
+    unsigned int i = 0;
+    for (const JsonHeader& header : object.keys) {
+        if (header.type == JSON_OBJECT) {
+            shutdownJsonObject(*static_cast<JsonObject *>(object.values[i]));
+            FF_Memory::ff_free_class<JsonObject>(object.values[i], sizeof(JsonObject), DYNAMIC_ARRAY);
+        } else if (header.type == JSON_ARRAY) {
+            DynamicArray<JsonObject>& array = *static_cast<DynamicArray<JsonObject>*>(object.values[i]);
+            shutdownJsonArray(array);
+        } else {
+            shutdownJsonValue(header, object.values[i]);
+        }
+        i++;
+    }
+
+    object.values.shutdown();
+    object.keys.shutdown();
+}
+
+void JsonHandler::shutdownJsonArray(DynamicArray<JsonObject> &array) {
+    for (JsonObject& object : array) {
+        shutdownJsonObject(object);
+    }
+
+    FF_Memory::ff_free_class<DynamicArray<JsonObject>>(&array, sizeof(DynamicArray<JsonObject>), DYNAMIC_ARRAY);
+}
+
+void JsonHandler::shutdownJsonValue(const JsonHeader &header, void *value) {
+    switch (header.type) {
+        case JSON_NUMBER: {
+            FF_Memory::ff_free(value, sizeof(int), DYNAMIC_ARRAY);
+            break;
+        }
+        case JSON_FLOAT: {
+            FF_Memory::ff_free(value, sizeof(float), DYNAMIC_ARRAY);
+            break;
+        }
+        case JSON_STRING: {
+            FF_Memory::ff_free_class<String>(value, sizeof(String), DYNAMIC_ARRAY);
+            break;
+        }
+        case JSON_BOOL: {
+            FF_Memory::ff_free(value, sizeof(bool), DYNAMIC_ARRAY);
+            break;
+        }
+        default: {
+            Logger::logError("Json Shutdown Value failed to recognize type! Memory will leak!");
+            break;
+        }
+    }
+}
+
+
+void JsonHandler::shutdown() {
+    shutdownJsonObject(root);
 }
 
 void JsonHandler::beginParse() {

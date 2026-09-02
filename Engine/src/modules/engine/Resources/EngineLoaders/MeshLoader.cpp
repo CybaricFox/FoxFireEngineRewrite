@@ -6,190 +6,7 @@
 
 #include "src/modules/engine/Library/JsonHandler.h"
 
-bool MeshLoader::importOBJ(FileHandler &file, String &outFileName, DynamicArray<GeometryConfig> &outConfigs) {
-    DynamicArray<Vector3f> positions{16384}; //vertex positions
-    DynamicArray<Vector3f> normals{16384}; // vertex normals
-    DynamicArray<Vector2f> texCoords{16384}; //vertex texture coordinates
-    DynamicArray<MeshGroupData> groups{4}; //Faces
-    String materialName{}; //name of the obj mat file
-    String name{}; //name of the gltf file
-    String materialNames[32]{}; //name of all materials discovered in the gltf file
-    unsigned char currentMaterialNameCount = 0;
-    String line{}; //The data contained in this line
-    unsigned long outBytes = 0;
-
-    //[0] is first char of the previous line
-    //[1] is first char of the line before [0]
-    char previousFirst[2] = {0, 0};
-
-    //Read every line
-    while (file.readLine(line, 511, outBytes)) {
-        if (outBytes == 0) continue; //line is blank
-
-        char first = line[0];
-
-        switch (first) {
-            case '#': continue; //ignore comments
-            case 'v': { //Vertex in obj
-                switch (line[1]) {
-                    case ' ': { //position
-                        Vector3f pos{};
-                        char t[2]{};
-                        sscanf(line.c_str(), "%s %f %f %f", t, &pos.x, &pos.y, &pos.z);
-                        positions.push(pos);
-                        break;
-                    }
-                    case 'n': {
-                        Vector3f normal{};
-                        char t[2]{};
-                        sscanf(line.c_str(), "%s %f %f %f", t, &normal.x, &normal.y, &normal.z);
-                        normals.push(normal);
-                        break;
-                    }
-                    case 't': {
-                        Vector2f texCoord{};
-                        char t[2]{};
-                        sscanf(line.c_str(), "%s %f %f", t, &texCoord.x, &texCoord.y);
-                        texCoords.push(texCoord);
-                        break;
-                    }
-                    default: break;
-                }
-                break;
-            }
-            case 's': {
-                break;
-            }
-            case 'f': {
-                MeshFaceData face{};
-                char t[2]{};
-                unsigned long normalCount = normals.getLength();
-                unsigned long texCoordCount = texCoords.getLength();
-
-                if (normalCount == 0 || texCoordCount == 0) {
-                    sscanf(line.c_str(), "%s %d %d %d", t, &face.vertices[0].positionIndex, &face.vertices[1].positionIndex, &face.vertices[2].positionIndex);
-                } else {
-                    sscanf(line.c_str(), "%s %d/%d/%d %d/%d/%d %d/%d/%d", t,
-                        &face.vertices[0].positionIndex, &face.vertices[0].texcoordIndex, &face.vertices[0].normalIndex,
-                        &face.vertices[1].positionIndex, &face.vertices[1].texcoordIndex, &face.vertices[1].normalIndex,
-                        &face.vertices[2].positionIndex, &face.vertices[2].texcoordIndex, &face.vertices[2].normalIndex);
-                }
-
-                unsigned long groupIndex = groups.getLength() - 1;
-                groups[groupIndex].faces.push(face);
-                break;
-            }
-            case 'm': {
-                String subString{};
-
-                char sub[512]{};
-                char charName[512]{};
-
-                sscanf(line.c_str(), "%s %s", sub, charName);
-                subString = sub;
-                materialName = charName;
-
-                if (StringUtils::equalsIgnoreCaseN(subString, "mtllib", 6)) {
-                    //Do Nothing for now
-                }
-                break;
-            }
-            case 'u': {
-                MeshGroupData& newGroup = *groups.emplace();
-                newGroup.faces.initialize(16384);
-
-                char t[8]{};
-                char matName[512]{};
-                sscanf(line.c_str(), "%s %s", t, matName);
-                materialNames[currentMaterialNameCount] = matName;
-                currentMaterialNameCount++;
-                break;
-            }
-            case 'g': {
-                for (unsigned long i = 0; i < groups.getLength(); i++) {
-                    GeometryConfig& newConfig = *outConfigs.emplace();
-                    newConfig.name = name;
-
-                    //Prevents duplicates
-                    if (i > 0) {
-                        newConfig.name.append(reinterpret_cast<const char *>(i));
-                    }
-
-                    newConfig.materialName = materialName;
-
-                    processObject(positions, normals, texCoords, groups[i].faces, newConfig);
-
-                    groups[i].faces.shutdown();
-                    materialNames[i].clear();
-                }
-
-                currentMaterialNameCount = 0;
-                groups.clear();
-                name.clear();
-
-                char nameBuffer[512]{};
-                char t[2]{};
-                sscanf(line.c_str(), "%s %s", t, nameBuffer);
-                name = nameBuffer;
-                break;
-            }
-            default: break;
-        }
-
-        previousFirst[1] = previousFirst[0];
-        previousFirst[0] = first;
-    }
-    //Finished reading the file
-
-    for (unsigned long i = 0; i < groups.getLength(); i++) {
-        GeometryConfig& newConfig = *outConfigs.emplace();
-        newConfig.name = name;
-
-        //Prevents duplicates
-        if (i > 0) {
-            newConfig.name.append(reinterpret_cast<const char *>(i));
-        }
-
-        newConfig.materialName = materialName;
-
-        processObject(positions, normals, texCoords, groups[i].faces, newConfig);
-
-        groups[i].faces.shutdown();
-    }
-
-    groups.shutdown();
-    positions.shutdown();
-    normals.shutdown();
-    texCoords.shutdown();
-
-    if (!materialName.empty()) {
-        String fullPath = StringUtils::getDirectoryFromPath(outFileName);
-
-        //Get material file in obj
-    }
-
-    //De-duplicate geometry
-    for (unsigned int i = 0; i < outConfigs.getLength(); i++) {
-        GeometryConfig& config = outConfigs[i];
-        Logger::logDebug("Geoemetry Dedupe began for " + config.name);
-
-        unsigned int newVertexCount = 0;
-        DynamicArray<Vertex3d> uniqueVertices{};
-        GeometryUtils::filterVertices(config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getCount(), config.indices.getIndex(0), newVertexCount, uniqueVertices);
-
-        //Reset the configs vertices and replace them with the new data
-        config.vertices.shutdown();
-        config.vertices.initialize<Vertex3d>(newVertexCount);
-        for (unsigned int j = 0; j < newVertexCount; j++) {
-            config.vertices.setVertex(&uniqueVertices[j], j);
-        }
-    }
-
-    //In the future, this will write a FoxMesh file from the gltf file.
-    return writeFoxMesh(outFileName, name, outConfigs.getLength(), outConfigs);
-}
-
-bool MeshLoader::importGLTF(FileHandler &file, String fileName, DynamicArray<GeometryConfig> &resourceData) {
+bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicArray<GeometryConfig> &resourceData) {
     JsonHandler json{file};
 
     //Materials
@@ -467,95 +284,22 @@ bool MeshLoader::importGLTF(FileHandler &file, String fileName, DynamicArray<Geo
             GeometryUtils::generateTangents(config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getCount(), config.indices.getIndex(0));
         }
     }
-    return true;
-}
 
-void MeshLoader::processObject(DynamicArray<Vector3f>& positions, DynamicArray<Vector3f>& normals, DynamicArray<Vector2f>& texcoords, DynamicArray<MeshFaceData>& faces, GeometryConfig &outConfig) {
-    DynamicArray<unsigned int> newIndices{0};
-    DynamicArray<Vertex3d> newVertices{0};
-    bool extentSet = false;
-    unsigned long faceCount = faces.getLength();
-    unsigned long normalCount = normals.getLength();
-    unsigned long texCoordCount = texcoords.getLength();
-    bool skipNormals = false;
-    bool skipTexCoords = false;
+    json.shutdown();
 
-    if (normalCount == 0) {
-        Logger::logWarn("No normals are present in this model.");
-        skipNormals = true;
-    }
-    if (texCoordCount == 0) {
-        Logger::logWarn("No texCoords are present in this model.");
-        skipTexCoords = true;
-    }
-
-    for (unsigned long f = 0; f < faceCount; f++) {
-        MeshFaceData& face = faces[f];
-
-        for (unsigned long i = 0; i < 3; i++) {
-            MeshVertexData indexData = face.vertices[i];
-            Vertex3d vertex{};
-
-            newIndices.push(i + (f * 3));
-
-            Vector3f position = positions[indexData.positionIndex - 1];
-            vertex.position = position;
-
-            if (position.x < outConfig.minExtent.x || !extentSet) {
-                outConfig.minExtent.x = position.x;
-            }
-            if (position.y < outConfig.minExtent.y || !extentSet) {
-                outConfig.minExtent.y = position.y;
-            }
-            if (position.z < outConfig.minExtent.z || !extentSet) {
-                outConfig.minExtent.z = position.z;
-            }
-
-            if (position.x > outConfig.maxExtent.x || !extentSet) {
-                outConfig.maxExtent.x = position.x;
-            }
-            if (position.y > outConfig.maxExtent.y || !extentSet) {
-                outConfig.maxExtent.y = position.y;
-            }
-            if (position.z > outConfig.maxExtent.z || !extentSet) {
-                outConfig.maxExtent.z = position.z;
-            }
-
-            extentSet = true;
-
-            if (skipNormals) {
-                vertex.normal = {0, 0, 1};
-            } else {
-                vertex.normal = normals[indexData.normalIndex - 1];
-            }
-
-            if (skipTexCoords) {
-                vertex.textureCoordinate = zeroVector2f();
-            } else {
-                vertex.textureCoordinate = texcoords[indexData.texcoordIndex - 1];
-            }
-
-            vertex.color = oneVector4f();
-            newVertices.push(vertex);
+    for (MeshSceneData& mesh : meshes) {
+        for (MeshPrimitiveData& primitive : mesh.primitives) {
+            primitive.texcoordIndexes.shutdown();
         }
+
+        mesh.primitives.shutdown();
     }
 
-    for (unsigned char i = 0; i < 3; i++) {
-        outConfig.center.elements[i] = (outConfig.minExtent.elements[i] + outConfig.maxExtent.elements[i]) / 2;
+    for (MeshBuffer& buffer : buffers) {
+        FF_Memory::ff_free(buffer.data, buffer.byteSize, RESOURCE);
     }
 
-    outConfig.vertices.initialize<Vertex3d>(newVertices.getLength());
-    for (unsigned long i = 0; i < newVertices.getLength(); i++) {
-        outConfig.vertices.setVertex(&newVertices[i], i);
-    }
-    outConfig.indices.initialize<unsigned int>(newIndices.getLength());
-    for (unsigned long i = 0; i < newIndices.getLength(); i++) {
-        outConfig.indices.setIndex(newIndices[i], i);
-    }
-    newVertices.shutdown();
-    newIndices.shutdown();
-
-    GeometryUtils::generateTangents(outConfig.vertices.getCount(), outConfig.vertices.getVertex(0), outConfig.indices.getCount(), outConfig.indices.getIndex(0));
+    return writeFoxMesh(fileName, StringUtils::getFilenameFromPath(fileName), resourceData.getLength(), resourceData);
 }
 
 MeshDataContext MeshLoader::processGLTFObject(const MeshAccessorData &accessorData, const MeshBufferView &bufferView, const MeshBuffer &buffer) {
