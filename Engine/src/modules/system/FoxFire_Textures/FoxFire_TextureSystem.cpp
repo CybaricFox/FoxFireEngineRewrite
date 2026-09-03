@@ -87,6 +87,7 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
     defaultDiffuseTexture.channelCount = 4;
     defaultDiffuseTexture.generation = INVALID_ID_U32;
     defaultDiffuseTexture.bIsTransparent = false;
+    defaultDiffuseTexture.bIsWritable = false;
     backendRef->createTexture(diffusePixels, defaultDiffuseTexture);
 
     unsigned char specularPixels[16 * 16 * 4];
@@ -97,6 +98,7 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
     defaultSpecularTexture.channelCount = 4;
     defaultSpecularTexture.generation = INVALID_ID_U32;
     defaultSpecularTexture.bIsTransparent = false;
+    defaultSpecularTexture.bIsWritable = false;
     backendRef->createTexture(specularPixels, defaultSpecularTexture);
 
     unsigned char normalPixels[16 * 16 * 4];
@@ -118,6 +120,7 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
     defaultNormalTexture.channelCount = 4;
     defaultNormalTexture.generation = INVALID_ID_U32;
     defaultNormalTexture.bIsTransparent = false;
+    defaultNormalTexture.bIsWritable = false;
     backendRef->createTexture(normalPixels, defaultNormalTexture);
 
     return true;
@@ -160,6 +163,7 @@ bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName
     tempTexture.name = fileName;
     tempTexture.generation = INVALID_ID_U32;
     tempTexture.bIsTransparent = isTransparent;
+    tempTexture.bIsWritable = false;
 
     backendRef->createTexture(resourceData->pixels, tempTexture);
     destroyTexture(texture);

@@ -12,5 +12,5 @@ struct Transform final : EntityComponentWrapper<Transform> {
     Vector3f scale = oneVector3f();
     bool bIsDirty = false;
     Mat4 local = matrixIdentity();
-    Transform* parent = nullptr;
+    unsigned int parent = INVALID_ID_U32;
 };

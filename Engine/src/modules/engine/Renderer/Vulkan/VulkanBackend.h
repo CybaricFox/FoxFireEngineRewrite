@@ -21,7 +21,6 @@
 
 struct VulkanTextureData {
     VulkanImage image{};
-    VkSampler sampler{};
 };
 
 class VulkanBackend final : public IRendererBackend{
@@ -47,6 +46,8 @@ private:
     bool freeRangeOfData(VulkanBuffer &buffer, unsigned long offset, unsigned long size);
     bool createBuffers();
     bool createModule(const VulkanShaderStageConfig &config, VulkanShaderStage &stage) const;
+    VkSamplerAddressMode convertTextureRepeatToVulkan(const String &axis, TextureRepeat repeat);
+    VkFilter convertTextureFilterToVulkan(const String &op, TextureFilter filter);
 public:
     VulkanBackend() = default;
     ~VulkanBackend() override;
@@ -79,8 +80,10 @@ public:
     bool setUniform(Shader &shader, ShaderUniform &uniform, void *value) override;
     bool applyShaderGlobals(Shader &shader) override;
     bool applyShaderInstance(Shader &shader, bool update) override;
-    bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture) override;
+    bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap* maps[]) override;
     bool releaseInstanceResources(const Shader &shader, unsigned int instanceId) override;
+    bool acquireTextureMapResources(TextureMap &textureMap) override;
+    void releaseTextureMapResources(TextureMap &textureMap) override;
 
     bool getRenderpassId(String name, unsigned char &outId) override;
 };

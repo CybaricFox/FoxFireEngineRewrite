@@ -267,7 +267,24 @@ bool ShaderSystem::addSampler(Shader &shader, const ShaderUniformConfig &uniform
             return false;
         }
         location = globalTextureCount;
-        shader.addGlobalTexture(textureSystemRef->getDefaultDiffuseTexture());
+
+        //Create default texture map
+        TextureMap defaultMap{};
+        defaultMap.filterMag = TEXTURE_FILTER_BILINEAR;
+        defaultMap.filterMin = TEXTURE_FILTER_BILINEAR;
+        defaultMap.repeatU = TEXTURE_REPEAT;
+        defaultMap.repeatV = TEXTURE_REPEAT;
+        defaultMap.repeatW = TEXTURE_REPEAT;
+        defaultMap.use = TEXTURE_USE_UNKNOWN;
+        if (!backendRef->acquireTextureMapResources(defaultMap)) {
+            Logger::logError("Failed to acquire global texture map resources during shader creation.");
+            return false;
+        }
+        const auto map = static_cast<TextureMap *>(FF_Memory::ff_allocate(sizeof(TextureMap), RENDER));
+        *map = defaultMap;
+        map->texture = &textureSystemRef->getDefaultDiffuseTexture();
+        shader.addGlobalTextureMap(map);
+
     } else {
         if (shader.getInstanceTextureCount() + 1 > config.maxInstanceTextures) {
            Logger::logError("Shader instance texture count exceeds " + std::to_string(config.maxInstanceTextures));
@@ -372,6 +389,7 @@ bool ShaderSystem::isUniformStateValid(const Shader &shader) {
 void ShaderSystem::destroyShader(Shader &shader) const {
     backendRef->destroyShader(shader);
     shader.setState(SHADER_STATE_NOT_CREATED);
+    shader.destroyTextureMaps();
     shader.clearName();
 }
 

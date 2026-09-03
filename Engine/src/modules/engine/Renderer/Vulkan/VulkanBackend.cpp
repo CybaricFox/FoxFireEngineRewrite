@@ -407,9 +407,9 @@ bool VulkanBackend::setUniform(Shader &shader, ShaderUniform &uniform, void *val
 
     if (uniform.type == SHADER_UNIFORM_TYPE_SAMPLER) {
         if (uniform.scope == SHADER_SCOPE_GLOBAL) {
-            shader.setUniformTexture(uniform.location, *static_cast<Texture*>(value));
+            shader.setTextureMap(uniform.location, static_cast<TextureMap*>(value));
         } else {
-            backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextures[uniform.location] = static_cast<Texture *>(value);
+            backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextureMaps[uniform.location] = static_cast<TextureMap*>(value);
         }
     } else {
         if (uniform.scope == SHADER_SCOPE_LOCAL) {
@@ -506,16 +506,16 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
             const unsigned int totalSamplerCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[BINDING_INDEX_SAMPLER].descriptorCount;
             unsigned int updateSamplerCount = 0;
             for (unsigned int i = 0; i < totalSamplerCount; i++) {
-                const Texture *texture = backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextures[
-                    i];
+                const TextureMap* map = backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextureMaps[i];
+                const Texture* texture = map->texture;
                 if (!texture) {
                     Logger::logFatal("Cannot apply shader instance because texture is null!");
                     continue;
                 }
-                auto *textureData = static_cast<VulkanTextureData *>(texture->data);
+                auto textureData = static_cast<VulkanTextureData *>(texture->data);
                 imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 imageInfos[i].imageView = textureData->image.getImageView();
-                imageInfos[i].sampler = textureData->sampler;
+                imageInfos[i].sampler = static_cast<VkSampler>(map->data);
 
                 updateSamplerCount++;
             }
@@ -892,29 +892,6 @@ void VulkanBackend::createTexture(const unsigned char *pixels, Texture &texture)
     tempBuffer.endSingleUseCommandBuffer(queue, vulkanContext.getDevice());
     staging.destroyBuffer(vulkanContext.getDevice());
 
-    VkSamplerCreateInfo samplerCreateInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-    samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
-    samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
-    samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerCreateInfo.anisotropyEnable = VK_TRUE;
-    samplerCreateInfo.maxAnisotropy = 16;
-    samplerCreateInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerCreateInfo.compareEnable = VK_FALSE;
-    samplerCreateInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerCreateInfo.mipLodBias = 0.0f;
-    samplerCreateInfo.minLod = 0.0f;
-    samplerCreateInfo.maxLod = 0.0f;
-
-    VkResult result = vkCreateSampler(vulkanContext.getDevice().getLogicalDevice(), &samplerCreateInfo, nullptr, &data->sampler);
-    if (!VulkanUtils::vulkanCheck(result)) {
-        Logger::logError("Error creating texture sample: " + VulkanUtils::getResultAsString(result, true));
-        return;
-    }
-
     texture.generation++;
 }
 
@@ -926,8 +903,6 @@ void VulkanBackend::destroyTexture(Texture &texture) {
 
         data->image.destroy(vulkanContext.getDevice());
         FF_Memory::ff_clear(&data->image, sizeof(VulkanImage));
-        vkDestroySampler(vulkanContext.getDevice().getLogicalDevice(), data->sampler, nullptr);
-        data->sampler = nullptr;
 
         FF_Memory::ff_free(texture.data, sizeof(VulkanTextureData), TEXTURE);
     }
@@ -1081,7 +1056,68 @@ bool VulkanBackend::createModule(const VulkanShaderStageConfig &config, VulkanSh
     return true;
 }
 
-bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture& defaultTexture) {
+bool VulkanBackend::acquireTextureMapResources(TextureMap &textureMap) {
+    VkSamplerCreateInfo info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+
+    //Configurable
+    info.minFilter = convertTextureFilterToVulkan("min", textureMap.filterMin);
+    info.magFilter = convertTextureFilterToVulkan("mag", textureMap.filterMag);
+
+    info.addressModeU = convertTextureRepeatToVulkan("U", textureMap.repeatU);
+    info.addressModeV = convertTextureRepeatToVulkan("V", textureMap.repeatV);
+    info.addressModeW = convertTextureRepeatToVulkan("W", textureMap.repeatW);
+
+    //Not configurable
+    info.anisotropyEnable = VK_TRUE;
+    info.maxAnisotropy = 16;
+    info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    info.unnormalizedCoordinates = VK_FALSE;
+    info.compareEnable = VK_FALSE;
+    info.compareOp = VK_COMPARE_OP_ALWAYS;
+    info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    info.mipLodBias = 0.0f;
+    info.minLod = 0.0f;
+    info.maxLod = 0.0f;
+
+    VkResult result = vkCreateSampler(vulkanContext.getDevice().getLogicalDevice(), &info, nullptr, reinterpret_cast<VkSampler *>(&textureMap.data));
+    if (!VulkanUtils::vulkanCheck(result)) {
+        Logger::logError("An error occured while creating VkSampler: " + VulkanUtils::getResultAsString(result, true));
+        return false;
+    }
+
+    return true;
+}
+
+void VulkanBackend::releaseTextureMapResources(TextureMap &textureMap) {
+    vkDestroySampler(vulkanContext.getDevice().getLogicalDevice(), static_cast<VkSampler>(textureMap.data), nullptr);
+    textureMap.data = nullptr;
+}
+
+VkSamplerAddressMode VulkanBackend::convertTextureRepeatToVulkan(const String &axis, const TextureRepeat repeat) {
+    switch (repeat) {
+        case TEXTURE_REPEAT: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        case TEXTURE_MIRRORED_REPEAT: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        case TEXTURE_CLAMP_TO_EDGE: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        case TEXTURE_CLAMP_TO_BORDER: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        default: {
+            Logger::logWarn("Axis " + axis + " cannot be converted to repeat: " + std::to_string(repeat));
+            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        }
+    }
+}
+
+VkFilter VulkanBackend::convertTextureFilterToVulkan(const String &op, const TextureFilter filter) {
+    switch (filter) {
+        case TEXTURE_FILTER_NEAREST: return VK_FILTER_NEAREST;
+        case TEXTURE_FILTER_BILINEAR: return VK_FILTER_LINEAR;
+        default: {
+            Logger::logWarn(op + " cannot convert filter to: " + std::to_string(filter));
+            return VK_FILTER_LINEAR;
+        }
+    }
+}
+
+bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap* maps[]) {
     auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
     outInstanceId = INVALID_ID_U32;
 
@@ -1100,11 +1136,15 @@ bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int 
 
     VulkanShaderInstanceState& instanceState = backendShader->getInstanceState(outInstanceId);
     const unsigned int instanceTextureCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[BINDING_INDEX_SAMPLER].descriptorCount;
-    instanceState.instanceTextures.initialize(shader.getInstanceTextureCount());
+    instanceState.instanceTextureMaps.initialize(shader.getInstanceTextureCount());
     instanceState.descriptorSetState.descriptorSets.initialize(vulkanContext.getSwapchain().getImageCount());
 
     for (unsigned int i = 0; i < instanceTextureCount; i++) {
-        instanceState.instanceTextures.push(&defaultTexture);
+        instanceState.instanceTextureMaps.emplace();
+        instanceState.instanceTextureMaps[i] = maps[i];
+        if (!maps[i]->texture) {
+            instanceState.instanceTextureMaps[i]->texture = &defaultTexture;
+        }
     }
 
     const unsigned long size = shader.getInstanceStride();
@@ -1160,7 +1200,7 @@ bool VulkanBackend::releaseInstanceResources(const Shader &shader, const unsigne
         descriptorState.generations.shutdown();
         descriptorState.ids.shutdown();
     }
-    instanceState.instanceTextures.shutdown();
+    instanceState.instanceTextureMaps.shutdown();
     instanceState.descriptorSetState.descriptorSets.shutdown();
 
     const bool freeResult = backendShader->getUniformBuffer().free(shader.getInstanceStride(), instanceState.offset);

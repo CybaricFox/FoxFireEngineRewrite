@@ -25,6 +25,18 @@ enum TextureUseCase {
     TEXTURE_USE_MAP_NORMAL
 };
 
+enum TextureRepeat {
+    TEXTURE_REPEAT = 0x1,
+    TEXTURE_MIRRORED_REPEAT = 0x2,
+    TEXTURE_CLAMP_TO_EDGE = 0x3,
+    TEXTURE_CLAMP_TO_BORDER = 0x4
+};
+
+enum TextureFilter {
+    TEXTURE_FILTER_NEAREST = 0x0,
+    TEXTURE_FILTER_BILINEAR = 0x1
+};
+
 enum ResourceType {
     RESOURCE_TYPE_TEXT,
     RESOURCE_TYPE_BINARY,
@@ -96,6 +108,7 @@ struct Texture {
     unsigned int height = 0;
     unsigned char channelCount = 0;
     bool bIsTransparent = false;
+    bool bIsWritable = false;
     unsigned int generation = INVALID_ID_U32;
     String name{};
     void* data = nullptr;
@@ -104,6 +117,12 @@ struct Texture {
 struct TextureMap {
     Texture* texture = nullptr;
     TextureUseCase use{};
+    TextureFilter filterMin{};
+    TextureFilter filterMag{};
+    TextureRepeat repeatU{};
+    TextureRepeat repeatV{};
+    TextureRepeat repeatW{};
+    void* data = nullptr;
 };
 
 struct Material {

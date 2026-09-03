@@ -19,8 +19,8 @@ bool Shader::initializeShader(const ShaderConfig &config, const unsigned int new
     FF_Memory::ff_clear(pushConstantRanges, sizeof(MemoryRange) * 32);
     boundInstanceId = INVALID_ID_U32;
     attributeStride = 0;
-    globalTextures.shutdown();
-    globalTextures.initialize(0);
+    globalTextureMaps.shutdown();
+    globalTextureMaps.initialize(0);
     uniforms.shutdown();
     uniforms.initialize(0);
     attributes.shutdown();
@@ -49,6 +49,17 @@ bool Shader::isUniformNameValid(const String &uniformName) {
 
 void Shader::clearName() {
     if (!name.empty()) name.clear();
+}
+
+void Shader::setTextureMap(const unsigned int index, TextureMap *map) {
+    globalTextureMaps[index] = map;
+}
+
+void Shader::destroyTextureMaps() {
+    for (TextureMap* map : globalTextureMaps) {
+        FF_Memory::ff_free(map, sizeof(TextureMap), RENDER);
+    }
+    globalTextureMaps.shutdown();
 }
 
 void Shader::setGlobalStride() {

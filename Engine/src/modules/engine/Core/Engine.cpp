@@ -93,10 +93,11 @@ void Engine::run() {
 
                 for (unsigned int i = 0; i < meshCount; i++) {
                     Mesh& mesh = *ECSSystem.getComponent<Mesh>(i);
+                    Transform& transform = *ECSSystem.getComponent<Transform>(i);
                     for (unsigned int j = 0; j < mesh.geometryCount; j++) {
                         GeometryRenderData data{};
                         data.geometry = mesh.geometries[j];
-                        data.model = TransformUtils::getWorldPos(*mesh.transform);
+                        data.model = TransformUtils::getWorldPos(transform);
                         packet.geometries.push(data);
                         packet.geometryCount++;
                     }
@@ -273,7 +274,6 @@ void Engine::initialize() {
     GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
 
     cubeMesh->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
-    cubeMesh->transform = ECSSystem.getComponent<Transform>(cube1);
     GeometryUtils::destroyConfig(&cubeConfig);
 
     const unsigned int cube2 = ECSSystem.createEntity("Basic_Entity");
@@ -282,9 +282,10 @@ void Engine::initialize() {
     cubeMesh2->geometries.initialize(cubeMesh2->geometryCount);
     GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
     cubeMesh2->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
-    cubeMesh2->transform = ECSSystem.getComponent<Transform>(cube2);
-    cubeMesh2->transform->position = Vector3f{10, 0, 1};
-    cubeMesh2->transform->parent = ECSSystem.getComponent<Transform>(0);
+    const auto cube2Transform = ECSSystem.getComponent<Transform>(cube2);
+    cube2Transform->position = Vector3f{10, 0, 1};
+    cube2Transform->parent = cube1;
+    cube2Transform->bIsDirty = true;
     GeometryUtils::destroyConfig(&cubeConfig2);
 
     const unsigned int cube3 = ECSSystem.createEntity("Basic_Entity");
@@ -293,9 +294,10 @@ void Engine::initialize() {
     cubeMesh3->geometries.initialize(cubeMesh3->geometryCount);
     GeometryConfig cubeConfig3 = masterRenderSystem.generateCubeConfig(2, 2, 2, 1, 1, "Test_Cube_3", "MaterialTemplate");
     cubeMesh3->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig3, true));
-    cubeMesh3->transform = ECSSystem.getComponent<Transform>(cube3);
-    cubeMesh3->transform->position = Vector3f{5, 0, 1};
-    cubeMesh3->transform->parent = ECSSystem.getComponent<Transform>(1);
+    const auto cube3Transform = ECSSystem.getComponent<Transform>(cube3);
+    cube3Transform->position = Vector3f{5, 0, 1};
+    cube3Transform->parent = cube2;
+    cube3Transform->bIsDirty = true;
     GeometryUtils::destroyConfig(&cubeConfig3);
 
     const unsigned int maxwell = ECSSystem.createEntity("Basic_Entity");
@@ -312,10 +314,10 @@ void Engine::initialize() {
             GeometryConfig* currentConfig = &maxwellConfigs[i];
             maxwellMesh->geometries.push(&masterRenderSystem.acquireGeometry(maxwellConfigs[i], true));
         }
-        maxwellMesh->transform = ECSSystem.getComponent<Transform>(maxwell);
-        maxwellMesh->transform->position = Vector3f{15, 0, 1};
-        maxwellMesh->transform->scale = Vector3f{10, 10, 10};
-        maxwellMesh->transform->bIsDirty = true;
+        const auto maxwellTransform = ECSSystem.getComponent<Transform>(maxwell);
+        maxwellTransform->position = Vector3f{15, 0, 1};
+        maxwellTransform->scale = Vector3f{10, 10, 10};
+        maxwellTransform->bIsDirty = true;
         resourceSystem.unload(maxwellResource);
     }
 

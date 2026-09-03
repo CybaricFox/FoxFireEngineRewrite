@@ -80,5 +80,5 @@ struct VulkanShaderInstanceState {
     unsigned int id = INVALID_ID_U32;
     unsigned long offset = 0;
     VulkanShaderDescriptorSetState descriptorSetState{};
-    DynamicArray<Texture*> instanceTextures{};
+    DynamicArray<TextureMap*> instanceTextureMaps{};
 };

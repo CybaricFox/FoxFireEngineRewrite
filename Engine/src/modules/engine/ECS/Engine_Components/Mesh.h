@@ -8,7 +8,6 @@
 struct Mesh final : EntityComponentWrapper<Mesh> {
     unsigned short geometryCount = 0;
     DynamicArray<Geometry*> geometries{};
-    Transform* transform = nullptr;
 
     Mesh() = default;
     ~Mesh() override {
@@ -16,7 +15,7 @@ struct Mesh final : EntityComponentWrapper<Mesh> {
     }
 
     Mesh(const Mesh& other)
-        : geometryCount(other.geometryCount), transform(nullptr) {
+        : geometryCount(other.geometryCount) {
 
         if (!other.geometries.isEmpty()) {
             geometries.initialize(other.geometries.getLength());

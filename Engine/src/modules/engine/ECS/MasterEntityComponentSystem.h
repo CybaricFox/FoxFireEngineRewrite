@@ -30,10 +30,10 @@ private:
     unsigned int currentId = -1;
 
     AssetMap<Entity, AssetContext> templates{};
-    AssetMap<EntityManager, AssetContext> instances{};
-    DynamicArray<EntityContext> entities{};
+    static AssetMap<EntityManager, AssetContext>* instances;
+    static DynamicArray<EntityContext>* entities;
 
-    String getEntityName(unsigned int id);
+    static String getEntityName(unsigned int id);
     unsigned int getNewId() {return ++currentId;}
 
     Entity *createEntityType(const String &name);
@@ -47,11 +47,11 @@ public:
 
     template<typename T>
     requires std::derived_from<T, EntityComponent>
-    T* getComponent(const unsigned int id) {
+    static T* getComponent(const unsigned int id) {
         const String entityName = getEntityName(id);
         if (entityName.empty()) return nullptr;
 
-        EntityManager* manager = instances.getAsset(entityName);
+        EntityManager* manager = instances->getAsset(entityName);
 
         return manager->getComponent<T>(id);
     }

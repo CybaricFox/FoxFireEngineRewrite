@@ -224,9 +224,10 @@ public:
      * @param shader Shader to use
      * @param outInstanceId
      * @param defaultTexture Reference to the Texture Systems default texture
+     * @param maps
      * @return false on failure
      */
-    virtual bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture) = 0;
+    virtual bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap* maps[]) = 0;
 
     /**
      * @brief
@@ -235,6 +236,9 @@ public:
      * @return false on failure
      */
     virtual bool releaseInstanceResources(const Shader &shader, unsigned int instanceId) = 0;
+
+    virtual bool acquireTextureMapResources(TextureMap &textureMap) = 0;
+    virtual void releaseTextureMapResources(TextureMap &textureMap) = 0;
 
     void incrementFrameNumber() {frameNumber++;}
     void clearFrameNumber() {frameNumber = 0;}
