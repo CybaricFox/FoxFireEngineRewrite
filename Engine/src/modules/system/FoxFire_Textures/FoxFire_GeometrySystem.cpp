@@ -374,6 +374,8 @@ GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float hei
         config.materialName = DEFAULT_MATERIAL_NAME;
     }
 
+    GeometryUtils::generateTangents(config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getCount(), config.indices.getIndex(0));
+
     return config;
 }
 

@@ -266,57 +266,55 @@ void Engine::initialize() {
     ECSSystem.initialize();
 
     //Temp code
-    unsigned int cube1 = ECSSystem.createEntity("Basic_Entity");
+    const unsigned int cube1 = ECSSystem.createEntity("Basic_Entity");
     Mesh* cubeMesh = ECSSystem.getComponent<Mesh>(cube1);
     cubeMesh->geometryCount = 1;
     cubeMesh->geometries.initialize(cubeMesh->geometryCount);
     GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
 
-    GeometryUtils::generateTangents(cubeConfig.vertices.getCount(), cubeConfig.vertices.getVertex(0), cubeConfig.indices.getCount(), cubeConfig.indices.getIndex(0));
     cubeMesh->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
     cubeMesh->transform = ECSSystem.getComponent<Transform>(cube1);
     GeometryUtils::destroyConfig(&cubeConfig);
 
-    unsigned int cube2 = ECSSystem.createEntity("Basic_Entity");
+    const unsigned int cube2 = ECSSystem.createEntity("Basic_Entity");
     Mesh* cubeMesh2 = ECSSystem.getComponent<Mesh>(cube2);
     cubeMesh2->geometryCount = 1;
     cubeMesh2->geometries.initialize(cubeMesh2->geometryCount);
     GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
-    GeometryUtils::generateTangents(cubeConfig2.vertices.getCount(), cubeConfig2.vertices.getVertex(0), cubeConfig2.indices.getCount(), cubeConfig2.indices.getIndex(0));
     cubeMesh2->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
     cubeMesh2->transform = ECSSystem.getComponent<Transform>(cube2);
     cubeMesh2->transform->position = Vector3f{10, 0, 1};
     cubeMesh2->transform->parent = ECSSystem.getComponent<Transform>(0);
     GeometryUtils::destroyConfig(&cubeConfig2);
 
-    unsigned int cube3 = ECSSystem.createEntity("Basic_Entity");
+    const unsigned int cube3 = ECSSystem.createEntity("Basic_Entity");
     Mesh* cubeMesh3 = ECSSystem.getComponent<Mesh>(cube3);
     cubeMesh3->geometryCount = 1;
     cubeMesh3->geometries.initialize(cubeMesh3->geometryCount);
     GeometryConfig cubeConfig3 = masterRenderSystem.generateCubeConfig(2, 2, 2, 1, 1, "Test_Cube_3", "MaterialTemplate");
-    GeometryUtils::generateTangents(cubeConfig3.vertices.getCount(), cubeConfig3.vertices.getVertex(0), cubeConfig3.indices.getCount(), cubeConfig3.indices.getIndex(0));
     cubeMesh3->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig3, true));
     cubeMesh3->transform = ECSSystem.getComponent<Transform>(cube3);
     cubeMesh3->transform->position = Vector3f{5, 0, 1};
     cubeMesh3->transform->parent = ECSSystem.getComponent<Transform>(1);
     GeometryUtils::destroyConfig(&cubeConfig3);
 
-    unsigned int maxwell = ECSSystem.createEntity("Basic_Entity");
+    const unsigned int maxwell = ECSSystem.createEntity("Basic_Entity");
     Mesh* maxwellMesh = ECSSystem.getComponent<Mesh>(maxwell);
     Resource maxwellResource{};
     if (!resourceSystem.load("Maxwell", RESOURCE_TYPE_MESH, maxwellResource)) {
-        Logger::logError("Failed to load Maxwell! NOOOOOOOOOOOOOOOOOOOOOOOOO!!!!!!!!!!!");
+        Logger::logFatal("Maxwell? Maxwell?! MAXWELL!!!!!!!");
+        return;
     } else {
         GeometryConfig* maxwellConfigs = &(*static_cast<DynamicArray<GeometryConfig>*>(maxwellResource.data))[0];
         maxwellMesh->geometryCount = maxwellResource.dataSize; //Data size in this context is the number of geometries
         maxwellMesh->geometries.initialize(maxwellMesh->geometryCount);
         for (unsigned int i = 0; i < maxwellMesh->geometryCount; i++) {
             GeometryConfig* currentConfig = &maxwellConfigs[i];
-            GeometryUtils::generateTangents(currentConfig->vertices.getCount(), currentConfig->vertices.getVertex(0), currentConfig->indices.getCount(), currentConfig->indices.getIndex(0));
             maxwellMesh->geometries.push(&masterRenderSystem.acquireGeometry(maxwellConfigs[i], true));
         }
         maxwellMesh->transform = ECSSystem.getComponent<Transform>(maxwell);
         maxwellMesh->transform->position = Vector3f{15, 0, 1};
+        maxwellMesh->transform->scale = Vector3f{10, 10, 10};
         maxwellMesh->transform->bIsDirty = true;
         resourceSystem.unload(maxwellResource);
     }

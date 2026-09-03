@@ -39,7 +39,7 @@ enum GLTFType {
     GLTF_TYPE_SCALAR
 };
 
-struct MeshPrimitiveData {
+struct GLTFMeshPrimitiveData {
     unsigned int positionIndex = INVALID_ID_U32;
     unsigned int normalIndex = INVALID_ID_U32;
     unsigned int materialIndex = INVALID_ID_U32;
@@ -47,12 +47,12 @@ struct MeshPrimitiveData {
     DynamicArray<unsigned int> texcoordIndexes{};
 };
 
-struct MeshSceneData {
+struct GLTFMeshSceneData {
     String name{};
-    DynamicArray<MeshPrimitiveData> primitives{};
+    DynamicArray<GLTFMeshPrimitiveData> primitives{};
 };
 
-struct MeshAccessorData {
+struct GLTFMeshAccessorData {
     unsigned int bufferView = INVALID_ID_U32;
     unsigned int componentType = INVALID_ID_U32;
     unsigned int count = 0;
@@ -62,7 +62,7 @@ struct MeshAccessorData {
     GLTFType type = GLTF_TYPE_UNKNOWN;
 };
 
-struct MeshBufferView {
+struct GLTFMeshBufferView {
     unsigned int bufferIndex = INVALID_ID_U32;
     unsigned long byteLength = 0;
     unsigned long byteOffset = 0;
@@ -70,18 +70,18 @@ struct MeshBufferView {
     unsigned int target = INVALID_ID_U32;
 };
 
-struct MeshSampler {
+struct GLTFMeshSampler {
     int magFilter = static_cast<int>(INVALID_ID_U32);
     int minFilter = static_cast<int>(INVALID_ID_U32);
 };
 
-struct MeshBuffer {
+struct GLTFMeshBuffer {
     unsigned long byteSize = 0;
     String fileRef{};
     unsigned char* data = nullptr;
 };
 
-struct MeshDataContext {
+struct GLTFMeshDataContext {
     bool bIsValid = false;
     unsigned char* data = nullptr;
     unsigned int componentSize = 0;
@@ -90,31 +90,31 @@ struct MeshDataContext {
     unsigned long stride = 0;
 };
 
-struct MeshImage {
+struct GLTFMeshImage {
     String mimeType{};
     String name{};
     String fileRef{};
 };
 
-struct MeshTexture {
+struct GLTFMeshTexture {
     unsigned int sampler = INVALID_ID_U32;
     unsigned int source = INVALID_ID_U32;
 };
 
-struct MeshColorTexture {
+struct GLTFMeshColorTexture {
     unsigned int index = INVALID_ID_U32;
 };
 
-struct MeshPBR {
-    MeshColorTexture colorTexture{};
+struct GLTFMeshPBR {
+    GLTFMeshColorTexture colorTexture{};
     int metallic = 0;
     float roughness = 0;
 };
 
-struct MeshMaterial {
+struct GLTFMeshMaterial {
     bool doubleSided = false;
     String name{};
-    MeshPBR pbr{};
+    GLTFMeshPBR pbr{};
     String alphaMode{};
 };
 
@@ -122,11 +122,11 @@ class MeshLoader final : public ResourceLoader{
 private:
     bool importGLTF(FileHandler &file, const String& fileName, DynamicArray<GeometryConfig>& resourceData);
 
-    MeshDataContext processGLTFObject(const MeshAccessorData &accessorData, const MeshBufferView &bufferView, const MeshBuffer &buffer);
-    void processExtents(GeometryConfig &config, const MeshAccessorData &positionData);
+    GLTFMeshDataContext processGLTFObject(const GLTFMeshAccessorData &accessorData, const GLTFMeshBufferView &bufferView, const GLTFMeshBuffer &buffer);
+    void processExtents(GeometryConfig &config, const GLTFMeshAccessorData &positionData);
     bool createGLTFMaterials(FileHandler &file, JsonHandler &json, DynamicArray<String> &materialNames);
     bool loadFoxMesh(FileHandler& file, DynamicArray<GeometryConfig>& outConfigs);
-    bool writeFoxMesh(String path, String name, unsigned int geometryCount, DynamicArray<GeometryConfig> &geometries);
+    bool writeFoxMesh(const String &path, const String &name, unsigned int geometryCount, DynamicArray<GeometryConfig> &geometries);
     bool writeFoxMaterial(const String &directory, const MaterialResourceData& config);
 public:
     MeshLoader();

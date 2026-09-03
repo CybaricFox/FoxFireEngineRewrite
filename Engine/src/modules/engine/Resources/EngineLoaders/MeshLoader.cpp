@@ -18,19 +18,19 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
 
     //Process Mesh Data
     DynamicArray<JsonObject>& rawMeshes = *json.getArray("meshes");
-    DynamicArray<MeshSceneData> meshes{rawMeshes.getLength()};
+    DynamicArray<GLTFMeshSceneData> meshes{rawMeshes.getLength()};
 
     for (JsonObject& object : rawMeshes) {
         DynamicArray<JsonObject>& primitives = *json.getArray("primitives", &object);
 
-        MeshSceneData& data = *meshes.emplace();
+        GLTFMeshSceneData& data = *meshes.emplace();
         data.primitives.initialize(primitives.getLength());
 
         data.name = json.getString("name", &object);
 
         for (JsonObject& primitive : primitives) {
             JsonObject& attributes = *json.getObject("attributes", &primitive);
-            MeshPrimitiveData& primitiveData = *data.primitives.emplace();
+            GLTFMeshPrimitiveData& primitiveData = *data.primitives.emplace();
             primitiveData.positionIndex = json.getInt("POSITION", &attributes);
             primitiveData.normalIndex = json.getInt("NORMAL", &attributes);
 
@@ -53,10 +53,10 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
 
     //Process Accessor data
     DynamicArray<JsonObject>& rawAccessors = *json.getArray("accessors");
-    DynamicArray<MeshAccessorData> accessors{rawAccessors.getLength()};
+    DynamicArray<GLTFMeshAccessorData> accessors{rawAccessors.getLength()};
 
     for (JsonObject& object : rawAccessors) {
-        MeshAccessorData& data = *accessors.emplace();
+        GLTFMeshAccessorData& data = *accessors.emplace();
         data.bufferView = json.getInt("bufferView", &object);
         data.componentType = json.getInt("componentType", &object);
         data.count = json.getInt("count", &object);
@@ -84,10 +84,10 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
 
     //Process Buffer View data
     DynamicArray<JsonObject>& rawBufferViews = *json.getArray("bufferViews");
-    DynamicArray<MeshBufferView> bufferViews{rawBufferViews.getLength()};
+    DynamicArray<GLTFMeshBufferView> bufferViews{rawBufferViews.getLength()};
 
     for (JsonObject& object : rawBufferViews) {
-        MeshBufferView& data = *bufferViews.emplace();
+        GLTFMeshBufferView& data = *bufferViews.emplace();
         data.bufferIndex = json.getInt("buffer", &object);
         data.byteLength = json.getInt("byteLength", &object);
         data.byteOffset = json.getInt("byteOffset", &object);
@@ -96,10 +96,10 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
 
     //Process Buffer data
     DynamicArray<JsonObject>& rawBuffers = *json.getArray("buffers");
-    DynamicArray<MeshBuffer> buffers{rawBuffers.getLength()};
+    DynamicArray<GLTFMeshBuffer> buffers{rawBuffers.getLength()};
 
     for (JsonObject& object : rawBuffers) {
-        MeshBuffer& data = *buffers.emplace();
+        GLTFMeshBuffer& data = *buffers.emplace();
         data.byteSize = json.getInt("byteLength", &object);
         data.fileRef = json.getString("uri", &object);
     }
@@ -107,7 +107,7 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
     //Read the binary file
     FileHandler binFile{};
 
-    for (MeshBuffer& buffer : buffers) {
+    for (GLTFMeshBuffer& buffer : buffers) {
         if (buffer.fileRef.empty()) continue;
 
         String binPath = StringUtils::getDirectoryFromPath(fileName) + "/" + path + "/" + buffer.fileRef;
@@ -133,20 +133,20 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
 
     //Final processing
     resourceData.initialize(meshes.getLength());
-    for (MeshSceneData& mesh : meshes) {
-        for (MeshPrimitiveData& primitive : mesh.primitives) {
-            MeshDataContext positionContext{};
-            MeshDataContext normalContext{};
-            MeshDataContext texCoordContext{};
-            MeshDataContext indexContext{};
+    for (GLTFMeshSceneData& mesh : meshes) {
+        for (GLTFMeshPrimitiveData& primitive : mesh.primitives) {
+            GLTFMeshDataContext positionContext{};
+            GLTFMeshDataContext normalContext{};
+            GLTFMeshDataContext texCoordContext{};
+            GLTFMeshDataContext indexContext{};
 
             bool skipNormals = mesh.primitives[0].normalIndex == INVALID_ID_U32;
             bool skipTexCoords = mesh.primitives[0].texcoordIndexes.getLength() == 0;
 
             //position data
-            MeshAccessorData& positionAccessor = accessors[mesh.primitives[0].positionIndex];
-            MeshBufferView &positionBufferView = bufferViews[positionAccessor.bufferView];
-            MeshBuffer &positionBuffer = buffers[positionBufferView.bufferIndex];
+            GLTFMeshAccessorData& positionAccessor = accessors[mesh.primitives[0].positionIndex];
+            GLTFMeshBufferView &positionBufferView = bufferViews[positionAccessor.bufferView];
+            GLTFMeshBuffer &positionBuffer = buffers[positionBufferView.bufferIndex];
             positionContext = processGLTFObject(positionAccessor, positionBufferView, positionBuffer);
             if (!positionContext.bIsValid) {
                 Logger::logError("Position data for mesh " + StringUtils::getFilenameNoExtensionFromPath(fileName) + " is invalid!");
@@ -155,9 +155,9 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
 
             //Normals data
             if (!skipNormals) {
-                MeshAccessorData& normalAccessor = accessors[mesh.primitives[0].normalIndex];
-                MeshBufferView &nomralBufferView = bufferViews[normalAccessor.bufferView];
-                MeshBuffer &normalBuffer = buffers[nomralBufferView.bufferIndex];
+                GLTFMeshAccessorData& normalAccessor = accessors[mesh.primitives[0].normalIndex];
+                GLTFMeshBufferView &nomralBufferView = bufferViews[normalAccessor.bufferView];
+                GLTFMeshBuffer &normalBuffer = buffers[nomralBufferView.bufferIndex];
                 normalContext = processGLTFObject(normalAccessor, nomralBufferView, normalBuffer);
                 if (!normalContext.bIsValid) {
                     Logger::logError("Normal data for mesh " + StringUtils::getFilenameNoExtensionFromPath(fileName) + " is invalid!");
@@ -167,9 +167,9 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
 
             //Texture coordinate data
             if (!skipTexCoords) {
-                MeshAccessorData& texCoordAccessor = accessors[mesh.primitives[0].texcoordIndexes[0]];
-                MeshBufferView &texCoordBufferView = bufferViews[texCoordAccessor.bufferView];
-                MeshBuffer &texCoordBuffer = buffers[texCoordBufferView.bufferIndex];
+                GLTFMeshAccessorData& texCoordAccessor = accessors[mesh.primitives[0].texcoordIndexes[0]];
+                GLTFMeshBufferView &texCoordBufferView = bufferViews[texCoordAccessor.bufferView];
+                GLTFMeshBuffer &texCoordBuffer = buffers[texCoordBufferView.bufferIndex];
                 texCoordContext = processGLTFObject(texCoordAccessor, texCoordBufferView, texCoordBuffer);
                 if (!texCoordContext.bIsValid) {
                     Logger::logError("Texture Coordinate data for mesh " + StringUtils::getFilenameNoExtensionFromPath(fileName) + " is invalid!");
@@ -178,9 +178,9 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
             }
 
             //Index data
-            MeshAccessorData& indexAccessor = accessors[mesh.primitives[0].indexIndex];
-            MeshBufferView &indexBufferView = bufferViews[indexAccessor.bufferView];
-            MeshBuffer &indexBuffer = buffers[indexBufferView.bufferIndex];
+            GLTFMeshAccessorData& indexAccessor = accessors[mesh.primitives[0].indexIndex];
+            GLTFMeshBufferView &indexBufferView = bufferViews[indexAccessor.bufferView];
+            GLTFMeshBuffer &indexBuffer = buffers[indexBufferView.bufferIndex];
             indexContext = processGLTFObject(indexAccessor, indexBufferView, indexBuffer);
             if (!indexContext.bIsValid) {
                 Logger::logError("Index data for mesh " + StringUtils::getFilenameNoExtensionFromPath(fileName) + " is invalid!");
@@ -281,29 +281,45 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
                 config.indices.setIndex(index, i);
             }
 
+            unsigned int outCount = 0;
+            auto newVertices = FF_Memory::ff_allocate_class<DynamicArray<Vertex3d>>(sizeof(DynamicArray<Vertex3d>), DYNAMIC_ARRAY);
+            newVertices->initialize(0);
+            GeometryUtils::filterVertices(config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getCount(), config.indices.getIndex(0), outCount, *newVertices);
+
+            //If count goes down, reassign the vertices.
+            if (config.vertices.getCount() > outCount) {
+                config.vertices.shutdown();
+                config.vertices.initialize<Vertex3d>(outCount);
+                for (unsigned int i = 0; i < outCount; i++) {
+                    config.vertices.setVertex(&(*newVertices)[i], i);
+                }
+            }
+
             GeometryUtils::generateTangents(config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getCount(), config.indices.getIndex(0));
+
+            FF_Memory::ff_free_class<DynamicArray<Vertex3d>>(newVertices, sizeof(DynamicArray<Vertex3d>), DYNAMIC_ARRAY);
         }
     }
 
     json.shutdown();
 
-    for (MeshSceneData& mesh : meshes) {
-        for (MeshPrimitiveData& primitive : mesh.primitives) {
+    for (GLTFMeshSceneData& mesh : meshes) {
+        for (GLTFMeshPrimitiveData& primitive : mesh.primitives) {
             primitive.texcoordIndexes.shutdown();
         }
 
         mesh.primitives.shutdown();
     }
 
-    for (MeshBuffer& buffer : buffers) {
+    for (GLTFMeshBuffer& buffer : buffers) {
         FF_Memory::ff_free(buffer.data, buffer.byteSize, RESOURCE);
     }
 
     return writeFoxMesh(fileName, StringUtils::getFilenameFromPath(fileName), resourceData.getLength(), resourceData);
 }
 
-MeshDataContext MeshLoader::processGLTFObject(const MeshAccessorData &accessorData, const MeshBufferView &bufferView, const MeshBuffer &buffer) {
-    MeshDataContext context{};
+GLTFMeshDataContext MeshLoader::processGLTFObject(const GLTFMeshAccessorData &accessorData, const GLTFMeshBufferView &bufferView, const GLTFMeshBuffer &buffer) {
+    GLTFMeshDataContext context{};
     context.data = buffer.data + bufferView.byteOffset + 0;
     //Replace 0 with accessor offset when it becomes relevant.
 
@@ -349,7 +365,7 @@ MeshDataContext MeshLoader::processGLTFObject(const MeshAccessorData &accessorDa
     return context;
 }
 
-void MeshLoader::processExtents(GeometryConfig &config, const MeshAccessorData& positionData) {
+void MeshLoader::processExtents(GeometryConfig &config, const GLTFMeshAccessorData& positionData) {
     config.maxExtent = {positionData.max[0], positionData.max[1], positionData.max[2]};
     config.minExtent = {positionData.min[0], positionData.min[1], positionData.min[2]};
 
@@ -360,10 +376,10 @@ void MeshLoader::processExtents(GeometryConfig &config, const MeshAccessorData& 
 
 bool MeshLoader::createGLTFMaterials(FileHandler &file, JsonHandler& json, DynamicArray<String> &materialNames) {
     DynamicArray<JsonObject>& rawImages = *json.getArray("images");
-    DynamicArray<MeshImage> images{rawImages.getLength()};
+    DynamicArray<GLTFMeshImage> images{rawImages.getLength()};
 
     for (unsigned long i = 0; i < rawImages.getLength(); i++) {
-        MeshImage& image = *images.emplace();
+        GLTFMeshImage& image = *images.emplace();
         JsonObject& rawImage = rawImages[i];
 
         image.mimeType = json.getString("mimeType", &rawImage);
@@ -372,10 +388,10 @@ bool MeshLoader::createGLTFMaterials(FileHandler &file, JsonHandler& json, Dynam
     }
 
     DynamicArray<JsonObject>& rawTextures = *json.getArray("textures");
-    DynamicArray<MeshTexture> textures{rawTextures.getLength()};
+    DynamicArray<GLTFMeshTexture> textures{rawTextures.getLength()};
 
     for (unsigned long i = 0; i < rawTextures.getLength(); i++) {
-        MeshTexture& texture = *textures.emplace();
+        GLTFMeshTexture& texture = *textures.emplace();
         JsonObject& rawTexture = rawTextures[i];
 
         texture.sampler = json.getInt("sampler", &rawTexture);
@@ -383,13 +399,13 @@ bool MeshLoader::createGLTFMaterials(FileHandler &file, JsonHandler& json, Dynam
     }
 
     DynamicArray<JsonObject>& rawMaterials = *json.getArray("materials");
-    DynamicArray<MeshMaterial> materials{rawMaterials.getLength()};
+    DynamicArray<GLTFMeshMaterial> materials{rawMaterials.getLength()};
 
     for (unsigned int i = 0; i < rawMaterials.getLength(); i++) {
         JsonObject& rawMaterial = rawMaterials[i];
         JsonObject& rawPBR = *json.getObject("pbrMetallicRoughness", &rawMaterial);
         JsonObject& rawColorTexture = *json.getObject("baseColorTexture", &rawPBR);
-        MeshMaterial& material = *materials.emplace();
+        GLTFMeshMaterial& material = *materials.emplace();
 
         material.alphaMode = json.getString("alphaMode", &rawMaterial, true);
         json.getBool("doubleSided", material.doubleSided, &rawMaterial);
@@ -406,8 +422,8 @@ bool MeshLoader::createGLTFMaterials(FileHandler &file, JsonHandler& json, Dynam
 
         MaterialResourceData materialResourceData{};
         unsigned int textureIndex = materials[i].pbr.colorTexture.index;
-        MeshTexture& texture = textures[textureIndex];
-        MeshImage& image = images[texture.source];
+        GLTFMeshTexture& texture = textures[textureIndex];
+        GLTFMeshImage& image = images[texture.source];
         String name = image.fileRef;
         unsigned int index = name.find('.');
         name = name.substr(0, index);
@@ -430,10 +446,135 @@ bool MeshLoader::createGLTFMaterials(FileHandler &file, JsonHandler& json, Dynam
 }
 
 bool MeshLoader::loadFoxMesh(FileHandler &file, DynamicArray<GeometryConfig> &outConfigs) {
+    //Version
+    unsigned long inBytes = 0;
+    unsigned short versionA = 0;
+    unsigned short versionB = 0;
+    unsigned short versionC = 0;
+
+    file.read(sizeof(unsigned short), &versionA, inBytes);
+    file.read(sizeof(unsigned short), &versionB, inBytes);
+    file.read(sizeof(unsigned short), &versionC, inBytes);
+
+    //Name
+    unsigned int length = 0;
+    file.read(sizeof(unsigned int), &length, inBytes);
+    char name[256]{};
+    file.read(sizeof(char) * length, &name, inBytes);
+
+    //Geometry Count
+    unsigned int geometryCount = 0;
+    file.read(sizeof(unsigned int), &geometryCount, inBytes);
+
+    outConfigs.initialize(geometryCount);
+    for (unsigned int i = 0; i < geometryCount; i++) {
+        GeometryConfig& config = *outConfigs.emplace();
+
+        //Vertices
+        unsigned int count = 0;
+        unsigned int size = 0;
+        file.read(sizeof(unsigned int), &size, inBytes);
+        file.read(sizeof(unsigned int), &count, inBytes);
+        config.vertices.initialize<Vertex3d>(count);
+        file.read(size * count, config.vertices.getVertex(0), inBytes);
+
+        //Indices
+        file.read(sizeof(unsigned int), &size, inBytes);
+        file.read(sizeof(unsigned int), &count, inBytes);
+        config.indices.initialize<unsigned int>(count);
+        file.read(size * count, config.indices.getIndex(0), inBytes);
+
+        //Name
+        unsigned int configLength = 0;
+        char configName[256]{};
+        file.read(sizeof(unsigned int), &configLength, inBytes);
+        file.read(sizeof(char) * configLength, &configName, inBytes);
+        config.name = configName;
+
+        //material name
+        file.read(sizeof(unsigned int), &configLength, inBytes);
+        file.read(sizeof(char) * configLength, &configName, inBytes);
+        config.materialName = configName;
+
+        //Center
+        file.read(sizeof(Vector3f), &config.center, inBytes);
+
+        //Extents
+        file.read(sizeof(Vector3f), &config.minExtent, inBytes);
+        file.read(sizeof(Vector3f), &config.maxExtent, inBytes);
+    }
+
+    file.closeFile();
     return true;
 }
 
-bool MeshLoader::writeFoxMesh(String path, String name, unsigned int geometryCount, DynamicArray<GeometryConfig>& geometries) {
+bool MeshLoader::writeFoxMesh(const String &path, const String &name, const unsigned int geometryCount, DynamicArray<GeometryConfig>& geometries) {
+    FileHandler file{};
+
+    if (file.exists(path)) {
+        Logger::logInfo(name + " already has a FoxMesh! The file will be overwritten, but this could be a sign of an error.");
+    }
+
+    if (!file.openFile(path, WRITE, true)) {
+        Logger::logError("Failed to create file: " + path);
+        return false;
+    }
+
+    unsigned long outBytes = 0;
+
+    //Version
+    constexpr unsigned short versionA = 0x0001U;
+    constexpr unsigned short versionB = 0x0000U;
+    constexpr unsigned short versionC = 0x0000U;
+
+    file.write(sizeof(unsigned short), &versionA, outBytes);
+    file.write(sizeof(unsigned short), &versionB, outBytes);
+    file.write(sizeof(unsigned short), &versionC, outBytes);
+
+    //Name
+    unsigned int length = name.length();
+    file.write(sizeof(unsigned int), &length, outBytes);
+    file.write(sizeof(char) * length, name.c_str(), outBytes);
+
+    //Geometry Count
+    file.write(sizeof(unsigned int), &geometryCount, outBytes);
+
+    //Geometry
+    for (GeometryConfig &geometryConfig : geometries) {
+        //Vertices
+        unsigned int count = geometryConfig.vertices.getCount();
+        unsigned int size = geometryConfig.vertices.getSize();
+        file.write(sizeof(unsigned int), &size, outBytes);
+        file.write(sizeof(unsigned int), &count, outBytes);
+        file.write(size * count, geometryConfig.vertices.getVertex(0), outBytes);
+
+        //Indices
+        count = geometryConfig.indices.getCount();
+        size = geometryConfig.indices.getSize();
+        file.write(sizeof(unsigned int), &size, outBytes);
+        file.write(sizeof(unsigned int), &count, outBytes);
+        file.write(size * count, geometryConfig.indices.getIndex(0), outBytes);
+
+        //Geometry name
+        length = geometryConfig.name.length();
+        file.write(sizeof(unsigned int), &length, outBytes);
+        file.write(sizeof(char) * length, geometryConfig.name.c_str(), outBytes);
+
+        //Material name
+        length = geometryConfig.materialName.length();
+        file.write(sizeof(unsigned int), &length, outBytes);
+        file.write(sizeof(char) * length, geometryConfig.materialName.c_str(), outBytes);
+
+        //Center
+        file.write(sizeof(Vector3f), &geometryConfig.center, outBytes);
+
+        //Extents
+        file.write(sizeof(Vector3f), &geometryConfig.minExtent, outBytes);
+        file.write(sizeof(Vector3f), &geometryConfig.maxExtent, outBytes);
+    }
+
+    file.closeFile();
+
     return true;
 }
 
@@ -441,7 +582,7 @@ bool MeshLoader::writeFoxMaterial(const String &directory, const MaterialResourc
     FileHandler file{};
 
     const String finalPath = directory + "/" + config.name + ".FoxMaterial";
-    if (!file.openFile(finalPath, WRITE, false)) {
+    if (!file.openFile(finalPath, WRITE, true)) {
         Logger::logError("Failed to create file: " + finalPath);
         return false;
     }
@@ -508,6 +649,45 @@ bool MeshLoader::writeFoxMaterial(const String &directory, const MaterialResourc
         file.closeFile();
         return false;
     }
+
+    /*//Version block
+    unsigned long outBytes = 0;
+
+    constexpr unsigned short versionA = 0x0001U;
+    constexpr unsigned short versionB = 0x0000U;
+    constexpr unsigned short versionC = 0x0000U;
+    file.write(sizeof(unsigned short), &versionA, outBytes);
+    file.write(sizeof(unsigned short), &versionB, outBytes);
+    file.write(sizeof(unsigned short), &versionC, outBytes);
+
+    //Name block
+    unsigned int length = config.name.length();
+    file.write(sizeof(unsigned int), &length, outBytes);
+    file.write(sizeof(char) * length, config.name.c_str(), outBytes);
+
+    //texture names
+    length = config.diffuseName.length();
+    file.write(sizeof(unsigned int), &length, outBytes);
+    file.write(sizeof(char) * length, config.diffuseName.c_str(), outBytes);
+
+    length = config.specularName.length();
+    file.write(sizeof(unsigned int), &length, outBytes);
+    file.write(sizeof(char) * length, config.specularName.c_str(), outBytes);
+
+    length = config.normalName.length();
+    file.write(sizeof(unsigned int), &length, outBytes);
+    file.write(sizeof(char) * length, config.normalName.c_str(), outBytes);
+
+    //Shader name
+    length = config.shaderName.length();
+    file.write(sizeof(unsigned int), &length, outBytes);
+    file.write(sizeof(char) * length, config.shaderName.c_str(), outBytes);
+
+    //Diffuse Color block
+    file.write(sizeof(Vector4f), &config.diffuseColor, outBytes);
+
+    //Shine
+    file.write(sizeof(float), &config.shine, outBytes);*/
 
     file.closeFile();
     return true;
