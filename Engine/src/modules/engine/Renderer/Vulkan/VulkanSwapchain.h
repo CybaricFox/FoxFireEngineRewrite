@@ -26,8 +26,7 @@ private:
         unsigned char maxFramesInFlight = 0;
         VkSwapchainKHR handle{};
         unsigned int imageCount = 0;
-        VkImage* images = nullptr;
-        VkImageView* imageViews = nullptr;
+        DynamicArray<Texture*> textures{};
         VulkanImage depthAttachment{};
         bool bRecreateSwapchain = false;
         bool bIsSwapchainDirty = false;
@@ -36,7 +35,6 @@ public:
         unsigned char& getMaxFramesInFlight() { return maxFramesInFlight; }
         VkSurfaceFormatKHR& getImageFormat() { return imageFormat; }
         VkSwapchainKHR& getSwapchain() { return handle; }
-        [[nodiscard]] VkImage* getImages() const {return images;}
         [[nodiscard]] bool isRecreatingSwapchain() const {return bRecreateSwapchain;}
         [[nodiscard]] bool needsResize() const {return bIsSwapchainDirty;}
 
@@ -45,9 +43,8 @@ public:
         void finishRecreateSwapchain() {bRecreateSwapchain = false;}
         void resize() {bIsSwapchainDirty = true;}
 
-        bool createSwapchain(unsigned int frameBufferWidth, unsigned int frameBufferHeight, VulkanDevice& device, const VkSurfaceKHR& surface, unsigned int& currentFrame);
+        bool createSwapchain(unsigned int frameBufferWidth, unsigned int frameBufferHeight, VulkanDevice &device, const VkSurfaceKHR &surface, unsigned int &currentFrame, IRendererBackend *backendRef);
         bool detectDepthFormat(VulkanDevice &device);
-        void regenerateFramebuffers(unsigned int frameBufferWidth, unsigned int frameBufferHeight, DynamicArray<VulkanRenderpass> &renderpasses, VulkanDevice
-                                    &device);
+        void regenerateFramebuffers(unsigned int frameBufferWidth, unsigned int frameBufferHeight, DynamicArray<VulkanRenderpass> &renderpasses, VulkanDevice& device);
         void destroySwapchain(VulkanDevice &device);
 };

@@ -4,6 +4,7 @@
 
 #include "MasterRenderSystem.h"
 
+#include "TextureUtils.h"
 #include "../Library/Logger.h"
 
 Texture MasterRenderSystem::createBlankTexture() {
@@ -98,6 +99,7 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
 
 bool MasterRenderSystem::initializeTextureSystem(const unsigned int initialCapacity, ITextureSystem *system, ResourceSystem* resourceSystem) {
     textureSystem = system;
+    TextureUtils::setTextureSystemRef(textureSystem);
     return textureSystem->initialize(initialCapacity, backend, resourceSystem);
 }
 
@@ -273,7 +275,7 @@ void MasterRenderSystem::onResize(const unsigned short width, const unsigned sho
 }
 
 Texture & MasterRenderSystem::acquireTexture(const bool autoRelease, const String &fileName, const TextureUseCase useCase) const {
-    return textureSystem->acquireTexture(autoRelease, fileName, useCase);
+    return textureSystem->acquireTexture(autoRelease, false, fileName, useCase);
 }
 
 void MasterRenderSystem::releaseTexture(const String &name) const {

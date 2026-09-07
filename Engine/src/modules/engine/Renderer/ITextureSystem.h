@@ -26,6 +26,7 @@
 class FOXFIRE_API ITextureSystem {
 private:
     unsigned long memorySize = 0;
+
 protected:
     IRendererBackend* backendRef = nullptr;
     ResourceSystem* resourceRef = nullptr;
@@ -44,12 +45,15 @@ public:
     /**
      * @brief Fetches a texture from wherever the user stores it. Creates it if it doesn't exist.
      * @param autoRelease Whether to automatically remove the texture when it has no references.
+     * @param skipLoad
+     * @param skipLoad
      * @param fileName Name of the texture.
-     * @param useCase
      * @param useCase
      * @return The texture or default if something goes wrong.
      */
-    virtual Texture &acquireTexture(bool autoRelease, const String &fileName, TextureUseCase useCase) = 0;
+    virtual Texture &acquireTexture(bool autoRelease, bool skipLoad, const String &fileName, TextureUseCase useCase) = 0;
+
+    virtual Texture& acquireWritableTexture(String name, unsigned int width, unsigned int height, unsigned char channelCount, bool isTransparent) = 0;
 
     /**
      * @brief Clears the texture if it has no references.

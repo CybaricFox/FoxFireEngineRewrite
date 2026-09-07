@@ -105,7 +105,7 @@ void VulkanImage::transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFo
 }
 
 void VulkanImage::copyFromBuffer(const VkBuffer buffer, VulkanCommandBuffer &commandBuffer) const {
-    VkBufferImageCopy region;
+    VkBufferImageCopy region{};
     FF_Memory::ff_clear(&region, sizeof(VkBufferImageCopy));
     region.bufferOffset = 0;
     region.bufferRowLength = 0;

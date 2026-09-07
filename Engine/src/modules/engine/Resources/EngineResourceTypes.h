@@ -102,13 +102,19 @@ enum RendererBackendType {
     DIRECTX
 };
 
+enum TextureFlag {
+    TEXTURE_BIT_TRANSPARENT = 0x1,
+    TEXTURE_BIT_WRITABLE = 0x2,
+    TEXTURE_BIT_WRAPPED = 0x4
+};
+typedef unsigned char TextureFlagBits;
+
 struct Texture {
     unsigned int id = INVALID_ID_U32;
     unsigned int width = 0;
     unsigned int height = 0;
     unsigned char channelCount = 0;
-    bool bIsTransparent = false;
-    bool bIsWritable = false;
+    TextureFlagBits flags = 0;
     unsigned int generation = INVALID_ID_U32;
     String name{};
     void* data = nullptr;

@@ -34,6 +34,11 @@ public:
     VkImage& getImage() {return handle;}
     VkDeviceMemory& getMemory() {return deviceMemory;}
 
+    void setImage(VkImage image) {handle = image;}
+    void setWidth(const unsigned int newWidth) {width = newWidth;}
+    void setHeight(const unsigned int newHeight) {height = newHeight;}
+
+
     void transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VulkanDevice &
                                device) const;
     void copyFromBuffer(VkBuffer buffer, VulkanCommandBuffer &commandBuffer) const;

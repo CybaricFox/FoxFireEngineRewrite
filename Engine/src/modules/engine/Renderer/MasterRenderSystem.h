@@ -63,10 +63,6 @@ private:
     void createRenderpasses();
     bool getRenderpassId(const String &name, unsigned char& outId);
 
-    bool createShader(Shader& shader, unsigned char renderpassId, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages);
-    void destroyShader(Shader &shader);
-    bool initializeShader(Shader& shader);
-
 public:
     bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, unsigned int width, unsigned int height, ResourceSystem& resources);
     bool initializeTextureSystem(unsigned int initialCapacity, ITextureSystem *system, ResourceSystem *resourceSystem);

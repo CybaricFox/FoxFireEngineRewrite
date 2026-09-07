@@ -49,6 +49,8 @@ public:
     Texture& getDefaultSpecularTexture() override {return defaultSpecularTexture;}
     Texture& getDefaultNormalTexture() override {return defaultNormalTexture;}
 
-    Texture &acquireTexture(bool autoRelease, const String &fileName, TextureUseCase useCase) override;
+    Texture &acquireTexture(bool autoRelease, bool skipLoad, const String &fileName, TextureUseCase useCase) override;
     void releaseTexture(String name) override;
+
+    Texture & acquireWritableTexture(String name, unsigned width, unsigned height, unsigned char channelCount, bool isTransparent) override;
 };

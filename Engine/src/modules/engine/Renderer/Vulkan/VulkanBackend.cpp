@@ -79,7 +79,7 @@ bool VulkanBackend::recreateSwapchain() {
     vulkanContext.getDevice().querySwapChainSupport(vulkanContext.getDevice().getPhysicalDevice(), vulkanContext.getSurface(), vulkanContext.getDevice().getSwapChainSupportInfo());
     vulkanContext.getSwapchain().detectDepthFormat(vulkanContext.getDevice());
 
-    vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame());
+    vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame(), this);
 
     vulkanContext.setWidth(cachedWidth);
     vulkanContext.setHeight(cachedHeight);
@@ -512,9 +512,9 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
                     Logger::logFatal("Cannot apply shader instance because texture is null!");
                     continue;
                 }
-                auto textureData = static_cast<VulkanTextureData *>(texture->data);
+                VulkanImage& image = *static_cast<VulkanImage *>(texture->data);
                 imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                imageInfos[i].imageView = textureData->image.getImageView();
+                imageInfos[i].imageView = image.getImageView();
                 imageInfos[i].sampler = static_cast<VkSampler>(map->data);
 
                 updateSamplerCount++;
@@ -588,7 +588,7 @@ VulkanBackend::~VulkanBackend() {
     vulkanContext.destroyContext();
 }
 
-bool VulkanBackend::initialize(const String appName, Platform& platform, const unsigned int width, const unsigned int height, ResourceSystem* resources) {
+bool VulkanBackend::initialize(String appName, Platform &platform, unsigned int width, unsigned int height, ResourceSystem *resources) {
     resourceSystemRef = resources;
 
     vulkanContext.initializeGeometry();
@@ -695,7 +695,7 @@ bool VulkanBackend::initialize(const String appName, Platform& platform, const u
         return false;
     }
 
-    vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame());
+    vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame(), this);
 
     for (VulkanRenderpass& renderpass : vulkanContext.getRenderpasses()) {
         renderpass.createRenderpass(
@@ -867,30 +867,17 @@ void VulkanBackend::drawGeometry(const GeometryRenderData &data, Texture& defaul
 void VulkanBackend::createTexture(const unsigned char *pixels, Texture &texture) {
     texture.generation = INVALID_ID_U32;
 
-    texture.data = FF_Memory::ff_allocate(sizeof(VulkanTextureData), TEXTURE);
-    auto* data = static_cast<VulkanTextureData *>(texture.data);
+    texture.data = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
+    VulkanImage& data = *static_cast<VulkanImage *>(texture.data);
 
-    VkDeviceSize imageSize = texture.width * texture.height * texture.channelCount;
+    const unsigned int imageSize = texture.width * texture.height * texture.channelCount;
     VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
-    VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    VkMemoryPropertyFlags memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    VulkanBuffer staging{};
-    staging.createBuffer(vulkanContext.getDevice(), imageSize, static_cast<VkBufferUsageFlagBits>(usage), memoryPropertyFlags, true);
-    staging.loadBufferData(vulkanContext.getDevice(), 0, imageSize, pixels);
-
-    data->image.createImage(VK_IMAGE_TYPE_2D, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+    data.createImage(VK_IMAGE_TYPE_2D, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
 
-    VulkanCommandBuffer tempBuffer = VulkanCommandBuffer::allocateAndBeginSingleUseCommandBuffer(vulkanContext.getDevice());
-    VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
-
-    data->image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, vulkanContext.getDevice());
-    data->image.copyFromBuffer(staging.getBuffer(), tempBuffer);
-    data->image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, vulkanContext.getDevice());
-    tempBuffer.endSingleUseCommandBuffer(queue, vulkanContext.getDevice());
-    staging.destroyBuffer(vulkanContext.getDevice());
+    writeTextureData(texture, 0, imageSize, pixels);
 
     texture.generation++;
 }
@@ -899,12 +886,11 @@ void VulkanBackend::destroyTexture(Texture &texture) {
     vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
 
     if (texture.data) {
-        const auto data = static_cast<VulkanTextureData *>(texture.data);
+        VulkanImage& data = *static_cast<VulkanImage *>(texture.data);
 
-        data->image.destroy(vulkanContext.getDevice());
-        FF_Memory::ff_clear(&data->image, sizeof(VulkanImage));
+        data.destroy(vulkanContext.getDevice());
 
-        FF_Memory::ff_free(texture.data, sizeof(VulkanTextureData), TEXTURE);
+        FF_Memory::ff_free_class<VulkanImage>(texture.data, sizeof(VulkanImage), TEXTURE);
     }
 }
 
@@ -1093,6 +1079,58 @@ void VulkanBackend::releaseTextureMapResources(TextureMap &textureMap) {
     textureMap.data = nullptr;
 }
 
+void VulkanBackend::createWritableTexture(Texture &texture) {
+    texture.data = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
+    VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
+
+    VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
+    image.createImage(VK_IMAGE_TYPE_2D, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
+
+    texture.generation++;
+}
+
+void VulkanBackend::resizeTexture(Texture &texture, unsigned int width, unsigned int height) {
+    if (!texture.data) return;
+
+    VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
+    image.destroy(vulkanContext.getDevice());
+
+    VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
+
+    image.createImage(VK_IMAGE_TYPE_2D, width, height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
+
+    texture.generation++;
+}
+
+void VulkanBackend::writeTextureData(Texture &texture, unsigned int offset, unsigned int size, const unsigned char *pixels) {
+    const VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
+    VkDeviceSize imageSize = texture.width * texture.height * texture.channelCount;
+    VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
+
+    VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    VulkanBuffer stagingBuffer{};
+    stagingBuffer.createBuffer(vulkanContext.getDevice(), imageSize, usage, memoryFlags, true);
+    stagingBuffer.loadBufferData(vulkanContext.getDevice(), 0, imageSize, pixels);
+
+    VulkanCommandBuffer tempBuffer = VulkanCommandBuffer::allocateAndBeginSingleUseCommandBuffer(vulkanContext.getDevice());
+    VkCommandPool pool = vulkanContext.getDevice().getCommandPool();
+    VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
+
+    image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, vulkanContext.getDevice());
+    image.copyFromBuffer(stagingBuffer.getBuffer(), tempBuffer);
+    image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, vulkanContext.getDevice());
+
+    tempBuffer.endSingleUseCommandBuffer(queue, vulkanContext.getDevice());
+    stagingBuffer.destroyBuffer(vulkanContext.getDevice());
+
+    texture.generation++;
+}
+
 VkSamplerAddressMode VulkanBackend::convertTextureRepeatToVulkan(const String &axis, const TextureRepeat repeat) {
     switch (repeat) {
         case TEXTURE_REPEAT: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -1114,6 +1152,16 @@ VkFilter VulkanBackend::convertTextureFilterToVulkan(const String &op, const Tex
             Logger::logWarn(op + " cannot convert filter to: " + std::to_string(filter));
             return VK_FILTER_LINEAR;
         }
+    }
+}
+
+VkFormat VulkanBackend::convertChannelCountToFormat(const unsigned char channelCount, VkFormat defaultFormat) {
+    switch (channelCount) {
+        case 1: return VK_FORMAT_R8_UNORM;
+        case 2: return VK_FORMAT_R8G8_UNORM;
+        case 3: return VK_FORMAT_R8G8B8_UNORM;
+        case 4: return VK_FORMAT_R8G8B8A8_UNORM;
+        default: return defaultFormat;
     }
 }
 
@@ -1141,8 +1189,8 @@ bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int 
 
     for (unsigned int i = 0; i < instanceTextureCount; i++) {
         instanceState.instanceTextureMaps.emplace();
-        instanceState.instanceTextureMaps[i] = maps[i];
-        if (!maps[i]->texture) {
+        instanceState.instanceTextureMaps[i] = static_cast<TextureMap *>(FF_Memory::ff_allocate(sizeof(TextureMap), TEXTURE));
+        if (!instanceState.instanceTextureMaps[i]->texture) {
             instanceState.instanceTextureMaps[i]->texture = &defaultTexture;
         }
     }
@@ -1200,6 +1248,10 @@ bool VulkanBackend::releaseInstanceResources(const Shader &shader, const unsigne
         descriptorState.generations.shutdown();
         descriptorState.ids.shutdown();
     }
+    for (TextureMap* textureMap : instanceState.instanceTextureMaps) {
+        FF_Memory::ff_free_class<TextureMap>(textureMap, sizeof(TextureMap), TEXTURE);
+    }
+
     instanceState.instanceTextureMaps.shutdown();
     instanceState.descriptorSetState.descriptorSets.shutdown();
 

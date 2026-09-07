@@ -24,8 +24,8 @@ bool ShaderSystem::initialize(const ShaderSystemConfig newConfig, IRendererBacke
 }
 
 void ShaderSystem::shutdown() {
-    for (Shader& shader : assets.getData().getData()) {
-        destroyShader(shader);
+    for (Shader* shader : assets.getAssetsAsArray()) {
+        destroyShader(*shader);
     }
     assets.shutdown();
 
@@ -34,7 +34,7 @@ void ShaderSystem::shutdown() {
 }
 
 unsigned int ShaderSystem::getId(const String &shaderName) {
-    const unsigned int shaderId = assets.getContext(shaderName)->index;
+    const unsigned int shaderId = assets.getContext(shaderName).index;
 
     if (shaderId == INVALID_ID_U32) {
         Logger::logError("There is no registered shader named " + shaderName);
@@ -45,11 +45,11 @@ unsigned int ShaderSystem::getId(const String &shaderName) {
 }
 
 Shader *ShaderSystem::getShader(const unsigned int shaderId) {
-    if (shaderId >= config.maxShaderCount || assets.getData().get(shaderId).getId() == INVALID_ID_U32) {
+    if (shaderId >= config.maxShaderCount || assets.getAssetAtIndex(shaderId).getId() == INVALID_ID_U32) {
         return nullptr;
     }
 
-    return &assets.getData().get(shaderId);
+    return &assets.getAssetAtIndex(shaderId);
 }
 
 Shader *ShaderSystem::getShader(const String &shaderName) {
@@ -146,12 +146,12 @@ bool ShaderSystem::setUniform(const String &uniformName, void *value) {
         return false;
     }
 
-    Shader& shader = assets.getData().get(currentShaderId);
+    Shader& shader = assets.getAssetAtIndex(currentShaderId);
     return setUniform(getUniformIndex(shader, uniformName), value);
 }
 
 bool ShaderSystem::setUniform(const unsigned short index, void *value) {
-    Shader& shader = assets.getData().get(currentShaderId);
+    Shader& shader = assets.getAssetAtIndex(currentShaderId);
     ShaderUniform& uniform = shader.getUniform(index);
     if (shader.getBoundScope() != uniform.scope) {
         switch (uniform.scope) {
@@ -179,15 +179,15 @@ bool ShaderSystem::setSampler(const unsigned short index, Texture &texture) {
 }
 
 bool ShaderSystem::applyGlobal() {
-    return backendRef->applyShaderGlobals(assets.getData().get(currentShaderId));
+    return backendRef->applyShaderGlobals(assets.getAssetAtIndex(currentShaderId));
 }
 
 bool ShaderSystem::applyInstance(const bool update) {
-    return backendRef->applyShaderInstance(assets.getData().get(currentShaderId), update);
+    return backendRef->applyShaderInstance(assets.getAssetAtIndex(currentShaderId), update);
 }
 
 bool ShaderSystem::bindInstance(const unsigned int instanceId) {
-    Shader& shader = assets.getData().get(currentShaderId);
+    Shader& shader = assets.getAssetAtIndex(currentShaderId);
     shader.setBoundInstanceId(instanceId);
     backendRef->bindShaderInstance(shader, instanceId);
 
@@ -397,7 +397,7 @@ void ShaderSystem::destroyShader(const String &name) {
     const unsigned int shaderId = getId(name);
     if (shaderId == INVALID_ID_U32) return;
 
-    Shader& shader = assets.getData().get(shaderId);
+    Shader& shader = assets.getAssetAtIndex(shaderId);
 
     destroyShader(shader);
 }

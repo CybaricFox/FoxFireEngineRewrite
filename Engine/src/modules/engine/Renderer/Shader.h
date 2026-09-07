@@ -119,8 +119,8 @@ public:
     [[nodiscard]] unsigned int getBoundOffset() const {return boundOffset;}
     [[nodiscard]] unsigned char getInstanceTextureCount() const {return instanceTextureCount;}
     [[nodiscard]] unsigned int getId() const {return id;}
-    unsigned int getUniformIndex(const String &uniformName){return uniforms.getContext(uniformName)->index;}
-    ShaderUniform& getUniform(const unsigned int index){return uniforms.getData().get(index);}
+    unsigned int getUniformIndex(const String &uniformName){return uniforms.getContext(uniformName).index;}
+    ShaderUniform& getUniform(const unsigned int index){return uniforms.getAssetAtIndex(index);}
     [[nodiscard]] ShaderScope getBoundScope() const {return boundScope;}
     void increaseAttributeStride(const unsigned short stride) {attributeStride += stride;}
     [[nodiscard]] unsigned long getGlobalTextureCount() const {return globalTextureMaps.getLength();}

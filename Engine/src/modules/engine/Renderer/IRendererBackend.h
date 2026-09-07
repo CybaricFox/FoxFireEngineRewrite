@@ -237,6 +237,10 @@ public:
      */
     virtual bool releaseInstanceResources(const Shader &shader, unsigned int instanceId) = 0;
 
+    virtual void createWritableTexture(Texture& texture) = 0;
+    virtual void resizeTexture(Texture& texture, unsigned int width, unsigned int height) = 0;
+    virtual void writeTextureData(Texture& texture, unsigned int offset, unsigned int size, const unsigned char* pixels) = 0;
+
     virtual bool acquireTextureMapResources(TextureMap &textureMap) = 0;
     virtual void releaseTextureMapResources(TextureMap &textureMap) = 0;
 

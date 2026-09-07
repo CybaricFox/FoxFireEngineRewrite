@@ -19,10 +19,6 @@
 #include "VulkanUtils.h"
 #include "src/modules/engine/Core/GameInstance.h"
 
-struct VulkanTextureData {
-    VulkanImage image{};
-};
-
 class VulkanBackend final : public IRendererBackend{
 private:
     int majorVersion = 0;
@@ -48,6 +44,7 @@ private:
     bool createModule(const VulkanShaderStageConfig &config, VulkanShaderStage &stage) const;
     VkSamplerAddressMode convertTextureRepeatToVulkan(const String &axis, TextureRepeat repeat);
     VkFilter convertTextureFilterToVulkan(const String &op, TextureFilter filter);
+    VkFormat convertChannelCountToFormat(unsigned char channelCount, VkFormat defaultFormat);
 public:
     VulkanBackend() = default;
     ~VulkanBackend() override;
@@ -84,6 +81,9 @@ public:
     bool releaseInstanceResources(const Shader &shader, unsigned int instanceId) override;
     bool acquireTextureMapResources(TextureMap &textureMap) override;
     void releaseTextureMapResources(TextureMap &textureMap) override;
+    void createWritableTexture(Texture& texture) override;
+    void resizeTexture(Texture& texture, unsigned int width, unsigned int height) override;
+    void writeTextureData(Texture& texture, unsigned int offset, unsigned int size, const unsigned char* pixels) override;
 
     bool getRenderpassId(String name, unsigned char &outId) override;
 };

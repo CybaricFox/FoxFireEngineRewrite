@@ -44,7 +44,7 @@ void Shader::setPushConstantRange(const MemoryRange range) {
 }
 
 bool Shader::isUniformNameValid(const String &uniformName) {
-    return uniforms.getContext(uniformName) == nullptr;
+    return uniforms.getContext(uniformName).index == INVALID_ID_U32;
 }
 
 void Shader::clearName() {
