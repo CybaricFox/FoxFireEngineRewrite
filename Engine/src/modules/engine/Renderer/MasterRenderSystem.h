@@ -54,17 +54,19 @@ private:
     unsigned int materialShaderId = INVALID_ID_U32;
     unsigned int uiShaderId = INVALID_ID_U32;
 
-    /** @brief Collection of renderpass profiles defined by the user. WARNING: Destroyed during initialization!*/
-    DynamicArray<RenderpassProfile> renderpassProfiles{};
-    /** @brief Whether this is initialized. */
-    bool bIsInitialized = false;
+    unsigned char renderTargetCount = 0;
+    unsigned int framebufferWidth = 0;
+    unsigned int framebufferHeight = 0;
+    Renderpass* worldRenderpass = nullptr;
+    Renderpass* uiRenderpass = nullptr;
+    bool bIsCurrentlyResizing = false;
+    unsigned char framesSinceResizeRequested = 0;
 
     Texture createBlankTexture();
-    void createRenderpasses();
-    bool getRenderpassId(const String &name, unsigned char& outId);
+    void regenerateRenderTargets() const;
 
 public:
-    bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, unsigned int width, unsigned int height, ResourceSystem& resources);
+    bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, ResourceSystem &resources);
     bool initializeTextureSystem(unsigned int initialCapacity, ITextureSystem *system, ResourceSystem *resourceSystem);
     bool initializeMaterialSystem(MaterialSystemConfig config, IMaterialSystem *system, ResourceSystem *resourceSystem);
     bool initializeGeometrySystem(unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem *resourceSystem);
@@ -77,6 +79,7 @@ public:
     [[nodiscard]] Texture& getDefaultSpecularTexture() const {return textureSystem->getDefaultSpecularTexture();}
     [[nodiscard]] Texture& getDefaultNormalTexture() const {return textureSystem->getDefaultNormalTexture();}
     [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefault3DGeometry();}
+    [[nodiscard]] Renderpass* getRenderPass(const String &name) const {return backend->getRenderpass(name);}
 
     void setView(const Mat4 &newView, Vector3f viewPosition);
 
@@ -85,7 +88,6 @@ public:
     [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName, TextureUseCase useCase) const;
     void releaseTexture(const String &name) const;
     [[nodiscard]] Geometry& acquireGeometry(GeometryConfig &config, bool autoRelease) const;
-    void addRenderpassProfile(const RenderpassProfile &profile);
     void changeRenderMode(Keys key);
     Material& acquireMaterial(const String &name) const;
     void releaseMaterial(const String &name) const;

@@ -8,6 +8,7 @@
 #include "src/modules/engine/Library/AssetMap.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
+#include "src/modules/engine/Resources/EngineShaderTypes.h"
 
 /**
  *  @file Shader.h
@@ -120,7 +121,7 @@ public:
     [[nodiscard]] unsigned char getInstanceTextureCount() const {return instanceTextureCount;}
     [[nodiscard]] unsigned int getId() const {return id;}
     unsigned int getUniformIndex(const String &uniformName){return uniforms.getContext(uniformName).index;}
-    ShaderUniform& getUniform(const unsigned int index){return uniforms.getAssetAtIndex(index);}
+    ShaderUniform& getUniform(const unsigned int index){return *uniforms.getAssetAtIndex(index);}
     [[nodiscard]] ShaderScope getBoundScope() const {return boundScope;}
     void increaseAttributeStride(const unsigned short stride) {attributeStride += stride;}
     [[nodiscard]] unsigned long getGlobalTextureCount() const {return globalTextureMaps.getLength();}

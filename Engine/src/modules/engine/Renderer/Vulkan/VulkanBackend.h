@@ -31,7 +31,7 @@ private:
         const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
         void* userData);
 
-    bool createSurface(Platform& platform);
+    bool createSurface(const Platform& platform);
     bool recreateSwapchain();
     //Semaphore syncs between gpu threads
     //Fence syncs between gpu and application
@@ -50,10 +50,8 @@ public:
     ~VulkanBackend() override;
 
     static VulkanContext vulkanContext;
-    static unsigned int cachedWidth;
-    static unsigned int cachedHeight;
 
-    bool initialize(String appName, Platform &platform, unsigned int width, unsigned int height, ResourceSystem* resources) override;
+    bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount, ResourceSystem *resources) override;
 
     void setVersion(const GameInstance& gameInstance);
 
@@ -65,10 +63,9 @@ public:
     void destroyTexture(Texture &texture) override;
     bool createGeometry(Geometry &geometry, unsigned int vertexSize, unsigned int vertexCount, Vertex* vertices, unsigned int indexSize, unsigned int indexCount, void *indices) override;
     void destroyGeometry(Geometry &geometry) override;
-    void createRenderpass(RenderpassProfile profile) override;
-    bool beginRenderpass(unsigned char renderpassId) override;
-    bool endRenderpass(unsigned char renderpassId) override;
-    bool createShader(Shader& shader, unsigned char renderpassId, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages) override;
+    bool beginRenderpass(Renderpass& renderpass, RenderTarget& target) override;
+    bool endRenderpass(Renderpass& renderpass) override;
+    bool createShader(Shader& shader, Renderpass& renderpass, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages) override;
     bool initializeShader(Shader &shader) override;
     void destroyShader(Shader &shader) override;
     bool useShader(Shader &shader) override;
@@ -77,7 +74,7 @@ public:
     bool setUniform(Shader &shader, ShaderUniform &uniform, void *value) override;
     bool applyShaderGlobals(Shader &shader) override;
     bool applyShaderInstance(Shader &shader, bool update) override;
-    bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap* maps[]) override;
+    bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap **maps) override;
     bool releaseInstanceResources(const Shader &shader, unsigned int instanceId) override;
     bool acquireTextureMapResources(TextureMap &textureMap) override;
     void releaseTextureMapResources(TextureMap &textureMap) override;
@@ -85,5 +82,14 @@ public:
     void resizeTexture(Texture& texture, unsigned int width, unsigned int height) override;
     void writeTextureData(Texture& texture, unsigned int offset, unsigned int size, const unsigned char* pixels) override;
 
-    bool getRenderpassId(String name, unsigned char &outId) override;
+    Renderpass* getRenderpass(String name) override;
+    Texture* getWindowAttachment(unsigned char index) override;
+    Texture* getDepthAttachment() override;
+    unsigned char getWindowAttachmentIndex() override;
+    void createRenderTarget(unsigned char attachmentCount, DynamicArray<Texture *> &attachments, Renderpass &renderpass, unsigned width, unsigned
+                            height, RenderTarget
+                            &outTarget) override;
+    void destroyRenderTarget(RenderTarget &target, bool freeMemory) override;
+    void createRenderpass(Renderpass &outRenderpass, float depth, unsigned stencil, bool hasPreviousPass, bool hasNextPass) override;
+    void destroyRenderpass(Renderpass &renderpass) override;
 };

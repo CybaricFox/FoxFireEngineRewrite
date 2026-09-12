@@ -5,20 +5,20 @@
 #include "FoxFire_GeometrySystem.h"
 
 Geometry & FoxFire_GeometrySystem::acquireGeometry(const unsigned int id) {
-    if (id == INVALID_ID_U32 || geometries.get(id).geometry.id == INVALID_ID_U32) {
+    if (id == INVALID_ID_U32 || geometries.get(id)->geometry.id == INVALID_ID_U32) {
         Logger::logError("Geometry system cannot load geometry with an invalid id!");
         return default3DGeometry;
     }
 
-    geometries.get(id).referenceCount++;
-    return geometries.get(id).geometry;
+    geometries.get(id)->referenceCount++;
+    return geometries.get(id)->geometry;
 }
 
 Geometry & FoxFire_GeometrySystem::acquireGeometry(GeometryConfig &config, const bool autoRelease) {
     Geometry* geometry = nullptr;
 
     const unsigned int index = geometries.assign();
-    GeometryContext& context = geometries.get(index);
+    GeometryContext& context = *geometries.get(index);
 
     context.bAutoRelease = autoRelease;
     context.referenceCount = 1;
@@ -39,7 +39,7 @@ void FoxFire_GeometrySystem::releaseGeometry(const Geometry &geometry) {
         return;
     }
 
-    GeometryContext& context = geometries.get(geometry.id);
+    GeometryContext& context = *geometries.get(geometry.id);
     const unsigned int id = context.geometry.id;
 
     if (context.geometry.id != geometry.id) {
@@ -205,8 +205,8 @@ bool FoxFire_GeometrySystem::createDefaultGeometries() {
 
 bool FoxFire_GeometrySystem::createGeometry(GeometryConfig &config, Geometry &geometry) {
     if (!backendRef->createGeometry(geometry, config.vertices.getSize(), config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getSize(), config.indices.getCount(), config.indices.getIndex(0))) {
-        geometries.get(geometry.id).referenceCount = 0;
-        geometries.get(geometry.id).bAutoRelease = false;
+        geometries.get(geometry.id)->referenceCount = 0;
+        geometries.get(geometry.id)->bAutoRelease = false;
         geometry.id = INVALID_ID_U32;
         geometry.generation = INVALID_ID_U32;
         geometry.internalId = INVALID_ID_U32;

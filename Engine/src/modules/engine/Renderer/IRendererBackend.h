@@ -12,11 +12,19 @@
 
 #pragma once
 
+#include "Renderpass.h"
 #include "Shader.h"
 #include "src/modules/engine/Core/GameInstance.h"
 #include "src/modules/engine/Core/Platform.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
+
+struct RendererBackendConfig {
+    String appName{};
+    unsigned short renderpassCount = 0;
+    RenderpassConfig* configs = nullptr;
+    std::function<void()> func{};
+};
 
 /**
  * @brief The Abstract Backend used for this application.
@@ -45,29 +53,23 @@ public:
     static IRendererBackend* create(RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance);
 
     /**
-     * @brief Returns the renderpass Id tied to this name
-     * @param name Name of the renderpass
-     * @param outId OUT Id of the renderpass
-     * @return true if successful, false if renderpass does not exist
-     */
-    virtual bool getRenderpassId(String name, unsigned char& outId) = 0;
-
-    /**
      * @brief Gets the current frame number.
      * @return The current frame number.
      */
     virtual unsigned int getFrameNumber() {return frameNumber;}
 
+    virtual Renderpass* getRenderpass(String name) = 0;
+    virtual Texture* getWindowAttachment(unsigned char index) = 0;
+    virtual Texture* getDepthAttachment() = 0;
+    virtual unsigned char getWindowAttachmentIndex() = 0;
+
     /**
      * @brief Initializes the backend
-     * @param appName Name of the application
      * @param platform A platform object reference (Will eventually be changed)
-     * @param width Width of the window
-     * @param height Height of the window
      * @param resources Pointer to the resource system for referencing.
      * @return False on failure
      */
-    virtual bool initialize(String appName, Platform &platform, unsigned int width, unsigned int height, ResourceSystem* resources) = 0;
+    virtual bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount, ResourceSystem *resources) = 0;
 
     /**
      * @brief Runs at the start of the frame
@@ -131,35 +133,26 @@ public:
     virtual void destroyGeometry(Geometry& geometry) = 0;
 
     /**
-     * @brief Creates a renderpass from a renderpass profile
-     * @param profile The profile the renderpass will use
-     */
-    virtual void createRenderpass(RenderpassProfile profile) = 0;
-
-    /**
      * @brief Starts a renderpass
-     * @param id id of the renderpass
      * @return false on failure
      */
-    virtual bool beginRenderpass(unsigned char id) = 0;
+    virtual bool beginRenderpass(Renderpass& renderpass, RenderTarget& target) = 0;
 
     /**
      * @brief Ends a renderpass
-     * @param id id of the renderpass
      * @return false on failure
      */
-    virtual bool endRenderpass(unsigned char id) = 0;
+    virtual bool endRenderpass(Renderpass& renderpass) = 0;
 
     /**
      * @brief Creates a shader
      * @param shader OUT shader
-     * @param renderpassId id of the renderpass this shader will use
      * @param stageCount Number of stages
      * @param stageFileNames
      * @param stages
      * @return false on failure
      */
-    virtual bool createShader(Shader& shader, unsigned char renderpassId, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages) = 0;
+    virtual bool createShader(Shader& shader, Renderpass& renderpass, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages) = 0;
 
     /**
      * @brief Finalizes a shader
@@ -227,7 +220,7 @@ public:
      * @param maps
      * @return false on failure
      */
-    virtual bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap* maps[]) = 0;
+    virtual bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap **maps) = 0;
 
     /**
      * @brief
@@ -243,6 +236,14 @@ public:
 
     virtual bool acquireTextureMapResources(TextureMap &textureMap) = 0;
     virtual void releaseTextureMapResources(TextureMap &textureMap) = 0;
+
+    virtual void createRenderTarget(unsigned char attachmentCount, DynamicArray<Texture *>& attachments, Renderpass &renderpass, unsigned width, unsigned
+                                    height, RenderTarget
+                                    &outTarget) = 0;
+    virtual void destroyRenderTarget(RenderTarget& target, bool freeMemory) = 0;
+
+    virtual void createRenderpass(Renderpass& outRenderpass, float depth, unsigned int stencil, bool hasPreviousPass, bool hasNextPass) = 0;
+    virtual void destroyRenderpass(Renderpass& renderpass) = 0;
 
     void incrementFrameNumber() {frameNumber++;}
     void clearFrameNumber() {frameNumber = 0;}

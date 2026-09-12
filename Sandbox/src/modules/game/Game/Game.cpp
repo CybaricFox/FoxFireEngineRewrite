@@ -141,20 +141,7 @@ void Game::initialize() {
     state->view = invertMatrix(state->view);
     state->bIsCameraDirty = true;
 
-    //User defined renderpasses
-    RenderpassProfile mainProfile{};
-    mainProfile.name = "Fox_Fire_World_Renderpass";
-    mainProfile.id = 0;
-    mainProfile.clearFlags = RENDERPASS_CLEAR_COLOR | RENDERPASS_CLEAR_DEPTH | RENDERPASS_CLEAR_STENCIL;
-    mainProfile.clearColor = {0, 0, 0.2, 1};
-    masterRenderSystem.addRenderpassProfile(mainProfile);
-
-    RenderpassProfile uiProfile{};
-    uiProfile.name = "Fox_Fire_UI_Renderpass";
-    uiProfile.id = 1;
-    uiProfile.clearFlags = RENDERPASS_CLEAR_NONE;
-    uiProfile.clearColor = {0, 0, 0, 0};
-    masterRenderSystem.addRenderpassProfile(uiProfile);
+    swapTextureEvent.registerEvent();
 
     Engine::initialize();
 }

@@ -52,7 +52,9 @@ public:
      * @param index Index of the asset
      * @return The asset at that index
      */
-    V& getAssetAtIndex(unsigned int index) {return data.get(index);}
+    V* getAssetAtIndex(unsigned int index) {
+        return data.get(index);
+    }
 
     /**
      * @brief Gets all registered assets as an array. Use this when you need to iterate over all assets.
@@ -63,7 +65,7 @@ public:
         auto pairs = map.getPairs();
 
         for (auto& pair : pairs) {
-            result.push(&data.get(pair.value->index));
+            result.push(data.get(pair.value->index));
         }
 
         return result;
@@ -88,7 +90,7 @@ public:
         AssetContext* context = getContextInternal(key);
         if (!context) return nullptr;
         ++context->referenceCount;
-        return &data.get(context->index);
+        return data.get(context->index);
     }
 
     //Creates a blank context and asset to be edited.
@@ -105,7 +107,7 @@ public:
         unsigned int index = data.assign();
         context.index = index;
         map.addEntry(name, context);
-        return &data.get(index);
+        return data.get(index);
     }
 
     /**
@@ -154,6 +156,6 @@ public:
     V* getAsset(const String& key) {
         AssetContext* context = getContextInternal(key);
         if (!context) return nullptr;
-        return &data.get(context->index);
+        return data.get(context->index);
     }
 };

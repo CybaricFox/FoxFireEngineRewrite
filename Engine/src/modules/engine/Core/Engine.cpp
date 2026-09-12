@@ -236,7 +236,7 @@ void Engine::initialize() {
     }
 
     //Start renderer
-    if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance, width, height, resourceSystem)) {
+    if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance, resourceSystem)) {
         Logger::logFatal("Failed to initialize the render system!");
         return;
     }

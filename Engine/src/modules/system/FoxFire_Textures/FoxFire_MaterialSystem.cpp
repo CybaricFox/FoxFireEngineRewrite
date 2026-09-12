@@ -112,7 +112,9 @@ void FoxFire_MaterialSystem::releaseMaterial(const String &name) {
     }
 
     Material* material = nullptr;
-    if (assets.releaseAsset(name, material)) destroyMaterial(*material);
+    if (assets.releaseAsset(name, material)) {
+        destroyMaterial(*material);
+    }
 }
 
 bool FoxFire_MaterialSystem::createDefaultMaterial() {

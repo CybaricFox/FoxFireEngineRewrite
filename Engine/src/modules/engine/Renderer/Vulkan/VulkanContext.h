@@ -19,6 +19,8 @@
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/engine/Library/ReusableArray.h"
 
+#define VULKAN_MAX_RENDERPASSES 31
+
 class VulkanContext {
 private:
     VkInstance instance = nullptr;
@@ -40,13 +42,16 @@ private:
     VulkanBuffer indexBuffer{};
     float deltaTime = 0.0f;
     ReusableArray<GeometryData> geometries{};
-    DynamicArray<VulkanRenderpass> renderpasses{};
+    AssetMap<Renderpass, AssetContext> renderpasses{};
+    RenderTarget worldRenderTargets[3]{};
 
 #if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT debugMessenger{};
 #endif
 
 public:
+    Event<void> resizeRenderTargetsEvent{};
+
     VulkanDevice& getDevice() {return device;}
     VulkanSwapchain& getSwapchain() {return swapchain;}
     VkSurfaceKHR& getSurface() {return surface;}
@@ -54,7 +59,9 @@ public:
     VkInstance& getInstance() {return instance;}
     [[nodiscard]] unsigned int getFrameBufferWidth() const { return frameBufferWidth; }
     [[nodiscard]] unsigned int getFrameBufferHeight() const { return frameBufferHeight; }
-    VulkanRenderpass& getRenderpass(unsigned char id);
+
+    Renderpass *getRenderpass(unsigned char id);
+    Renderpass* getRenderpass(const String &renderName);
     [[nodiscard]] VulkanCommandBuffer* getCommandBuffers() const {return commandBuffers;}
     [[nodiscard]] VulkanCommandBuffer& getCommandBuffer(const unsigned int i) const {return commandBuffers[i];}
     VkSemaphore* getImageAvailableSemaphores() const { return imageAvailableSemaphores; }
@@ -67,12 +74,11 @@ public:
     [[nodiscard]] VulkanCommandBuffer& getCurrentCommandBuffer() const {return commandBuffers[imageIndex];}
     VkFence*& getCurrentImageInFlight() {return imagesInFlight[imageIndex];}
     VkSemaphore& getCurrentQueueCompleteSemaphore() const {return queueCompleteSemaphores[imageIndex];}
-    VkFramebuffer& getCurrentFramebuffer(unsigned int id);
     VulkanBuffer& getVertexBuffer() { return vertexBuffer; }
     VulkanBuffer& getIndexBuffer() { return indexBuffer; }
     [[nodiscard]] float getDeltaTime() const { return deltaTime; }
-    GeometryData& getGeometry(const unsigned int id) { return geometries.get(id); }
-    DynamicArray<VulkanRenderpass>& getRenderpasses() { return renderpasses; }
+    GeometryData& getGeometry(const unsigned int id) { return *geometries.get(id); }
+    RenderTarget& getRenderTarget(const unsigned int index) {return worldRenderTargets[index];}
 
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
     void setHeight(const unsigned int height) {frameBufferHeight = height;}
@@ -81,7 +87,8 @@ public:
     void setCurrentFrame(const unsigned int value) {currentFrame = value;}
     unsigned int assignGeometry() {return geometries.assign();}
     void initializeGeometry() {geometries.initialize(MAX_GEOMETRY_COUNT);}
-    void initializeRenderpasses() {renderpasses.initialize(2);}
+    void initializeRenderpasses() {renderpasses.initialize(VULKAN_MAX_RENDERPASSES);}
+    void initializeEvents() {resizeRenderTargetsEvent.registerEvent();}
 
     VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}
 
@@ -92,8 +99,6 @@ public:
     void destroySyncObjects();
     void clearImagesInFlight();
     [[nodiscard]] bool isCommandBufferValid(const unsigned int i) const {return &commandBuffers[i] != nullptr;}
-    void addRenderpass(VulkanRenderpass &newRenderpass);
-    void createFramebuffers();
-    void destroyRenderpasses();
-    void destroyFramebuffers();
+
+    Renderpass *addRenderpass(const RenderpassConfig &config);
 };

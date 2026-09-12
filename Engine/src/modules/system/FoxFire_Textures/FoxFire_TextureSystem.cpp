@@ -66,7 +66,9 @@ void FoxFire_TextureSystem::releaseTexture(const String name) {
     }
 
     Texture* texture = nullptr;
-    if (assets.releaseAsset(name, texture)) destroyTexture(*texture);
+    if (assets.releaseAsset(name, texture)) {
+        destroyTexture(*texture);
+    }
 }
 
 Texture & FoxFire_TextureSystem::acquireWritableTexture(const String name, const unsigned width, const unsigned height, const unsigned char channelCount, const bool isTransparent) {

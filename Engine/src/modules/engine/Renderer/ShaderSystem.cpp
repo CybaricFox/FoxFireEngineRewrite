@@ -45,11 +45,11 @@ unsigned int ShaderSystem::getId(const String &shaderName) {
 }
 
 Shader *ShaderSystem::getShader(const unsigned int shaderId) {
-    if (shaderId >= config.maxShaderCount || assets.getAssetAtIndex(shaderId).getId() == INVALID_ID_U32) {
+    if (shaderId >= config.maxShaderCount || assets.getAssetAtIndex(shaderId)->getId() == INVALID_ID_U32) {
         return nullptr;
     }
 
-    return &assets.getAssetAtIndex(shaderId);
+    return assets.getAssetAtIndex(shaderId);
 }
 
 Shader *ShaderSystem::getShader(const String &shaderName) {
@@ -82,13 +82,13 @@ bool ShaderSystem::createShader(ShaderConfig& shaderConfig) {
 
     if (!shader->initializeShader(shaderConfig, context.index)) return false;
 
-    unsigned char renderpassId = INVALID_ID_U8;
-    if (!backendRef->getRenderpassId(shaderConfig.renderpassName, renderpassId)) {
+    Renderpass* renderpass = backendRef->getRenderpass(shaderConfig.renderpassName);
+    if (!renderpass) {
         Logger::logError("Failed to find renderpass: " + shaderConfig.renderpassName);
         return false;
     }
 
-    if (!backendRef->createShader(*shader, renderpassId, shaderConfig.stageCount, shaderConfig.stageFileNames, shaderConfig.stages)) {
+    if (!backendRef->createShader(*shader, *renderpass, shaderConfig.stageCount, shaderConfig.stageFileNames, shaderConfig.stages)) {
         Logger::logError("Failed to create shader.");
         return false;
     }
@@ -146,12 +146,12 @@ bool ShaderSystem::setUniform(const String &uniformName, void *value) {
         return false;
     }
 
-    Shader& shader = assets.getAssetAtIndex(currentShaderId);
+    Shader& shader = *assets.getAssetAtIndex(currentShaderId);
     return setUniform(getUniformIndex(shader, uniformName), value);
 }
 
 bool ShaderSystem::setUniform(const unsigned short index, void *value) {
-    Shader& shader = assets.getAssetAtIndex(currentShaderId);
+    Shader& shader = *assets.getAssetAtIndex(currentShaderId);
     ShaderUniform& uniform = shader.getUniform(index);
     if (shader.getBoundScope() != uniform.scope) {
         switch (uniform.scope) {
@@ -179,15 +179,15 @@ bool ShaderSystem::setSampler(const unsigned short index, Texture &texture) {
 }
 
 bool ShaderSystem::applyGlobal() {
-    return backendRef->applyShaderGlobals(assets.getAssetAtIndex(currentShaderId));
+    return backendRef->applyShaderGlobals(*assets.getAssetAtIndex(currentShaderId));
 }
 
 bool ShaderSystem::applyInstance(const bool update) {
-    return backendRef->applyShaderInstance(assets.getAssetAtIndex(currentShaderId), update);
+    return backendRef->applyShaderInstance(*assets.getAssetAtIndex(currentShaderId), update);
 }
 
 bool ShaderSystem::bindInstance(const unsigned int instanceId) {
-    Shader& shader = assets.getAssetAtIndex(currentShaderId);
+    Shader& shader = *assets.getAssetAtIndex(currentShaderId);
     shader.setBoundInstanceId(instanceId);
     backendRef->bindShaderInstance(shader, instanceId);
 
@@ -397,7 +397,7 @@ void ShaderSystem::destroyShader(const String &name) {
     const unsigned int shaderId = getId(name);
     if (shaderId == INVALID_ID_U32) return;
 
-    Shader& shader = assets.getAssetAtIndex(shaderId);
+    Shader& shader = *assets.getAssetAtIndex(shaderId);
 
     destroyShader(shader);
 }
