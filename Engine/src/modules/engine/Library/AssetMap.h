@@ -135,6 +135,23 @@ public:
         Logger::logDebug(name + " has one less reference. " + std::to_string(context->referenceCount) + " remains.");
         return false;
     }
+    bool releaseAsset(String name) {
+        AssetContext* context = getContextInternal(name);
+        if (!context || context->referenceCount == 0) return false;
+
+        --context->referenceCount;
+
+        if (context->referenceCount == 0 && context->bAutoRelease) {
+            data.release(context->index);
+            map.removeValue(name);
+            Logger::logDebug(name + " was unloaded from the texture system.");
+
+            return true;
+        }
+
+        Logger::logDebug(name + " has one less reference. " + std::to_string(context->referenceCount) + " remains.");
+        return false;
+    }
 
     void clear() {
         map.clearHashMap();

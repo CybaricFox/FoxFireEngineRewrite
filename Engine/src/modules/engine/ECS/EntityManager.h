@@ -37,6 +37,7 @@ public:
     EntityManager& operator=(EntityManager&&) = delete;
 
     [[nodiscard]] unsigned int getEntityCount() const {return count;}
+    DynamicArray<EntityInstance*>& getInstances() {return instances;}
 
     void copyFromTemplate(Entity& entity, unsigned int id);
 

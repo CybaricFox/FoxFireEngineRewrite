@@ -15,6 +15,8 @@
 #include "IMaterialSystem.h"
 #include "ITextureSystem.h"
 #include "IRendererBackend.h"
+#include "IRenderView.h"
+#include "RenderViewSystem.h"
 #include "src/defines.h"
 #include "src/modules/engine/Core/Platform.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
@@ -32,17 +34,6 @@ class FOXFIRE_API MasterRenderSystem {
 private:
     /** @brief pointer to the backend in use */
     IRendererBackend* backend = nullptr;
-    Mat4 worldProjection{};
-    Vector4f ambientColor{};
-    unsigned int renderMode = 0;
-    Mat4 uiProjection{};
-    Mat4 uiView{};
-    /** @brief How close geometry can get before it is clipped. */
-    float nearClip = 0.1f;
-    /** @brief How far geometry can get before it is clipped. */
-    float farClip = 1000.0f;
-    /** @brief the camera the render system is using right now. */
-    unsigned int currentCameraId = INVALID_ID_U32;
 
     /** @brief Pointer to the user defined texture system. */
     ITextureSystem* textureSystem = nullptr;
@@ -56,6 +47,8 @@ private:
     unsigned int uiShaderId = INVALID_ID_U32;
 
     CameraSystem cameraSystem{};
+
+    RenderViewSystem renderViewSystem{};
 
     unsigned char renderTargetCount = 0;
     unsigned int framebufferWidth = 0;
@@ -75,6 +68,7 @@ public:
     bool initializeGeometrySystem(unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem *resourceSystem);
     bool initializeShaderSystem(const ShaderSystemConfig &config, ResourceSystem &resources);
     bool initializeCameraSystem(const CameraSystemConfig &config, MasterEntityComponentSystem *ecsRef);
+    bool initializeRenderViewSystem(const RenderViewSystemConfig &config);
     void shutdown();
     MasterRenderSystem() = default;
 
@@ -84,16 +78,18 @@ public:
     [[nodiscard]] Texture& getDefaultNormalTexture() const {return textureSystem->getDefaultNormalTexture();}
     [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefault3DGeometry();}
     [[nodiscard]] Renderpass* getRenderPass(const String &name) const {return backend->getRenderpass(name);}
-    [[nodiscard]] unsigned int getCurrentCameraId() const {return currentCameraId;}
+    IRenderView* getRenderView(const String &name) {return renderViewSystem.getRenderView(name);}
+    [[nodiscard]] unsigned int getDefaultCamera() const {return cameraSystem.getDefaultCamera();}
 
-    [[nodiscard]] bool drawFrame(RenderPacket &packet);
+    [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);
     [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName, TextureUseCase useCase) const;
     void releaseTexture(const String &name) const;
     [[nodiscard]] Geometry& acquireGeometry(GeometryConfig &config, bool autoRelease) const;
-    void changeRenderMode(Keys key);
     Material& acquireMaterial(const String &name) const;
     void releaseMaterial(const String &name) const;
+    bool createRenderView(const RenderViewConfig &config);
+    bool buildPacket(IRenderView *renderView, MeshPacketData *meshData, RenderViewPacket &packet);
 
     [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
         float xTile, float yTile, const String &name, const String &materialName) const;

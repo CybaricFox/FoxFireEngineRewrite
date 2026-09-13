@@ -59,6 +59,14 @@ void MasterEntityComponentSystem::initialize() {
     const auto mesh = FF_Memory::ff_allocate_class<Mesh>(sizeof(Mesh), ECS);
     basic->components.push(mesh);
 
+    Entity* basicUI = createEntityType("Basic_UI");
+
+    basicUI->components.initialize(0, ECS);
+    const auto transformUI = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
+    basicUI->components.push(transformUI);
+    const auto meshUI = FF_Memory::ff_allocate_class<Mesh>(sizeof(Mesh), ECS);
+    basicUI->components.push(meshUI);
+
     instances = FF_Memory::ff_allocate_class<AssetMap<EntityManager, AssetContext>>(sizeof(AssetMap<EntityManager, AssetContext>), ECS);
     instances->initialize(1024);
 }
@@ -82,6 +90,18 @@ unsigned int MasterEntityComponentSystem::getEntityCount(const String &name) {
     const EntityManager* manager = instances->getAsset(name);
 
     return manager->getEntityCount();
+}
+
+DynamicArray<unsigned int> MasterEntityComponentSystem::getAllEntitiesOfType(const String &type) {
+    EntityManager* manager = instances->getAsset(type);
+    const unsigned int count = manager->getEntityCount();
+    DynamicArray<unsigned int> result{count};
+
+    for (EntityInstance*& instance : manager->getInstances()) {
+        result.push(instance->id);
+    }
+
+    return result;
 }
 
 unsigned int MasterEntityComponentSystem::createEntity(const String &name) {

@@ -60,10 +60,6 @@ private:
     /** @brief The amount of time the previous frame took */
     double lastTime = 0;
 
-    //Remove Me
-    Geometry* testGeometry = nullptr;
-    Geometry* testUIGeometry = nullptr;
-
     /**
      * @brief Initializes FF_Memory and the Linear Allocator
      */
@@ -83,7 +79,8 @@ protected:
     /** @brief Reference to the user-defined geometry system. WARNING: VOLATILE REFERENCE! */
     IGeometrySystem* geometrySystem = nullptr;
 
-    [[nodiscard]] unsigned int getCurrentCamera() const {return masterRenderSystem.getCurrentCameraId();}
+    [[nodiscard]] unsigned int getDefaultCamera() const {return masterRenderSystem.getDefaultCamera();}
+    IRenderView* getRenderView(const String &name) {return masterRenderSystem.getRenderView(name);}
 
     /**
      * @brief Quits the application when called.
@@ -120,20 +117,6 @@ protected:
      * @return False if something went wrong.
      */
     bool render(float deltaTime);
-
-    void onDebugEvent() {
-        const String files[3] = {"MaterialTemplate", "Test1_Material", "Test2_Material"};
-        static char choice = 2;
-        const String oldName = files[choice];
-        choice++;
-        choice %= 3;
-
-        Geometry* geometry = ECSSystem.getComponent<Mesh>(1)->geometries[0];
-        if (geometry) {
-            geometry->material = &masterRenderSystem.acquireMaterial(files[choice]);
-            masterRenderSystem.releaseMaterial(oldName);
-        }
-    }
 
     /**
      * @brief Creates the derived GameState, Must be called after gameInstance is set by the Engine.

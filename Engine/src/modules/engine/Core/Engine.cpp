@@ -9,6 +9,7 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
 #include "src/modules/engine/Library/JsonHandler.h"
+#include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
 
 void Engine::startup()
 {
@@ -24,7 +25,6 @@ void Engine::startup()
     //Setup builtin engine events
     inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
     inputSystem->subscribeToEngineEvent(RESIZED, [this](const EngineInputContext context) {resize(context.mouseX, context.mouseY);}, "Static.resize");
-    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {masterRenderSystem.changeRenderMode(static_cast<Keys>(context.key));}, "MasterRender.default_render");
 
     bIsInitialized = true;
     bIsRunning = true;
@@ -73,14 +73,9 @@ void Engine::run() {
                 bIsRunning = false;
             }
 
-            RenderPacket packet{};
-            packet.deltaTime = static_cast<float>(deltaTime);
-
             //temp code
             const unsigned int meshCount = ECSSystem.getEntityCount("Basic_Entity");
             if (meshCount > 0) {
-                packet.geometries.initialize();
-
                 const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, 0.5f * static_cast<float>(deltaTime), false);
                 TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(1), rotation);
 
@@ -90,25 +85,27 @@ void Engine::run() {
                 if (meshCount > 2) {
                     TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(3), rotation);
                 }
-
-                for (unsigned int i = 1; i <= meshCount; i++) {
-                    Mesh& mesh = *ECSSystem.getComponent<Mesh>(i);
-                    Transform& transform = *ECSSystem.getComponent<Transform>(i);
-                    for (unsigned int j = 0; j < mesh.geometryCount; j++) {
-                        GeometryRenderData data{};
-                        data.geometry = mesh.geometries[j];
-                        data.model = TransformUtils::getWorldPos(transform);
-                        packet.geometries.push(data);
-                        packet.geometryCount++;
-                    }
-                }
             }
 
-            GeometryRenderData testUIData{};
-            testUIData.geometry = testUIGeometry;
-            testUIData.model = createTranslationMatrix({0, 0, 0});
-            packet.uiGeometryCount = 1;
-            packet.uiGeometries = &testUIData;
+            RenderPacket packet{};
+            packet.deltaTime = static_cast<float>(deltaTime);
+            packet.viewCount = 2;
+            RenderViewPacket views[2]{};
+            packet.views = views;
+            MeshPacketData worldMeshData{};
+            worldMeshData.meshCount = meshCount;
+            worldMeshData.meshes = ECSSystem.getAllEntitiesOfType("Basic_Entity").getData(); //All of these entities have meshes
+            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_World_View"), &worldMeshData, packet.views[0])) {
+                Logger::logError("Failed to build world packet");
+                return;
+            }
+            MeshPacketData uiMeshData{};
+            uiMeshData.meshCount = ECSSystem.getEntityCount("Basic_UI");
+            uiMeshData.meshes = ECSSystem.getAllEntitiesOfType("Basic_UI").getData(); //All of these entities have meshes
+            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiMeshData, packet.views[1])) {
+                Logger::logError("Failed to build ui packet");
+                return;
+            }
             //end temp code
 
             if (!masterRenderSystem.drawFrame(packet)) {
@@ -116,9 +113,7 @@ void Engine::run() {
                 bIsRunning = false;
             }
 
-            if (!packet.geometries.isEmpty()) {
-                packet.geometries.shutdown();
-            }
+
 
             //How long did the frame take
             const double endTime = Platform::getAbsoluteTime();
@@ -241,6 +236,17 @@ void Engine::initialize() {
         return;
     }
 
+    //Start ECS system
+    ECSSystem.initialize();
+
+    //Start camera system
+    CameraSystemConfig cameraConfig{};
+    cameraConfig.maxCameraCount = 16; //NOTE: THIS DOES NOTHING.
+    if (!masterRenderSystem.initializeCameraSystem(cameraConfig, &ECSSystem)) {
+        Logger::logFatal("Failed to initialize the camera system!");
+        return;
+    }
+
     //Start texture system
     if (!masterRenderSystem.initializeTextureSystem(65536, textureSystem, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the texture system!");
@@ -264,14 +270,44 @@ void Engine::initialize() {
         return;
     }
 
-    ECSSystem.initialize();
+    //Start render views
+    RenderViewSystemConfig renderViewConfig{};
+    renderViewConfig.maxViewCount = 251;
+    if (!masterRenderSystem.initializeRenderViewSystem(renderViewConfig)) {
+        Logger::logFatal("Failed to initialize the render view system!");
+        return;
+    }
 
-    CameraSystemConfig cameraConfig{};
-    cameraConfig.maxCameraCount = 16; //NOTE: THIS DOES NOTHING.
+    //Create views
+    RenderViewConfig worldConfig{};
+    worldConfig.type = RENDER_VIEW_WORLD;
+    worldConfig.width = 0;
+    worldConfig.height = 0;
+    worldConfig.name = "Fox_Fire_World_View";
+    worldConfig.renderpassCount = 1;
+    RenderViewRenderpassConfig passConfigs[1]{};
+    passConfigs[0].renderpassName = "Fox_Fire_World_Renderpass";
+    worldConfig.renderpasses = passConfigs;
+    worldConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
+    if (!masterRenderSystem.createRenderView(worldConfig)) {
+        Logger::logFatal("Failed to create world render view.");
+        return;
+    }
+    WorldRenderView& worldRenderView = *reinterpret_cast<WorldRenderView *>(masterRenderSystem.getRenderView("Fox_Fire_World_View"));
+    worldRenderView.setCamera(getDefaultCamera());
 
-    //Start camera system
-    if (!masterRenderSystem.initializeCameraSystem(cameraConfig, &ECSSystem)) {
-        Logger::logFatal("Failed to initialize the camera system!");
+    RenderViewConfig uiConfig{};
+    uiConfig.type = RENDER_VIEW_UI;
+    uiConfig.width = 0;
+    uiConfig.height = 0;
+    uiConfig.name = "Fox_Fire_UI_View";
+    uiConfig.renderpassCount = 1;
+    RenderViewRenderpassConfig passConfigsUI[1]{};
+    passConfigsUI[0].renderpassName = "Fox_Fire_UI_Renderpass";
+    uiConfig.renderpasses = passConfigsUI;
+    uiConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
+    if (!masterRenderSystem.createRenderView(uiConfig)) {
+        Logger::logFatal("Failed to create world render view.");
         return;
     }
 
@@ -331,6 +367,11 @@ void Engine::initialize() {
     }
 
     //Ui geo
+    const unsigned int ui1 = ECSSystem.createEntity("Basic_UI");
+    Mesh* ui1Mesh = ECSSystem.getComponent<Mesh>(ui1);
+    ui1Mesh->geometryCount = 1;
+    ui1Mesh->geometries.initialize(ui1Mesh->geometryCount);
+
     GeometryConfig configUI{};
     configUI.vertices.initialize<Vertex2d>(4);
     configUI.indices.initialize<unsigned int>(6);
@@ -362,7 +403,7 @@ void Engine::initialize() {
         configUI.indices.setIndex(uiIndices[i], i);
     }
 
-    testUIGeometry = &masterRenderSystem.acquireGeometry(configUI, true);
+    ui1Mesh->geometries[0] = &masterRenderSystem.acquireGeometry(configUI, true);
     //End temp code
 
     startup();

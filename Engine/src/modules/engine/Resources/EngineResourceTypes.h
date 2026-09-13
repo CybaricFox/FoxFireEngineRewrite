@@ -59,14 +59,3 @@ struct GeometryData {
     unsigned long indexBufferOffset = 0;
     unsigned int indexElementSize = 0;
 };
-
-/**
- * @brief Per frame packer containing geometry data.
- */
-struct RenderPacket {
-    float deltaTime;
-    unsigned int geometryCount;
-    DynamicArray<GeometryRenderData> geometries;
-    unsigned int uiGeometryCount;
-    GeometryRenderData* uiGeometries;
-};

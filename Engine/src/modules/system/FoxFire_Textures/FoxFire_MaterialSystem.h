@@ -71,7 +71,7 @@ public:
     Material& acquireMaterial(const String &name) override;
     Material& acquireMaterial(const MaterialResourceData &config) override;
     void releaseMaterial(const String &name) override;
-    bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f viewPosition, unsigned int renderMode) const override;
+    bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f* viewPosition, unsigned int renderMode) const override;
     bool applyInstance(Material& material, bool update) const override;
     bool applyLocal(const Material &material, Mat4 *model) const override;
 

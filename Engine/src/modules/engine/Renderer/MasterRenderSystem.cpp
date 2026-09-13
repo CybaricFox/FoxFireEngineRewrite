@@ -33,33 +33,20 @@ void MasterRenderSystem::regenerateRenderTargets() const {
     }
 }
 
-void MasterRenderSystem::changeRenderMode(const Keys key) {
-    switch (key) {
-        case KEY_1: {
-            Logger::logDebug("Render mode set to default.");
-            renderMode = RENDER_VIEW_DEFAULT;
-            break;
-        }
-        case KEY_2: {
-            Logger::logDebug("Render mode set to lighting.");
-            renderMode = RENDER_VIEW_LIGHTING;
-            break;
-        }
-        case KEY_3: {
-            Logger::logDebug("Render mode set to normals.");
-            renderMode = RENDER_VIEW_NORMALS;
-            break;
-        }
-        default: break;
-    }
-}
-
 Material & MasterRenderSystem::acquireMaterial(const String &name) const {
     return materialSystem->acquireMaterial(name);
 }
 
 void MasterRenderSystem::releaseMaterial(const String &name) const {
     materialSystem->releaseMaterial(name);
+}
+
+bool MasterRenderSystem::createRenderView(const RenderViewConfig &config) {
+    return renderViewSystem.createRenderView(config);
+}
+
+bool MasterRenderSystem::buildPacket(IRenderView *renderView, MeshPacketData* meshData, RenderViewPacket &packet) {
+    return renderView->buildPacket(meshData, packet);
 }
 
 bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, ResourceSystem& resources) {
@@ -125,13 +112,6 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
     worldRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
     uiRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
 
-    //UBOs
-    worldProjection = perspective(degreesToRadians(45.0f), 1280 / 720.0f, nearClip, farClip);
-    ambientColor = {0.25, 0.25, 0.25, 1};
-
-    uiProjection = orthographic(0, 1280, 720, 0, -100, 100);
-    uiView = invertMatrix(matrixIdentity());
-
     return true;
 }
 
@@ -188,10 +168,14 @@ bool MasterRenderSystem::initializeShaderSystem(const ShaderSystemConfig& config
 bool MasterRenderSystem::initializeCameraSystem(const CameraSystemConfig &config, MasterEntityComponentSystem* ecsRef) {
     const bool result = cameraSystem.initialize(config, ecsRef);
     if (result) {
-        currentCameraId = cameraSystem.getDefaultCamera();
+
     }
 
     return result;
+}
+
+bool MasterRenderSystem::initializeRenderViewSystem(const RenderViewSystemConfig &config) {
+    return renderViewSystem.initialize(config, backend, &shaderSystem, materialSystem);
 }
 
 void MasterRenderSystem::shutdown() {
@@ -227,7 +211,7 @@ void MasterRenderSystem::shutdown() {
     backend = nullptr;
 }
 
-bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
+bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
     backend->incrementFrameNumber();
 
     if (bIsCurrentlyResizing) {
@@ -236,8 +220,7 @@ bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
         if (framesSinceResizeRequested >= 30) {
             const auto width = static_cast<float>(framebufferWidth);
             const auto height = static_cast<float>(framebufferHeight);
-            worldProjection = perspective(degreesToRadians(45.0f), width / height, nearClip, farClip);
-            uiProjection = orthographic(0, width, height, 0, -100, 100);
+            renderViewSystem.resize(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
             backend->resize(static_cast<unsigned short>(width), static_cast<unsigned short>(height));
             framesSinceResizeRequested = 0;
             bIsCurrentlyResizing = false;
@@ -246,102 +229,17 @@ bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
         }
     }
 
-    worldRenderpass->setRenderAreaZ(framebufferWidth);
-    worldRenderpass->setRenderAreaW(framebufferHeight);
-    uiRenderpass->setRenderAreaZ(framebufferWidth);
-    uiRenderpass->setRenderAreaW(framebufferHeight);
-
-    auto camera = MasterEntityComponentSystem::getComponent<Camera>(currentCameraId);
-    if (camera == nullptr) {
-        Logger::logError("Camera is invalid! Obtaining default camera");
-        currentCameraId = cameraSystem.getDefaultCamera();
-        camera = MasterEntityComponentSystem::getComponent<Camera>(currentCameraId);
-        if (camera == nullptr) {
-            Logger::logFatal("Default camera is invalid! Cannot draw frame!");
-            return false;
-        }
-    }
-
-    Mat4 view = CameraUtils::getViewMatrix(*camera);
-
     if (!backend->beginFrame(packet.deltaTime)) {
         return true;
     }
 
     const unsigned char attachmentIndex = backend->getWindowAttachmentIndex();
 
-    if (!backend->beginRenderpass(*worldRenderpass, worldRenderpass->getRenderTarget(attachmentIndex))) {
-        Logger::logError("Backend failed to begin world renderpass!");
-        return false;
-    }
-
-    if (!shaderSystem.use(materialShaderId)) {
-        Logger::logError("Failed to use material shader!");
-        return false;
-    }
-
-    if (!materialSystem->applyGlobal(materialShaderId, &worldProjection, &view, &ambientColor, CameraUtils::getPosition(*camera), renderMode)) {
-        Logger::logError("Failed to apply globals for materials!");
-        return false;
-    }
-
-    unsigned int count = packet.geometryCount;
-    for (unsigned int i = 0; i < count; i++) {
-        Material* material = packet.geometries[i].geometry->material;
-        if (!material) material = &materialSystem->getDefaultMaterial();
-
-        bool needsUpdate = material->frameNumber != backend->getFrameNumber();
-        if (!materialSystem->applyInstance(*material, needsUpdate)) {
-            Logger::logWarn("Failed to apply material: " + material->name);
-            continue;
+    for (unsigned int i = 0; i < packet.viewCount; i++) {
+        if (!renderViewSystem.render(*packet.views[i].renderView, packet.views[i], backend->getFrameNumber(), attachmentIndex)) {
+            Logger::logError("Failed to render view " + std::to_string(i));
+            return false;
         }
-
-        material->frameNumber = backend->getFrameNumber();
-
-        materialSystem->applyLocal(*material, &packet.geometries[i].model);
-        backend->drawGeometry(packet.geometries[i], textureSystem->getDefaultDiffuseTexture(), materialSystem->getDefaultMaterial());
-    }
-
-    if (!backend->endRenderpass(*worldRenderpass)) {
-        Logger::logFatal("Failed to end renderpass world!");
-        return false;
-    }
-
-    if (!backend->beginRenderpass(*uiRenderpass, uiRenderpass->getRenderTarget(attachmentIndex))) {
-        Logger::logError("Backend failed to begin ui renderpass!");
-        return false;
-    }
-
-    if (!shaderSystem.use(uiShaderId)) {
-        Logger::logError("Failed to use ui shader!");
-        return false;
-    }
-
-    if (!materialSystem->applyGlobal(uiShaderId, &uiProjection, &view, nullptr, CameraUtils::getPosition(*camera), renderMode)) {
-        Logger::logError("Failed to apply globals for uis!");
-        return false;
-    }
-
-    count = packet.uiGeometryCount;
-    for (unsigned int i = 0; i < count; i++) {
-        Material* material = packet.uiGeometries[i].geometry->material;
-        if (!material) material = &materialSystem->getDefaultMaterial();
-
-        bool needsUpdate = material->frameNumber != backend->getFrameNumber();
-        if (!materialSystem->applyInstance(*material, needsUpdate)) {
-            Logger::logWarn("Failed to apply material: " + material->name);
-            continue;
-        }
-
-        material->frameNumber = backend->getFrameNumber();
-
-        materialSystem->applyLocal(*material, &packet.uiGeometries[i].model);
-        backend->drawGeometry(packet.uiGeometries[i], textureSystem->getDefaultDiffuseTexture(), materialSystem->getDefaultMaterial());
-    }
-
-    if (!backend->endRenderpass(*uiRenderpass)) {
-        Logger::logFatal("Failed to end renderpass ui!");
-        return false;
     }
 
     const bool result = backend->endFrame(packet.deltaTime);

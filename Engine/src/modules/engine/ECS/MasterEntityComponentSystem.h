@@ -42,6 +42,8 @@ public:
 
     unsigned int getEntityCount(const String &name);
 
+    DynamicArray<unsigned> getAllEntitiesOfType(const String &type);
+
     unsigned int createEntity(const String &name);
     Entity *createEntityType(const String &name);
 
