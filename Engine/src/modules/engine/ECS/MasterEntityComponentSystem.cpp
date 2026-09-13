@@ -4,6 +4,7 @@
 
 #include "MasterEntityComponentSystem.h"
 
+#include "Engine_Components/Camera.h"
 #include "Engine_Components/Mesh.h"
 #include "Engine_Components/Transform.h"
 
@@ -53,13 +54,13 @@ void MasterEntityComponentSystem::initialize() {
     Entity* basic = createEntityType("Basic_Entity");
 
     basic->components.initialize(0, ECS);
-    auto transform = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
+    const auto transform = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
     basic->components.push(transform);
-    Mesh* mesh = FF_Memory::ff_allocate_class<Mesh>(sizeof(Mesh), ECS);
+    const auto mesh = FF_Memory::ff_allocate_class<Mesh>(sizeof(Mesh), ECS);
     basic->components.push(mesh);
 
     instances = FF_Memory::ff_allocate_class<AssetMap<EntityManager, AssetContext>>(sizeof(AssetMap<EntityManager, AssetContext>), ECS);
-    instances->initialize(templates.getAssetCount());
+    instances->initialize(1024);
 }
 
 void MasterEntityComponentSystem::shutdown() {
@@ -89,8 +90,8 @@ unsigned int MasterEntityComponentSystem::createEntity(const String &name) {
 
     if (manager == nullptr) {
         AssetContext context{};
-        manager = instances->createAsset(name, context);
         context.bAutoRelease = false;
+        manager = instances->createAsset(name, context);
     }
 
     const unsigned int id = getNewId();

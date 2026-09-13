@@ -19,6 +19,7 @@
 #include "../Input/IInputSystem.h"
 #include "src/modules/engine/ECS/MasterEntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 
@@ -39,6 +40,9 @@ private:
     EngineEvents engineEventsSystem{};
 
     MasterEntityComponentSystem ECSSystem{};
+
+    /** @brief Controls All Rendering. Do not give access to Game!*/
+    MasterRenderSystem masterRenderSystem{};
 
     /** @brief Pointer to the derived game class set by the user. */
     Engine* engine = nullptr;
@@ -71,8 +75,6 @@ protected:
     GameInstance gameInstance;
     /** @brief Pointer to the user-defined input system */
     IInputSystem* inputSystem = nullptr;
-    /** @brief Controls All Rendering */
-    MasterRenderSystem masterRenderSystem{};
 
     /** @brief Reference to the user-defined texture system. WARNING: VOLATILE REFERENCE! */
     ITextureSystem* textureSystem = nullptr;
@@ -80,6 +82,8 @@ protected:
     IMaterialSystem* materialSystem = nullptr;
     /** @brief Reference to the user-defined geometry system. WARNING: VOLATILE REFERENCE! */
     IGeometrySystem* geometrySystem = nullptr;
+
+    [[nodiscard]] unsigned int getCurrentCamera() const {return masterRenderSystem.getCurrentCameraId();}
 
     /**
      * @brief Quits the application when called.
@@ -124,7 +128,7 @@ protected:
         choice++;
         choice %= 3;
 
-        Geometry* geometry = ECSSystem.getComponent<Mesh>(0)->geometries[0];
+        Geometry* geometry = ECSSystem.getComponent<Mesh>(1)->geometries[0];
         if (geometry) {
             geometry->material = &masterRenderSystem.acquireMaterial(files[choice]);
             masterRenderSystem.releaseMaterial(oldName);

@@ -27,7 +27,12 @@ EntityManager::~EntityManager() {
     instances.shutdown();
 
     allocator.shutdown();
-    FF_Memory::ff_free(memory, memorySize, ECS);
+
+    if (memory) {
+        FF_Memory::ff_free(memory, memorySize, ECS);
+        memory = nullptr;
+        memorySize = 0;
+    }
 }
 
 void EntityManager::copyFromTemplate(Entity &entity, const unsigned int id) {
@@ -49,7 +54,7 @@ void EntityManager::copyFromTemplate(Entity &entity, const unsigned int id) {
 
     unsigned int newCount = 0;
     for (EntityComponent* component : entity.components) {
-        component->copyTo(static_cast<EntityComponent *>(location));
+        component->copyTo(location);
         location = static_cast<unsigned char *>(location) + component->getComponentSize();
         newCount++;
     }

@@ -260,7 +260,7 @@ FoxFire_MaterialSystem::FoxFire_MaterialSystem()
 
 }
 
-bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f *viewPosition, unsigned int renderMode) const {
+bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f viewPosition, unsigned int renderMode) const {
     if (shaderId == materialShaderId) {
         if (!shaderRef->setUniform(materialLocations.projection, projection)) {
             Logger::logError("Failed to apply global material.");
@@ -274,7 +274,7 @@ bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4 *proj
             Logger::logError("Failed to apply global material.");
             return false;
         }
-        if (!shaderRef->setUniform(materialLocations.viewPosition, viewPosition)) {
+        if (!shaderRef->setUniform(materialLocations.viewPosition, &viewPosition)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }

@@ -82,16 +82,16 @@ void Engine::run() {
                 packet.geometries.initialize();
 
                 const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, 0.5f * static_cast<float>(deltaTime), false);
-                TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(0), rotation);
+                TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(1), rotation);
 
                 if (meshCount > 1) {
-                    TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(1), rotation);
-                }
-                if (meshCount > 2) {
                     TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(2), rotation);
                 }
+                if (meshCount > 2) {
+                    TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(3), rotation);
+                }
 
-                for (unsigned int i = 0; i < meshCount; i++) {
+                for (unsigned int i = 1; i <= meshCount; i++) {
                     Mesh& mesh = *ECSSystem.getComponent<Mesh>(i);
                     Transform& transform = *ECSSystem.getComponent<Transform>(i);
                     for (unsigned int j = 0; j < mesh.geometryCount; j++) {
@@ -265,6 +265,15 @@ void Engine::initialize() {
     }
 
     ECSSystem.initialize();
+
+    CameraSystemConfig cameraConfig{};
+    cameraConfig.maxCameraCount = 16; //NOTE: THIS DOES NOTHING.
+
+    //Start camera system
+    if (!masterRenderSystem.initializeCameraSystem(cameraConfig, &ECSSystem)) {
+        Logger::logFatal("Failed to initialize the camera system!");
+        return;
+    }
 
     //Temp code
     const unsigned int cube1 = ECSSystem.createEntity("Basic_Entity");

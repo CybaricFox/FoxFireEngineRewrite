@@ -740,6 +740,13 @@ inline Mat4 createEuler(const float x, const float y, const float z) {
     const Mat4 out = rx * ry * rz;
     return out;
 }
+inline Mat4 createEuler(const Vector3f rotation) {
+    const Mat4 rx = createEulerXMatrix(rotation.x);
+    const Mat4 ry = createEulerYMatrix(rotation.y);
+    const Mat4 rz = createEulerZMatrix(rotation.z);
+    const Mat4 out = rx * ry * rz;
+    return out;
+}
 
 inline Mat4 transposeMatrix(const Mat4 &matrix) {
     Mat4 out{};

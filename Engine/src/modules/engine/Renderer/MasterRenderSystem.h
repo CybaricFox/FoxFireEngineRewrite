@@ -17,6 +17,7 @@
 #include "IRendererBackend.h"
 #include "src/defines.h"
 #include "src/modules/engine/Core/Platform.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 
 enum RenderViewMode {
     RENDER_VIEW_DEFAULT,
@@ -32,9 +33,7 @@ private:
     /** @brief pointer to the backend in use */
     IRendererBackend* backend = nullptr;
     Mat4 worldProjection{};
-    Mat4 worldView{};
     Vector4f ambientColor{};
-    Vector3f viewPosition{};
     unsigned int renderMode = 0;
     Mat4 uiProjection{};
     Mat4 uiView{};
@@ -42,6 +41,8 @@ private:
     float nearClip = 0.1f;
     /** @brief How far geometry can get before it is clipped. */
     float farClip = 1000.0f;
+    /** @brief the camera the render system is using right now. */
+    unsigned int currentCameraId = INVALID_ID_U32;
 
     /** @brief Pointer to the user defined texture system. */
     ITextureSystem* textureSystem = nullptr;
@@ -53,6 +54,8 @@ private:
     ShaderSystem shaderSystem{};
     unsigned int materialShaderId = INVALID_ID_U32;
     unsigned int uiShaderId = INVALID_ID_U32;
+
+    CameraSystem cameraSystem{};
 
     unsigned char renderTargetCount = 0;
     unsigned int framebufferWidth = 0;
@@ -71,6 +74,7 @@ public:
     bool initializeMaterialSystem(MaterialSystemConfig config, IMaterialSystem *system, ResourceSystem *resourceSystem);
     bool initializeGeometrySystem(unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem *resourceSystem);
     bool initializeShaderSystem(const ShaderSystemConfig &config, ResourceSystem &resources);
+    bool initializeCameraSystem(const CameraSystemConfig &config, MasterEntityComponentSystem *ecsRef);
     void shutdown();
     MasterRenderSystem() = default;
 
@@ -80,8 +84,7 @@ public:
     [[nodiscard]] Texture& getDefaultNormalTexture() const {return textureSystem->getDefaultNormalTexture();}
     [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefault3DGeometry();}
     [[nodiscard]] Renderpass* getRenderPass(const String &name) const {return backend->getRenderpass(name);}
-
-    void setView(const Mat4 &newView, Vector3f viewPosition);
+    [[nodiscard]] unsigned int getCurrentCameraId() const {return currentCameraId;}
 
     [[nodiscard]] bool drawFrame(RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);

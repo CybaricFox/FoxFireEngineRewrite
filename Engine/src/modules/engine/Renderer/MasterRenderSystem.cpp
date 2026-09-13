@@ -6,6 +6,7 @@
 
 #include "TextureUtils.h"
 #include "../Library/Logger.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 
 Texture MasterRenderSystem::createBlankTexture() {
     Texture texture{};
@@ -126,8 +127,6 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
 
     //UBOs
     worldProjection = perspective(degreesToRadians(45.0f), 1280 / 720.0f, nearClip, farClip);
-    worldView = createTranslationMatrix({0, 0, -30});
-    worldView = invertMatrix(worldView);
     ambientColor = {0.25, 0.25, 0.25, 1};
 
     uiProjection = orthographic(0, 1280, 720, 0, -100, 100);
@@ -186,7 +185,18 @@ bool MasterRenderSystem::initializeShaderSystem(const ShaderSystemConfig& config
     return true;
 }
 
+bool MasterRenderSystem::initializeCameraSystem(const CameraSystemConfig &config, MasterEntityComponentSystem* ecsRef) {
+    const bool result = cameraSystem.initialize(config, ecsRef);
+    if (result) {
+        currentCameraId = cameraSystem.getDefaultCamera();
+    }
+
+    return result;
+}
+
 void MasterRenderSystem::shutdown() {
+    cameraSystem.shutdown();
+
     for (unsigned char i = 0; i < renderTargetCount; i++) {
         backend->destroyRenderTarget(worldRenderpass->getRenderTarget(i), true);
         backend->destroyRenderTarget(uiRenderpass->getRenderTarget(i), true);
@@ -217,11 +227,6 @@ void MasterRenderSystem::shutdown() {
     backend = nullptr;
 }
 
-void MasterRenderSystem::setView(const Mat4 &newView, const Vector3f newViewPosition) {
-    worldView = newView;
-    viewPosition = newViewPosition;
-}
-
 bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
     backend->incrementFrameNumber();
 
@@ -246,11 +251,24 @@ bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
     uiRenderpass->setRenderAreaZ(framebufferWidth);
     uiRenderpass->setRenderAreaW(framebufferHeight);
 
+    auto camera = MasterEntityComponentSystem::getComponent<Camera>(currentCameraId);
+    if (camera == nullptr) {
+        Logger::logError("Camera is invalid! Obtaining default camera");
+        currentCameraId = cameraSystem.getDefaultCamera();
+        camera = MasterEntityComponentSystem::getComponent<Camera>(currentCameraId);
+        if (camera == nullptr) {
+            Logger::logFatal("Default camera is invalid! Cannot draw frame!");
+            return false;
+        }
+    }
+
+    Mat4 view = CameraUtils::getViewMatrix(*camera);
+
     if (!backend->beginFrame(packet.deltaTime)) {
         return true;
     }
 
-    unsigned char attachmentIndex = backend->getWindowAttachmentIndex();
+    const unsigned char attachmentIndex = backend->getWindowAttachmentIndex();
 
     if (!backend->beginRenderpass(*worldRenderpass, worldRenderpass->getRenderTarget(attachmentIndex))) {
         Logger::logError("Backend failed to begin world renderpass!");
@@ -262,7 +280,7 @@ bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
         return false;
     }
 
-    if (!materialSystem->applyGlobal(materialShaderId, &worldProjection, &worldView, &ambientColor, &viewPosition, renderMode)) {
+    if (!materialSystem->applyGlobal(materialShaderId, &worldProjection, &view, &ambientColor, CameraUtils::getPosition(*camera), renderMode)) {
         Logger::logError("Failed to apply globals for materials!");
         return false;
     }
@@ -299,7 +317,7 @@ bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
         return false;
     }
 
-    if (!materialSystem->applyGlobal(uiShaderId, &uiProjection, &uiView, nullptr, nullptr, renderMode)) {
+    if (!materialSystem->applyGlobal(uiShaderId, &uiProjection, &view, nullptr, CameraUtils::getPosition(*camera), renderMode)) {
         Logger::logError("Failed to apply globals for uis!");
         return false;
     }

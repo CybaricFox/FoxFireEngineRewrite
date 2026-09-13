@@ -36,7 +36,6 @@ private:
     static String getEntityName(unsigned int id);
     unsigned int getNewId() {return ++currentId;}
 
-    Entity *createEntityType(const String &name);
 public:
     void initialize();
     void shutdown();
@@ -44,6 +43,7 @@ public:
     unsigned int getEntityCount(const String &name);
 
     unsigned int createEntity(const String &name);
+    Entity *createEntityType(const String &name);
 
     template<typename T>
     requires std::derived_from<T, EntityComponent>
@@ -54,6 +54,26 @@ public:
         EntityManager* manager = instances->getAsset(entityName);
 
         return manager->getComponent<T>(id);
+    }
+
+    template<typename T>
+    requires std::derived_from<T, EntityComponent>
+    static T* addComponent(const unsigned int id) {
+        const String entityName = getEntityName(id);
+        if (entityName.empty()) return nullptr;
+
+        EntityManager* manager = instances->getAsset(entityName);
+        return manager->addComponent<T>(id);
+    }
+
+    template<typename T>
+    requires std::derived_from<T, EntityComponent>
+    static void removeComponent(const unsigned int id) {
+        const String entityName = getEntityName(id);
+        if (entityName.empty()) return;
+
+        EntityManager* manager = instances->getAsset(entityName);
+        return manager->removeComponent<T>(id);
     }
 
 };

@@ -29,6 +29,12 @@ public:
     DynamicAllocator(const unsigned long size, void *memory) {initialize(size, memory);}
     ~DynamicAllocator() = default;
 
+    DynamicAllocator(const DynamicAllocator&) = delete;
+    DynamicAllocator& operator=(const DynamicAllocator&) = delete;
+
+    DynamicAllocator(DynamicAllocator&&) = delete;
+    DynamicAllocator& operator=(DynamicAllocator&&) = delete;
+
     void initialize(unsigned long size, void *memory);
     void shutdown();
 
