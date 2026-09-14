@@ -35,6 +35,43 @@ void WorldRenderView::onDebugEvent() {
     }
 }
 
+void WorldRenderView::quickSort(GeometryDistance* array, const int low, const int high, const bool ascending) {
+    if (low < high) {
+        const int partitionIndex = partition(array, low, high, ascending);
+
+        quickSort(array, low, partitionIndex - 1, ascending);
+        quickSort(array, partitionIndex + 1, high, ascending);
+    }
+}
+
+void WorldRenderView::swapDistances(GeometryDistance& a, GeometryDistance& b) {
+    const GeometryDistance temp = a;
+    a = b;
+    b = temp;
+}
+
+int WorldRenderView::partition(GeometryDistance* array, const int low, const int high, const bool ascending) {
+    const GeometryDistance pivot = array[high];
+    int i = low - 1;
+
+    for (int j = low; j <= high - 1; j++) {
+        if (ascending) {
+            if (array[j].distance < pivot.distance) {
+                i++;
+                swapDistances(array[i], array[j]);
+            }
+        } else {
+            if (array[j].distance > pivot.distance) {
+                i++;
+                swapDistances(array[i], array[j]);
+            }
+        }
+    }
+
+    swapDistances(array[i + 1], array[high]);
+    return i + 1;
+}
+
 bool WorldRenderView::initialize(ShaderSystem *shaderRef, const unsigned long newSize) {
     IRenderView::initialize(shaderRef, newSize);
     shaderId = shaderRef->getId(!customShaderName.empty() ? customShaderName : "Fox_Fire_Material_Shader");
@@ -50,12 +87,12 @@ void WorldRenderView::shutdown() {
     IRenderView::shutdown();
 }
 
-void WorldRenderView::resize(unsigned int newWidth, unsigned int newHeight) {
+void WorldRenderView::resize(const unsigned int newWidth, const unsigned int newHeight) {
     if (width != newWidth || height != newHeight) {
 
         width = newWidth;
         height = newHeight;
-        float aspect = width / static_cast<float>(height);
+        const float aspect = static_cast<float>(width) / static_cast<float>(height);
         projectionMatrix = perspective(fov, aspect, nearClip, farClip);
 
         for (Renderpass* renderpass : renderpasses) {
@@ -69,7 +106,7 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
         Logger::logWarn("World packet data is null! It cannot be built!");
         return false;
     }
-    MeshPacketData& meshData = *static_cast<MeshPacketData *>(data);
+    const MeshPacketData& meshData = *static_cast<MeshPacketData *>(data);
     Camera& camera = *MasterEntityComponentSystem::getComponent<Camera>(worldCamera);
 
     outPacket.geometries.initialize();
@@ -79,18 +116,43 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     outPacket.viewPosition = CameraUtils::getPosition(camera);
     outPacket.ambientColor = ambientColor;
 
+    DynamicArray<GeometryDistance> geometryDistances{0};
+
+
     for (unsigned int i = 0; i < meshData.meshCount; i++) {
         Mesh& mesh = *MasterEntityComponentSystem::getComponent<Mesh>(meshData.meshes[i]);
+        Transform& transform = *MasterEntityComponentSystem::getComponent<Transform>(meshData.meshes[i]);
+        Mat4 model = TransformUtils::getWorldPos(transform);
+
         for (unsigned int j = 0; j < mesh.geometryCount; j++) {
+            GeometryRenderData renderData{};
+            renderData.geometry = mesh.geometries[j];
+            renderData.model = model;
+
             if ((mesh.geometries[j]->material->diffuseMap.texture->flags & TEXTURE_BIT_TRANSPARENT) == 0) {
-                Transform& transform = *MasterEntityComponentSystem::getComponent<Transform>(meshData.meshes[i]);
-                GeometryRenderData& renderData = *outPacket.geometries.emplace();
-                renderData.geometry = mesh.geometries[j];
-                renderData.model = TransformUtils::getWorldPos(transform);
+                //Only add meshes that have no transparency
+                outPacket.geometries.push(renderData);
                 outPacket.geometryCount++;
+            } else {
+                const Vector3f center = transformVector3(renderData.geometry->center, model);
+                float distance = getVectorDistance(center, camera.position);
+
+                GeometryDistance& geometryDistance = *geometryDistances.emplace();
+                geometryDistance.distance = FF_Math::abs(distance);
+                geometryDistance.data = renderData;
             }
         }
     }
+
+    quickSort(geometryDistances.getData(), 0, static_cast<int>(geometryDistances.getLength()) - 1, false);
+
+    //Now add transparent geometries
+    for (GeometryDistance& geometryDistance : geometryDistances) {
+        outPacket.geometries.push(geometryDistance.data);
+        outPacket.geometryCount++;
+    }
+
+    geometryDistances.shutdown();
 
     return true;
 }
@@ -105,7 +167,7 @@ bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long fr
             Logger::logError("Failed to use material shader.");
             return false;
         }
-        if (!materialSystemRef->applyGlobal(shaderId, &outPacket.projectionMatrix, &outPacket.viewMatrix, &outPacket.ambientColor, &outPacket.viewPosition, renderMode)) {
+        if (!materialSystemRef->applyGlobal(shaderId, frameNumber, &outPacket.projectionMatrix, &outPacket.viewMatrix, &outPacket.ambientColor, &outPacket.viewPosition, renderMode)) {
             Logger::logError("Failed to apply globals for material shader.");
             return false;
         }
@@ -133,11 +195,11 @@ bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long fr
 
             //In this case, the default material has the default texture.
             backendRef->drawGeometry(outPacket.geometries[i], *materialSystemRef->getDefaultMaterial().diffuseMap.texture, materialSystemRef->getDefaultMaterial());
+        }
 
-            if (!backendRef->endRenderpass(*renderpass)) {
-                Logger::logError("Failed to end ui render pass.");
-                return false;
-            }
+        if (!backendRef->endRenderpass(*renderpass)) {
+            Logger::logError("Failed to end ui render pass.");
+            return false;
         }
     }
 

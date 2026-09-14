@@ -181,6 +181,8 @@ bool MasterRenderSystem::initializeRenderViewSystem(const RenderViewSystemConfig
 void MasterRenderSystem::shutdown() {
     cameraSystem.shutdown();
 
+    renderViewSystem.shutdown();
+
     for (unsigned char i = 0; i < renderTargetCount; i++) {
         backend->destroyRenderTarget(worldRenderpass->getRenderTarget(i), true);
         backend->destroyRenderTarget(uiRenderpass->getRenderTarget(i), true);

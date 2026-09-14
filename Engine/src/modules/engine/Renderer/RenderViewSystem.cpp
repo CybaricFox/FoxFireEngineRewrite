@@ -13,6 +13,10 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
         Logger::logError("Render View " + config.name + " does not have any renderpasses.");
         return false;
     }
+    if (config.name.empty()) {
+        Logger::logError("Render view requires a name.");
+        return false;
+    }
 
     const AssetContext context = assets.getContext(config.name);
     if (context.index != INVALID_ID_U32) {
@@ -47,6 +51,7 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
 
     view->setId(newContext.index);
     view->setType(config.type);
+    view->setName(config.name);
     view->setCustomShader(config.customShaderName);
     view->setRenderpassCount(config.renderpassCount);
     view->initializeRenderpasses();
@@ -99,6 +104,12 @@ bool RenderViewSystem::initialize(const RenderViewSystemConfig config, IRenderer
 }
 
 void RenderViewSystem::shutdown() {
+    for (IRenderView** viewPtr : assets.getAssetsAsArray()) {
+        IRenderView* view = *viewPtr;
+        view->shutdown();
+        FF_Memory::ff_free_class<IRenderView>(view, view->getSize(), RENDER);
+    }
+
     assets.shutdown();
 
     backendRef = nullptr;

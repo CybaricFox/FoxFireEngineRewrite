@@ -208,11 +208,15 @@ bool FoxFire_GeometrySystem::createGeometry(GeometryConfig &config, Geometry &ge
         geometries.get(geometry.id)->referenceCount = 0;
         geometries.get(geometry.id)->bAutoRelease = false;
         geometry.id = INVALID_ID_U32;
-        geometry.generation = INVALID_ID_U32;
+        geometry.generation = INVALID_ID_U16;
         geometry.internalId = INVALID_ID_U32;
 
         return false;
     }
+
+    geometry.center = config.center;
+    geometry.extent.min = config.minExtent;
+    geometry.extent.max = config.maxExtent;
 
     if (!config.materialName.empty()) {
         geometry.material = &materialSystemRef->acquireMaterial(config.materialName);
@@ -262,10 +266,14 @@ GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float hei
     const float maxY = halfHeight;
     const float minZ = -halfDepth;
     const float maxZ = halfDepth;
-    const float minUVX = 0;
-    const float minUVY = 0;
+    constexpr float minUVX = 0;
+    constexpr float minUVY = 0;
     const float maxUVX = xTile;
     const float maxUVY = yTile;
+
+    config.minExtent = {minX, minY, minZ};
+    config.maxExtent = {maxX, maxY, maxZ};
+    config.center = {0, 0, 0};
 
     Vertex3d vertices[24]{};
 

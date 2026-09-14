@@ -40,7 +40,9 @@ struct Material {
 struct Geometry {
     unsigned int id = INVALID_ID_U32;
     unsigned int internalId = INVALID_ID_U32;
-    unsigned int generation = INVALID_ID_U32;
+    unsigned short generation = INVALID_ID_U16;
+    Vector3f center{};
+    Extent3D extent{};
     String name{};
     Material* material = nullptr;
 };

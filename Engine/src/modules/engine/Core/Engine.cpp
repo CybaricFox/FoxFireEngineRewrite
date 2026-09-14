@@ -94,14 +94,16 @@ void Engine::run() {
             packet.views = views;
             MeshPacketData worldMeshData{};
             worldMeshData.meshCount = meshCount;
-            worldMeshData.meshes = ECSSystem.getAllEntitiesOfType("Basic_Entity").getData(); //All of these entities have meshes
+            DynamicArray<unsigned int>& basicEntities = ECSSystem.getAllEntitiesOfType("Basic_Entity");
+            worldMeshData.meshes = basicEntities.getData(); //All of these entities have meshes
             if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_World_View"), &worldMeshData, packet.views[0])) {
                 Logger::logError("Failed to build world packet");
                 return;
             }
             MeshPacketData uiMeshData{};
             uiMeshData.meshCount = ECSSystem.getEntityCount("Basic_UI");
-            uiMeshData.meshes = ECSSystem.getAllEntitiesOfType("Basic_UI").getData(); //All of these entities have meshes
+            DynamicArray<unsigned int>& uiEntities = ECSSystem.getAllEntitiesOfType("Basic_UI");
+            uiMeshData.meshes = uiEntities.getData(); //All of these entities have meshes
             if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiMeshData, packet.views[1])) {
                 Logger::logError("Failed to build ui packet");
                 return;
@@ -113,7 +115,19 @@ void Engine::run() {
                 bIsRunning = false;
             }
 
+            //Cleanup Packet
+            worldMeshData.meshes = nullptr;
+            basicEntities.shutdown();
+            FF_Memory::ff_free_class<DynamicArray<unsigned int>>(&basicEntities, sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
 
+            uiMeshData.meshes = nullptr;
+            uiEntities.shutdown();
+            FF_Memory::ff_free_class<DynamicArray<unsigned int>>(&uiEntities, sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
+
+            for (unsigned int i = 0; i < packet.viewCount; i++) {
+                RenderViewPacket& view = packet.views[i];
+                view.geometries.shutdown();
+            }
 
             //How long did the frame take
             const double endTime = Platform::getAbsoluteTime();

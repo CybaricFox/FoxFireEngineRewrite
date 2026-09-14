@@ -101,6 +101,7 @@ public:
     void setRenderpassCount(const unsigned short newCount) {renderpassCount = newCount;}
     void initializeRenderpasses() {renderpasses.initialize(renderpassCount);}
     void addRenderpass(Renderpass* renderpass) {renderpasses.push(renderpass);}
+    void setName(const String newName) {name = newName;} //Do not make it a ref!
 
     virtual void resize(unsigned int newWidth, unsigned int newHeight) = 0;
     virtual bool buildPacket(void* data, RenderViewPacket& outPacket) = 0;

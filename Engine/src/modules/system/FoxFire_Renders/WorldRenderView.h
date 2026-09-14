@@ -18,6 +18,11 @@
  *  @copyright (c) 2026
  */
 
+struct GeometryDistance {
+    GeometryRenderData data{};
+    float distance = 0;
+};
+
 class FOXFIRE_API WorldRenderView final : public IRenderView {
 private:
     unsigned int shaderId = 0;
@@ -28,6 +33,10 @@ private:
     unsigned int worldCamera = INVALID_ID_U32;
     Vector4f ambientColor{};
     unsigned int renderMode = 0;
+
+    void quickSort(GeometryDistance *array, int low, int high, bool ascending);
+    void swapDistances(GeometryDistance &a, GeometryDistance &b);
+    int partition(GeometryDistance* array, int low, int high, bool ascending);
 
 public:
     bool initialize(ShaderSystem* shaderRef, unsigned long newSize) override;

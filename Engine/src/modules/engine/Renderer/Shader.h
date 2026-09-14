@@ -98,6 +98,7 @@ private:
     unsigned char pushConstantRangeCount = 0;
     MemoryRange pushConstantRanges[32]{};
     unsigned short attributeStride = 0;
+    ULong frameNumber = INVALID_ID_U64;
 
     IBackendShader* backendShader = nullptr;
 
@@ -131,6 +132,7 @@ public:
     [[nodiscard]] bool useLocals() const { return bUseLocals; }
     [[nodiscard]] unsigned long getPushConstantSize() const {return pushConstantSize;}
     [[nodiscard]] ShaderState getState() const {return state;}
+    [[nodiscard]] unsigned long getFrameNumber() const {return frameNumber;}
 
     template<typename T>
     requires std::derived_from<T, IBackendShader>
@@ -147,6 +149,7 @@ public:
     void incrementInstanceTextureCount() {++instanceTextureCount;}
     void increaseGlobalSize(const unsigned int size) {globalSize += size;}
     void increaseInstanceSize(const unsigned int size) {instanceSize += size;}
+    void setFrameNumber(const unsigned long value) {frameNumber = value;}
 
     void setGlobalStride();
     void setInstanceStride();

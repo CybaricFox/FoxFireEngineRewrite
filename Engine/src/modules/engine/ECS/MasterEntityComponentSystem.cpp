@@ -92,10 +92,11 @@ unsigned int MasterEntityComponentSystem::getEntityCount(const String &name) {
     return manager->getEntityCount();
 }
 
-DynamicArray<unsigned int> MasterEntityComponentSystem::getAllEntitiesOfType(const String &type) {
+DynamicArray<unsigned int>& MasterEntityComponentSystem::getAllEntitiesOfType(const String &type) {
     EntityManager* manager = instances->getAsset(type);
     const unsigned int count = manager->getEntityCount();
-    DynamicArray<unsigned int> result{count};
+    auto& result = *FF_Memory::ff_allocate_class<DynamicArray<unsigned int>>(sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
+    result.initialize(count);
 
     for (EntityInstance*& instance : manager->getInstances()) {
         result.push(instance->id);

@@ -72,7 +72,7 @@ bool UIRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumber
             Logger::logError("Failed to use material shader.");
             return false;
         }
-        if (!materialSystemRef->applyGlobal(shaderId, &outPacket.projectionMatrix, &outPacket.viewMatrix, nullptr, nullptr, 0)) {
+        if (!materialSystemRef->applyGlobal(shaderId, frameNumber, &outPacket.projectionMatrix, &outPacket.viewMatrix, nullptr, nullptr, 0)) {
             Logger::logError("Failed to apply globals for material shader.");
             return false;
         }

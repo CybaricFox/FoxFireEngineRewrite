@@ -70,6 +70,7 @@ public:
     /**
      * @brief Apply Global UBO to materials
      * @param shaderId Id of the shader
+     * @param frameNumber
      * @param projection Camera projection
      * @param view Camera viewport
      * @param ambientColor World Ambient Color
@@ -77,7 +78,8 @@ public:
      * @param renderMode (Editor Only) Mode to render
      * @return false on failure
      */
-    virtual bool applyGlobal(unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f* viewPosition, unsigned int renderMode) const = 0;
+    virtual bool applyGlobal(unsigned int shaderId, unsigned long frameNumber, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f *
+                             viewPosition, unsigned int renderMode) const = 0;
 
     /**
      * @brief Apply Instance UBO to material

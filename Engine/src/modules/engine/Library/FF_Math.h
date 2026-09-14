@@ -422,6 +422,14 @@ inline Mat4 operator*(const Mat4& left, const Mat4& right) {
     return out;
 }
 
+inline Vector3f transformVector3(const Vector3f vector, const Mat4 &matrix) {
+    Vector3f out{};
+    out.x = vector.x * matrix.data[0 + 0] + vector.y * matrix.data[4 + 0] + vector.z * matrix.data[8 + 0] + 1.0f * matrix.data[12 + 0];
+    out.y = vector.x * matrix.data[0 + 1] + vector.y * matrix.data[4 + 1] + vector.z * matrix.data[8 + 1] + 1.0f * matrix.data[12 + 1];
+    out.z = vector.x * matrix.data[0 + 2] + vector.y * matrix.data[4 + 2] + vector.z * matrix.data[8 + 2] + 1.0f * matrix.data[12 + 2];
+    return out;
+}
+
 struct Vertex {};
 
 struct Vertex3d : Vertex{
@@ -442,6 +450,16 @@ inline bool operator==(const Vertex3d& left, const Vertex3d& right) {
 struct Vertex2d : Vertex{
     Vector2f position;
     Vector2f textureCoordinate;
+};
+
+struct Extent2D {
+    Vector2f min{};
+    Vector2f max{};
+};
+
+struct Extent3D {
+    Vector3f min{};
+    Vector3f max{};
 };
 
 inline bool isPowerOfTwo(const unsigned long value) {return value != 0 && ((value & (value - 1)) == 0);}
