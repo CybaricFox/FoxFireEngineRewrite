@@ -45,16 +45,20 @@ private:
     ShaderSystem shaderSystem{};
     unsigned int materialShaderId = INVALID_ID_U32;
     unsigned int uiShaderId = INVALID_ID_U32;
+    unsigned int skyboxShaderId = INVALID_ID_U32;
 
     CameraSystem cameraSystem{};
 
     RenderViewSystem renderViewSystem{};
+
+    Skybox skybox{};
 
     unsigned char renderTargetCount = 0;
     unsigned int framebufferWidth = 0;
     unsigned int framebufferHeight = 0;
     Renderpass* worldRenderpass = nullptr;
     Renderpass* uiRenderpass = nullptr;
+    Renderpass* skyboxRenderpass = nullptr;
     bool bIsCurrentlyResizing = false;
     unsigned char framesSinceResizeRequested = 0;
 
@@ -69,6 +73,7 @@ public:
     bool initializeShaderSystem(const ShaderSystemConfig &config, ResourceSystem &resources);
     bool initializeCameraSystem(const CameraSystemConfig &config, MasterEntityComponentSystem *ecsRef);
     bool initializeRenderViewSystem(const RenderViewSystemConfig &config);
+    bool initializeSkybox();
     void shutdown();
     MasterRenderSystem() = default;
 
@@ -89,7 +94,9 @@ public:
     Material& acquireMaterial(const String &name) const;
     void releaseMaterial(const String &name) const;
     bool createRenderView(const RenderViewConfig &config);
-    bool buildPacket(IRenderView *renderView, MeshPacketData *meshData, RenderViewPacket &packet);
+    bool buildPacket(IRenderView *renderView, void *meshData, RenderViewPacket &packet);
+    void buildSkybox(const RenderPacket &packet);
+    void cleanupSkybox(const RenderPacket& packet);
 
     [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
         float xTile, float yTile, const String &name, const String &materialName) const;

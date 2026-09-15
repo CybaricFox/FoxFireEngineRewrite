@@ -46,3 +46,10 @@ struct Geometry {
     String name{};
     Material* material = nullptr;
 };
+
+struct Skybox {
+    TextureMap map{};
+    Geometry* geometry = nullptr;
+    unsigned int instanceId = INVALID_ID_U32;
+    ULong frameNumber = INVALID_ID_U64;
+};

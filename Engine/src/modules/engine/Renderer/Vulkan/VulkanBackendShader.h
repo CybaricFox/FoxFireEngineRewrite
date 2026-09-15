@@ -36,6 +36,11 @@ private:
     VulkanPipeline pipeline{};
     unsigned int instanceCount = 0;
     VulkanShaderInstanceState instanceStates[MAX_MATERIAL_COUNT]{};
+    unsigned char globalUniformCount = 0;
+    unsigned char globalUniformSamplerCount = 0;
+    unsigned char instanceUniformCount = 0;
+    unsigned char instanceUniformSamplerCount = 0;
+    unsigned char localUniformCount = 0;
 
 public:
     [[nodiscard]] unsigned char getStageCount() const {return config.stageCount;}
@@ -45,13 +50,21 @@ public:
     VulkanPipeline& getPipeline() {return pipeline;}
     VulkanShaderInstanceState& getInstanceState(const unsigned int instanceId) {return instanceStates[instanceId];}
     VkDescriptorSet& getDescriptorSet(const unsigned char index) {return descriptorSets[index];}
+    VulkanDescriptorSetConfig& getDescriptorSetConfig(const unsigned int index) {return config.descriptorSets[index];}
     VkDescriptorSetLayout& getDescriptorSetLayout(const unsigned char index) {return descriptorSetLayouts[index];}
     VkDescriptorPool& getDescriptorPool() {return descriptorPool;}
     [[nodiscard]] void* getUniformBufferMemoryBlock() const {return uniformBufferMemoryBlock;}
+    [[nodiscard]] unsigned char getGlobalUniformCount() const {return globalUniformCount;}
+    [[nodiscard]] unsigned char getGlobalSamplerCount() const {return globalUniformSamplerCount;}
+    [[nodiscard]] unsigned char getInstanceUniformCount() const {return instanceUniformCount;}
+    [[nodiscard]] unsigned char getInstanceSamplerCount() const {return instanceUniformSamplerCount;}
+    [[nodiscard]] unsigned char getLocalUniformCount() const {return localUniformCount;}
 
     void setRenderpass(VulkanRenderpass &newRenderpass) {renderpass = &newRenderpass;}
     void setMaxDescriptorCount(const unsigned int maxDescriptorCount) {config.maxDescriptorCount = maxDescriptorCount;}
     void incrementStageCount() {config.stageCount++;}
+    void incrementSamplerCount(ShaderScope scope);
+    void incrementUniformCount(ShaderScope scope);
 
     bool setStages(unsigned char stageCount, DynamicArray<ShaderStage> &shaderStages, DynamicArray<String> &stageFileNames);
     void initializeDescriptorSets(unsigned int imageCount);

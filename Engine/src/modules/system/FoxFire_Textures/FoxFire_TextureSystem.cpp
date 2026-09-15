@@ -43,6 +43,7 @@ Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const bo
     context.bAutoRelease = autoRelease;
 
     Texture* texture = assets.createAsset(fileName, context);
+    texture->type = TEXTURE_2D;
 
     if (texture == nullptr) return getDefaultByCase(useCase);
 
@@ -82,8 +83,42 @@ Texture & FoxFire_TextureSystem::acquireWritableTexture(const String name, const
     texture.flags |= isTransparent ? TEXTURE_BIT_TRANSPARENT : 0;
     texture.flags |= TEXTURE_BIT_WRITABLE;
     texture.data = nullptr;
+    texture.type = TEXTURE_2D;
     backendRef->createWritableTexture(texture);
     return texture;
+}
+
+Texture & FoxFire_TextureSystem::acquireCubeTexture(String name, bool autoRelease) {
+    if (name == DEFAULT_DIFFUSE_TEXTURE_NAME) {
+        Logger::logWarn("Call to acquire default texture from acquire cube texture. Please use getDefaultTexture.");
+        return defaultDiffuseTexture;
+    }
+
+    if (Texture* texture = assets.acquireAsset(name); texture) {
+        return *texture;
+    }
+
+    AssetContext context{};
+    context.bAutoRelease = autoRelease;
+
+    Texture* texture = assets.createAsset(name, context);
+    texture->type = TEXTURE_CUBE;
+    texture->id = context.index;
+
+    String textureNames[6]{};
+    textureNames[0] = name + "_r";
+    textureNames[1] = name + "_l";
+    textureNames[2] = name + "_u";
+    textureNames[3] = name + "_d";
+    textureNames[4] = name + "_f";
+    textureNames[5] = name + "_b";
+
+    if (!loadCubeTexture(name, textureNames, *texture)) {
+        Logger::logError("Failed to load cube texture: " + name);
+        return defaultDiffuseTexture;
+    }
+
+    return *texture;
 }
 
 Texture & FoxFire_TextureSystem::getDefaultByCase(const TextureUseCase useCase) {
@@ -105,6 +140,7 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
     defaultDiffuseTexture.channelCount = 4;
     defaultDiffuseTexture.generation = INVALID_ID_U32;
     defaultDiffuseTexture.flags = 0;
+    defaultDiffuseTexture.type = TEXTURE_2D;
     backendRef->createTexture(diffusePixels, defaultDiffuseTexture);
 
     unsigned char specularPixels[16 * 16 * 4];
@@ -115,6 +151,7 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
     defaultSpecularTexture.channelCount = 4;
     defaultSpecularTexture.generation = INVALID_ID_U32;
     defaultSpecularTexture.flags = 0;
+    defaultDiffuseTexture.type = TEXTURE_2D;
     backendRef->createTexture(specularPixels, defaultSpecularTexture);
 
     unsigned char normalPixels[16 * 16 * 4];
@@ -136,6 +173,7 @@ bool FoxFire_TextureSystem::createDefaultTextures() {
     defaultNormalTexture.channelCount = 4;
     defaultNormalTexture.generation = INVALID_ID_U32;
     defaultNormalTexture.flags = 0;
+    defaultDiffuseTexture.type = TEXTURE_2D;
     backendRef->createTexture(normalPixels, defaultNormalTexture);
 
     return true;
@@ -148,8 +186,11 @@ void FoxFire_TextureSystem::destroyDefaultTextures() {
 }
 
 bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName) const {
+    ImageParameters params{};
+    params.bFlipY = true;
+
     Resource imageResource{};
-    if (!resourceRef->load(fileName, RESOURCE_TYPE_IMAGE, imageResource)) {
+    if (!resourceRef->load(fileName, RESOURCE_TYPE_IMAGE, imageResource, &params)) {
         Logger::logError("Failed to load image resource for texture: " + fileName);
         return false;
     }
@@ -190,6 +231,53 @@ bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName
     }
 
     resourceRef->unload(imageResource);
+    return true;
+}
+
+bool FoxFire_TextureSystem::loadCubeTexture(const String &name, const String textureNames[6], Texture &texture) const {
+    unsigned char* pixels = nullptr;
+    ULong size = 0;
+    for (unsigned int i = 0; i < 6; ++i) {
+        ImageParameters imageParameters{};
+        imageParameters.bFlipY = false;
+
+        Resource imageResource{};
+        if (!resourceRef->load(textureNames[i], RESOURCE_TYPE_IMAGE, imageResource, &imageParameters)) {
+            Logger::logWarn("Failed to load cube image resource for texture: " + textureNames[i]);
+            //Instead of failing, try to use the base texture for the cubemap.
+            if (!resourceRef->load(name, RESOURCE_TYPE_IMAGE, imageResource, &imageParameters)) {
+                Logger::logError("Failed to convert image to cube map: " + name);
+                return false;
+            }
+        }
+
+        const auto resourceData = static_cast<ImageResourceData *>(imageResource.data);
+        if (!pixels) {
+            texture.width = resourceData->width;
+            texture.height = resourceData->height;
+            texture.channelCount = resourceData->channelCount;
+            texture.flags = 0;
+            texture.generation = 0;
+            texture.name = name;
+            size = texture.width * texture.height * texture.channelCount;
+            pixels = static_cast<unsigned char *>(FF_Memory::ff_allocate(sizeof(unsigned char) * size * 6, ARRAY));
+        } else {
+            if (texture.width != resourceData->width || texture.height != resourceData->height || texture.channelCount != resourceData->channelCount) {
+                Logger::logError("All textures for a cube map must have the same width, height, and channel count.");
+                FF_Memory::ff_free(pixels, sizeof(unsigned char) * size * 6, ARRAY);
+                pixels = nullptr;
+                return false;
+            }
+        }
+
+        FF_Memory::ff_copy(pixels + size * i, resourceData->pixels, size);
+        resourceRef->unload(imageResource);
+    }
+
+    backendRef->createTexture(pixels, texture);
+    FF_Memory::ff_free(pixels, sizeof(unsigned char) * size * 6, ARRAY);
+    pixels = nullptr;
+
     return true;
 }
 

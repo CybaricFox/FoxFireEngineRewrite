@@ -15,8 +15,6 @@
 
 VulkanContext VulkanBackend::vulkanContext{};
 
-constexpr unsigned int BINDING_INDEX_UBO = 0;
-constexpr unsigned int BINDING_INDEX_SAMPLER = 1;
 constexpr unsigned int GLOBAL_DESCRIPTOR_SET_INDEX = 0;
 constexpr unsigned int  INSTANCE_DESCRIPTOR_SET_INDEX = 1;
 
@@ -186,8 +184,8 @@ bool VulkanBackend::beginRenderpass(Renderpass &renderpass, RenderTarget &target
 
     if (renderpass.hasFlag(RENDERPASS_CLEAR_COLOR)) {
         FF_Memory::ff_copy(clearValues[beginInfo.clearValueCount].color.float32, renderpass.getClearColor().elements, sizeof(float) * 4);
-        beginInfo.clearValueCount++;
     }
+    beginInfo.clearValueCount++; //Always increment regardless of result
     if (renderpass.hasFlag(RENDERPASS_CLEAR_DEPTH)) {
         FF_Memory::ff_copy(clearValues[beginInfo.clearValueCount].color.float32, renderpass.getClearColor().elements, sizeof(float) * 4);
         clearValues[beginInfo.clearValueCount].depthStencil.depth = vulkanRenderpass->getDepth();
@@ -214,7 +212,7 @@ bool VulkanBackend::endRenderpass(Renderpass &renderpass) {
     return true;
 }
 
-bool VulkanBackend::createShader(Shader &shader, Renderpass &renderpass, const unsigned char stageCount, DynamicArray<String> &stageFileNames, DynamicArray<ShaderStage> &stages) {
+bool VulkanBackend::createShader(Shader &shader, ShaderConfig& config, Renderpass &renderpass, const unsigned char stageCount, DynamicArray<String> &stageFileNames, DynamicArray<ShaderStage> &stages) {
     shader.setBackendShader(FF_Memory::ff_allocate_class<VulkanBackendShader>(sizeof(VulkanBackendShader), RENDER));
 
     VkShaderStageFlags vkStages[VULKAN_SHADER_MAX_STAGES]{};
@@ -245,7 +243,17 @@ bool VulkanBackend::createShader(Shader &shader, Renderpass &renderpass, const u
     constexpr unsigned int maxDescriptorAllocationCount = 1024;
 
     auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
-    auto pass = reinterpret_cast<VulkanRenderpass *>(renderpass.getData());
+    const auto pass = reinterpret_cast<VulkanRenderpass *>(renderpass.getData());
+
+    //Uniform counts
+    for (unsigned int i = 0; i < config.uniforms.getLength(); i++) {
+        const ShaderScope scope = config.uniforms[i].scope;
+        if (config.uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER) {
+            backendShader->incrementSamplerCount(scope);
+        } else {
+            backendShader->incrementUniformCount(scope);
+        }
+    }
 
     backendShader->setRenderpass(*pass);
     backendShader->setMaxDescriptorCount(maxDescriptorAllocationCount);
@@ -256,11 +264,59 @@ bool VulkanBackend::createShader(Shader &shader, Renderpass &renderpass, const u
 
     backendShader->setPoolSizes();
 
-    backendShader->createUBOConfig(BINDING_INDEX_UBO, GLOBAL_DESCRIPTOR_SET_INDEX);
+    if (backendShader->getGlobalUniformCount() > 0 || backendShader->getGlobalSamplerCount() > 0) {
+        VulkanDescriptorSetConfig& setConfig = backendShader->getDescriptorSetConfig(backendShader->getConfig().descriptorSetCount);
 
-    if (shader.useInstances()) {
-        backendShader->createUBOConfig(BINDING_INDEX_UBO, INSTANCE_DESCRIPTOR_SET_INDEX);
+        if (backendShader->getGlobalUniformCount() > 0) {
+            const unsigned char bindingIndex = setConfig.bindingCount;
+            setConfig.bindings[bindingIndex].binding = bindingIndex;
+            setConfig.bindings[bindingIndex].descriptorCount = 1;
+            setConfig.bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            setConfig.bindings[bindingIndex].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            setConfig.bindingCount++;
+        }
+
+        if (backendShader->getGlobalSamplerCount() > 0) {
+            const unsigned char bindingIndex = setConfig.bindingCount;
+            setConfig.bindings[bindingIndex].binding = bindingIndex;
+            setConfig.bindings[bindingIndex].descriptorCount = backendShader->getGlobalSamplerCount();
+            setConfig.bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            setConfig.bindings[bindingIndex].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            setConfig.samplerBindingIndex = bindingIndex;
+            setConfig.bindingCount++;
+        }
+
+        backendShader->getConfig().descriptorSetCount++;
     }
+
+    if (backendShader->getInstanceUniformCount() > 0 || backendShader->getInstanceSamplerCount() > 0) {
+        VulkanDescriptorSetConfig& setConfig = backendShader->getDescriptorSetConfig(backendShader->getConfig().descriptorSetCount);
+
+        if (backendShader->getInstanceUniformCount() > 0) {
+            const unsigned char bindingIndex = setConfig.bindingCount;
+            setConfig.bindings[bindingIndex].binding = bindingIndex;
+            setConfig.bindings[bindingIndex].descriptorCount = 1;
+            setConfig.bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            setConfig.bindings[bindingIndex].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            setConfig.bindingCount++;
+        }
+
+        if (backendShader->getInstanceSamplerCount() > 0) {
+            const unsigned char bindingIndex = setConfig.bindingCount;
+            setConfig.bindings[bindingIndex].binding = bindingIndex;
+            setConfig.bindings[bindingIndex].descriptorCount = backendShader->getInstanceSamplerCount();
+            setConfig.bindings[bindingIndex].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            setConfig.bindings[bindingIndex].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            setConfig.samplerBindingIndex = bindingIndex;
+            setConfig.bindingCount++;
+        }
+
+        backendShader->getConfig().descriptorSetCount++;
+    }
+
+    //Invalidate Instance States here if it ever becomes a problem.
+
+    backendShader->getConfig().cullMode = config.cullMode;
 
     return true;
 }
@@ -298,16 +354,6 @@ bool VulkanBackend::initializeShader(Shader &shader) {
     for (unsigned int i = 0; i < attributeCount; i++) {
         backendShader->setAttribute(i, types[shader.getAttribute(i).type], offset);
         offset += shader.getAttribute(i).size;
-    }
-
-    //Process uniforms
-    auto uniforms = shader.getUniforms();
-
-    for (ShaderUniform*& uniform : uniforms) {
-        if (uniform->type == SHADER_UNIFORM_TYPE_SAMPLER) {
-            const unsigned int descriptorIndex = uniform->scope == SHADER_SCOPE_GLOBAL ? GLOBAL_DESCRIPTOR_SET_INDEX : INSTANCE_DESCRIPTOR_SET_INDEX;
-            backendShader->setDescriptorSetConfig(descriptorIndex, BINDING_INDEX_SAMPLER);
-        }
     }
 
     //Create descriptor pool
@@ -460,12 +506,13 @@ bool VulkanBackend::applyShaderGlobals(Shader &shader) {
 }
 
 bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
-    if (!shader.useInstances()) {
+    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+
+    if (backendShader->getInstanceUniformCount() == 0 && backendShader->getInstanceSamplerCount() == 0) {
         Logger::logError("Cannot apply shader because the shader does not support instances.");
         return false;
     }
 
-    auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
     const unsigned int imageIndex = vulkanContext.getImageIndex();
     VkCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer().getHandle();
 
@@ -477,34 +524,36 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
         unsigned int descriptorCount = 0;
         unsigned int descriptorIndex = 0;
 
-        unsigned char &instanceGeneration = state.descriptorSetState.descriptorStates[descriptorIndex].generations[
-            imageIndex];
+        if (backendShader->getInstanceUniformCount() > 0) {
+            unsigned char &instanceGeneration = state.descriptorSetState.descriptorStates[descriptorIndex].generations[imageIndex];
 
-        VkWriteDescriptorSet instanceDescriptorWrite = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        VkDescriptorBufferInfo bufferInfo{};
-        if (instanceGeneration == INVALID_ID_U8) {
-            bufferInfo.buffer = backendShader->getUniformBuffer().getBuffer();
-            bufferInfo.offset = state.offset;
-            bufferInfo.range = shader.getInstanceStride();
+            VkWriteDescriptorSet instanceDescriptorWrite = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            VkDescriptorBufferInfo bufferInfo{};
+            if (instanceGeneration == INVALID_ID_U8) {
+                bufferInfo.buffer = backendShader->getUniformBuffer().getBuffer();
+                bufferInfo.offset = state.offset;
+                bufferInfo.range = shader.getInstanceStride();
 
-            instanceDescriptorWrite.dstSet = instanceDescriptor;
-            instanceDescriptorWrite.dstBinding = descriptorIndex;
-            instanceDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            instanceDescriptorWrite.descriptorCount = 1;
-            instanceDescriptorWrite.pBufferInfo = &bufferInfo;
+                instanceDescriptorWrite.dstSet = instanceDescriptor;
+                instanceDescriptorWrite.dstBinding = descriptorIndex;
+                instanceDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                instanceDescriptorWrite.descriptorCount = 1;
+                instanceDescriptorWrite.pBufferInfo = &bufferInfo;
 
-            descriptorWrites[descriptorCount] = instanceDescriptorWrite;
-            descriptorCount++;
+                descriptorWrites[descriptorCount] = instanceDescriptorWrite;
+                descriptorCount++;
 
-            instanceGeneration = 1;
+                instanceGeneration = 1;
+            }
+
+            descriptorIndex++;
         }
-
-        descriptorIndex++;
 
         VkDescriptorImageInfo imageInfos[VULKAN_SHADER_MAX_GLOBAL_TEXTURES]{};
         VkWriteDescriptorSet samplerDescriptor{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        if (backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindingCount > 1) {
-            const unsigned int totalSamplerCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[BINDING_INDEX_SAMPLER].descriptorCount;
+        if (backendShader->getInstanceSamplerCount() > 0) {
+            const unsigned char samplerBindingIndex = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].samplerBindingIndex;
+            const unsigned int totalSamplerCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[samplerBindingIndex].descriptorCount;
             unsigned int updateSamplerCount = 0;
             for (unsigned int i = 0; i < totalSamplerCount; i++) {
                 const TextureMap* map = backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextureMaps[i];
@@ -673,7 +722,11 @@ void VulkanBackend::createRenderpass(Renderpass &outRenderpass, float depth, uns
         VkAttachmentDescription depthAttachment{};
         depthAttachment.format = vulkanContext.getDevice().getDepthFormat();
         depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachment.loadOp = doClearDepth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+        if (hasPreviousPass) {
+            depthAttachment.loadOp = doClearDepth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+        } else {
+            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        }
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -773,10 +826,10 @@ VulkanBackend::~VulkanBackend() {
     vulkanContext.destroyCommandBuffers();
 
     //Destroy Render Targets
-    for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
-        destroyRenderTarget(vulkanContext.getRenderTarget(i), true);
-        destroyRenderTarget(vulkanContext.getSwapchain().getRenderTarget(i), true);
-    }
+    //for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
+    //    destroyRenderTarget(vulkanContext.getRenderTarget(i), true);
+    //    destroyRenderTarget(vulkanContext.getSwapchain().getRenderTarget(i), true);
+    //}
 
     //Destroy Renderpasses
     Logger::logDebug("Destroying Renderpasses and Framebuffers.");
@@ -1070,7 +1123,7 @@ void VulkanBackend::createTexture(const unsigned char *pixels, Texture &texture)
     const unsigned int imageSize = texture.width * texture.height * texture.channelCount;
     VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
-    data.createImage(VK_IMAGE_TYPE_2D, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+    data.createImage(texture.type, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
 
@@ -1270,7 +1323,7 @@ void VulkanBackend::createWritableTexture(Texture &texture) {
     VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
 
     VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
-    image.createImage(VK_IMAGE_TYPE_2D, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+    image.createImage(texture.type, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
 
@@ -1285,7 +1338,7 @@ void VulkanBackend::resizeTexture(Texture &texture, unsigned int width, unsigned
 
     VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
 
-    image.createImage(VK_IMAGE_TYPE_2D, width, height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
+    image.createImage(texture.type, width, height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
 
@@ -1294,7 +1347,7 @@ void VulkanBackend::resizeTexture(Texture &texture, unsigned int width, unsigned
 
 void VulkanBackend::writeTextureData(Texture &texture, unsigned int offset, unsigned int size, const unsigned char *pixels) {
     const VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
-    VkDeviceSize imageSize = texture.width * texture.height * texture.channelCount;
+    VkDeviceSize imageSize = texture.width * texture.height * texture.channelCount * (texture.type == TEXTURE_CUBE ? 6 : 1);
     VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
 
     VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -1307,9 +1360,9 @@ void VulkanBackend::writeTextureData(Texture &texture, unsigned int offset, unsi
     VkCommandPool pool = vulkanContext.getDevice().getCommandPool();
     VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
 
-    image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, vulkanContext.getDevice());
-    image.copyFromBuffer(stagingBuffer.getBuffer(), tempBuffer);
-    image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, vulkanContext.getDevice());
+    image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture.type, vulkanContext.getDevice());
+    image.copyFromBuffer(stagingBuffer.getBuffer(), tempBuffer, texture.type);
+    image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.type, vulkanContext.getDevice());
 
     tempBuffer.endSingleUseCommandBuffer(queue, vulkanContext.getDevice());
     stagingBuffer.destroyBuffer(vulkanContext.getDevice());
@@ -1369,7 +1422,8 @@ bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int 
     }
 
     VulkanShaderInstanceState& instanceState = backendShader->getInstanceState(outInstanceId);
-    const unsigned int instanceTextureCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[BINDING_INDEX_SAMPLER].descriptorCount;
+    const unsigned char samplerBindingIndex = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].samplerBindingIndex;
+    const unsigned int instanceTextureCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[samplerBindingIndex].descriptorCount;
     instanceState.instanceTextureMaps.initialize(shader.getInstanceTextureCount());
     instanceState.descriptorSetState.descriptorSets.initialize(vulkanContext.getSwapchain().getImageCount());
 
@@ -1381,10 +1435,12 @@ bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int 
         }
     }
 
-    const unsigned long size = shader.getInstanceStride();
-    if (!backendShader->getUniformBuffer().allocate(size, instanceState.offset)) {
-        Logger::logError("Failed to acquire space for instance resources!");
-        return false;
+    const ULong size = shader.getInstanceStride();
+    if (size > 0) {
+        if (!backendShader->getUniformBuffer().allocate(size, instanceState.offset)) {
+            Logger::logError("Failed to acquire space for instance resources!");
+            return false;
+        }
     }
 
     VulkanShaderDescriptorSetState& descriptorSetState = instanceState.descriptorSetState;

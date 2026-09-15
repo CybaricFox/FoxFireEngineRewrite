@@ -52,8 +52,8 @@ public:
      * @return The texture or default if something goes wrong.
      */
     virtual Texture &acquireTexture(bool autoRelease, bool skipLoad, const String &fileName, TextureUseCase useCase) = 0;
-
     virtual Texture& acquireWritableTexture(String name, unsigned int width, unsigned int height, unsigned char channelCount, bool isTransparent) = 0;
+    virtual Texture& acquireCubeTexture(String name, bool autoRelease) = 0;
 
     /**
      * @brief Clears the texture if it has no references.

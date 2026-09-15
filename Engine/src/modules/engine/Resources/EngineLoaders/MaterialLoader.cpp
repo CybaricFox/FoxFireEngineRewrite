@@ -11,7 +11,7 @@ MaterialLoader::MaterialLoader() {
     memorySize = sizeof(MaterialLoader);
 }
 
-bool MaterialLoader::load(const String name, Resource &outResource, const String basePath) {
+bool MaterialLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters *params) {
     if (name.empty()) return false;
 
     const String finalPath = basePath + "/" + path + "/" + name + ".FoxMaterial";

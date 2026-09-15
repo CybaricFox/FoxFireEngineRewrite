@@ -6,6 +6,22 @@
 
 #include "VulkanUtils.h"
 
+void VulkanBackendShader::incrementSamplerCount(const ShaderScope scope) {
+    switch (scope) {
+        case SHADER_SCOPE_GLOBAL: globalUniformSamplerCount++; break;
+        case SHADER_SCOPE_INSTANCE: instanceUniformSamplerCount++; break;
+        default: break;
+    }
+}
+
+void VulkanBackendShader::incrementUniformCount(const ShaderScope scope) {
+    switch (scope) {
+        case SHADER_SCOPE_GLOBAL: globalUniformCount++; break;
+        case SHADER_SCOPE_INSTANCE: instanceUniformCount++; break;
+        case SHADER_SCOPE_LOCAL: localUniformCount++; break;
+    }
+}
+
 bool VulkanBackendShader::setStages(const unsigned char stageCount, DynamicArray<ShaderStage>& shaderStages, DynamicArray<String>& stageFileNames) {
     for (unsigned int i = 0; i < stageCount; i++) {
         if (config.stageCount + 1 > VULKAN_SHADER_MAX_STAGES) {
@@ -175,5 +191,6 @@ bool VulkanBackendShader::createPipeline(const unsigned int stride, const unsign
         true,
         pushConstantRangeCount,
         memoryRanges,
+        config.cullMode,
         device);
 }

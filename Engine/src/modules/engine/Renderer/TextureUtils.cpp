@@ -29,6 +29,7 @@ Texture * TextureUtils::wrapTexture(const String &name, const unsigned int width
     texture->flags |= isWritable ? TEXTURE_BIT_WRITABLE : 0;
     texture->flags |= TEXTURE_BIT_WRAPPED;
     texture->data = data;
+    texture->type = TEXTURE_2D;
 
     return texture;
 }

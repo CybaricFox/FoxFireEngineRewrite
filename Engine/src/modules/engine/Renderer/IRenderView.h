@@ -11,7 +11,7 @@
 #include "src/modules/engine/Renderer/ShaderSystem.h"
 
 /**
- *  @file RenderView.h
+ *  @file IRenderView.h
  *  @layer Engine
  *  @module Renderer
  *  @author CybaricFox
@@ -24,7 +24,8 @@
 
 enum RenderViewType {
     RENDER_VIEW_WORLD = 0x01,
-    RENDER_VIEW_UI = 0x02
+    RENDER_VIEW_UI = 0x02,
+    RENDER_VIEW_SKYBOX = 0x03
 };
 
 enum RenderViewMatrixSource {
@@ -44,7 +45,7 @@ struct RenderViewPacket;
  * @brief Per frame packer containing geometry data.
  */
 struct RenderPacket {
-    float deltaTime;
+    float deltaTime = 0;
     unsigned short viewCount = 0;
     RenderViewPacket* views = nullptr;
 };
@@ -69,6 +70,10 @@ struct RenderViewConfig {
 struct MeshPacketData {
     unsigned int meshCount = 0;
     unsigned int* meshes = nullptr;
+};
+
+struct SkyboxPacketData {
+    Skybox* skybox = nullptr;
 };
 
 class IRenderView {

@@ -118,6 +118,8 @@ protected:
      */
     bool render(float deltaTime);
 
+    void createRenderView(const RenderViewConfig &config);
+
     /**
      * @brief Creates the derived GameState, Must be called after gameInstance is set by the Engine.
      * @tparam T Derived struct of BaseGameState set by the user.

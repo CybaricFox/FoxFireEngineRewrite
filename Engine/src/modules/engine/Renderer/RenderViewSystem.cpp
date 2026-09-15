@@ -5,6 +5,7 @@
 #include "RenderViewSystem.h"
 
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
+#include "src/modules/system/FoxFire_Renders/SkyboxRenderView.h"
 #include "src/modules/system/FoxFire_Renders/UIRenderView.h"
 #include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
 
@@ -44,6 +45,11 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
         case RENDER_VIEW_UI: {
             view = FF_Memory::ff_allocate_class<UIRenderView>(sizeof(UIRenderView), RENDER);
             size = sizeof(UIRenderView);
+            break;
+        }
+        case RENDER_VIEW_SKYBOX: {
+            view = FF_Memory::ff_allocate_class<SkyboxRenderView>(sizeof(SkyboxRenderView), RENDER);
+            size = sizeof(SkyboxRenderView);
             break;
         }
     }

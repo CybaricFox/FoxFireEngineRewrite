@@ -33,7 +33,7 @@ public:
 
     String getAssetPath() {return assetsPath;}
 
-    bool load(const String &name, ResourceType type, Resource& outResource);
-    bool loadCustom(const String &name, const String &type, Resource& outResource);
+    bool load(const String &name, ResourceType type, Resource &outResource, ILoaderParameters *params = nullptr);
+    bool loadCustom(const String &name, const String &type, Resource &outResource, ILoaderParameters *params = nullptr);
     void unload(Resource& resource);
 };

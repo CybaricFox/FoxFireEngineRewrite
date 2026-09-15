@@ -77,34 +77,38 @@ void Engine::run() {
             const unsigned int meshCount = ECSSystem.getEntityCount("Basic_Entity");
             if (meshCount > 0) {
                 const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, 0.5f * static_cast<float>(deltaTime), false);
-                TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(1), rotation);
+                TransformUtils::addRotation(*MasterEntityComponentSystem::getComponent<Transform>(1), rotation);
 
                 if (meshCount > 1) {
-                    TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(2), rotation);
+                    TransformUtils::addRotation(*MasterEntityComponentSystem::getComponent<Transform>(2), rotation);
                 }
                 if (meshCount > 2) {
-                    TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(3), rotation);
+                    TransformUtils::addRotation(*MasterEntityComponentSystem::getComponent<Transform>(3), rotation);
                 }
             }
 
             RenderPacket packet{};
             packet.deltaTime = static_cast<float>(deltaTime);
-            packet.viewCount = 2;
-            RenderViewPacket views[2]{};
+            packet.viewCount = 3;
+            RenderViewPacket views[3]{};
             packet.views = views;
+
+            masterRenderSystem.buildSkybox(packet);
+
             MeshPacketData worldMeshData{};
             worldMeshData.meshCount = meshCount;
             DynamicArray<unsigned int>& basicEntities = ECSSystem.getAllEntitiesOfType("Basic_Entity");
             worldMeshData.meshes = basicEntities.getData(); //All of these entities have meshes
-            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_World_View"), &worldMeshData, packet.views[0])) {
+            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_World_View"), &worldMeshData, packet.views[1])) {
                 Logger::logError("Failed to build world packet");
                 return;
             }
+
             MeshPacketData uiMeshData{};
             uiMeshData.meshCount = ECSSystem.getEntityCount("Basic_UI");
             DynamicArray<unsigned int>& uiEntities = ECSSystem.getAllEntitiesOfType("Basic_UI");
             uiMeshData.meshes = uiEntities.getData(); //All of these entities have meshes
-            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiMeshData, packet.views[1])) {
+            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiMeshData, packet.views[2])) {
                 Logger::logError("Failed to build ui packet");
                 return;
             }
@@ -128,6 +132,8 @@ void Engine::run() {
                 RenderViewPacket& view = packet.views[i];
                 view.geometries.shutdown();
             }
+
+            masterRenderSystem.cleanupSkybox(packet);
 
             //How long did the frame take
             const double endTime = Platform::getAbsoluteTime();
@@ -190,6 +196,12 @@ bool Engine::update(float deltaTime) {
 
 bool Engine::render(float deltaTime) {
     return true;
+}
+
+void Engine::createRenderView(const RenderViewConfig &config) {
+    if (!masterRenderSystem.createRenderView(config)) {
+        Logger::logFatal("Failed to create world render view.");
+    }
 }
 
 Engine::Engine(const GameInstance& instance)
@@ -292,38 +304,7 @@ void Engine::initialize() {
         return;
     }
 
-    //Create views
-    RenderViewConfig worldConfig{};
-    worldConfig.type = RENDER_VIEW_WORLD;
-    worldConfig.width = 0;
-    worldConfig.height = 0;
-    worldConfig.name = "Fox_Fire_World_View";
-    worldConfig.renderpassCount = 1;
-    RenderViewRenderpassConfig passConfigs[1]{};
-    passConfigs[0].renderpassName = "Fox_Fire_World_Renderpass";
-    worldConfig.renderpasses = passConfigs;
-    worldConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
-    if (!masterRenderSystem.createRenderView(worldConfig)) {
-        Logger::logFatal("Failed to create world render view.");
-        return;
-    }
-    WorldRenderView& worldRenderView = *reinterpret_cast<WorldRenderView *>(masterRenderSystem.getRenderView("Fox_Fire_World_View"));
-    worldRenderView.setCamera(getDefaultCamera());
-
-    RenderViewConfig uiConfig{};
-    uiConfig.type = RENDER_VIEW_UI;
-    uiConfig.width = 0;
-    uiConfig.height = 0;
-    uiConfig.name = "Fox_Fire_UI_View";
-    uiConfig.renderpassCount = 1;
-    RenderViewRenderpassConfig passConfigsUI[1]{};
-    passConfigsUI[0].renderpassName = "Fox_Fire_UI_Renderpass";
-    uiConfig.renderpasses = passConfigsUI;
-    uiConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
-    if (!masterRenderSystem.createRenderView(uiConfig)) {
-        Logger::logFatal("Failed to create world render view.");
-        return;
-    }
+    masterRenderSystem.initializeSkybox();
 
     //Temp code
     const unsigned int cube1 = ECSSystem.createEntity("Basic_Entity");

@@ -50,7 +50,7 @@ public:
         }
     }
 
-    virtual bool load(String name, Resource& outResource, String basePath) = 0;
+    virtual bool load(String name, Resource &outResource, String basePath, ILoaderParameters *params) = 0;
     virtual void unload(Resource &resource);
 
 };

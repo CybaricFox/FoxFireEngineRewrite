@@ -17,11 +17,14 @@ ImageLoader::ImageLoader() {
     memorySize = sizeof(ImageLoader);
 }
 
-bool ImageLoader::load(const String name, Resource &outResource, const String basePath) {
+bool ImageLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters* params) {
     if (name.empty()) return false;
+    if (params == nullptr) return false;
+
+    const auto imageParams = reinterpret_cast<ImageParameters *>(params);
 
     constexpr int requiredChannelCount = 4;
-    stbi_set_flip_vertically_on_load(true); //stb loads the image from down to top, this effectively makes it read top to down.
+    stbi_set_flip_vertically_on_load(imageParams->bFlipY); //stb loads the image from down to top, this effectively makes it read top to down.
 
     String finalPath{};
     constexpr int IMAGE_EXTENSION_COUNT = 5;
@@ -45,19 +48,6 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     int channelCount = 0;
     unsigned char* data = stbi_load(finalPath.c_str(), &width, &height, &channelCount, requiredChannelCount);
 
-    /*
-    if (const char* failReason = stbi_failure_reason(); failReason) {
-        Logger::logError("Image Resource loader failed to load file: " + finalPath + " because " + failReason);
-        stbi__err(nullptr, 0);
-
-        if (data) {
-            stbi_image_free(data);
-        }
-
-        return false;
-    }
-    */
-
     if (!data) {
         Logger::logError("Image Resource loader failed to load file: " + finalPath);
         return false;
@@ -75,4 +65,11 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     outResource.name = name;
 
     return true;
+}
+
+void ImageLoader::unload(Resource &resource) {
+    const auto resourceData = static_cast<ImageResourceData *>(resource.data);
+    stbi_image_free(resourceData->pixels);
+
+    ResourceLoader::unload(resource);
 }

@@ -10,7 +10,7 @@ TextLoader::TextLoader() {
     memorySize = sizeof(TextLoader);
 }
 
-bool TextLoader::load(const String name, Resource &outResource, const String basePath) {
+bool TextLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters *params) {
     if (name.empty()) return false;
 
     const String finalPath = basePath + path + "/" + name;

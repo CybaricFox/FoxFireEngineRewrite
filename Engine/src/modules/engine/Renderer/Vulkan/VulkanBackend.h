@@ -65,7 +65,7 @@ public:
     void destroyGeometry(Geometry &geometry) override;
     bool beginRenderpass(Renderpass& renderpass, RenderTarget& target) override;
     bool endRenderpass(Renderpass& renderpass) override;
-    bool createShader(Shader& shader, Renderpass& renderpass, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages) override;
+    bool createShader(Shader &shader, ShaderConfig &config, Renderpass &renderpass, unsigned char stageCount, DynamicArray<String> &stageFileNames, DynamicArray<ShaderStage> &stages) override;
     bool initializeShader(Shader &shader) override;
     void destroyShader(Shader &shader) override;
     bool useShader(Shader &shader) override;

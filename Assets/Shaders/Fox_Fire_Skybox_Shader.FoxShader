@@ -1,0 +1,22 @@
+# Material shader for rendering materials
+version = 1.0.0
+name = Fox_Fire_Skybox_Shader
+renderpass = Fox_Fire_Skybox_Renderpass
+stages = vertex, fragment
+stagefiles = ../Shaders/Engine_Skybox_Shader.vert.spv, ../Shaders/Engine_Skybox_Shader.frag.spv
+use_instance = true
+use_local = false
+cull_mode = front
+
+#Attributes: Type,Name
+attribute = Vector3, in_position
+attribute = Vector3, in_normal
+attribute = Vector2, in_texcoord
+attribute = Vector4, in_color
+attribute = Vector4, in_tangent
+
+#Uniforms: Type,Scope,Name
+#Scope: 0 = Global, 1 = Instance, 2 = Local
+uniform = Matrix4, 0, projection
+uniform = Matrix4, 0, view
+uniform = sampler, 1, cube_texture

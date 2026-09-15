@@ -52,7 +52,6 @@ void MasterEntityComponentSystem::initialize() {
     entities->initialize(0);
 
     Entity* basic = createEntityType("Basic_Entity");
-
     basic->components.initialize(0, ECS);
     const auto transform = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
     basic->components.push(transform);
@@ -60,7 +59,6 @@ void MasterEntityComponentSystem::initialize() {
     basic->components.push(mesh);
 
     Entity* basicUI = createEntityType("Basic_UI");
-
     basicUI->components.initialize(0, ECS);
     const auto transformUI = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
     basicUI->components.push(transformUI);

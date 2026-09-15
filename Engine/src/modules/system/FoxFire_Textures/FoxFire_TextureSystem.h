@@ -36,6 +36,7 @@ private:
     bool createDefaultTextures();
     void destroyDefaultTextures();
     bool loadTexture(Texture &texture, const String &fileName) const;
+    bool loadCubeTexture(const String &name, const String textureNames[6], Texture& texture) const;
     void destroyTexture(Texture &texture) const;
 
 public:
@@ -53,4 +54,5 @@ public:
     void releaseTexture(String name) override;
 
     Texture & acquireWritableTexture(String name, unsigned width, unsigned height, unsigned char channelCount, bool isTransparent) override;
+    Texture & acquireCubeTexture(String name, bool autoRelease) override;
 };

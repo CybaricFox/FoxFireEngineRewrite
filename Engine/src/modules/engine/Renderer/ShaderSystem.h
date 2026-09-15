@@ -25,6 +25,7 @@
 
 #define DEFAULT_MATERIAL_SHADER_NAME "Fox_Fire_Material_Shader"
 #define DEFAULT_UI_SHADER_NAME "Fox_Fire_UI_Shader"
+#define DEFAULT_SKYBOX_SHADER_NAME "Fox_Fire_Skybox_Shader"
 
 /**
  * @brief Contains config data used by the shader system

@@ -700,7 +700,7 @@ MeshLoader::MeshLoader() {
     memorySize = sizeof(MeshLoader);
 }
 
-bool MeshLoader::load(const String name, Resource &outResource, const String basePath) {
+bool MeshLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters *params) {
     if (name.empty()) return false;
 
     String finalPath = basePath + "/" + path + "/" + name;

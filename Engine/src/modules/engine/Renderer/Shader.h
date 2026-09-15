@@ -60,8 +60,7 @@ struct ShaderUniformConfig {
 
 struct ShaderConfig {
     String name{};
-    bool bUseInstances = false;
-    bool bUseLocals = false;
+    CullMode cullMode = CULL_MODE_BACK;
     unsigned char attributeCount = 0;
     DynamicArray<ShaderAttributeConfig> attributes{};
     unsigned char uniformCount = 0;
@@ -77,8 +76,6 @@ class Shader {
 private:
     unsigned int id = INVALID_ID_U32;
     String name{};
-    bool bUseInstances = false;
-    bool bUseLocals = false;
     unsigned long requiredAlignment = 0;
     unsigned long globalSize = 0;
     unsigned long globalStride = 0;
@@ -104,7 +101,6 @@ private:
 
 public:
     [[nodiscard]] IBackendShader* getBackendShader() const {return backendShader;}
-    [[nodiscard]] bool useInstances() const { return bUseInstances; }
     [[nodiscard]] String const& getName() const { return name; }
     [[nodiscard]] DynamicArray<ShaderAttribute> const& getAttributes() const { return attributes; }
     ShaderAttribute& getAttribute(const unsigned int index) {return attributes[index];}
@@ -129,7 +125,6 @@ public:
     [[nodiscard]] unsigned int getUniformCount() const {return uniforms.getAssetCount();}
     [[nodiscard]] unsigned long getGlobalSize() const {return globalSize;}
     [[nodiscard]] unsigned long getInstanceSize() const {return instanceSize;}
-    [[nodiscard]] bool useLocals() const { return bUseLocals; }
     [[nodiscard]] unsigned long getPushConstantSize() const {return pushConstantSize;}
     [[nodiscard]] ShaderState getState() const {return state;}
     [[nodiscard]] unsigned long getFrameNumber() const {return frameNumber;}

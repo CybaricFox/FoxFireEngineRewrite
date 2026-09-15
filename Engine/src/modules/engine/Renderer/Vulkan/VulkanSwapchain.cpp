@@ -146,7 +146,7 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
     }
 
     auto image = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
-    image->createImage(VK_IMAGE_TYPE_2D,
+    image->createImage(TEXTURE_2D,
                 swapchainExtent.width,
                 swapchainExtent.height,
                 device.getDepthFormat(),

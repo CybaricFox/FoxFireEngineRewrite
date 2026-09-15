@@ -18,6 +18,7 @@ void MasterRenderSystem::regenerateRenderTargets() const {
     for (unsigned char i = 0; i < renderTargetCount; i++) {
         backend->destroyRenderTarget(worldRenderpass->getRenderTarget(i), false);
         backend->destroyRenderTarget(uiRenderpass->getRenderTarget(i), false);
+        backend->destroyRenderTarget(skyboxRenderpass->getRenderTarget(i), false);
 
         Texture* windowTexture = backend->getWindowAttachment(i);
         Texture* depthTexture = backend->getDepthAttachment();
@@ -26,6 +27,7 @@ void MasterRenderSystem::regenerateRenderTargets() const {
         attachments.push(windowTexture);
         attachments.push(depthTexture);
 
+        backend->createRenderTarget(1, attachments, *skyboxRenderpass, framebufferWidth, framebufferHeight, skyboxRenderpass->getRenderTarget(i));
         backend->createRenderTarget(2, attachments, *worldRenderpass, framebufferWidth, framebufferHeight, worldRenderpass->getRenderTarget(i));
         backend->createRenderTarget(1, attachments, *uiRenderpass, framebufferWidth, framebufferHeight, uiRenderpass->getRenderTarget(i));
 
@@ -45,8 +47,20 @@ bool MasterRenderSystem::createRenderView(const RenderViewConfig &config) {
     return renderViewSystem.createRenderView(config);
 }
 
-bool MasterRenderSystem::buildPacket(IRenderView *renderView, MeshPacketData* meshData, RenderViewPacket &packet) {
+bool MasterRenderSystem::buildPacket(IRenderView *renderView, void* meshData, RenderViewPacket &packet) {
     return renderView->buildPacket(meshData, packet);
+}
+
+void MasterRenderSystem::buildSkybox(const RenderPacket& packet) {
+    auto skyboxData = static_cast<SkyboxPacketData *>(FF_Memory::ff_allocate(sizeof(SkyboxPacketData), RENDER));
+    skyboxData->skybox = &skybox;
+    if (!buildPacket(getRenderView("Fox_Fire_Skybox_View"), skyboxData, packet.views[0])) {
+        Logger::logError("Failed to build skybox packet.");
+    }
+}
+
+void MasterRenderSystem::cleanupSkybox(const RenderPacket &packet) {
+    FF_Memory::ff_free(packet.views[0].data, sizeof(SkyboxPacketData), RENDER);
 }
 
 bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, ResourceSystem& resources) {
@@ -67,22 +81,30 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
     config.appName = appName;
     config.func = [this]() {regenerateRenderTargets();};
 
-    config.renderpassCount = 2;
+    config.renderpassCount = 3;
     const String worldName = "Fox_Fire_World_Renderpass";
     const String uiName = "Fox_Fire_UI_Renderpass";
-    RenderpassConfig configs[2]{};
+    const String skyboxName = "Fox_Fire_Skybox_Renderpass";
+    RenderpassConfig configs[3]{};
 
-    configs[0].name = worldName;
-    configs[0].nextName = uiName;
+    configs[0].name = skyboxName;
+    configs[0].nextName = worldName;
     configs[0].renderArea = createVector4f(0, 0, 1280, 720);
     configs[0].clearColor = createVector4f(0.0f, 0.0f, 0.2f, 1.0f);
-    configs[0].clearFlags = RENDERPASS_CLEAR_COLOR | RENDERPASS_CLEAR_DEPTH | RENDERPASS_CLEAR_STENCIL;
+    configs[0].clearFlags = RENDERPASS_CLEAR_COLOR;
 
-    configs[1].name = uiName;
-    configs[1].prevName = worldName;
+    configs[1].name = worldName;
+    configs[1].prevName = skyboxName;
+    configs[1].nextName = uiName;
     configs[1].renderArea = createVector4f(0, 0, 1280, 720);
     configs[1].clearColor = createVector4f(0.0f, 0.0f, 0.2f, 1.0f);
-    configs[1].clearFlags = RENDERPASS_CLEAR_NONE;
+    configs[1].clearFlags = RENDERPASS_CLEAR_DEPTH | RENDERPASS_CLEAR_STENCIL;
+
+    configs[2].name = uiName;
+    configs[2].prevName = worldName;
+    configs[2].renderArea = createVector4f(0, 0, 1280, 720);
+    configs[2].clearColor = createVector4f(0.0f, 0.0f, 0.2f, 1.0f);
+    configs[2].clearFlags = RENDERPASS_CLEAR_NONE;
 
     config.configs = configs;
 
@@ -92,11 +114,14 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
     }
     void* worldTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY);
     void* uiTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY);
+    void* skyboxTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY);
     for (unsigned int i = 0; i < renderTargetCount; i++) {
         const auto worldTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(worldTargets) + (sizeof(RenderTarget) * i));
         std::construct_at(worldTarget);
         const auto uiTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(uiTargets) + (sizeof(RenderTarget) * i));
         std::construct_at(uiTarget);
+        const auto skyboxTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(skyboxTargets) + (sizeof(RenderTarget) * i));
+        std::construct_at(skyboxTarget);
     }
 
     worldRenderpass = backend->getRenderpass(worldName);
@@ -107,10 +132,15 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
     uiRenderpass->setRenderTargetCount(renderTargetCount);
     uiRenderpass->setTargets(static_cast<RenderTarget *>(uiTargets));
 
+    skyboxRenderpass = backend->getRenderpass(skyboxName);
+    skyboxRenderpass->setRenderTargetCount(renderTargetCount);
+    skyboxRenderpass->setTargets(static_cast<RenderTarget *>(skyboxTargets));
+
     regenerateRenderTargets();
 
     worldRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
     uiRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
+    skyboxRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
 
     return true;
 }
@@ -137,6 +167,18 @@ bool MasterRenderSystem::initializeShaderSystem(const ShaderSystemConfig& config
     //Shaders
     Resource configResource{};
     ShaderConfig* shaderConfig = nullptr;
+
+    if (!resources.load(DEFAULT_SKYBOX_SHADER_NAME, RESOURCE_TYPE_SHADER, configResource)) {
+        Logger::logFatal("Failed to load skybox shader!");
+        return false;
+    }
+    shaderConfig = static_cast<ShaderConfig *>(configResource.data);
+    if (!shaderSystem.createShader(*shaderConfig)) {
+        Logger::logFatal("Failed to create shader from config!");
+        return false;
+    }
+    resources.unload(configResource);
+    skyboxShaderId = shaderSystem.getId(DEFAULT_SKYBOX_SHADER_NAME);
 
     if (!resources.load(DEFAULT_MATERIAL_SHADER_NAME, RESOURCE_TYPE_SHADER, configResource)) {
         Logger::logFatal("Failed to load material shader!");
@@ -178,6 +220,33 @@ bool MasterRenderSystem::initializeRenderViewSystem(const RenderViewSystemConfig
     return renderViewSystem.initialize(config, backend, &shaderSystem, materialSystem);
 }
 
+bool MasterRenderSystem::initializeSkybox() {
+    TextureMap& cubeMap = skybox.map;
+    cubeMap.filterMag = TEXTURE_FILTER_BILINEAR;
+    cubeMap.filterMin = TEXTURE_FILTER_BILINEAR;
+    cubeMap.repeatU = TEXTURE_CLAMP_TO_EDGE;
+    cubeMap.repeatV = TEXTURE_CLAMP_TO_EDGE;
+    cubeMap.repeatW = TEXTURE_CLAMP_TO_EDGE;
+    cubeMap.use = TEXTURE_USE_MAP_CUBE;
+    if (!backend->acquireTextureMapResources(cubeMap)) {
+        Logger::logFatal("Failed to acquire texture resources for cubemap!");
+        return false;
+    }
+    cubeMap.texture = &textureSystem->acquireCubeTexture("Maxwell_Skybox", true);
+    GeometryConfig skyboxConfig = generateCubeConfig(10, 10, 10, 1, 1, "Maxwell_Skybox", "");
+    skyboxConfig.materialName = "";
+    skybox.geometry = &acquireGeometry(skyboxConfig, true);
+    skybox.frameNumber = INVALID_ID_U64;
+    const Shader& skyboxShader = *shaderSystem.getShader(DEFAULT_SKYBOX_SHADER_NAME);
+    TextureMap* maps[1] = {&skybox.map};
+    if (!backend->acquireInstanceResources(skyboxShader, skybox.instanceId, textureSystem->getDefaultDiffuseTexture(), &maps[0])) {
+        Logger::logFatal("Failed to acquire instance resources for skybox!");
+        return false;
+    }
+
+    return true;
+}
+
 void MasterRenderSystem::shutdown() {
     cameraSystem.shutdown();
 
@@ -186,11 +255,15 @@ void MasterRenderSystem::shutdown() {
     for (unsigned char i = 0; i < renderTargetCount; i++) {
         backend->destroyRenderTarget(worldRenderpass->getRenderTarget(i), true);
         backend->destroyRenderTarget(uiRenderpass->getRenderTarget(i), true);
+        backend->destroyRenderTarget(skyboxRenderpass->getRenderTarget(i), true);
     }
+
     std::destroy_at(&worldRenderpass->getRenderTarget(0));
     std::destroy_at(&uiRenderpass->getRenderTarget(0));
+    std::destroy_at(&skyboxRenderpass->getRenderTarget(0));
     FF_Memory::ff_free(&worldRenderpass->getRenderTarget(0), sizeof(RenderTarget) * renderTargetCount, ARRAY);
     FF_Memory::ff_free(&uiRenderpass->getRenderTarget(0), sizeof(RenderTarget) * renderTargetCount, ARRAY);
+    FF_Memory::ff_free(&skyboxRenderpass->getRenderTarget(0), sizeof(RenderTarget) * renderTargetCount, ARRAY);
 
     if (geometrySystem) {
         FF_Memory::ff_free_class<IGeometrySystem>(geometrySystem, geometrySystem->getMemorySize(), GAME);
@@ -202,6 +275,8 @@ void MasterRenderSystem::shutdown() {
     }
 
     shaderSystem.shutdown();
+
+    backend->releaseTextureMapResources(skybox.map);
 
     //Destroy texture system
     if (textureSystem) {

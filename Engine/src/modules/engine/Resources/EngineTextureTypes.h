@@ -17,7 +17,8 @@ enum TextureUseCase {
     TEXTURE_USE_UNKNOWN,
     TEXTURE_USE_MAP_DIFFUSE,
     TEXTURE_USE_MAP_SPECULAR,
-    TEXTURE_USE_MAP_NORMAL
+    TEXTURE_USE_MAP_NORMAL,
+    TEXTURE_USE_MAP_CUBE
 };
 
 enum TextureRepeat {
@@ -39,6 +40,18 @@ enum TextureFlag {
 };
 typedef unsigned char TextureFlagBits;
 
+enum CullMode {
+    CULL_MODE_NONE = 0x0,
+    CULL_MODE_FRONT = 0x1,
+    CULL_MODE_BACK = 0x2,
+    CULL_MODE_FRONT_AND_BACK = 0x3
+};
+
+enum TextureType {
+    TEXTURE_2D = 0x0,
+    TEXTURE_CUBE = 0x1,
+};
+
 struct Texture {
     unsigned int id = INVALID_ID_U32;
     unsigned int width = 0;
@@ -47,6 +60,7 @@ struct Texture {
     TextureFlagBits flags = 0;
     unsigned int generation = INVALID_ID_U32;
     String name{};
+    TextureType type{};
     void* data = nullptr;
 };
 
@@ -66,4 +80,10 @@ struct ImageResourceData {
     unsigned int width = 0;
     unsigned int height = 0;
     unsigned char* pixels = nullptr;
+};
+
+struct ILoaderParameters {};
+
+struct ImageParameters : ILoaderParameters {
+    bool bFlipY = false;
 };

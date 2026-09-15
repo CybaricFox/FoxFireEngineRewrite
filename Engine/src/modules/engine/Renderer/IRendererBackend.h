@@ -147,12 +147,14 @@ public:
     /**
      * @brief Creates a shader
      * @param shader OUT shader
+     * @param config
      * @param stageCount Number of stages
      * @param stageFileNames
      * @param stages
      * @return false on failure
      */
-    virtual bool createShader(Shader& shader, Renderpass& renderpass, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages) = 0;
+    virtual bool createShader(Shader &shader, ShaderConfig &config, Renderpass &renderpass, unsigned char stageCount, DynamicArray<String> &
+                              stageFileNames, DynamicArray<ShaderStage> &stages) = 0;
 
     /**
      * @brief Finalizes a shader

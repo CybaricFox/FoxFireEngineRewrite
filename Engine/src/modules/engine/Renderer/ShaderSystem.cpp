@@ -88,11 +88,6 @@ bool ShaderSystem::createShader(ShaderConfig& shaderConfig) {
         return false;
     }
 
-    if (!backendRef->createShader(*shader, *renderpass, shaderConfig.stageCount, shaderConfig.stageFileNames, shaderConfig.stages)) {
-        Logger::logError("Failed to create shader.");
-        return false;
-    }
-
     shader->setState(SHADER_STATE_NOT_INITIALIZED);
 
     for (unsigned int i = 0; i < shaderConfig.attributeCount; i++) {
@@ -105,6 +100,10 @@ bool ShaderSystem::createShader(ShaderConfig& shaderConfig) {
         } else {
             addUniform(*shader, shaderConfig.uniforms[i]);
         }
+    }
+    if (!backendRef->createShader(*shader, shaderConfig, *renderpass, shaderConfig.stageCount, shaderConfig.stageFileNames, shaderConfig.stages)) {
+        Logger::logError("Failed to create shader.");
+        return false;
     }
 
     if (!backendRef->initializeShader(*shader)) {
@@ -245,11 +244,6 @@ bool ShaderSystem::addAttribute(Shader &shader, const ShaderAttributeConfig &att
 }
 
 bool ShaderSystem::addSampler(Shader &shader, const ShaderUniformConfig &uniformConfig) {
-    if (uniformConfig.scope == SHADER_SCOPE_INSTANCE && !shader.useInstances()) {
-        Logger::logError("Cannot add a sampler to a shader that doesn't use instances.");
-        return false;
-    }
-
     if (uniformConfig.scope == SHADER_SCOPE_LOCAL) {
         Logger::logError("Samplers cannot be used within local scope.");
         return false;
@@ -339,11 +333,6 @@ bool ShaderSystem::addUniform(Shader &shader, const String &uniformName, const u
         uniform->offset = isSampler ? 0 : isGlobal ? shader.getGlobalSize() : shader.getInstanceSize();
         uniform->size = isSampler ? 0 : size;
     } else {
-        if (uniform->scope == SHADER_SCOPE_LOCAL && !shader.useLocals()) {
-            Logger::logError("Cannot add a local uniform to a shader that doesn't use locals.");
-            return false;
-        }
-
         uniform->descriptorIndex = INVALID_ID_U8;
         const MemoryRange range = getAlignedRange(shader.getPushConstantSize(), size, 4);
         uniform->offset = range.offset;

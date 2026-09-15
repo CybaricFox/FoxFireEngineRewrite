@@ -13,8 +13,6 @@ bool Shader::initializeShader(const ShaderConfig &config, const unsigned int new
 
     state = SHADER_STATE_NOT_CREATED;
     name = config.name;
-    bUseInstances = config.bUseInstances;
-    bUseLocals = config.bUseLocals;
     pushConstantRangeCount = 0;
     FF_Memory::ff_clear(pushConstantRanges, sizeof(MemoryRange) * 32);
     boundInstanceId = INVALID_ID_U32;

@@ -6,7 +6,7 @@
 
 #include "VulkanUtils.h"
 
-void VulkanImage::createImage(VkImageType imageType, const unsigned int newWidth, const unsigned int newHeight, VkFormat format,
+void VulkanImage::createImage(const TextureType imageType, const unsigned int newWidth, const unsigned int newHeight, VkFormat format,
                               VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags, const bool createView,
                               VkImageAspectFlags aspect, VulkanDevice& device) {
 
@@ -19,13 +19,23 @@ void VulkanImage::createImage(VkImageType imageType, const unsigned int newWidth
     imageCreateInfo.extent.height = height;
     imageCreateInfo.extent.depth = 1;
     imageCreateInfo.mipLevels = 4;
-    imageCreateInfo.arrayLayers = 1;
+    imageCreateInfo.arrayLayers = imageType == TEXTURE_CUBE ? 6 : 1;
     imageCreateInfo.format = format;
     imageCreateInfo.tiling = tiling;
     imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageCreateInfo.usage = usage;
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if (imageType == TEXTURE_CUBE) {
+        imageCreateInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+    }
+    switch (imageType) {
+        case TEXTURE_CUBE:
+        case TEXTURE_2D: {
+            imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+            break;
+        }
+    }
 
     VulkanUtils::vulkanCheck(vkCreateImage(device.getLogicalDevice(), &imageCreateInfo, nullptr, &handle));
 
@@ -45,7 +55,7 @@ void VulkanImage::createImage(VkImageType imageType, const unsigned int newWidth
 
     if (createView) {
         view = nullptr;
-        createImageView(format, aspect, device);
+        createImageView(format, aspect, device, imageType);
     }
 }
 
@@ -64,7 +74,7 @@ void VulkanImage::destroy(VulkanDevice &device) {
     }
 }
 
-void VulkanImage::transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VulkanDevice& device) const {
+void VulkanImage::transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, const TextureType type, VulkanDevice& device) const {
     //memory barrier ensures commands called before this use the old layout, and commands after this use the new layout.
     VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
     barrier.oldLayout = oldLayout;
@@ -76,7 +86,7 @@ void VulkanImage::transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFo
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = type == TEXTURE_CUBE ? 6 : 1;
 
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
@@ -104,7 +114,7 @@ void VulkanImage::transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFo
     vkCmdPipelineBarrier(commandBuffer.getHandle(), sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr,1, &barrier);
 }
 
-void VulkanImage::copyFromBuffer(const VkBuffer buffer, VulkanCommandBuffer &commandBuffer) const {
+void VulkanImage::copyFromBuffer(VkBuffer buffer, VulkanCommandBuffer &commandBuffer, const TextureType type) const {
     VkBufferImageCopy region{};
     FF_Memory::ff_clear(&region, sizeof(VkBufferImageCopy));
     region.bufferOffset = 0;
@@ -113,7 +123,7 @@ void VulkanImage::copyFromBuffer(const VkBuffer buffer, VulkanCommandBuffer &com
     region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     region.imageSubresource.mipLevel = 0;
     region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
+    region.imageSubresource.layerCount = type == TEXTURE_CUBE ? 6 : 1;
     region.imageExtent.width = width;
     region.imageExtent.height = height;
     region.imageExtent.depth = 1;
@@ -121,16 +131,25 @@ void VulkanImage::copyFromBuffer(const VkBuffer buffer, VulkanCommandBuffer &com
     vkCmdCopyBufferToImage(commandBuffer.getHandle(), buffer, handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
-void VulkanImage::createImageView(VkFormat format, VkImageAspectFlags aspectFlags, VulkanDevice& device) {
+void VulkanImage::createImageView(VkFormat format, VkImageAspectFlags aspectFlags, VulkanDevice& device, const TextureType type) {
     VkImageViewCreateInfo viewCreateInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     viewCreateInfo.image = handle;
-    viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     viewCreateInfo.format = format;
     viewCreateInfo.subresourceRange.aspectMask = aspectFlags;
     viewCreateInfo.subresourceRange.baseMipLevel = 0;
     viewCreateInfo.subresourceRange.levelCount = 1;
     viewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    viewCreateInfo.subresourceRange.layerCount = 1;
+    viewCreateInfo.subresourceRange.layerCount = type == TEXTURE_CUBE ? 6 : 1;
+    switch (type) {
+        case TEXTURE_2D: {
+            viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            break;
+        }
+        case TEXTURE_CUBE: {
+            viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+            break;
+        }
+    }
 
     VulkanUtils::vulkanCheck(vkCreateImageView(device.getLogicalDevice(), &viewCreateInfo, nullptr, &view));
 }
