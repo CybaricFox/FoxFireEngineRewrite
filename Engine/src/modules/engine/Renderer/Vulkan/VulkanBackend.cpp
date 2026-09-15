@@ -524,11 +524,11 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
         unsigned int descriptorCount = 0;
         unsigned int descriptorIndex = 0;
 
+        VkDescriptorBufferInfo bufferInfo{};
+        VkWriteDescriptorSet instanceDescriptorWrite = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         if (backendShader->getInstanceUniformCount() > 0) {
             unsigned char &instanceGeneration = state.descriptorSetState.descriptorStates[descriptorIndex].generations[imageIndex];
 
-            VkWriteDescriptorSet instanceDescriptorWrite = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-            VkDescriptorBufferInfo bufferInfo{};
             if (instanceGeneration == INVALID_ID_U8) {
                 bufferInfo.buffer = backendShader->getUniformBuffer().getBuffer();
                 bufferInfo.offset = state.offset;

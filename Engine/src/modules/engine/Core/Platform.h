@@ -61,7 +61,6 @@ public:
 
     /**
      * @brief Interfaces with the input system to process inputs in the order they were activated.
-     * @param inputSystem Reference to the input system.
      */
     void processInputs();
 
@@ -83,6 +82,10 @@ public:
      */
     void ff_sleep(unsigned long ms);
 
+    /**
+     * @brief Gets platform specific extensions for the render system.
+     * @param extensions Dynamic array to hold the extensions.
+     */
     void getRequiredExtensions(DynamicArray<const char *> &extensions);
 
     /**
@@ -91,11 +94,32 @@ public:
      */
     [[nodiscard]] PlatformState& getPlatformState() const {return *platformState;}
 
+    /**
+     * @brief Creates render surface from os.
+     * @return False on failure.
+     */
     bool createSurface() const;
 
+    /**
+     * @brief Asks the OS to allocate memory. Avoid calling this. Use FF_Memory instead.
+     * @param size size of memory to allocate
+     * @param align Whether the memory should be aligned.
+     * @return Pointer to the new memory block.
+     */
     static void *platform_allocate(unsigned long size, bool align);
 
+    /**
+     * @brief Asks the OS to free memory. Only use this if memory was not allocated by FF_Memory or it will break FF_Memory.
+     * @param memory pointer to the memory location
+     * @param align Whether the memory is aligned.
+     */
     static void platform_free(void* memory, bool align);
+
+    /**
+     * @brief Zeros out memory.
+     * @param memory Pointer to the memory location.
+     * @param size size to clear out.
+     */
     static void platform_clear(void* memory, unsigned long size);
 
 private:

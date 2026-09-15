@@ -7,9 +7,9 @@
 #include "src/modules/engine/Memory/DynamicArray.h"
 
 /**
- *  @file Entity.h
- *  @layer 
- *  @module
+ *  @file EntityManager.h
+ *  @layer Engine
+ *  @module ECS
  *  @author CybaricFox
  *  @brief
  *  @version 1.0
@@ -18,12 +18,30 @@
  *  @copyright (c) 2026
  */
 
+/**
+ * @brief Manages all instances of a single entity.
+ */
 class EntityManager {
 private:
+    /**
+     * @brief The allocator holds the memory of every instance.
+     */
     DynamicAllocator allocator{};
+    /**
+     * @brief Holds pointers to the instances in the allocator. Used as a means of lookup. Instances are sorted by id.
+     */
     DynamicArray<EntityInstance*> instances{};
+    /**
+     * @brief The memory used by the allocator.
+     */
     void* memory = nullptr;
+    /**
+     * @brief Size of the memory.
+     */
     unsigned long memorySize = 0;
+    /**
+     * @brief Number of active instances.
+     */
     unsigned int count = 0;
 
 public:
@@ -36,9 +54,22 @@ public:
     EntityManager(EntityManager&&) = delete;
     EntityManager& operator=(EntityManager&&) = delete;
 
+    /**
+     * @brief
+     * @return Returns the number of active entities.
+     */
     [[nodiscard]] unsigned int getEntityCount() const {return count;}
+    /**
+     * @brief
+     * @return Returns the array of instances. Meant for iterating lookups.
+     */
     DynamicArray<EntityInstance*>& getInstances() {return instances;}
 
+    /**
+     * @brief Copies entity data to a new instance.
+     * @param entity Entity to use as a template.
+     * @param id id to assign to the instance.
+     */
     void copyFromTemplate(Entity& entity, unsigned int id);
 
     /**
@@ -76,6 +107,12 @@ public:
         return nullptr;
     }
 
+    /**
+     * @brief Adds a component to an existing entity.
+     * @tparam T Component type to add.
+     * @param id id of the entity that will recieve this component.
+     * @return Pointer to the newly created component.
+     */
     template<typename T>
     requires std::derived_from<T, EntityComponent>
     T* addComponent(const unsigned int id) {
@@ -149,6 +186,11 @@ public:
         return nullptr;
     }
 
+    /**
+     * @brief Removes a component from an entity.
+     * @tparam T Type of component to remove
+     * @param id Id of the instance to remove from.
+     */
     template<typename T>
     requires std::derived_from<T, EntityComponent>
     void removeComponent(const unsigned int id) {

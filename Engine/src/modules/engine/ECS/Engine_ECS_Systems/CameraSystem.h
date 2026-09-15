@@ -24,6 +24,9 @@ struct CameraSystemConfig {
     unsigned short maxCameraCount = 0;
 };
 
+/**
+ * @brief Creates and destroys cameras.
+ */
 class CameraSystem {
 private:
     CameraSystemConfig config{};
@@ -36,6 +39,16 @@ public:
 
     [[nodiscard]] unsigned int getDefaultCamera() const {return defaultId;}
 
+    /**
+     * @brief Gets a camera from an entity or adds one if it doesn't have it. Also increments number of references to the camera.
+     * @param id id of the instance
+     * @return Camera component of the instance.
+     */
     [[nodiscard]] Camera* aquireCamera(unsigned int id) const;
+
+    /**
+     * @brief Decrements the reference count of a camera. If it hits 0, it will be removed.
+     * @param id id of the instance.
+     */
     void releaseCamera(unsigned int id);
 };

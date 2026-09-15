@@ -38,7 +38,7 @@ private:
     ResourceSystem resourceSystem{};
     /** @brief Handles user input handling. Input systems interface with this */
     EngineEvents engineEventsSystem{};
-
+    /** @brief Handles the Component system */
     MasterEntityComponentSystem ECSSystem{};
 
     /** @brief Controls All Rendering. Do not give access to Game!*/
@@ -79,7 +79,9 @@ protected:
     /** @brief Reference to the user-defined geometry system. WARNING: VOLATILE REFERENCE! */
     IGeometrySystem* geometrySystem = nullptr;
 
+    /** @brief fetches the default camera entity id from the render system. */
     [[nodiscard]] unsigned int getDefaultCamera() const {return masterRenderSystem.getDefaultCamera();}
+    /** @brief Gets a render view from the render system. */
     IRenderView* getRenderView(const String &name) {return masterRenderSystem.getRenderView(name);}
 
     /**
@@ -133,6 +135,11 @@ protected:
         return derivedState;
     }
 
+    /**
+     * @brief Interface to memory allocation. Allocates memory and constructs a class.
+     * @tparam T Class to construct
+     * @return Pointer to the new object.
+     */
     template<typename T>
     T* instantiateDerivedSubSystem() {
         return FF_Memory::ff_allocate_class<T>(sizeof(T), GAME);
@@ -150,7 +157,6 @@ public:
 
     /**
      * @brief Initializes systems.
-     * @param instance Game config data.
      */
     virtual void initialize();
 
