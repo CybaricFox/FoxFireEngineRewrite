@@ -135,6 +135,12 @@ public:
         Logger::logDebug(name + " has one less reference. " + std::to_string(context->referenceCount) + " remains.");
         return false;
     }
+    /**
+     * @brief Decrements the assets reference count. If the asset has no references remaining, the asset, context pair
+     * is cleaned to be reused later. Does not return the asset.
+     * @param name Name of the asset.
+     * @return True if the asset was cleaned. False if the asset has remaining references.
+     */
     bool releaseAsset(String name) {
         AssetContext* context = getContextInternal(name);
         if (!context || context->referenceCount == 0) return false;
@@ -153,6 +159,9 @@ public:
         return false;
     }
 
+    /**
+     * @brief Clears out the asset map.
+     */
     void clear() {
         map.clearHashMap();
         data.clear();
@@ -163,6 +172,10 @@ public:
         data.shutdown();
     }
 
+    /**
+     * @brief Returns the number of assets in this asset map.
+     * @return
+     */
     [[nodiscard]] unsigned int getAssetCount() const { return map.getLength(); }
 
     /**

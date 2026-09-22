@@ -45,6 +45,10 @@ public:
 
     virtual bool initialize(MaterialSystemConfig materialSystemConfig, ITextureSystem *system, IRendererBackend *backend, ResourceSystem* resources, ShaderSystem* shaderSystem);
 
+    /**
+     * @brief Returns the default material.
+     * @return
+     */
     virtual Material& getDefaultMaterial() = 0;
     [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}
 

@@ -15,6 +15,9 @@
 #include "EngineEvents.h"
 #include "foxfire_export.h"
 
+/**
+ * @brief Mouse buttons
+ */
 enum Buttons{
     BUTTON_LEFT,
     BUTTON_RIGHT,
@@ -51,12 +54,42 @@ private:
     EngineEvents* engineEventsSystemRef = nullptr;
 
 protected:
+    /**
+     * @brief
+     * @param button The button to check
+     * @return True if the button is down.
+     */
     [[nodiscard]] bool isButtonDown(Buttons button) const;
+    /**
+     * @brief
+     * @param button The button to check
+     * @return True if the button is up.
+     */
     [[nodiscard]] bool isButtonUp(Buttons button) const;
+    /**
+     * @brief
+     * @param button The button to check
+     * @return True if the button was down on the last frame.
+     */
     [[nodiscard]] bool wasButtonDown(Buttons button) const;
+    /**
+     * @brief
+     * @param button The button to check
+     * @return True if the button was up on the last frame.
+     */
     [[nodiscard]] bool wasButtonUp(Buttons button) const;
 
+    /**
+     * @brief Returns the mouse position.
+     * @param x OUT the x position of the mouse.
+     * @param y OUT the y position of the mouse.
+     */
     void getMousePosition(int& x, int& y) const;
+    /**
+     * @brief Returns the mouse position from the last frame.
+     * @param x OUT the x position of the mouse.
+     * @param y OUT the y position of the mouse.
+     */
     void getPreviousMousePosition(int& x, int& y) const;
 
 public:
@@ -99,9 +132,29 @@ public:
      */
     void processMouseScroll(char z) const;
 
+    /**
+     * @brief
+     * @param key The key to check
+     * @return True if the key is down.
+     */
     [[nodiscard]] bool isKeyDown(Keys key) const;
+    /**
+     * @brief
+     * @param key The key to check
+     * @return True if the key is up.
+     */
     [[nodiscard]] bool isKeyUp(Keys key) const;
+    /**
+     * @brief
+     * @param key The key to check
+     * @return True if the key was down on the last frame.
+     */
     [[nodiscard]] bool wasKeyDown(Keys key) const;
+    /**
+     * @brief
+     * @param key The key to check
+     * @return True if the key was up on the last frame.
+     */
     [[nodiscard]] bool wasKeyUp(Keys key) const;
 
     /**

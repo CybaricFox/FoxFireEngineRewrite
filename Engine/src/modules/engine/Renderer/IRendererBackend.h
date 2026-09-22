@@ -232,21 +232,84 @@ public:
      */
     virtual bool releaseInstanceResources(const Shader &shader, unsigned int instanceId) = 0;
 
+    /**
+     * @brief Creates a writable texture.
+     * @param texture OUT writable texture.
+     */
     virtual void createWritableTexture(Texture& texture) = 0;
+
+    /**
+     * @brief Resizes a writable texture.
+     * @param texture
+     * @param width
+     * @param height
+     */
     virtual void resizeTexture(Texture& texture, unsigned int width, unsigned int height) = 0;
+
+    /**
+     * @brief
+     * @param texture
+     * @param offset
+     * @param size
+     * @param pixels
+     */
     virtual void writeTextureData(Texture& texture, unsigned int offset, unsigned int size, const unsigned char* pixels) = 0;
 
+    /**
+     * @brief Aquires resources for a texture map.
+     * @param textureMap Out texture map.
+     * @return
+     */
     virtual bool acquireTextureMapResources(TextureMap &textureMap) = 0;
+
+    /**
+     * @brief Releases texture map resources.
+     * @param textureMap
+     */
     virtual void releaseTextureMapResources(TextureMap &textureMap) = 0;
 
+    /**
+     * @brief Creates a render target.
+     * @param attachmentCount
+     * @param attachments
+     * @param renderpass
+     * @param width
+     * @param height
+     * @param outTarget
+     */
     virtual void createRenderTarget(unsigned char attachmentCount, DynamicArray<Texture *>& attachments, Renderpass &renderpass, unsigned width, unsigned
                                     height, RenderTarget
                                     &outTarget) = 0;
+
+    /**
+     * @brief Destroys a render target
+     * @param target
+     * @param freeMemory Whether to call ff_free after destruction.
+     */
     virtual void destroyRenderTarget(RenderTarget& target, bool freeMemory) = 0;
 
+    /**
+     * @brief Creates a renderpass.
+     * @param outRenderpass
+     * @param depth
+     * @param stencil
+     * @param hasPreviousPass
+     * @param hasNextPass
+     */
     virtual void createRenderpass(Renderpass& outRenderpass, float depth, unsigned int stencil, bool hasPreviousPass, bool hasNextPass) = 0;
+
+    /**
+     * @brief Destroys a renderpass.
+     * @param renderpass
+     */
     virtual void destroyRenderpass(Renderpass& renderpass) = 0;
 
+    /**
+     * @brief Increments the frame number.
+     */
     void incrementFrameNumber() {frameNumber++;}
+    /**
+     * @brief Sets the frame number to 0.
+     */
     void clearFrameNumber() {frameNumber = 0;}
 };

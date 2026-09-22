@@ -52,7 +52,15 @@ public:
     }
     void shutdown();
 
+    /**
+     * @brief Returns the size of the vertices
+     * @return
+     */
     [[nodiscard]] unsigned long getSize() const {return vertexSize;}
+    /**
+     * @brief Returns the number of vertices.
+     * @return
+     */
     [[nodiscard]] unsigned long getCount() const {return vertexCount;}
     /**
      * @brief Fetches the vertex struct at that index. Fetching 0 also returns the beginning of the vertex array.
@@ -67,9 +75,17 @@ public:
         return vertices[i];
     }
 
+    /**
+     * @brief Sets the vertex at the given index.
+     * @param vertex The new vertex to set.
+     * @param index The index to set it at.
+     */
     void setVertex(const Vertex *vertex, unsigned int index);
 };
 
+/**
+ * @brief Contains all data relate to indices in GeometryConfig. Indices are stored next to eachother in memory.
+ */
 class IndexGeometryData {
 private:
     /** @brief size of the vertex type */
@@ -100,7 +116,15 @@ public:
     }
     void shutdown();
 
+    /**
+     * @brief Returns the size of the indices.
+     * @return
+     */
     [[nodiscard]] unsigned long getSize() const {return indexSize;}
+    /**
+     * @brief Returns the number of indices.
+     * @return
+     */
     [[nodiscard]] unsigned long getCount() const {return indexCount;}
     /**
      * @brief Fetches the vertex struct at that index. Fetching 0 also returns the beginning of the vertex array.
@@ -131,8 +155,17 @@ struct GeometryConfig {
     String materialName{};
     /** @brief Path to the material */
     String materialPath{};
+    /**
+     * @brief Center of the geometry.
+     */
     Vector3f center{};
+    /**
+     * @brief
+     */
     Vector3f minExtent{};
+    /**
+     * @brief
+     */
     Vector3f maxExtent{};
 };
 
@@ -143,12 +176,38 @@ class GeometryUtils {
 private:
     static void reassignIndex(unsigned int indexCount, unsigned int* indices, unsigned int from, unsigned int to);
 public:
+    /**
+     * @brief Generates normals for a geometry.
+     * @param vertexCount Number of vertices
+     * @param vertices Pointer to the array of vertices
+     * @param indexCount Number of incides
+     * @param indices Pointer to the array of indices
+     */
     static void generateNormals(unsigned int vertexCount, Vertex3d* vertices, unsigned int indexCount, const unsigned int* indices);
 
+    /**
+     * @brief Generates tangents for a geometry.
+     * @param vertexCount Number of vertices
+     * @param vertices Pointer to the array of vertices
+     * @param indexCount Number of incides
+     * @param indices Pointer to the array of indices
+     */
     static void generateTangents(unsigned int vertexCount, Vertex *vertices, unsigned int indexCount, void *indices);
 
-    static void filterVertices(unsigned int vertexCount, Vertex *vertices, unsigned int indexCount, void *indices, unsigned int &outVertexCount, DynamicArray
-                               <Vertex3d> &outVertices);
+    /**
+     * @brief Compacts vertices with the same locations.
+     * @param vertexCount
+     * @param vertices
+     * @param indexCount
+     * @param indices
+     * @param outVertexCount Vertex count after compacting.
+     * @param outVertices Pointer to the new vertex array.
+     */
+    static void filterVertices(unsigned int vertexCount, Vertex *vertices, unsigned int indexCount, void *indices, unsigned int &outVertexCount, DynamicArray<Vertex3d> &outVertices);
 
+    /**
+     * @brief Destroys a geometry config.
+     * @param config
+     */
     static void destroyConfig(GeometryConfig* config);
 };

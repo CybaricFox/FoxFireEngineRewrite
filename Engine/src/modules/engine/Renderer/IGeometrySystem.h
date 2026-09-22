@@ -40,11 +40,49 @@ public:
 
     virtual bool initialize(unsigned int initialCapacity, IRendererBackend* backend, IMaterialSystem* materialSystem, ResourceSystem* resources);
 
+    /**
+     * @brief Returns the default geometry for 3d.
+     * @return
+     */
     virtual Geometry& getDefault3DGeometry() = 0;
+
+    /**
+     * @brief Returns the default geometry for 2d.
+     * @return
+     */
     virtual Geometry& getDefault2DGeometry() = 0;
+
+    /**
+     * @brief Returns the memory size of this system.
+     * @return
+     */
     [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}
 
+    /**
+     * @brief Generates a plane from the given argyments.
+     * @param width
+     * @param height
+     * @param xCount
+     * @param yCount
+     * @param xTile
+     * @param yTile
+     * @param name
+     * @param materialName
+     * @return
+     */
     virtual GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount, float xTile, float yTile, const String &name, const String &materialName) = 0;
+
+    /**
+     * @brief Generates a cube from the given arguments.
+     * @param width
+     * @param height
+     * @param depth
+     * @param xTile
+     * @param yTile
+     * @param name
+     * @param materialName
+     * @return
+     */
     virtual GeometryConfig generateCubeConfig(float width, float height, float depth, float xTile, float yTile, const String &name, const String &materialName) = 0;
 
     /**

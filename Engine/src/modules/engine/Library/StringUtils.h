@@ -47,24 +47,139 @@ public:
      * @param out String to trim.
      */
     static void trim(String &out);
+
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToFloat(const String &string, float& out);
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToDouble(const String &string, double& out);
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToChar(const String &string, char& out);
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToShort(const String &string, short& out);
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToInt(const String &string, int& out);
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToLong(const String &string, long& out);
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToUChar(const String &string, unsigned char& out);
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToUShort(const String &string, unsigned short& out);
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToUInt(const String &string, unsigned int& out);
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToULong(const String &string, unsigned long& out);
+    /**
+     * @brief Converts a string to the out type.
+     * @param string
+     * @param out
+     * @return False if the conversion failed.
+     */
     static bool stringToBool(const String &string, bool& out);
+
+    /**
+     * @brief Gets the number of times the given char is found in the given string.
+     * @param string
+     * @param toFind
+     * @return
+     */
     static unsigned int findAll(const String &string, char toFind);
+
+    /**
+     * @brief Gets an array of substrings split by the given regex.
+     * @param string String to split.
+     * @param regex Char to act as the split location.
+     * @param array OUT array of strings.
+     * @return Number of substrings.
+     */
     static unsigned int recursiveSplit(const String &string, char regex, DynamicArray<String>& array);
+
+    /**
+     * @brief Returns true if the 2 strings are equal starting at 0 until the length.
+     * @param a
+     * @param b
+     * @param length
+     * @return True if they are the same string.
+     */
     static bool equalsN(const String &a, const String &b, unsigned long length);
+
+    /**
+     * @brief Returns true if the 2 strings are equal starting at 0 until the length. Ignores case.
+     * @param a
+     * @param b
+     * @param n
+     * @return True if they are the same string.
+     */
     static bool equalsIgnoreCaseN(const String &a, const String &b, unsigned long n);
 
+    /**
+     * @brief Returns the parent directory in the path.
+     * @param path
+     * @return
+     */
     static String getDirectoryFromPath(const String &path);
+
+    /**
+     * @brief Returns the file name and extension in the path.
+     * @param path
+     * @return
+     */
     static String getFilenameFromPath(const String &path);
+
+    /**
+     * @brief Returns the file name in the path without the extension.
+     * @param path
+     * @return
+     */
     static String getFilenameNoExtensionFromPath(const String &path);
 };
 

@@ -23,5 +23,10 @@ private:
     static unsigned long multiplier;
 
 public:
+    /**
+     * @brief Generates a hash from a string.
+     * @param key
+     * @return
+     */
     static unsigned long generateStringHash(const String& key);
 };

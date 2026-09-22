@@ -22,28 +22,104 @@
     #include <xmmintrin.h>
 #endif
 
+/**
+ * @brief PI
+ */
 inline constexpr float FF_PI = 3.14159265358979323846f;
+/**
+ * @brief A number so high it may as well be infinity
+ */
 inline constexpr float FF_INFINITY = 1e30f;
+/**
+ * @brief The lowest possible float value
+ */
 inline constexpr float FF_EPSILON = 1.192092869e-07f;
+/**
+ * @brief A multiplier used to convert degrees to radians.
+ */
 inline constexpr float FF_DEGREE_TO_RADIAN_MULTIPLIER = FF_PI / 180.0f;
+/**
+ * @brief A multiplier used to convert radians to degrees.
+ */
 inline constexpr float FF_RADIAN_TO_DEGREE_MULTIPLIER = 180.0f / FF_PI;
 
+/**
+ * @brief A collection of math related functions and random numbers.
+ */
 class FOXFIRE_API FF_Math {
 private:
+    /**
+     * @brief Whether the random numbers from FF_Math are using a seed.
+     */
     static bool bIsSeeded;
 
+    /**
+     * @brief Sets the seed to a new seed.
+     */
     static void setSeed();
 public:
+    /**
+     * @brief Applies sin to the value
+     * @param value
+     * @return
+     */
     static float sin(float value);
+    /**
+     * @brief Applies cos to the value
+     * @param value
+     * @return
+     */
     static float cos(float value);
+    /**
+     * @brief Applies acos to the value
+     * @param value
+     * @return
+     */
     static float acos(float value);
+    /**
+     * @brief Applies tan to the value
+     * @param value
+     * @return
+     */
     static float tan(float value);
+    /**
+     * @brief Square roots the value.
+     * @param value
+     * @return
+     */
     static float sqrt(float value);
+    /**
+     * @brief Returns the absolute value of the value.
+     * @param value
+     * @return
+     */
     static float abs(float value);
 
+    /**
+     * @brief Returns a random integer.
+     * @return
+     */
     static int randomInt();
+
+    /**
+     * @brief Returns a random float.
+     * @return
+     */
     static float randomFloat();
+
+    /**
+     * @brief Returns a random integer from a range.
+     * @param min Minimum value.
+     * @param max Maximum value.
+     * @return
+     */
     static int randomRange(int min, int max);
+    /**
+     * @brief Returns a random float from a range.
+     * @param min Minimum value.
+     * @param max Maximum value.
+     * @return
+     */
     static float randomRange(float min, float max);
 };
 
@@ -101,6 +177,14 @@ inline Vector2f operator/(Vector2f left, const Vector2f& right) {
     left /= right;
     return left;
 }
+
+/**
+ * @brief Compares 2 vector2s.
+ * @param a
+ * @param b
+ * @param tolerance How much the value can be off before its considered not equal.
+ * @return True if the vectors are equal.
+ */
 inline bool compareVectors(Vector2f a, const Vector2f b, const float tolerance) {
     a -= b;
     if (FF_Math::abs(a.x) > tolerance) {
@@ -114,11 +198,36 @@ inline bool compareVectors(Vector2f a, const Vector2f b, const float tolerance) 
 inline bool operator==(const Vector2f& left, const Vector2f& right) {
     return compareVectors(left,right,FF_EPSILON);
 }
+
+/**
+ * @brief Creates a vector2 with values set to 0.
+ * @return
+ */
 inline Vector2f zeroVector2f() {return Vector2f{0, 0};}
+/**
+ * @brief Creates a vector2 with values set to 1.
+ * @return
+ */
 inline Vector2f oneVector2f() {return Vector2f{1, 1};}
+/**
+ * @brief Creates a vector2 with y set to 1.
+ * @return
+ */
 inline Vector2f upVector2f() {return Vector2f{0, 1};}
+/**
+ * @brief Creates a vector2 with y set to -1.
+ * @return
+ */
 inline Vector2f downVector2f() {return Vector2f{0, -1};}
+/**
+ * @brief Creates a vector2 with x set to -1.
+ * @return
+ */
 inline Vector2f leftVector2f() {return Vector2f{-1, 0};}
+/**
+ * @brief Creates a vector2 with x set to 1.
+ * @return
+ */
 inline Vector2f rightVector2f() {return Vector2f{1, 0};}
 
 union FOXFIRE_API Vector3f {
@@ -195,6 +304,14 @@ inline Vector3f operator/(Vector3f left, const Vector3f& right) {
     left /= right;
     return left;
 }
+
+/**
+ * @brief Compares 2 vector3s.
+ * @param a
+ * @param b
+ * @param tolerance How much the value can be off before its considered not equal.
+ * @return True if the vectors are equal.
+ */
 inline bool compareVectors(Vector3f a, const Vector3f b, const float tolerance) {
     a -= b;
     if (FF_Math::abs(a.x) > tolerance) {
@@ -211,15 +328,51 @@ inline bool compareVectors(Vector3f a, const Vector3f b, const float tolerance) 
 inline bool operator==(const Vector3f& left, const Vector3f& right) {
     return compareVectors(left, right, FF_EPSILON);
 }
+
+/**
+ * @brief Creates a vector3 with all values set to 0.
+ * @return
+ */
 inline Vector3f zeroVector3f() {return Vector3f{0, 0, 0};}
+/**
+ * @brief Creates a vector3 with all values set to 1.
+ * @return
+ */
 inline Vector3f oneVector3f() {return Vector3f{1, 1, 1};}
+/**
+ * @brief Creates a vector3 with y set to 1.
+ * @return
+ */
 inline Vector3f upVector3f() {return Vector3f{0, 1, 0};}
+/**
+ * @brief Creates a vector3 with y set to -1.
+ * @return
+ */
 inline Vector3f downVector3f() {return Vector3f{0, -1, 0};}
+/**
+ * @brief Creates a vector3 with x set to -1.
+ * @return
+ */
 inline Vector3f leftVector3f() {return Vector3f{-1, 0, 0};}
+/**
+ * @brief Creates a vector3 with x set to 1.
+ * @return
+ */
 inline Vector3f rightVector3f() {return Vector3f{1, 0, 0};}
+/**
+ * @brief Creates a vector3 with z set to -1.
+ * @return
+ */
 inline Vector3f forwardVector3() {return Vector3f{0, 0, -1};}
+/**
+ * @brief Creates a vector3 with z set to 1.
+ * @return
+ */
 inline Vector3f backwardVector3() {return Vector3f{0, 0, 1};}
 
+/**
+ * @brief Create vector4s with createVector4f() to use SIMD.
+ */
 union FOXFIRE_API Vector4f {
 #if defined(USE_SIMD)
     __m128 data;
@@ -250,6 +403,15 @@ union FOXFIRE_API Vector4f {
         };
     };
 };
+
+/**
+ * @brief Creates a vector4 with the given values.
+ * @param x
+ * @param y
+ * @param z
+ * @param w
+ * @return
+ */
 inline Vector4f createVector4f(const float x, const float y, const float z, const float w) {
     Vector4f out{};
 #if defined(USE_SIMD)
@@ -262,7 +424,16 @@ inline Vector4f createVector4f(const float x, const float y, const float z, cons
 #endif
     return out;
 }
+
+/**
+ * @brief Creates a vector4 with all values set to 0.
+ * @return
+ */
 inline Vector4f zeroVector4f() {return Vector4f{0, 0, 0, 0};}
+/**
+ * @brief Creates a vector4 with all values set to 1.
+ * @return
+ */
 inline Vector4f oneVector4f() {return Vector4f{1, 1, 1, 1};}
 inline Vector4f& operator+=(Vector4f& source,const Vector4f& other) {
 #if defined(USE_SIMD)
@@ -339,6 +510,13 @@ inline Vector4f operator/(Vector4f left, const Vector4f& right) {
     left /= right;
     return left;
 }
+/**
+ * @brief Compares 2 vector4s.
+ * @param a
+ * @param b
+ * @param tolerance How much the value can be off before its considered not equal.
+ * @return True if the vectors are equal.
+ */
 inline bool compareVectors(Vector4f a, const Vector4f b, const float tolerance) {
     a -= b;
     if (FF_Math::abs(a.x) > tolerance) {
@@ -359,7 +537,17 @@ inline bool operator==(const Vector4f& left, const Vector4f& right) {
     return compareVectors(left, right, FF_EPSILON);
 }
 
+/**
+ * @brief Vector4 used for rotation.
+ */
 typedef Vector4f Quat;
+
+/**
+ * @brief Multiplies 2 quats together
+ * @param a
+ * @param b
+ * @return The resulting quat.
+ */
 inline Quat multiplyQuat(const Quat a, const Quat b) {
     Quat out;
 
@@ -371,6 +559,10 @@ inline Quat multiplyQuat(const Quat a, const Quat b) {
     return out;
 }
 
+/**
+ * @brief Creates a default quat rotation.
+ * @return
+ */
 inline Quat quatIdentity() {
     return Quat{0, 0, 0, 1};
 }
@@ -381,6 +573,11 @@ union FOXFIRE_API Mat4 {
     Vector4f rows[4];
 #endif
 };
+
+/**
+ * @brief Creates a default Mat4.
+ * @return
+ */
 inline Mat4 matrixIdentity() {
     Mat4 out{};
     out.data[0] = 1;
@@ -422,6 +619,12 @@ inline Mat4 operator*(const Mat4& left, const Mat4& right) {
     return out;
 }
 
+/**
+ * @brief
+ * @param vector
+ * @param matrix
+ * @return
+ */
 inline Vector3f transformVector3(const Vector3f vector, const Mat4 &matrix) {
     Vector3f out{};
     out.x = vector.x * matrix.data[0 + 0] + vector.y * matrix.data[4 + 0] + vector.z * matrix.data[8 + 0] + 1.0f * matrix.data[12 + 0];
@@ -432,11 +635,29 @@ inline Vector3f transformVector3(const Vector3f vector, const Mat4 &matrix) {
 
 struct Vertex {};
 
+/**
+ * @brief Contains data for a 3d vertex
+ */
 struct Vertex3d : Vertex{
+    /**
+     * @brief Position of the vertex.
+     */
     Vector3f position;
+    /**
+     * @brief The direction the vertex is facing (for lighting).
+     */
     Vector3f normal;
+    /**
+     * @brief Coordinate in the texture to take color from.
+     */
     Vector2f textureCoordinate;
+    /**
+     * @brief The color of this vertex.
+     */
     Vector4f color;
+    /**
+     * @brief
+     */
     Vector4f tangent;
 };
 inline bool operator==(const Vertex3d& left, const Vertex3d& right) {
@@ -447,29 +668,76 @@ inline bool operator==(const Vertex3d& left, const Vertex3d& right) {
                     compareVectors(left.tangent, right.tangent, FF_EPSILON);
 }
 
+/**
+ * @brief Data for a 2d vertex
+ */
 struct Vertex2d : Vertex{
+    /**
+     * @brief Position of the vertex.
+     */
     Vector2f position;
+    /**
+     * @brief Coordinate in the texture to take color from.
+     */
     Vector2f textureCoordinate;
 };
 
+/**
+ * @brief How far the object's vertices go from the center.
+ */
 struct Extent2D {
     Vector2f min{};
     Vector2f max{};
 };
 
+/**
+ * @brief How far the object's vertices go from the center.
+ */
 struct Extent3D {
     Vector3f min{};
     Vector3f max{};
 };
 
+/**
+ * @brief Determines if a number is a power of 2.
+ * @param value The number to check.
+ * @return True if the number is a power of 2.
+ */
 inline bool isPowerOfTwo(const unsigned long value) {return value != 0 && ((value & (value - 1)) == 0);}
 //Returns the squared length of the vector
 //This should be used to compare lengths because sqrt is expensive.
 //Do the other getter if you need the real length
+/**
+ * @brief Gets the squared length of a vector. Use this when comparing lengths instead of the sqrt function.
+ * @param vector
+ * @return
+ */
 inline float getLengthSquared(const Vector2f& vector) {return vector.x * vector.x + vector.y * vector.y;}
+/**
+ * @brief Gets the squared length of a vector. Use this when comparing lengths instead of the sqrt function.
+ * @param vector
+ * @return
+ */
 inline float getLengthSquared(const Vector3f& vector) {return vector.x * vector.x + vector.y * vector.y + vector.z * vector.z;}
+/**
+ * @brief Gets the squared length of a vector. Use this when comparing lengths instead of the sqrt function.
+ * @param vector
+ * @return
+ */
 inline float getLengthSquared(const Vector4f& vector) {return vector.x * vector.x + vector.y * vector.y + vector.z * vector.z + vector.w * vector.w;}
+/**
+ * @brief Converts a vector4 to a vector3.
+ * @param vector4
+ * @return
+ */
 inline Vector3f toVector3f(const Vector4f& vector4) {return Vector3f{vector4.x, vector4.y, vector4.z};}
+
+/**
+ * @brief Converts a vector3 to a vector4.
+ * @param vector3
+ * @param w The value for the 4th argument in the vector4.
+ * @return
+ */
 inline Vector4f toVector4f(const Vector3f& vector3, const float w) {
 #if defined(USE_SIMD)
     return Vector4f{_mm_setr_ps(vector3.x, vector3.y, vector3.z, w)};
@@ -477,11 +745,24 @@ inline Vector4f toVector4f(const Vector3f& vector3, const float w) {
     return Vector4f{vector3.x, vector3.y, vector3.z, w};
 #endif
 }
+
+/**
+ * @brief Converts a string to a vector4.
+ * @param string
+ * @param out
+ * @return False if the string cannot be converted.
+ */
 inline bool stringToVector4f(const String &string, Vector4f& out) {
     FF_Memory::ff_clear(&out, sizeof(Vector4f));
     const int result = sscanf(string.c_str(), "%f %f %f %f", &out.x, &out.y, &out.z, &out.w);
     return result != -1;
 }
+
+/**
+ * @brief Converts a vector4 to a string.
+ * @param outString
+ * @param vector
+ */
 inline void vector4fToString(String& outString, const Vector4f vector) {
     outString.clear();
     outString.append(std::to_string(vector.x));
@@ -492,11 +773,25 @@ inline void vector4fToString(String& outString, const Vector4f vector) {
     outString.append(" ");
     outString.append(std::to_string(vector.w));
 }
+
+/**
+ * @brief Converts a string to a vector3.
+ * @param string
+ * @param out
+ * @return False if the string cannot be converted.
+ */
 inline bool stringToVector3f(const String &string, Vector3f& out) {
     FF_Memory::ff_clear(&out, sizeof(Vector3f));
     const int result = sscanf(string.c_str(), "%f %f %f", &out.x, &out.y, &out.z);
     return result != -1;
 }
+
+/**
+ * @brief Converts a string to a vector2.
+ * @param string
+ * @param out
+ * @return False if the string cannot be converted.
+ */
 inline bool stringToVector2f(const String &string, Vector2f& out) {
     FF_Memory::ff_clear(&out, sizeof(Vector2f));
     const int result = sscanf(string.c_str(), "%f %f", &out.x, &out.y);
@@ -505,15 +800,56 @@ inline bool stringToVector2f(const String &string, Vector2f& out) {
 
 //Returns the real length of a vector
 //EXPENSIVE
+/**
+ * @brief Gets the length of the vector. Use getLengthSquared() instead of this when comparing lengths because this is expensive.
+ * @param vector
+ * @return
+ */
 inline float getVectorLength(const Vector2f& vector) {return FF_Math::sqrt(getLengthSquared(vector));}
+/**
+ * @brief Gets the length of the vector. Use getLengthSquared() instead of this when comparing lengths because this is expensive.
+ * @param vector
+ * @return
+ */
 inline float getVectorLength(const Vector3f& vector) {return FF_Math::sqrt(getLengthSquared(vector));}
+/**
+ * @brief Gets the length of the vector. Use getLengthSquared() instead of this when comparing lengths because this is expensive.
+ * @param vector
+ * @return
+ */
 inline float getVectorLength(const Vector4f& vector) {return FF_Math::sqrt(getLengthSquared(vector));}
 
+/**
+ * @brief Returns the distance between 2 vectors.
+ * @param a
+ * @param b
+ * @return
+ */
 inline float getVectorDistance(const Vector2f a, const Vector2f b) {return getVectorLength(a - b);}
+/**
+ * @brief Returns the distance between 2 vectors.
+ * @param a
+ * @param b
+ * @return
+ */
 inline float getVectorDistance(const Vector3f a, const Vector3f b) {return getVectorLength(a - b);}
+
+/**
+ * @brief Returns the dot product of 2 vectors.
+ * @param a
+ * @param b
+ * @return
+ */
 inline float getVectorDotProduct(const Vector3f a, const Vector3f b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
+
+/**
+ * @brief Returns the cross product of 2 vectors.
+ * @param a
+ * @param b
+ * @return
+ */
 inline Vector3f getVectorCrossProduct(const Vector3f a, const Vector3f b) {
     return Vector3f{
         a.y * b.z - a.z * b.y,
@@ -521,6 +857,12 @@ inline Vector3f getVectorCrossProduct(const Vector3f a, const Vector3f b) {
         a.x * b.y - a.y * b.x
     };
 }
+/**
+ * @brief Returns the dot product of 2 vectors.
+ * @param a
+ * @param b
+ * @return
+ */
 inline float getVectorDotProduct(Vector4f a, const Vector4f b) {
 #if defined(USE_SIMD)
     __m128 mul = _mm_mul_ps(a.data, b.data);
@@ -536,6 +878,10 @@ inline float getVectorDotProduct(Vector4f a, const Vector4f b) {
 #endif
 }
 
+/**
+ * @brief Normalizes a vector.
+ * @param vector
+ */
 inline void normalize(Vector2f* vector) {
     const float lengthSq = getLengthSquared(*vector);
     if (lengthSq <= FF_EPSILON) {
@@ -546,9 +892,17 @@ inline void normalize(Vector2f* vector) {
     vector->x *= length;
     vector->y *= length;
 }
+/**
+ * @brief Normalizes a vector.
+ * @param vector
+ */
 inline void normalize(Vector2f& vector) {
     normalize(&vector);
 }
+/**
+ * @brief Normalizes a vector.
+ * @param vector
+ */
 inline void normalize(Vector3f* vector) {
     const float lengthSq = getLengthSquared(*vector);
     if (lengthSq <= FF_EPSILON) {
@@ -560,9 +914,17 @@ inline void normalize(Vector3f* vector) {
     vector->y *= length;
     vector->z *= length;
 }
+/**
+ * @brief Normalizes a vector.
+ * @param vector
+ */
 inline void normalize(Vector3f& vector) {
     normalize(&vector);
 }
+/**
+ * @brief Normalizes a vector.
+ * @param vector
+ */
 inline void normalize(Vector4f* vector) {
     const float lengthSq = getLengthSquared(*vector);
     if (lengthSq <= FF_EPSILON) {
@@ -575,10 +937,24 @@ inline void normalize(Vector4f* vector) {
     vector->z *= length;
     vector->w *= length;
 }
+/**
+ * @brief Normalizes a vector.
+ * @param vector
+ */
 inline void normalize(Vector4f& vector) {
     normalize(&vector);
 }
 
+/**
+ * @brief Generates an orthographic view.
+ * @param left
+ * @param right
+ * @param bottom
+ * @param top
+ * @param ffNear
+ * @param ffFar
+ * @return
+ */
 inline Mat4 orthographic(const float left, const float right, const float bottom, const float top, const float ffNear, const float ffFar) {
     Mat4 out{};
     const float lr = 1.0f / (left - right);
@@ -594,6 +970,15 @@ inline Mat4 orthographic(const float left, const float right, const float bottom
     out.data[15] = 1.0f;
     return out;
 }
+
+/**
+ * @brief Generates a perspective view
+ * @param fovRadians Angle of the FOV.
+ * @param aspectRatio Viewport aspect ratio.
+ * @param ffNear How close an object can get before it is culled.
+ * @param ffFar How far an object can get before it is culled.
+ * @return
+ */
 inline Mat4 perspective(const float fovRadians, const float aspectRatio, const float ffNear, const float ffFar) {
     const float halfTanFov = FF_Math::tan(fovRadians * 0.5f);
     Mat4 out{};
@@ -606,6 +991,13 @@ inline Mat4 perspective(const float fovRadians, const float aspectRatio, const f
 }
 
 //Creates a view matrix looking from pos towards target
+/**
+ * @brief Generates a view matrix looking from pos towards a target.
+ * @param pos Position of the view
+ * @param target Position to look at.
+ * @param up The up vector of the view.
+ * @return
+ */
 inline Mat4 lookAt(Vector3f pos, Vector3f target, Vector3f up) {
     Mat4 out{};
     Vector3f zAxis = target - pos;
@@ -638,6 +1030,12 @@ inline Mat4 lookAt(Vector3f pos, Vector3f target, Vector3f up) {
     out.data[15] = 1.0f;
     return out;
 }
+
+/**
+ * @brief Inverts a matrix.
+ * @param matrix
+ * @return
+ */
 inline Mat4 invertMatrix(const Mat4 &matrix) {
     const float* m = matrix.data;
 
@@ -702,6 +1100,11 @@ inline Mat4 invertMatrix(const Mat4 &matrix) {
     return out;
 }
 //Represents a position change (ie translation).
+/**
+ * @brief Creates a matrix representing a position change.
+ * @param pos
+ * @return
+ */
 inline Mat4 createTranslationMatrix(const Vector3f& pos) {
     Mat4 out = matrixIdentity();
     out.data[12] = pos.x;
@@ -710,6 +1113,11 @@ inline Mat4 createTranslationMatrix(const Vector3f& pos) {
     return out;
 }
 //Represents a scale change.
+/**
+ * @brief Creates a matrix representing a scale change.
+ * @param scale
+ * @return
+ */
 inline Mat4 createScaleMatrix(const Vector3f& scale) {
     Mat4 out = matrixIdentity();
     out.data[0] = scale.x;
@@ -718,6 +1126,11 @@ inline Mat4 createScaleMatrix(const Vector3f& scale) {
     return out;
 }
 
+/**
+ * @brief Creates a matrix representing a rotation change.
+ * @param radians
+ * @return
+ */
 inline Mat4 createEulerXMatrix(const float radians) {
     Mat4 out = matrixIdentity();
     const float c = FF_Math::cos(radians);
@@ -729,6 +1142,12 @@ inline Mat4 createEulerXMatrix(const float radians) {
     out.data[10] = c;
     return out;
 }
+
+/**
+ * @brief Creates a matrix representing a rotation on the y axis.
+ * @param radians
+ * @return
+ */
 inline Mat4 createEulerYMatrix(const float radians) {
     Mat4 out = matrixIdentity();
     const float c = FF_Math::cos(radians);
@@ -740,6 +1159,12 @@ inline Mat4 createEulerYMatrix(const float radians) {
     out.data[10] = c;
     return out;
 }
+
+/**
+ * @brief Creates a matrix representing a rotation on the z axis.
+ * @param radians
+ * @return
+ */
 inline Mat4 createEulerZMatrix(const float radians) {
     Mat4 out = matrixIdentity();
     const float c = FF_Math::cos(radians);
@@ -751,6 +1176,14 @@ inline Mat4 createEulerZMatrix(const float radians) {
     out.data[5] = c;
     return out;
 }
+
+/**
+ * @brief Creates a rotation from the given values.
+ * @param x
+ * @param y
+ * @param z
+ * @return
+ */
 inline Mat4 createEuler(const float x, const float y, const float z) {
     const Mat4 rx = createEulerXMatrix(x);
     const Mat4 ry = createEulerYMatrix(y);
@@ -758,6 +1191,12 @@ inline Mat4 createEuler(const float x, const float y, const float z) {
     const Mat4 out = rx * ry * rz;
     return out;
 }
+
+/**
+ * @brief Creates a rotation out of a vector.
+ * @param rotation
+ * @return
+ */
 inline Mat4 createEuler(const Vector3f rotation) {
     const Mat4 rx = createEulerXMatrix(rotation.x);
     const Mat4 ry = createEulerYMatrix(rotation.y);
@@ -766,6 +1205,11 @@ inline Mat4 createEuler(const Vector3f rotation) {
     return out;
 }
 
+/**
+ * @brief
+ * @param matrix
+ * @return
+ */
 inline Mat4 transposeMatrix(const Mat4 &matrix) {
     Mat4 out{};
     out.data[0] = matrix.data[0];
@@ -787,6 +1231,11 @@ inline Mat4 transposeMatrix(const Mat4 &matrix) {
     return out;
 }
 
+/**
+ * @brief Returns a vector representing the backwards direction of the matrix.
+ * @param matrix
+ * @return
+ */
 inline Vector3f getBackwardDirection(const Mat4 &matrix) {
     Vector3f forward{};
     forward.x = matrix.data[2];
@@ -795,9 +1244,19 @@ inline Vector3f getBackwardDirection(const Mat4 &matrix) {
     normalize(forward);
     return forward;
 }
+/**
+ * @brief Returns a vector representing the forwards direction of the matrix.
+ * @param matrix
+ * @return
+ */
 inline Vector3f getForwardDirection(const Mat4 &matrix) {
     return getBackwardDirection(matrix) * -1.0f;
 }
+/**
+ * @brief Returns a vector representing the up direction of the matrix.
+ * @param matrix
+ * @return
+ */
 inline Vector3f getUpDirection(const Mat4 &matrix) {
     Vector3f up{};
     up.x = matrix.data[1];
@@ -806,9 +1265,19 @@ inline Vector3f getUpDirection(const Mat4 &matrix) {
     normalize(up);
     return up;
 }
+/**
+ * @brief Returns a vector representing the down direction of the matrix.
+ * @param matrix
+ * @return
+ */
 inline Vector3f getDownDirection(const Mat4 &matrix) {
     return getUpDirection(matrix) * -1.0f;
 }
+/**
+ * @brief Returns a vector representing the right direction of the matrix.
+ * @param matrix
+ * @return
+ */
 inline Vector3f getRightDirection(const Mat4 &matrix) {
     Vector3f right{};
     right.x = matrix.data[0];
@@ -817,26 +1286,67 @@ inline Vector3f getRightDirection(const Mat4 &matrix) {
     normalize(right);
     return right;
 }
+/**
+ * @brief Returns a vector representing the left direction of the matrix.
+ * @param matrix
+ * @return
+ */
 inline Vector3f getLeftDirection(const Mat4 &matrix) {
     return getRightDirection(matrix) * -1.0f;
 }
 
+/**
+ * @brief
+ * @param q
+ * @return
+ */
 inline float getQuatNormal(const Quat q) {
     return FF_Math::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
 }
+
+/**
+ * @brief Normalizes a quaternion.
+ * @param q
+ * @return
+ */
 inline Quat normalizeQuat(const Quat q) {
     const float normal = getQuatNormal(q);
     return Quat{q.x / normal, q.y / normal, q.z / normal, q.w / normal};
 }
+
+/**
+ * @brief
+ * @param q
+ * @return
+ */
 inline Quat getQuatConjugate(const Quat q) {
     return Quat{-q.x, -q.y, -q.z, q.w};
 }
+
+/**
+ * @brief
+ * @param q
+ * @return
+ */
 inline Quat getQuatInverse(const Quat q) {
     return normalizeQuat(getQuatConjugate(q));
 }
+
+/**
+ * @brief Gets the dot product of 2 quats.
+ * @param a
+ * @param b
+ * @return
+ */
 inline float getQuatDotProduct(const Quat a, const Quat b) {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 }
+
+/**
+ * @brief Converts a quart to a matrix.
+ * @param q
+ * @return
+ */
 inline Mat4 convertQuatToMatrix(const Quat q) {
     Mat4 out = matrixIdentity();
 
@@ -858,6 +1368,13 @@ inline Mat4 convertQuatToMatrix(const Quat q) {
 
     return out;
 }
+
+/**
+ * @brief Converts a quat to a rotation matrix
+ * @param q
+ * @param center
+ * @return
+ */
 inline Mat4 convertQuatToRotationMatrix(const Quat q, const Vector3f center) {
     Mat4 out{};
 
@@ -884,6 +1401,14 @@ inline Mat4 convertQuatToRotationMatrix(const Quat q, const Vector3f center) {
 
     return out;
 }
+
+/**
+ * @brief Returns a quart from an angle.
+ * @param axis Axis of the angle.
+ * @param angle Angle of the quat.
+ * @param shouldNormalize Whether the quat should be normalized before returning.
+ * @return
+ */
 inline Quat getQuatFromAxisAngle(const Vector3f axis, const float angle, const bool shouldNormalize) {
     const float halfAngle = 0.5f * angle;
     const float s = FF_Math::sin(halfAngle);
@@ -894,6 +1419,14 @@ inline Quat getQuatFromAxisAngle(const Vector3f axis, const float angle, const b
     }
     return q;
 }
+
+/**
+ * @brief
+ * @param a
+ * @param b
+ * @param percentage
+ * @return
+ */
 inline Quat slerpQuat(Quat a, Quat b, float percentage) {
     // Source: https://en.wikipedia.org/wiki/Slerp
     // Only unit quaternions are valid rotations.
@@ -942,9 +1475,21 @@ inline Quat slerpQuat(Quat a, Quat b, float percentage) {
         (normalA.z * s0) + (normalB.z * s1),
         (normalA.w * s0) + (normalB.w * s1)};
 }
+
+/**
+ * @brief Converts degrees to radians.
+ * @param degrees
+ * @return
+ */
 inline float degreesToRadians(const float degrees) {
     return degrees * FF_DEGREE_TO_RADIAN_MULTIPLIER;
 }
+
+/**
+ * @brief Converts radians to degrees.
+ * @param radians
+ * @return
+ */
 inline float RadiansToDegrees(const float radians) {
     return radians * FF_RADIAN_TO_DEGREE_MULTIPLIER;
 }

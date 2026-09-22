@@ -40,11 +40,27 @@ public:
 
     static unsigned long getMemoryRequirement(unsigned long size);
 
+    /**
+     * @brief Returns the amount of free space remaining for allocation.
+     * @return
+     */
     [[nodiscard]] unsigned long getFreeSpace() const {
         return freeList.getFreeSpace();
     }
 
+    /**
+     * @brief Allocates an object to memory.
+     * @param size Size of the object.
+     * @return Pointer to the memory location.
+     */
     [[nodiscard]] void* allocate(unsigned long size);
+
+    /**
+     * @brief Frees an object in memory.
+     * @param memory
+     * @param size
+     * @return
+     */
     bool free(void* memory, unsigned long size);
 
 };
