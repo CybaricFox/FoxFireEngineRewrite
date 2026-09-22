@@ -6,6 +6,7 @@ stages = vertex, fragment
 stagefiles = ../Shaders/Engine_World_Shader.vert.spv, ../Shaders/Engine_World_Shader.frag.spv
 use_instance = true
 use_local = true
+cull_mode = back
 
 #Attributes: Type,Name
 attribute = Vector3, in_position

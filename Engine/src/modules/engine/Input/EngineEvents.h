@@ -34,6 +34,9 @@ enum EngineEventCode {
     MAX_EVENT
 };
 
+/**
+ * @brief Keys used by the engine. Platform keys are converted to the engine keys.
+ */
 enum Keys {
     DEFINE_KEY(BACKSPACE, 0x08),
     DEFINE_KEY(ENTER, 0x0D),
@@ -212,7 +215,15 @@ public:
     void initialize();
     void shutdown();
 
+    /**
+     * @brief Closes the application
+     */
     static void closeApplication();
+
+    /**
+     * @brief Resizes the application
+     * @param context Contains input data
+     */
     static void resizeApplication(EngineInputContext context);
 
     /**

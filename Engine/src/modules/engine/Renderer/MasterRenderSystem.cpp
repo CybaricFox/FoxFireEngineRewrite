@@ -4,7 +4,9 @@
 
 #include "MasterRenderSystem.h"
 
+#include "TextureUtils.h"
 #include "../Library/Logger.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 
 Texture MasterRenderSystem::createBlankTexture() {
     Texture texture{};
@@ -12,49 +14,24 @@ Texture MasterRenderSystem::createBlankTexture() {
     return texture;
 }
 
-void MasterRenderSystem::createRenderpasses() {
-    if (bIsInitialized || renderpassProfiles.getLength() == 0) return;
+void MasterRenderSystem::regenerateRenderTargets() const {
+    for (unsigned char i = 0; i < renderTargetCount; i++) {
+        backend->destroyRenderTarget(worldRenderpass->getRenderTarget(i), false);
+        backend->destroyRenderTarget(uiRenderpass->getRenderTarget(i), false);
+        backend->destroyRenderTarget(skyboxRenderpass->getRenderTarget(i), false);
 
-    for (const RenderpassProfile& profile : renderpassProfiles) {
-        backend->createRenderpass(profile);
-    }
+        Texture* windowTexture = backend->getWindowAttachment(i);
+        Texture* depthTexture = backend->getDepthAttachment();
 
-    renderpassProfiles.shutdown();
-}
+        DynamicArray<Texture*> attachments{2};
+        attachments.push(windowTexture);
+        attachments.push(depthTexture);
 
-bool MasterRenderSystem::getRenderpassId(const String &name, unsigned char &outId) {
-    if (name == "Fox_Fire_World_Renderpass") {
-        outId = 0;
-        return true;
-    }
-    if (name == "Fox_Fire_UI_Renderpass") {
-        outId = 1;
-        return true;
-    }
+        backend->createRenderTarget(1, attachments, *skyboxRenderpass, framebufferWidth, framebufferHeight, skyboxRenderpass->getRenderTarget(i));
+        backend->createRenderTarget(2, attachments, *worldRenderpass, framebufferWidth, framebufferHeight, worldRenderpass->getRenderTarget(i));
+        backend->createRenderTarget(1, attachments, *uiRenderpass, framebufferWidth, framebufferHeight, uiRenderpass->getRenderTarget(i));
 
-    Logger::logError("There is no renderpass named " + name);
-    outId = INVALID_ID_U8;
-    return false;
-}
-
-void MasterRenderSystem::changeRenderMode(const Keys key) {
-    switch (key) {
-        case KEY_1: {
-            Logger::logDebug("Render mode set to default.");
-            renderMode = RENDER_VIEW_DEFAULT;
-            break;
-        }
-        case KEY_2: {
-            Logger::logDebug("Render mode set to lighting.");
-            renderMode = RENDER_VIEW_LIGHTING;
-            break;
-        }
-        case KEY_3: {
-            Logger::logDebug("Render mode set to normals.");
-            renderMode = RENDER_VIEW_NORMALS;
-            break;
-        }
-        default: break;
+        attachments.shutdown();
     }
 }
 
@@ -66,11 +43,32 @@ void MasterRenderSystem::releaseMaterial(const String &name) const {
     materialSystem->releaseMaterial(name);
 }
 
-void MasterRenderSystem::destroyGeometryConfig(GeometryConfig *config) const {
-    geometrySystem->destroyConfig(config);
+bool MasterRenderSystem::createRenderView(const RenderViewConfig &config) {
+    return renderViewSystem.createRenderView(config);
 }
 
-bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, const unsigned int width, const unsigned int height, ResourceSystem& resources) {
+bool MasterRenderSystem::buildPacket(IRenderView *renderView, void* meshData, RenderViewPacket &packet) {
+    return renderView->buildPacket(meshData, packet);
+}
+
+void MasterRenderSystem::buildSkybox(const RenderPacket& packet) {
+    auto skyboxData = static_cast<SkyboxPacketData *>(FF_Memory::ff_allocate(sizeof(SkyboxPacketData), RENDER));
+    skyboxData->skybox = &skybox;
+    if (!buildPacket(getRenderView("Fox_Fire_Skybox_View"), skyboxData, packet.views[0])) {
+        Logger::logError("Failed to build skybox packet.");
+    }
+}
+
+void MasterRenderSystem::cleanupSkybox(const RenderPacket &packet) {
+    FF_Memory::ff_free(packet.views[0].data, sizeof(SkyboxPacketData), RENDER);
+}
+
+bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, ResourceSystem& resources) {
+    framebufferWidth = 1280;
+    framebufferHeight = 720;
+    bIsCurrentlyResizing = false;
+    framesSinceResizeRequested = 0;
+
     backend = IRendererBackend::create(VULKAN, platform.getPlatformState(), gameInstance);
     if (backend == nullptr) {
         Logger::logFatal("Failed to create the backend renderer!");
@@ -79,29 +77,77 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
 
     backend->clearFrameNumber();
 
-    createRenderpasses();
+    RendererBackendConfig config{};
+    config.appName = appName;
+    config.func = [this]() {regenerateRenderTargets();};
 
-    bIsInitialized = true;
+    config.renderpassCount = 3;
+    const String worldName = "Fox_Fire_World_Renderpass";
+    const String uiName = "Fox_Fire_UI_Renderpass";
+    const String skyboxName = "Fox_Fire_Skybox_Renderpass";
+    RenderpassConfig configs[3]{};
 
-    if (!backend->initialize(appName, platform, width, height, &resources)) {
+    configs[0].name = skyboxName;
+    configs[0].nextName = worldName;
+    configs[0].renderArea = createVector4f(0, 0, 1280, 720);
+    configs[0].clearColor = createVector4f(0.0f, 0.0f, 0.2f, 1.0f);
+    configs[0].clearFlags = RENDERPASS_CLEAR_COLOR;
+
+    configs[1].name = worldName;
+    configs[1].prevName = skyboxName;
+    configs[1].nextName = uiName;
+    configs[1].renderArea = createVector4f(0, 0, 1280, 720);
+    configs[1].clearColor = createVector4f(0.0f, 0.0f, 0.2f, 1.0f);
+    configs[1].clearFlags = RENDERPASS_CLEAR_DEPTH | RENDERPASS_CLEAR_STENCIL;
+
+    configs[2].name = uiName;
+    configs[2].prevName = worldName;
+    configs[2].renderArea = createVector4f(0, 0, 1280, 720);
+    configs[2].clearColor = createVector4f(0.0f, 0.0f, 0.2f, 1.0f);
+    configs[2].clearFlags = RENDERPASS_CLEAR_NONE;
+
+    config.configs = configs;
+
+    if (!backend->initialize(platform, config, renderTargetCount, &resources)) {
         Logger::logFatal("Renderer Backend failed to initialize!");
         return false;
     }
+    void* worldTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY);
+    void* uiTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY);
+    void* skyboxTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY);
+    for (unsigned int i = 0; i < renderTargetCount; i++) {
+        const auto worldTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(worldTargets) + (sizeof(RenderTarget) * i));
+        std::construct_at(worldTarget);
+        const auto uiTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(uiTargets) + (sizeof(RenderTarget) * i));
+        std::construct_at(uiTarget);
+        const auto skyboxTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(skyboxTargets) + (sizeof(RenderTarget) * i));
+        std::construct_at(skyboxTarget);
+    }
 
-    //UBOs
-    worldProjection = perspective(degreesToRadians(45.0f), 1280 / 720.0f, nearClip, farClip);
-    worldView = createTranslationMatrix({0, 0, -30});
-    worldView = invertMatrix(worldView);
-    ambientColor = {0.25, 0.25, 0.25, 1};
+    worldRenderpass = backend->getRenderpass(worldName);
+    worldRenderpass->setRenderTargetCount(renderTargetCount);
+    worldRenderpass->setTargets(static_cast<RenderTarget *>(worldTargets));
 
-    uiProjection = orthographic(0, 1280, 720, 0, -100, 100);
-    uiView = invertMatrix(matrixIdentity());
+    uiRenderpass = backend->getRenderpass(uiName);
+    uiRenderpass->setRenderTargetCount(renderTargetCount);
+    uiRenderpass->setTargets(static_cast<RenderTarget *>(uiTargets));
+
+    skyboxRenderpass = backend->getRenderpass(skyboxName);
+    skyboxRenderpass->setRenderTargetCount(renderTargetCount);
+    skyboxRenderpass->setTargets(static_cast<RenderTarget *>(skyboxTargets));
+
+    regenerateRenderTargets();
+
+    worldRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
+    uiRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
+    skyboxRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
 
     return true;
 }
 
 bool MasterRenderSystem::initializeTextureSystem(const unsigned int initialCapacity, ITextureSystem *system, ResourceSystem* resourceSystem) {
     textureSystem = system;
+    TextureUtils::setTextureSystemRef(textureSystem);
     return textureSystem->initialize(initialCapacity, backend, resourceSystem);
 }
 
@@ -121,6 +167,18 @@ bool MasterRenderSystem::initializeShaderSystem(const ShaderSystemConfig& config
     //Shaders
     Resource configResource{};
     ShaderConfig* shaderConfig = nullptr;
+
+    if (!resources.load(DEFAULT_SKYBOX_SHADER_NAME, RESOURCE_TYPE_SHADER, configResource)) {
+        Logger::logFatal("Failed to load skybox shader!");
+        return false;
+    }
+    shaderConfig = static_cast<ShaderConfig *>(configResource.data);
+    if (!shaderSystem.createShader(*shaderConfig)) {
+        Logger::logFatal("Failed to create shader from config!");
+        return false;
+    }
+    resources.unload(configResource);
+    skyboxShaderId = shaderSystem.getId(DEFAULT_SKYBOX_SHADER_NAME);
 
     if (!resources.load(DEFAULT_MATERIAL_SHADER_NAME, RESOURCE_TYPE_SHADER, configResource)) {
         Logger::logFatal("Failed to load material shader!");
@@ -149,7 +207,64 @@ bool MasterRenderSystem::initializeShaderSystem(const ShaderSystemConfig& config
     return true;
 }
 
+bool MasterRenderSystem::initializeCameraSystem(const CameraSystemConfig &config, MasterEntityComponentSystem* ecsRef) {
+    const bool result = cameraSystem.initialize(config, ecsRef);
+    if (result) {
+
+    }
+
+    return result;
+}
+
+bool MasterRenderSystem::initializeRenderViewSystem(const RenderViewSystemConfig &config) {
+    return renderViewSystem.initialize(config, backend, &shaderSystem, materialSystem);
+}
+
+bool MasterRenderSystem::initializeSkybox() {
+    TextureMap& cubeMap = skybox.map;
+    cubeMap.filterMag = TEXTURE_FILTER_BILINEAR;
+    cubeMap.filterMin = TEXTURE_FILTER_BILINEAR;
+    cubeMap.repeatU = TEXTURE_CLAMP_TO_EDGE;
+    cubeMap.repeatV = TEXTURE_CLAMP_TO_EDGE;
+    cubeMap.repeatW = TEXTURE_CLAMP_TO_EDGE;
+    cubeMap.use = TEXTURE_USE_MAP_CUBE;
+    if (!backend->acquireTextureMapResources(cubeMap)) {
+        Logger::logFatal("Failed to acquire texture resources for cubemap!");
+        return false;
+    }
+    cubeMap.texture = &textureSystem->acquireCubeTexture("Maxwell_Skybox", true);
+    GeometryConfig skyboxConfig = generateCubeConfig(10, 10, 10, 1, 1, "Maxwell_Skybox", "");
+    skyboxConfig.materialName = "";
+    skybox.geometry = &acquireGeometry(skyboxConfig, true);
+    skybox.frameNumber = INVALID_ID_U64;
+    const Shader& skyboxShader = *shaderSystem.getShader(DEFAULT_SKYBOX_SHADER_NAME);
+    TextureMap* maps[1] = {&skybox.map};
+    if (!backend->acquireInstanceResources(skyboxShader, skybox.instanceId, textureSystem->getDefaultDiffuseTexture(), &maps[0])) {
+        Logger::logFatal("Failed to acquire instance resources for skybox!");
+        return false;
+    }
+
+    return true;
+}
+
 void MasterRenderSystem::shutdown() {
+    cameraSystem.shutdown();
+
+    renderViewSystem.shutdown();
+
+    for (unsigned char i = 0; i < renderTargetCount; i++) {
+        backend->destroyRenderTarget(worldRenderpass->getRenderTarget(i), true);
+        backend->destroyRenderTarget(uiRenderpass->getRenderTarget(i), true);
+        backend->destroyRenderTarget(skyboxRenderpass->getRenderTarget(i), true);
+    }
+
+    std::destroy_at(&worldRenderpass->getRenderTarget(0));
+    std::destroy_at(&uiRenderpass->getRenderTarget(0));
+    std::destroy_at(&skyboxRenderpass->getRenderTarget(0));
+    FF_Memory::ff_free(&worldRenderpass->getRenderTarget(0), sizeof(RenderTarget) * renderTargetCount, ARRAY);
+    FF_Memory::ff_free(&uiRenderpass->getRenderTarget(0), sizeof(RenderTarget) * renderTargetCount, ARRAY);
+    FF_Memory::ff_free(&skyboxRenderpass->getRenderTarget(0), sizeof(RenderTarget) * renderTargetCount, ARRAY);
+
     if (geometrySystem) {
         FF_Memory::ff_free_class<IGeometrySystem>(geometrySystem, geometrySystem->getMemorySize(), GAME);
         geometrySystem = nullptr;
@@ -161,6 +276,8 @@ void MasterRenderSystem::shutdown() {
 
     shaderSystem.shutdown();
 
+    backend->releaseTextureMapResources(skybox.map);
+
     //Destroy texture system
     if (textureSystem) {
         FF_Memory::ff_free_class<ITextureSystem>(textureSystem, textureSystem->getMemorySize(), GAME);
@@ -171,88 +288,35 @@ void MasterRenderSystem::shutdown() {
     backend = nullptr;
 }
 
-void MasterRenderSystem::setView(const Mat4 &newView, const Vector3f newViewPosition) {
-    worldView = newView;
-    viewPosition = newViewPosition;
-}
-
-bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
+bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
     backend->incrementFrameNumber();
+
+    if (bIsCurrentlyResizing) {
+        framesSinceResizeRequested++;
+
+        if (framesSinceResizeRequested >= 30) {
+            const auto width = static_cast<float>(framebufferWidth);
+            const auto height = static_cast<float>(framebufferHeight);
+            renderViewSystem.resize(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
+            backend->resize(static_cast<unsigned short>(width), static_cast<unsigned short>(height));
+            framesSinceResizeRequested = 0;
+            bIsCurrentlyResizing = false;
+        } else {
+            return true;
+        }
+    }
 
     if (!backend->beginFrame(packet.deltaTime)) {
         return true;
     }
 
-    if (!backend->beginRenderpass(0)) {
-        Logger::logError("Backend failed to begin world renderpass!");
-        return false;
-    }
+    const unsigned char attachmentIndex = backend->getWindowAttachmentIndex();
 
-    if (!shaderSystem.use(materialShaderId)) {
-        Logger::logError("Failed to use material shader!");
-        return false;
-    }
-
-    if (!materialSystem->applyGlobal(materialShaderId, &worldProjection, &worldView, &ambientColor, &viewPosition, renderMode)) {
-        Logger::logError("Failed to apply globals for materials!");
-        return false;
-    }
-
-    unsigned int count = packet.geometryCount;
-    for (unsigned int i = 0; i < count; i++) {
-        Material* material = packet.geometries[i].geometry->material;
-        if (!material) material = &materialSystem->getDefaultMaterial();
-
-        if (material->frameNumber != backend->getFrameNumber()) {
-            if (!materialSystem->applyInstance(*material)) {
-                Logger::logWarn("Failed to apply material: " + material->name);
-                continue;
-            }
-
-            material->frameNumber = backend->getFrameNumber();
+    for (unsigned int i = 0; i < packet.viewCount; i++) {
+        if (!renderViewSystem.render(*packet.views[i].renderView, packet.views[i], backend->getFrameNumber(), attachmentIndex)) {
+            Logger::logError("Failed to render view " + std::to_string(i));
+            return false;
         }
-
-        materialSystem->applyLocal(*material, &packet.geometries[i].model);
-        backend->drawGeometry(packet.geometries[i], textureSystem->getDefaultDiffuseTexture(), materialSystem->getDefaultMaterial());
-    }
-
-    if (!backend->endRenderpass(0)) {
-        Logger::logFatal("Failed to end renderpass world!");
-        return false;
-    }
-
-    if (!backend->beginRenderpass(1)) {
-        Logger::logError("Backend failed to begin ui renderpass!");
-        return false;
-    }
-
-    if (!shaderSystem.use(uiShaderId)) {
-        Logger::logError("Failed to use ui shader!");
-        return false;
-    }
-
-    if (!materialSystem->applyGlobal(uiShaderId, &uiProjection, &uiView, nullptr, nullptr, renderMode)) {
-        Logger::logError("Failed to apply globals for uis!");
-        return false;
-    }
-
-    count = packet.uiGeometryCount;
-    for (unsigned int i = 0; i < count; i++) {
-        Material* material = packet.uiGeometries[i].geometry->material;
-        if (!material) material = &materialSystem->getDefaultMaterial();
-
-        if (!materialSystem->applyInstance(*material)) {
-            Logger::logWarn("Failed to apply material: " + material->name);
-            continue;
-        }
-
-        materialSystem->applyLocal(*material, &packet.uiGeometries[i].model);
-        backend->drawGeometry(packet.uiGeometries[i], textureSystem->getDefaultDiffuseTexture(), materialSystem->getDefaultMaterial());
-    }
-
-    if (!backend->endRenderpass(1)) {
-        Logger::logFatal("Failed to end renderpass ui!");
-        return false;
     }
 
     const bool result = backend->endFrame(packet.deltaTime);
@@ -266,16 +330,17 @@ bool MasterRenderSystem::drawFrame(RenderPacket& packet) {
 
 void MasterRenderSystem::onResize(const unsigned short width, const unsigned short height) {
     if (backend) {
-        worldProjection = perspective(degreesToRadians(45.0f), static_cast<float>(width) / static_cast<float>(height), nearClip, farClip);
-        uiProjection = orthographic(0, width, height, 0, -100, 100);
-        backend->resize(width, height);
+        bIsCurrentlyResizing = true;
+        framebufferWidth = width;
+        framebufferHeight = height;
+        framesSinceResizeRequested = 0;
     } else {
         Logger::logWarn("Backend cannot resize because it does not exist.");
     }
 }
 
 Texture & MasterRenderSystem::acquireTexture(const bool autoRelease, const String &fileName, const TextureUseCase useCase) const {
-    return textureSystem->acquireTexture(autoRelease, fileName, useCase);
+    return textureSystem->acquireTexture(autoRelease, false, fileName, useCase);
 }
 
 void MasterRenderSystem::releaseTexture(const String &name) const {
@@ -283,14 +348,8 @@ void MasterRenderSystem::releaseTexture(const String &name) const {
 }
 
 //Vertex and index arrays must be freed upon disposal!
-Geometry & MasterRenderSystem::acquireGeometry(const GeometryConfig &config, const bool autoRelease) const {
+Geometry & MasterRenderSystem::acquireGeometry(GeometryConfig &config, const bool autoRelease) const {
     return geometrySystem->acquireGeometry(config, autoRelease);
-}
-
-void MasterRenderSystem::addRenderpassProfile(const RenderpassProfile &profile) {
-    if (bIsInitialized) return;
-    if (renderpassProfiles.getLength() == 0) renderpassProfiles.initialize(1);
-    renderpassProfiles.push(profile);
 }
 
 GeometryConfig MasterRenderSystem::generatePlaneConfig(const float width, const float height, const unsigned int xCount,

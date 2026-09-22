@@ -3,20 +3,11 @@
 #include "src/modules/system/FoxFire_Input/FoxFire_Events.h"
 
 struct GameState : BaseGameState {
-    float deltaTime;
-    Mat4 view;
-    Vector3f cameraPos;
-    Vector3f cameraEuler;
-    bool bIsCameraDirty;
+    float deltaTime = 0;
+    unsigned int worldCamera = INVALID_ID_U32;
 };
 
 class Game final : public Engine{
-private:
-    void recalculateView(GameState* state);
-    void increaseCameraYaw(GameState* state, float amount);
-    void increaseCameraPitch(GameState* state, float amount);
-    void increaseCameraRoll(GameState* state, float amount);
-
 public:
     explicit Game(const GameInstance& instance);
     ~Game() override;

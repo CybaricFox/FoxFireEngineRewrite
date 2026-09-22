@@ -15,8 +15,11 @@
 #include "IMaterialSystem.h"
 #include "ITextureSystem.h"
 #include "IRendererBackend.h"
+#include "IRenderView.h"
+#include "RenderViewSystem.h"
 #include "src/defines.h"
 #include "src/modules/engine/Core/Platform.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 
 enum RenderViewMode {
     RENDER_VIEW_DEFAULT,
@@ -31,17 +34,6 @@ class FOXFIRE_API MasterRenderSystem {
 private:
     /** @brief pointer to the backend in use */
     IRendererBackend* backend = nullptr;
-    Mat4 worldProjection{};
-    Mat4 worldView{};
-    Vector4f ambientColor{};
-    Vector3f viewPosition{};
-    unsigned int renderMode = 0;
-    Mat4 uiProjection{};
-    Mat4 uiView{};
-    /** @brief How close geometry can get before it is clipped. */
-    float nearClip = 0.1f;
-    /** @brief How far geometry can get before it is clipped. */
-    float farClip = 1000.0f;
 
     /** @brief Pointer to the user defined texture system. */
     ITextureSystem* textureSystem = nullptr;
@@ -53,26 +45,35 @@ private:
     ShaderSystem shaderSystem{};
     unsigned int materialShaderId = INVALID_ID_U32;
     unsigned int uiShaderId = INVALID_ID_U32;
+    unsigned int skyboxShaderId = INVALID_ID_U32;
 
-    /** @brief Collection of renderpass profiles defined by the user. WARNING: Destroyed during initialization!*/
-    DynamicArray<RenderpassProfile> renderpassProfiles{};
-    /** @brief Whether this is initialized. */
-    bool bIsInitialized = false;
+    CameraSystem cameraSystem{};
+
+    RenderViewSystem renderViewSystem{};
+
+    Skybox skybox{};
+
+    unsigned char renderTargetCount = 0;
+    unsigned int framebufferWidth = 0;
+    unsigned int framebufferHeight = 0;
+    Renderpass* worldRenderpass = nullptr;
+    Renderpass* uiRenderpass = nullptr;
+    Renderpass* skyboxRenderpass = nullptr;
+    bool bIsCurrentlyResizing = false;
+    unsigned char framesSinceResizeRequested = 0;
 
     Texture createBlankTexture();
-    void createRenderpasses();
-    bool getRenderpassId(const String &name, unsigned char& outId);
-
-    bool createShader(Shader& shader, unsigned char renderpassId, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages);
-    void destroyShader(Shader &shader);
-    bool initializeShader(Shader& shader);
+    void regenerateRenderTargets() const;
 
 public:
-    bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, unsigned int width, unsigned int height, ResourceSystem& resources);
+    bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, ResourceSystem &resources);
     bool initializeTextureSystem(unsigned int initialCapacity, ITextureSystem *system, ResourceSystem *resourceSystem);
     bool initializeMaterialSystem(MaterialSystemConfig config, IMaterialSystem *system, ResourceSystem *resourceSystem);
     bool initializeGeometrySystem(unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem *resourceSystem);
     bool initializeShaderSystem(const ShaderSystemConfig &config, ResourceSystem &resources);
+    bool initializeCameraSystem(const CameraSystemConfig &config, MasterEntityComponentSystem *ecsRef);
+    bool initializeRenderViewSystem(const RenderViewSystemConfig &config);
+    bool initializeSkybox();
     void shutdown();
     MasterRenderSystem() = default;
 
@@ -81,19 +82,21 @@ public:
     [[nodiscard]] Texture& getDefaultSpecularTexture() const {return textureSystem->getDefaultSpecularTexture();}
     [[nodiscard]] Texture& getDefaultNormalTexture() const {return textureSystem->getDefaultNormalTexture();}
     [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefault3DGeometry();}
+    [[nodiscard]] Renderpass* getRenderPass(const String &name) const {return backend->getRenderpass(name);}
+    IRenderView* getRenderView(const String &name) {return renderViewSystem.getRenderView(name);}
+    [[nodiscard]] unsigned int getDefaultCamera() const {return cameraSystem.getDefaultCamera();}
 
-    void setView(const Mat4 &newView, Vector3f viewPosition);
-
-    [[nodiscard]] bool drawFrame(RenderPacket &packet);
+    [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);
     [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName, TextureUseCase useCase) const;
     void releaseTexture(const String &name) const;
-    [[nodiscard]] Geometry& acquireGeometry(const GeometryConfig &config, bool autoRelease) const;
-    void addRenderpassProfile(const RenderpassProfile &profile);
-    void changeRenderMode(Keys key);
+    [[nodiscard]] Geometry& acquireGeometry(GeometryConfig &config, bool autoRelease) const;
     Material& acquireMaterial(const String &name) const;
     void releaseMaterial(const String &name) const;
-    void destroyGeometryConfig(GeometryConfig* config) const;
+    bool createRenderView(const RenderViewConfig &config);
+    bool buildPacket(IRenderView *renderView, void *meshData, RenderViewPacket &packet);
+    void buildSkybox(const RenderPacket &packet);
+    void cleanupSkybox(const RenderPacket& packet);
 
     [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
         float xTile, float yTile, const String &name, const String &materialName) const;

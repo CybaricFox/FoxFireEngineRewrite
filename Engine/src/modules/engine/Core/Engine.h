@@ -19,6 +19,7 @@
 #include "../Input/IInputSystem.h"
 #include "src/modules/engine/ECS/MasterEntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 
@@ -37,8 +38,11 @@ private:
     ResourceSystem resourceSystem{};
     /** @brief Handles user input handling. Input systems interface with this */
     EngineEvents engineEventsSystem{};
-
+    /** @brief Handles the Component system */
     MasterEntityComponentSystem ECSSystem{};
+
+    /** @brief Controls All Rendering. Do not give access to Game!*/
+    MasterRenderSystem masterRenderSystem{};
 
     /** @brief Pointer to the derived game class set by the user. */
     Engine* engine = nullptr;
@@ -56,10 +60,6 @@ private:
     /** @brief The amount of time the previous frame took */
     double lastTime = 0;
 
-    //Remove Me
-    Geometry* testGeometry = nullptr;
-    Geometry* testUIGeometry = nullptr;
-
     /**
      * @brief Initializes FF_Memory and the Linear Allocator
      */
@@ -71,8 +71,6 @@ protected:
     GameInstance gameInstance;
     /** @brief Pointer to the user-defined input system */
     IInputSystem* inputSystem = nullptr;
-    /** @brief Controls All Rendering */
-    MasterRenderSystem masterRenderSystem{};
 
     /** @brief Reference to the user-defined texture system. WARNING: VOLATILE REFERENCE! */
     ITextureSystem* textureSystem = nullptr;
@@ -80,6 +78,11 @@ protected:
     IMaterialSystem* materialSystem = nullptr;
     /** @brief Reference to the user-defined geometry system. WARNING: VOLATILE REFERENCE! */
     IGeometrySystem* geometrySystem = nullptr;
+
+    /** @brief fetches the default camera entity id from the render system. */
+    [[nodiscard]] unsigned int getDefaultCamera() const {return masterRenderSystem.getDefaultCamera();}
+    /** @brief Gets a render view from the render system. */
+    IRenderView* getRenderView(const String &name) {return masterRenderSystem.getRenderView(name);}
 
     /**
      * @brief Quits the application when called.
@@ -117,19 +120,7 @@ protected:
      */
     bool render(float deltaTime);
 
-    void onDebugEvent() {
-        const String files[3] = {"MaterialTemplate", "Test1_Material", "Test2_Material"};
-        static char choice = 2;
-        const String oldName = files[choice];
-        choice++;
-        choice %= 3;
-
-        Geometry* geometry = ECSSystem.getComponent<Mesh>(0)->geometries[0];
-        if (geometry) {
-            geometry->material = &masterRenderSystem.acquireMaterial(files[choice]);
-            masterRenderSystem.releaseMaterial(oldName);
-        }
-    }
+    void createRenderView(const RenderViewConfig &config);
 
     /**
      * @brief Creates the derived GameState, Must be called after gameInstance is set by the Engine.
@@ -144,6 +135,11 @@ protected:
         return derivedState;
     }
 
+    /**
+     * @brief Interface to memory allocation. Allocates memory and constructs a class.
+     * @tparam T Class to construct
+     * @return Pointer to the new object.
+     */
     template<typename T>
     T* instantiateDerivedSubSystem() {
         return FF_Memory::ff_allocate_class<T>(sizeof(T), GAME);
@@ -161,7 +157,6 @@ public:
 
     /**
      * @brief Initializes systems.
-     * @param instance Game config data.
      */
     virtual void initialize();
 

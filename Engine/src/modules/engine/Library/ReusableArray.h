@@ -69,8 +69,12 @@ public:
      * @param index The index of the element
      * @return Reference to the element at that index
      */
-    T& get(unsigned int index) {
-        return data[index];
+    T* get(unsigned int index) {
+        if (index >= data.getLength()) return nullptr;
+        for (const unsigned int i : freeIndexes) {
+            if (index == i) return nullptr;
+        }
+        return &data[index];
     }
 
     /**

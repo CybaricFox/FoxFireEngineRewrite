@@ -36,6 +36,7 @@ private:
     bool createDefaultTextures();
     void destroyDefaultTextures();
     bool loadTexture(Texture &texture, const String &fileName) const;
+    bool loadCubeTexture(const String &name, const String textureNames[6], Texture& texture) const;
     void destroyTexture(Texture &texture) const;
 
 public:
@@ -49,6 +50,9 @@ public:
     Texture& getDefaultSpecularTexture() override {return defaultSpecularTexture;}
     Texture& getDefaultNormalTexture() override {return defaultNormalTexture;}
 
-    Texture &acquireTexture(bool autoRelease, const String &fileName, TextureUseCase useCase) override;
+    Texture &acquireTexture(bool autoRelease, bool skipLoad, const String &fileName, TextureUseCase useCase) override;
     void releaseTexture(String name) override;
+
+    Texture & acquireWritableTexture(String name, unsigned width, unsigned height, unsigned char channelCount, bool isTransparent) override;
+    Texture & acquireCubeTexture(String name, bool autoRelease) override;
 };

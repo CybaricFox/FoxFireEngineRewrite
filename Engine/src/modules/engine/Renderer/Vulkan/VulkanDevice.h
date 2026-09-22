@@ -41,21 +41,22 @@ struct PhysicalDeviceRequirements {
 
 class VulkanDevice {
 private:
-    VkPhysicalDevice physicalDevice;
-    VkDevice logicalDevice;
-    int graphicsQueueIndex;
-    int presentQueueIndex;
-    int transferQueueIndex;
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
-    VkQueue transferQueue;
-    VulkanSwapChainSupportInfo swapChainSupportInfo;
-    VkPhysicalDeviceProperties physicalDeviceProperties;
-    VkPhysicalDeviceFeatures physicalDeviceFeatures;
-    VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
-    VkFormat depthFormat;
-    VkCommandPool commandPool;
+    VkPhysicalDevice physicalDevice{};
+    VkDevice logicalDevice{};
+    int graphicsQueueIndex = INVALID_ID_U32 / 2;
+    int presentQueueIndex = INVALID_ID_U32 / 2;
+    int transferQueueIndex = INVALID_ID_U32 / 2;
+    VkQueue graphicsQueue{};
+    VkQueue presentQueue{};
+    VkQueue transferQueue{};
+    VulkanSwapChainSupportInfo swapChainSupportInfo{};
+    VkPhysicalDeviceProperties physicalDeviceProperties{};
+    VkPhysicalDeviceFeatures physicalDeviceFeatures{};
+    VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties{};
+    VkFormat depthFormat{};
+    VkCommandPool commandPool{};
     bool bSupportsDeviceLocalBit = false;
+    unsigned char depthChannelCount = 0;
 
     bool selectPhysicalDevice(VkInstance& instance, VkSurfaceKHR& surface);
 
@@ -83,7 +84,11 @@ public:
     VkQueue& getTransferQueue() {return transferQueue;}
     VkPhysicalDevice& getPhysicalDevice() {return physicalDevice;}
     VkFormat& getDepthFormat() {return depthFormat;}
+    [[nodiscard]] unsigned char getChannelCount() const {return depthChannelCount;}
 
     VkPhysicalDeviceProperties& getPhysicalDeviceProperties() {return physicalDeviceProperties;}
     VkPhysicalDeviceMemoryProperties& getPhysicalDeviceMemoryProperties() {return physicalDeviceMemoryProperties;}
+
+    void setDepthFormat(VkFormat format) {depthFormat = format;}
+    void setChannelCount(const unsigned char i) {depthChannelCount = i;}
 };

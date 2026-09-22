@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 
+#define INVALID_ID_U64 18446744073709551615ULL
 #define INVALID_ID_U32 4294967295U
 #define INVALID_ID_U16 65535U
 #define INVALID_ID_U8 255U
@@ -39,6 +40,8 @@ using String = std::string;
 using std::cout;
 using std::endl;
 using std::cerr;
+using Long = long long;
+using ULong = unsigned long long;
 
 struct MemoryRange {
     unsigned long offset = 0;

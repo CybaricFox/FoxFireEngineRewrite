@@ -18,9 +18,9 @@ bool FoxFire_MaterialSystem::initialize(const MaterialSystemConfig materialSyste
 }
 
 void FoxFire_MaterialSystem::shutdown() {
-    for (Material& material : assets.getData().getData()) {
-        if (material.id != INVALID_ID_U32) {
-            destroyMaterial(material);
+    for (Material* material : assets.getAssetsAsArray()) {
+        if (material->id != INVALID_ID_U32) {
+            destroyMaterial(*material);
         }
     }
 
@@ -112,7 +112,9 @@ void FoxFire_MaterialSystem::releaseMaterial(const String &name) {
     }
 
     Material* material = nullptr;
-    if (assets.releaseAsset(name, material)) destroyMaterial(*material);
+    if (assets.releaseAsset(name, material)) {
+        destroyMaterial(*material);
+    }
 }
 
 bool FoxFire_MaterialSystem::createDefaultMaterial() {
@@ -126,8 +128,9 @@ bool FoxFire_MaterialSystem::createDefaultMaterial() {
     defaultMaterial.normalMap.use = TEXTURE_USE_MAP_NORMAL;
     defaultMaterial.normalMap.texture = &textureSystemRef->getDefaultNormalTexture();
 
+    TextureMap* maps[3]{&defaultMaterial.diffuseMap, &defaultMaterial.specularMap, &defaultMaterial.normalMap};
     const Shader* shader = shaderRef->getShader(DEFAULT_MATERIAL_SHADER_NAME);
-    if (!backendRef->acquireInstanceResources(*shader, defaultMaterial.internalId, textureSystemRef->getDefaultDiffuseTexture())) {
+    if (!backendRef->acquireInstanceResources(*shader, defaultMaterial.internalId, textureSystemRef->getDefaultDiffuseTexture(), maps)) {
         Logger::logFatal("Failed to acquire resources for the default material.");
         return false;
     }
@@ -143,9 +146,20 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
     material.shaderId = shaderRef->getId(config.shaderName);
     material.diffuseColor = config.diffuseColor;
     material.shine = config.shine;
+
+    material.diffuseMap.filterMin = TEXTURE_FILTER_BILINEAR;
+    material.diffuseMap.filterMag = TEXTURE_FILTER_BILINEAR;
+    material.diffuseMap.repeatU = TEXTURE_REPEAT;
+    material.diffuseMap.repeatV = TEXTURE_REPEAT;
+    material.diffuseMap.repeatW = TEXTURE_REPEAT;
+    if (!backendRef->acquireTextureMapResources(material.diffuseMap)) {
+        Logger::logError("Failed to acquire resources for a materials diffuse map.");
+        return false;
+    }
+
     if (!config.diffuseName.empty()) {
         material.diffuseMap.use = TEXTURE_USE_MAP_DIFFUSE;
-        material.diffuseMap.texture = &textureSystemRef->acquireTexture(true, config.diffuseName, TEXTURE_USE_MAP_DIFFUSE);
+        material.diffuseMap.texture = &textureSystemRef->acquireTexture(true, false, config.diffuseName, TEXTURE_USE_MAP_DIFFUSE);
         if (material.diffuseMap.texture == nullptr) {
             Logger::logWarn("Unable to load texture: " + config.name + " for material: " + material.name);
             material.diffuseMap.texture = &textureSystemRef->getDefaultDiffuseTexture();
@@ -155,9 +169,19 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
         material.diffuseMap.texture = &textureSystemRef->getDefaultDiffuseTexture();
     }
 
+    material.specularMap.filterMin = TEXTURE_FILTER_BILINEAR;
+    material.specularMap.filterMag = TEXTURE_FILTER_BILINEAR;
+    material.specularMap.repeatU = TEXTURE_REPEAT;
+    material.specularMap.repeatV = TEXTURE_REPEAT;
+    material.specularMap.repeatW = TEXTURE_REPEAT;
+    if (!backendRef->acquireTextureMapResources(material.specularMap)) {
+        Logger::logError("Failed to acquire resources for a materials specular map.");
+        return false;
+    }
+
     if (!config.specularName.empty()) {
         material.specularMap.use = TEXTURE_USE_MAP_SPECULAR;
-        material.specularMap.texture = &textureSystemRef->acquireTexture(true, config.specularName, TEXTURE_USE_MAP_SPECULAR);
+        material.specularMap.texture = &textureSystemRef->acquireTexture(true, false, config.specularName, TEXTURE_USE_MAP_SPECULAR);
         if (material.specularMap.texture == nullptr) {
             Logger::logWarn("Unable to load texture: " + config.name + " for material: " + material.name);
             material.specularMap.texture = &textureSystemRef->getDefaultSpecularTexture();
@@ -167,9 +191,19 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
         material.specularMap.texture = &textureSystemRef->getDefaultSpecularTexture();;
     }
 
+    material.normalMap.filterMin = TEXTURE_FILTER_BILINEAR;
+    material.normalMap.filterMag = TEXTURE_FILTER_BILINEAR;
+    material.normalMap.repeatU = TEXTURE_REPEAT;
+    material.normalMap.repeatV = TEXTURE_REPEAT;
+    material.normalMap.repeatW = TEXTURE_REPEAT;
+    if (!backendRef->acquireTextureMapResources(material.normalMap)) {
+        Logger::logError("Failed to acquire resources for a materials normal map.");
+        return false;
+    }
+
     if (!config.normalName.empty()) {
         material.normalMap.use = TEXTURE_USE_MAP_NORMAL;
-        material.normalMap.texture = &textureSystemRef->acquireTexture(true, config.normalName, TEXTURE_USE_MAP_NORMAL);
+        material.normalMap.texture = &textureSystemRef->acquireTexture(true, false, config.normalName, TEXTURE_USE_MAP_NORMAL);
         if (material.normalMap.texture == nullptr) {
             Logger::logWarn("Unable to load texture: " + config.name + " for material: " + material.name);
             material.normalMap.texture = &textureSystemRef->getDefaultNormalTexture();
@@ -185,7 +219,8 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
         return false;
     }
 
-    if (!backendRef->acquireInstanceResources(*shader, material.internalId, textureSystemRef->getDefaultDiffuseTexture())) {
+    TextureMap* maps[3]{&material.diffuseMap, &material.specularMap, &material.normalMap};
+    if (!backendRef->acquireInstanceResources(*shader, material.internalId, textureSystemRef->getDefaultDiffuseTexture(), maps)) {
         Logger::logError("Failed to acquire resources for material " + material.name + "!");
         return false;
     }
@@ -195,6 +230,14 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
 
 void FoxFire_MaterialSystem::destroyMaterial(Material &material) const {
     Logger::logDebug("Destroying material: " + material.name);
+
+    if (material.shaderId != INVALID_ID_U32 && material.internalId != INVALID_ID_U32) {
+        backendRef->releaseInstanceResources(*shaderRef->getShader(material.shaderId), material.internalId);
+    }
+
+    backendRef->releaseTextureMapResources(material.diffuseMap);
+    backendRef->releaseTextureMapResources(material.specularMap);
+    backendRef->releaseTextureMapResources(material.normalMap);
 
     if (material.diffuseMap.texture != nullptr) {
         textureSystemRef->releaseTexture(material.diffuseMap.texture->name);
@@ -208,10 +251,6 @@ void FoxFire_MaterialSystem::destroyMaterial(Material &material) const {
         textureSystemRef->releaseTexture(material.normalMap.texture->name);
     }
 
-    if (material.shaderId != INVALID_ID_U32 && material.internalId != INVALID_ID_U32) {
-        backendRef->releaseInstanceResources(*shaderRef->getShader(material.shaderId), material.internalId);
-    }
-
     material = Material{};
 }
 
@@ -221,7 +260,11 @@ FoxFire_MaterialSystem::FoxFire_MaterialSystem()
 
 }
 
-bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f *viewPosition, unsigned int renderMode) const {
+bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, unsigned long frameNumber, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f* viewPosition, unsigned int renderMode) const {
+    Shader* shader = shaderRef->getShader(shaderId);
+    if (!shader) return false;
+    if (shader->getFrameNumber() == frameNumber) return true;
+
     if (shaderId == materialShaderId) {
         if (!shaderRef->setUniform(materialLocations.projection, projection)) {
             Logger::logError("Failed to apply global material.");
@@ -235,7 +278,7 @@ bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4 *proj
             Logger::logError("Failed to apply global material.");
             return false;
         }
-        if (!shaderRef->setUniform(materialLocations.viewPosition, viewPosition)) {
+        if (!shaderRef->setUniform(materialLocations.viewPosition, &viewPosition)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }
@@ -258,52 +301,57 @@ bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, Mat4 *proj
     }
 
     shaderRef->applyGlobal();
+
+    shader->setFrameNumber(frameNumber);
+
     return true;
 }
 
-bool FoxFire_MaterialSystem::applyInstance(Material &material) const {
+bool FoxFire_MaterialSystem::applyInstance(Material &material, bool update) const {
     if (!shaderRef->bindInstance(material.internalId)) {
         Logger::logError("Failed to bind material.");
         return false;
     }
 
-    if (material.shaderId == materialShaderId) {
-        if (!shaderRef->setUniform(materialLocations.diffuseColor, &material.diffuseColor)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
-        if (!shaderRef->setUniform(materialLocations.diffuseTexture, material.diffuseMap.texture)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
-        if (!shaderRef->setUniform(materialLocations.specularTexture, material.specularMap.texture)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
-        if (!shaderRef->setUniform(materialLocations.normalTexture, material.normalMap.texture)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
-        if (!shaderRef->setUniform(materialLocations.shine, &material.shine)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
+    if (update) {
+        if (material.shaderId == materialShaderId) {
+            if (!shaderRef->setUniform(materialLocations.diffuseColor, &material.diffuseColor)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+            if (!shaderRef->setUniform(materialLocations.diffuseTexture, &material.diffuseMap)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+            if (!shaderRef->setUniform(materialLocations.specularTexture, &material.specularMap)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+            if (!shaderRef->setUniform(materialLocations.normalTexture, &material.normalMap)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+            if (!shaderRef->setUniform(materialLocations.shine, &material.shine)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
 
-    } else if (material.shaderId == uiShaderId) {
-        if (!shaderRef->setUniform(uiShaderLocations.diffuseColor, &material.diffuseColor)) {
-            Logger::logError("Failed to apply instance material.");
+        } else if (material.shaderId == uiShaderId) {
+            if (!shaderRef->setUniform(uiShaderLocations.diffuseColor, &material.diffuseColor)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+            if (!shaderRef->setUniform(uiShaderLocations.diffuseTexture, &material.diffuseMap)) {
+                Logger::logError("Failed to apply instance material.");
+                return false;
+            }
+        } else {
+            Logger::logError("Invalid shader id: " + std::to_string(material.shaderId));
             return false;
         }
-        if (!shaderRef->setUniform(uiShaderLocations.diffuseTexture, material.diffuseMap.texture)) {
-            Logger::logError("Failed to apply instance material.");
-            return false;
-        }
-    } else {
-        Logger::logError("Invalid shader id: " + std::to_string(material.shaderId));
-        return false;
     }
 
-    shaderRef->applyInstance();
+    shaderRef->applyInstance(update);
     return true;
 }
 

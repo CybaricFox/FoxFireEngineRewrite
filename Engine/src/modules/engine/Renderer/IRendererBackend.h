@@ -1,5 +1,5 @@
 /**
-*   @file RendererBackend.h
+*   @file IRendererBackend.h
  *  @layer Engine
  *  @module Renderer
  *  @author CybaricFox
@@ -12,11 +12,19 @@
 
 #pragma once
 
+#include "Renderpass.h"
 #include "Shader.h"
 #include "src/modules/engine/Core/GameInstance.h"
 #include "src/modules/engine/Core/Platform.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
+
+struct RendererBackendConfig {
+    String appName{};
+    unsigned short renderpassCount = 0;
+    RenderpassConfig* configs = nullptr;
+    std::function<void()> func{};
+};
 
 /**
  * @brief The Abstract Backend used for this application.
@@ -44,33 +52,264 @@ public:
      */
     static IRendererBackend* create(RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance);
 
-    virtual bool getRenderpassId(String name, unsigned char& outId) = 0;
+    /**
+     * @brief Gets the current frame number.
+     * @return The current frame number.
+     */
     virtual unsigned int getFrameNumber() {return frameNumber;}
 
-    virtual bool initialize(String appName, Platform &platform, unsigned int width, unsigned int height, ResourceSystem* resources) = 0;
+    virtual Renderpass* getRenderpass(String name) = 0;
+    virtual Texture* getWindowAttachment(unsigned char index) = 0;
+    virtual Texture* getDepthAttachment() = 0;
+    virtual unsigned char getWindowAttachmentIndex() = 0;
+
+    /**
+     * @brief Initializes the backend
+     * @param platform A platform object reference (Will eventually be changed)
+     * @param resources Pointer to the resource system for referencing.
+     * @return False on failure
+     */
+    virtual bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount, ResourceSystem *resources) = 0;
+
+    /**
+     * @brief Runs at the start of the frame
+     * @param deltaTime time this frame took
+     * @return false on failure
+     */
     virtual bool beginFrame(float deltaTime) = 0;
+
+    /**
+     * @brief Runs at the end of the frame
+     * @param deltaTime time this frame took
+     * @return false on failure
+     */
     virtual bool endFrame(float deltaTime) = 0;
+
+    /**
+     * @brief Resizes the window
+     * @param width Width of the window
+     * @param height Height of the window
+     */
     virtual void resize(unsigned short width, unsigned short height) = 0;
+
+    /**
+     * @brief Draws geometry to screen
+     * @param data Geometry data
+     * @param defaultTexture Reference to the Texture Systems default texture
+     * @param defaultMaterial Reference to the Material Systems default material
+     */
     virtual void drawGeometry(const GeometryRenderData &data, Texture &defaultTexture, Material &defaultMaterial) = 0;
+
+    /**
+     * @brief Creates a texture out of pixel data
+     * @param pixels Pixel data
+     * @param texture OUT texture
+     */
     virtual void createTexture(const unsigned char* pixels, Texture& texture) = 0;
+
+    /**
+     * @brief Destroys a texture
+     * @param texture Texture to destroy
+     */
     virtual void destroyTexture(Texture& texture) = 0;
-    virtual bool createGeometry(Geometry& geometry, unsigned int vertexSize, unsigned int vertexCount, void* vertices, unsigned int indexSize, unsigned int indexCount, void* indices) = 0;
+
+    /**
+     * @brief Creates geometry from vertex and index data
+     * @param geometry OUT geometry
+     * @param vertexSize Size of the vertex object
+     * @param vertexCount Number of vertices
+     * @param vertices Array of vertices
+     * @param indexSize Size of the index object
+     * @param indexCount Number of indices
+     * @param indices Array of indices
+     * @return False on failure
+     */
+    virtual bool createGeometry(Geometry &geometry, unsigned int vertexSize, unsigned int vertexCount, Vertex* vertices, unsigned int indexSize, unsigned int indexCount, void *indices) = 0;
+
+    /**
+     * @brief Destroys geometry
+     * @param geometry Geometry to destroy
+     */
     virtual void destroyGeometry(Geometry& geometry) = 0;
-    virtual void createRenderpass(RenderpassProfile profile) = 0;
-    virtual bool beginRenderpass(unsigned char id) = 0;
-    virtual bool endRenderpass(unsigned char id) = 0;
-    virtual bool createShader(Shader& shader, unsigned char renderpassId, unsigned char stageCount, DynamicArray<String>& stageFileNames, DynamicArray<ShaderStage>& stages) = 0;
+
+    /**
+     * @brief Starts a renderpass
+     * @return false on failure
+     */
+    virtual bool beginRenderpass(Renderpass& renderpass, RenderTarget& target) = 0;
+
+    /**
+     * @brief Ends a renderpass
+     * @return false on failure
+     */
+    virtual bool endRenderpass(Renderpass& renderpass) = 0;
+
+    /**
+     * @brief Creates a shader
+     * @param shader OUT shader
+     * @param config
+     * @param stageCount Number of stages
+     * @param stageFileNames
+     * @param stages
+     * @return false on failure
+     */
+    virtual bool createShader(Shader &shader, ShaderConfig &config, Renderpass &renderpass, unsigned char stageCount, DynamicArray<String> &
+                              stageFileNames, DynamicArray<ShaderStage> &stages) = 0;
+
+    /**
+     * @brief Finalizes a shader
+     * @param shader Shader to finalize
+     * @return false on failure
+     */
     virtual bool initializeShader(Shader& shader) = 0;
+
+    /**
+     * @brief Destroys a shader
+     * @param shader Shader to destroy
+     */
     virtual void destroyShader(Shader& shader) = 0;
+
+    /**
+     * @brief Sets the shader to the current shader
+     * @param shader Shader to use
+     * @return false on failure
+     */
     virtual bool useShader(Shader& shader) = 0;
+
+    /**
+     * @brief Binds shader global data
+     * @param shader Shader to use
+     * @return false on failure
+     */
     virtual bool bindShaderGlobals(Shader& shader) = 0;
+
+    /**
+     * @brief Binds shader instance data
+     * @param shader Shader to use
+     * @param instanceId Instance to use
+     */
     virtual void bindShaderInstance(Shader& shader, unsigned int instanceId) = 0;
+
+    /**
+     * @brief Sets a uniform within the shader
+     * @param shader Shader to use
+     * @param uniform Uniform to set
+     * @param value Value that will be set
+     * @return false on failure
+     */
     virtual bool setUniform(Shader& shader, ShaderUniform& uniform, void* value) = 0;
+
+    /**
+     * @brief Applies shader globals to Global UBO
+     * @param shader Shader to use
+     * @return false on failure
+     */
     virtual bool applyShaderGlobals(Shader& shader) = 0;
-    virtual bool applyShaderInstance(Shader& shader) = 0;
-    virtual bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture) = 0;
+
+    /**
+     * @brief Applies shader instance data to Instance
+     * @param shader Shader to use
+     * @param update Whether to update material data (Materials should only be updated once a frame)
+     * @return false on failure
+     */
+    virtual bool applyShaderInstance(Shader& shader, bool update) = 0;
+
+    /**
+     * @brief
+     * @param shader Shader to use
+     * @param outInstanceId
+     * @param defaultTexture Reference to the Texture Systems default texture
+     * @param maps
+     * @return false on failure
+     */
+    virtual bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap **maps) = 0;
+
+    /**
+     * @brief
+     * @param shader Shader to use
+     * @param instanceId
+     * @return false on failure
+     */
     virtual bool releaseInstanceResources(const Shader &shader, unsigned int instanceId) = 0;
 
+    /**
+     * @brief Creates a writable texture.
+     * @param texture OUT writable texture.
+     */
+    virtual void createWritableTexture(Texture& texture) = 0;
+
+    /**
+     * @brief Resizes a writable texture.
+     * @param texture
+     * @param width
+     * @param height
+     */
+    virtual void resizeTexture(Texture& texture, unsigned int width, unsigned int height) = 0;
+
+    /**
+     * @brief
+     * @param texture
+     * @param offset
+     * @param size
+     * @param pixels
+     */
+    virtual void writeTextureData(Texture& texture, unsigned int offset, unsigned int size, const unsigned char* pixels) = 0;
+
+    /**
+     * @brief Aquires resources for a texture map.
+     * @param textureMap Out texture map.
+     * @return
+     */
+    virtual bool acquireTextureMapResources(TextureMap &textureMap) = 0;
+
+    /**
+     * @brief Releases texture map resources.
+     * @param textureMap
+     */
+    virtual void releaseTextureMapResources(TextureMap &textureMap) = 0;
+
+    /**
+     * @brief Creates a render target.
+     * @param attachmentCount
+     * @param attachments
+     * @param renderpass
+     * @param width
+     * @param height
+     * @param outTarget
+     */
+    virtual void createRenderTarget(unsigned char attachmentCount, DynamicArray<Texture *>& attachments, Renderpass &renderpass, unsigned width, unsigned
+                                    height, RenderTarget
+                                    &outTarget) = 0;
+
+    /**
+     * @brief Destroys a render target
+     * @param target
+     * @param freeMemory Whether to call ff_free after destruction.
+     */
+    virtual void destroyRenderTarget(RenderTarget& target, bool freeMemory) = 0;
+
+    /**
+     * @brief Creates a renderpass.
+     * @param outRenderpass
+     * @param depth
+     * @param stencil
+     * @param hasPreviousPass
+     * @param hasNextPass
+     */
+    virtual void createRenderpass(Renderpass& outRenderpass, float depth, unsigned int stencil, bool hasPreviousPass, bool hasNextPass) = 0;
+
+    /**
+     * @brief Destroys a renderpass.
+     * @param renderpass
+     */
+    virtual void destroyRenderpass(Renderpass& renderpass) = 0;
+
+    /**
+     * @brief Increments the frame number.
+     */
     void incrementFrameNumber() {frameNumber++;}
+    /**
+     * @brief Sets the frame number to 0.
+     */
     void clearFrameNumber() {frameNumber = 0;}
 };

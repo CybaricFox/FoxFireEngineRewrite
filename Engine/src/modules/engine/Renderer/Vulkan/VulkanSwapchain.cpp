@@ -9,8 +9,9 @@
 #include "VulkanBackend.h"
 #include "VulkanUtils.h"
 #include "src/modules/engine/Library/Logger.h"
+#include "src/modules/engine/Renderer/TextureUtils.h"
 
-bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, VulkanDevice& device, const VkSurfaceKHR& surface, unsigned int& currentFrame) {
+bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, VulkanDevice& device, const VkSurfaceKHR& surface, unsigned int& currentFrame, IRendererBackend* backendRef) {
     VkExtent2D swapchainExtent{frameBufferWidth, frameBufferHeight};
 
     bool found = false;
@@ -91,18 +92,42 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
     imageCount = 0;
     if (!VulkanUtils::vulkanCheck(vkGetSwapchainImagesKHR(device.getLogicalDevice(), handle, &imageCount, nullptr))) return false;
 
-    if (!images) {
-        images = static_cast<VkImage *>(FF_Memory::ff_allocate(sizeof(VkImage) * imageCount, RENDER));
-    }
-    if (!imageViews) {
-        imageViews = static_cast<VkImageView*>(FF_Memory::ff_allocate(sizeof(VkImageView) * imageCount, RENDER));
+    if (textures.isEmpty()) {
+        textures.initialize(imageCount);
+
+        for (unsigned int i = 0; i < imageCount; i++) {
+            textures.emplace();
+
+            void* data = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
+            String textureName = "Vulkan_Swapchain_Image_0" + std::to_string(i);
+
+            textures[i] = TextureUtils::wrapTexture(textureName, swapchainExtent.width, swapchainExtent.height, 4, false, true, false, data);
+
+            if (!textures[i]) {
+                Logger::logFatal("Failed to generate a new swapchain image because texture is null!");
+                return false;
+            }
+        }
+    } else {
+        for (unsigned int i = 0; i < imageCount; i++) {
+            TextureUtils::resizeTexture(*textures[i], swapchainExtent.width, swapchainExtent.height, false, backendRef);
+        }
     }
 
+    VkImage images[32]{};
     if (!VulkanUtils::vulkanCheck(vkGetSwapchainImagesKHR(device.getLogicalDevice(), handle, &imageCount, images))) return false;
 
     for (unsigned int i = 0; i < imageCount; i++) {
+        VulkanImage& image = *static_cast<VulkanImage *>(textures[i]->data);
+        image.setImage(images[i]);
+        image.setWidth(swapchainExtent.width);
+        image.setHeight(swapchainExtent.height);
+    }
+
+    for (unsigned int i = 0; i < imageCount; i++) {
+        VulkanImage& image = *static_cast<VulkanImage *>(textures[i]->data);
         VkImageViewCreateInfo viewCreateInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-        viewCreateInfo.image = images[i];
+        viewCreateInfo.image = image.getImage();
         viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         viewCreateInfo.format = imageFormat.format;
         viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -111,7 +136,7 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
         viewCreateInfo.subresourceRange.baseArrayLayer = 0;
         viewCreateInfo.subresourceRange.layerCount = 1;
 
-        if (!VulkanUtils::vulkanCheck(vkCreateImageView(device.getLogicalDevice(), &viewCreateInfo, nullptr, &imageViews[i]))) return false;
+        if (!VulkanUtils::vulkanCheck(vkCreateImageView(device.getLogicalDevice(), &viewCreateInfo, nullptr, &image.getImageView()))) return false;
     }
 
     if (!detectDepthFormat(device)) {
@@ -120,7 +145,8 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
         return false;
     }
 
-    depthAttachment.createImage(VK_IMAGE_TYPE_2D,
+    auto image = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
+    image->createImage(TEXTURE_2D,
                 swapchainExtent.width,
                 swapchainExtent.height,
                 device.getDepthFormat(),
@@ -132,6 +158,8 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
                 device
     );
 
+    depthTexture = TextureUtils::wrapTexture("Fox_Fire_Default_Depth_Texture", swapchainExtent.width, swapchainExtent.height, device.getChannelCount(), false, true, false, image);
+
     Logger::logInfo("Successfully created swapchain!");
     return true;
 }
@@ -139,14 +167,22 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
 bool VulkanSwapchain::detectDepthFormat(VulkanDevice& device) {
     constexpr unsigned long candidateCount = 3;
     VkFormat candidates[candidateCount]{VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT};
+    constexpr unsigned char sizes[3] = {4, 4, 3};
 
     constexpr unsigned int flags = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    for (VkFormat format : candidates) {
-        VkFormatProperties formatProperties;
-        vkGetPhysicalDeviceFormatProperties(device.getPhysicalDevice(), format, &formatProperties);
 
-        if ((formatProperties.linearTilingFeatures & flags) == flags || (formatProperties.optimalTilingFeatures & flags) == flags) {
-            device.getDepthFormat() = format;
+    for (unsigned long i = 0; i < candidateCount; i++) {
+        VkFormatProperties properties{};
+        vkGetPhysicalDeviceFormatProperties(device.getPhysicalDevice(), candidates[i], &properties);
+
+        if ((properties.linearTilingFeatures & flags) == flags) {
+            device.setDepthFormat(candidates[i]);
+            device.setChannelCount(sizes[i]);
+            return true;
+        }
+        if ((properties.optimalTilingFeatures & flags) == flags) {
+            device.setDepthFormat(candidates[i]);
+            device.setChannelCount(sizes[i]);
             return true;
         }
     }
@@ -154,57 +190,31 @@ bool VulkanSwapchain::detectDepthFormat(VulkanDevice& device) {
     return false;
 }
 
-void VulkanSwapchain::regenerateFramebuffers(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, DynamicArray<VulkanRenderpass>& renderpasses, VulkanDevice& device) {
-    for (VulkanRenderpass& renderpass : renderpasses) {
-        for (unsigned int i = 0; i < imageCount; i++) {
-            VkImageView attachments[2]{};
-            attachments[0] = imageViews[i];
-
-            unsigned int attachmentCount = 1;
-            if (renderpass.usesDepth()) {
-                attachments[1] = depthAttachment.getImageView();
-                attachmentCount = 2;
-            }
-
-            VkFramebufferCreateInfo frameBufferCreateInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-            frameBufferCreateInfo.renderPass = renderpass.getHandle();
-            frameBufferCreateInfo.attachmentCount = attachmentCount;
-            frameBufferCreateInfo.pAttachments = attachments;
-            frameBufferCreateInfo.width = frameBufferWidth;
-            frameBufferCreateInfo.height = frameBufferHeight;
-            frameBufferCreateInfo.layers = 1;
-
-            VulkanUtils::vulkanCheck(vkCreateFramebuffer(device.getLogicalDevice(), &frameBufferCreateInfo, nullptr, &renderpass.getFramebuffer(i)));
-        }
-    }
-}
-
 void VulkanSwapchain::destroySwapchain(VulkanDevice& device) {
     vkDeviceWaitIdle(device.getLogicalDevice());
 
-    depthAttachment.destroy(device);
+    const auto depthImage = static_cast<VulkanImage *>(depthTexture->data);
+    depthImage->destroy(device);
+    FF_Memory::ff_free_class<VulkanImage>(depthImage, sizeof(VulkanImage), TEXTURE);
+    depthTexture->data = nullptr;
+    FF_Memory::ff_free(depthTexture, sizeof(Texture), TEXTURE);
+    depthTexture = nullptr;
 
-    if (imageViews) {
-        for (unsigned int i = 0; i < imageCount; i++) {
-            if (imageViews[i]) {
-                vkDestroyImageView(device.getLogicalDevice(), imageViews[i], nullptr);
-                imageViews[i] = nullptr;
-            }
-        }
-
-        FF_Memory::ff_free(imageViews, sizeof(VkImageView) * imageCount, RENDER);
-        imageViews = nullptr;
-    }
-
-    if (images) {
-        FF_Memory::ff_free(images, sizeof(VkImage) * imageCount, RENDER);
-        images = nullptr;
+    for (unsigned int i = 0; i < imageCount; i++) {
+        VulkanImage& image = *static_cast<VulkanImage *>(textures[i]->data);
+        vkDestroyImageView(device.getLogicalDevice(), image.getImageView(), nullptr);
     }
 
     if (handle) {
         vkDestroySwapchainKHR(device.getLogicalDevice(), handle, nullptr);
         handle = nullptr;
     }
+
+    for (unsigned int i = 0; i < imageCount; i++) {
+        FF_Memory::ff_free_class<VulkanImage>(textures[i]->data, sizeof(VulkanImage), TEXTURE);
+        FF_Memory::ff_free(textures[i], sizeof(Texture), TEXTURE);
+    }
+    textures.shutdown();
 
     imageCount = 0;
 }

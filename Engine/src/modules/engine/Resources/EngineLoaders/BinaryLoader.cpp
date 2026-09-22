@@ -7,9 +7,10 @@
 BinaryLoader::BinaryLoader() {
     type = RESOURCE_TYPE_BINARY;
     memoryTag = ARRAY;
+    memorySize = sizeof(BinaryLoader);
 }
 
-bool BinaryLoader::load(const String name, Resource &outResource, const String basePath) {
+bool BinaryLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters *params) {
     if (name.empty()) return false;
 
     const String finalPath = basePath + path + "/" + name;

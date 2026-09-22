@@ -43,6 +43,7 @@ struct GameConfig {
  * @brief Game-specific config data set by the user
  */
 struct FOXFIRE_API GameInstance {
+    /** @brief Contains application startup data */
     GameConfig config{};
 
     /** @brief Game State struct defined by the user */

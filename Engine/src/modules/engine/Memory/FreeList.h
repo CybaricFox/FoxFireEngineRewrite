@@ -69,6 +69,12 @@ public:
     FreeList(const unsigned long size, const unsigned long memoryRequirement, void* memory){initialize(size, memoryRequirement, memory);}
     ~FreeList() = default;
 
+    FreeList(const FreeList&) = delete;
+    FreeList& operator=(const FreeList&) = delete;
+
+    FreeList(FreeList&&) = delete;
+    FreeList& operator=(FreeList&&) = delete;
+
     /**
      * @brief Destructs the Free List and clears the memory allocation. Does not de-allocate the memory block!
      */

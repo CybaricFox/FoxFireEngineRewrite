@@ -54,6 +54,7 @@ struct VulkanShaderStageConfig {
 struct VulkanDescriptorSetConfig {
     unsigned char bindingCount = 0;
     VkDescriptorSetLayoutBinding bindings[VULKAN_SHADER_MAX_BINDINGS]{};
+    unsigned char samplerBindingIndex = INVALID_ID_U8;
 };
 
 struct VulkanShaderConfig {
@@ -64,6 +65,7 @@ struct VulkanShaderConfig {
     unsigned char descriptorSetCount = 0;
     VulkanDescriptorSetConfig descriptorSets[2]{};
     VkVertexInputAttributeDescription attributes[VULKAN_SHADER_MAX_ATTRIBUTES]{};
+    CullMode cullMode{};
 };
 
 struct VulkanDescriptorState {
@@ -80,5 +82,5 @@ struct VulkanShaderInstanceState {
     unsigned int id = INVALID_ID_U32;
     unsigned long offset = 0;
     VulkanShaderDescriptorSetState descriptorSetState{};
-    DynamicArray<Texture*> instanceTextures{};
+    DynamicArray<TextureMap*> instanceTextureMaps{};
 };

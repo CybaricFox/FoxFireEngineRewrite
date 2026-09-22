@@ -32,7 +32,9 @@ struct Event final : BaseEvent{
     /** @brief array of functions that are listening for this event */
     DynamicArray<std::function<void(const T&)>> listeners{};
 
-    Event() {listeners.initialize();}
+    bool hasListeners() {return !listeners.isEmpty();}
+
+    void registerEvent() {listeners.initialize();}
 
     /**
      * @brief Subscribes a function to listen to this event
@@ -66,8 +68,11 @@ struct Event<void> final : BaseEvent{
     //array of functions that use the callback data
     DynamicArray<std::function<void()>> listeners{};
 
-    Event() {listeners.initialize();}
     ~Event() {listeners.shutdown();}
+
+    void registerEvent() {listeners.initialize();}
+
+    bool hasListeners() const {return !listeners.isEmpty();}
 
     //Subscribes a function to this event
     void subscribe(const std::function<void()>& function) {

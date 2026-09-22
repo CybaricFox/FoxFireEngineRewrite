@@ -4,11 +4,13 @@
 
 #include "TransformUtils.h"
 
+#include "src/modules/engine/ECS/MasterEntityComponentSystem.h"
+
 Mat4 TransformUtils::getWorldPos(Transform &transform) {
     const Mat4 local = getLocalPos(transform);
 
-    if (transform.parent != nullptr) {
-        const Mat4 parent = getWorldPos(*transform.parent);
+    if (transform.parent != INVALID_ID_U32) {
+        const Mat4 parent = getWorldPos(*MasterEntityComponentSystem::getComponent<Transform>(transform.parent));
         return local * parent;
     }
 

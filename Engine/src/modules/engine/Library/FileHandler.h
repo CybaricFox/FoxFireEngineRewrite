@@ -14,6 +14,9 @@
 #include "src/defines.h"
 #include "foxfire_export.h"
 
+/**
+ * @brief The file mode to use when messing with files.
+ */
 enum FileMode {
     READ = 0x1,
     WRITE = 0x2,

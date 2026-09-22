@@ -29,16 +29,38 @@ public:
     DynamicAllocator(const unsigned long size, void *memory) {initialize(size, memory);}
     ~DynamicAllocator() = default;
 
+    DynamicAllocator(const DynamicAllocator&) = delete;
+    DynamicAllocator& operator=(const DynamicAllocator&) = delete;
+
+    DynamicAllocator(DynamicAllocator&&) = delete;
+    DynamicAllocator& operator=(DynamicAllocator&&) = delete;
+
     void initialize(unsigned long size, void *memory);
     void shutdown();
 
     static unsigned long getMemoryRequirement(unsigned long size);
 
+    /**
+     * @brief Returns the amount of free space remaining for allocation.
+     * @return
+     */
     [[nodiscard]] unsigned long getFreeSpace() const {
         return freeList.getFreeSpace();
     }
 
+    /**
+     * @brief Allocates an object to memory.
+     * @param size Size of the object.
+     * @return Pointer to the memory location.
+     */
     [[nodiscard]] void* allocate(unsigned long size);
+
+    /**
+     * @brief Frees an object in memory.
+     * @param memory
+     * @param size
+     * @return
+     */
     bool free(void* memory, unsigned long size);
 
 };

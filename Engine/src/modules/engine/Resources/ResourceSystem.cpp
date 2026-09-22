@@ -7,6 +7,7 @@
 #include "EngineLoaders/BinaryLoader.h"
 #include "EngineLoaders/ImageLoader.h"
 #include "EngineLoaders/MaterialLoader.h"
+#include "EngineLoaders/MeshLoader.h"
 #include "EngineLoaders/ShaderLoader.h"
 #include "EngineLoaders/TextLoader.h"
 #include "src/modules/engine/Library/StringUtils.h"
@@ -16,19 +17,20 @@ bool ResourceSystem::initialize(const String &path, const unsigned int initialCa
     assetsPath = path;
 
     //Register engine loaders
-    registerLoader(new ImageLoader{});
-    registerLoader(new MaterialLoader{});
-    registerLoader(new BinaryLoader{});
-    registerLoader(new TextLoader{});
-    registerLoader(new ShaderLoader{});
+    registerLoader(FF_Memory::ff_allocate_class<ImageLoader>(sizeof(ImageLoader), RESOURCE));
+    registerLoader(FF_Memory::ff_allocate_class<MaterialLoader>(sizeof(MaterialLoader), RESOURCE));
+    registerLoader(FF_Memory::ff_allocate_class<BinaryLoader>(sizeof(BinaryLoader), RESOURCE));
+    registerLoader(FF_Memory::ff_allocate_class<TextLoader>(sizeof(TextLoader), RESOURCE));
+    registerLoader(FF_Memory::ff_allocate_class<ShaderLoader>(sizeof(ShaderLoader), RESOURCE));
+    registerLoader(FF_Memory::ff_allocate_class<MeshLoader>(sizeof(MeshLoader), RESOURCE));
 
     Logger::logInfo("Resource system initialized with path: " + assetsPath);
     return true;
 }
 
 void ResourceSystem::shutdown() {
-    for (const ResourceLoader* loader : loaders) {
-        delete loader;
+    for (ResourceLoader* loader : loaders) {
+        FF_Memory::ff_free_class<ResourceLoader>(loader, loader->getMemorySize(), RESOURCE);
     }
     loaders.shutdown();
 }
@@ -51,7 +53,7 @@ bool ResourceSystem::registerLoader(ResourceLoader* loader) {
     return true;
 }
 
-bool ResourceSystem::load(const String &name, const ResourceType type, Resource &outResource) {
+bool ResourceSystem::load(const String &name, const ResourceType type, Resource &outResource, ILoaderParameters* params) {
     if (type == RESOURCE_TYPE_CUSTOM) {
         outResource.loaderId = INVALID_ID_U32;
         Logger::logError("Load called for a custom type! Did you mean to call loadCustom?");
@@ -61,7 +63,7 @@ bool ResourceSystem::load(const String &name, const ResourceType type, Resource 
     for (ResourceLoader* loader : loaders) {
         if (loader->getId() != INVALID_ID_U32 && loader->getType() == type) {
             outResource.loaderId = loader->getId();
-            return loader->load(name, outResource, assetsPath);
+            return loader->load(name, outResource, assetsPath, params);
         }
     }
 
@@ -69,7 +71,7 @@ bool ResourceSystem::load(const String &name, const ResourceType type, Resource 
     return false;
 }
 
-bool ResourceSystem::loadCustom(const String &name, const String &type, Resource &outResource) {
+bool ResourceSystem::loadCustom(const String &name, const String &type, Resource &outResource, ILoaderParameters* params) {
     if (type.empty()) {
         outResource.loaderId = INVALID_ID_U32;
         Logger::logError("LoadCustom called with an empty name!");
@@ -79,7 +81,7 @@ bool ResourceSystem::loadCustom(const String &name, const String &type, Resource
     for (ResourceLoader* loader : loaders) {
         if (loader->getId() != INVALID_ID_U32 && loader->getType() == RESOURCE_TYPE_CUSTOM && StringUtils::equalsIgnoreCase(name, loader->getCustomType())) {
             outResource.loaderId = loader->getId();
-            return loader->load(name, outResource, assetsPath);
+            return loader->load(name, outResource, assetsPath, params);
         }
     }
 

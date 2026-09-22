@@ -202,6 +202,10 @@ public:
         }
 
         if (length >= capacity) {
+            if constexpr (!std::is_move_constructible_v<T> && !std::is_copy_constructible_v<T>) {
+                Logger::logFatal("DynamicArray cannot resize because its type is neither move constructible nor copy constructible. Increase the initial capacity!");
+                return nullptr;
+            }
             if (!resize()) {
                 Logger::logFatal("Attempted to emplace a value to a Dynamic Array, but resize failed!");
                 return nullptr;
@@ -456,45 +460,50 @@ private:
      * @return True on success, False on failure.
      */
     bool resize(unsigned long requiredSize = 0) {
-        if (!memory || capacity == 0) {
-            Logger::logFatal("Dynamic Array resize called on an array of size 0!");
+        if constexpr (!std::is_move_constructible_v<T> && !std::is_copy_constructible_v<T>) {
+            Logger::logFatal("DynamicArray cannot resize because its type is neither move constructible nor copy constructible. Increase the initial capacity!");
             return false;
-        }
-
-        if (requiredSize <= capacity) {
-            requiredSize = capacity * RESIZE_FACTOR;
-        }
-
-        T* temp = allocate(requiredSize);
-
-        if (!temp) {
-            Logger::logFatal("Dynamic Array resize failed to allocate memory!");
-            return false;
-        }
-
-        unsigned long i = 0;
-        try {
-            for (; i < length; ++i) {
-                std::construct_at(&temp[i], std::move_if_noexcept(memory[i]));
-            }
-        } catch (...) {
-            for (unsigned long j = i; j > 0; --j) {
-                std::destroy_at(&temp[j - 1]);
+        } else {
+            if (!memory || capacity == 0) {
+                Logger::logFatal("Dynamic Array resize called on an array of size 0!");
+                return false;
             }
 
-            FF_Memory::ff_free(temp, sizeof(T) * requiredSize, tag);
-            Logger::logFatal("Dynamic Array reallocate failed while moving elements!");
-            return false;
+            if (requiredSize <= capacity) {
+                requiredSize = capacity * RESIZE_FACTOR;
+            }
+
+            T* temp = allocate(requiredSize);
+
+            if (!temp) {
+                Logger::logFatal("Dynamic Array resize failed to allocate memory!");
+                return false;
+            }
+
+            unsigned long i = 0;
+            try {
+                for (; i < length; ++i) {
+                    std::construct_at(&temp[i], std::move_if_noexcept(memory[i]));
+                }
+            } catch (...) {
+                for (unsigned long j = i; j > 0; --j) {
+                    std::destroy_at(&temp[j - 1]);
+                }
+
+                FF_Memory::ff_free(temp, sizeof(T) * requiredSize, tag);
+                Logger::logFatal("Dynamic Array reallocate failed while moving elements!");
+                return false;
+            }
+
+            destroy();
+            free();
+
+            memory = temp;
+            capacity = requiredSize;
+            length = i;
+
+            return true;
         }
-
-        destroy();
-        free();
-
-        memory = temp;
-        capacity = requiredSize;
-        length = i;
-
-        return true;
     };
 
 public:

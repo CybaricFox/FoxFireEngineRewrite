@@ -10,9 +10,10 @@ ShaderLoader::ShaderLoader() {
     type = RESOURCE_TYPE_SHADER;
     path = "Shaders";
     memoryTag = RENDER;
+    memorySize = sizeof(ShaderLoader);
 }
 
-bool ShaderLoader::load(String name, Resource &outResource, String basePath) {
+bool ShaderLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters *params) {
     if (name.empty()) return false;
 
     String filePath = basePath + "/" + path + "/" + name + ".FoxShader";
@@ -44,7 +45,7 @@ bool ShaderLoader::load(String name, Resource &outResource, String basePath) {
         if (bytesRead < 1 || line[0] == '#') continue;
 
         unsigned int equalsIndex = line.find('=');
-        if (equalsIndex == String::npos) {
+        if (equalsIndex == static_cast<unsigned int>(String::npos)) {
             Logger::logWarn("Potential formatting issue detected in " + filePath + ". Shader loader could not find '=' on line " + std::to_string(lineNumber));
             continue;
         }
@@ -89,10 +90,14 @@ bool ShaderLoader::load(String name, Resource &outResource, String basePath) {
             } else if (resourceData->stageCount != count) {
                 Logger::logError("Invalid file layout. Count mismatch between stage names and file names.");
             }
-        } else if (StringUtils::equalsIgnoreCase(variable, "use_instance")) {
-            StringUtils::stringToBool(value, resourceData->bUseInstances);
-        } else if (StringUtils::equalsIgnoreCase(variable, "use_local")) {
-            StringUtils::stringToBool(value, resourceData->bUseLocals);
+        } else if (StringUtils::equalsIgnoreCase(variable, "cull_mode")) {
+            if (value == "front") {
+                resourceData->cullMode = CULL_MODE_FRONT;
+            } else if (value == "both") {
+                resourceData->cullMode = CULL_MODE_FRONT_AND_BACK;
+            } else if (value == "none") {
+                resourceData->cullMode = CULL_MODE_NONE;
+            }
         } else if (StringUtils::equalsIgnoreCase(variable, "attribute")) {
             DynamicArray<String> fields{};
             unsigned int count = StringUtils::recursiveSplit(value, ',', fields);

@@ -8,6 +8,7 @@
 #include "src/modules/engine/Library/AssetMap.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
+#include "src/modules/engine/Resources/EngineShaderTypes.h"
 
 /**
  *  @file Shader.h
@@ -59,8 +60,7 @@ struct ShaderUniformConfig {
 
 struct ShaderConfig {
     String name{};
-    bool bUseInstances = false;
-    bool bUseLocals = false;
+    CullMode cullMode = CULL_MODE_BACK;
     unsigned char attributeCount = 0;
     DynamicArray<ShaderAttributeConfig> attributes{};
     unsigned char uniformCount = 0;
@@ -76,8 +76,6 @@ class Shader {
 private:
     unsigned int id = INVALID_ID_U32;
     String name{};
-    bool bUseInstances = false;
-    bool bUseLocals = false;
     unsigned long requiredAlignment = 0;
     unsigned long globalSize = 0;
     unsigned long globalStride = 0;
@@ -86,7 +84,7 @@ private:
     unsigned long instanceStride = 0;
     unsigned long pushConstantSize = 0;
     unsigned long pushConstantStride = 0;
-    DynamicArray<Texture*> globalTextures{};
+    DynamicArray<TextureMap*> globalTextureMaps{};
     unsigned char instanceTextureCount = 0;
     ShaderScope boundScope{};
     unsigned int boundInstanceId = INVALID_ID_U32;
@@ -97,12 +95,12 @@ private:
     unsigned char pushConstantRangeCount = 0;
     MemoryRange pushConstantRanges[32]{};
     unsigned short attributeStride = 0;
+    ULong frameNumber = INVALID_ID_U64;
 
     IBackendShader* backendShader = nullptr;
 
 public:
     [[nodiscard]] IBackendShader* getBackendShader() const {return backendShader;}
-    [[nodiscard]] bool useInstances() const { return bUseInstances; }
     [[nodiscard]] String const& getName() const { return name; }
     [[nodiscard]] DynamicArray<ShaderAttribute> const& getAttributes() const { return attributes; }
     ShaderAttribute& getAttribute(const unsigned int index) {return attributes[index];}
@@ -115,21 +113,21 @@ public:
     [[nodiscard]] unsigned long getInstanceStride() const {return instanceStride;}
     [[nodiscard]] unsigned long& getGlobalOffset() {return globalOffset;}
     [[nodiscard]] unsigned int getBoundInstanceId() const {return boundInstanceId;}
-    Texture& getUniformTexture(const unsigned short location) {return *globalTextures[location];}
+    Texture& getUniformTexture(const unsigned short location) {return *globalTextureMaps[location]->texture;}
     [[nodiscard]] unsigned int getBoundOffset() const {return boundOffset;}
     [[nodiscard]] unsigned char getInstanceTextureCount() const {return instanceTextureCount;}
     [[nodiscard]] unsigned int getId() const {return id;}
-    unsigned int getUniformIndex(const String &uniformName){return uniforms.getContext(uniformName)->index;}
-    ShaderUniform& getUniform(const unsigned int index){return uniforms.getData().get(index);}
+    unsigned int getUniformIndex(const String &uniformName){return uniforms.getContext(uniformName).index;}
+    ShaderUniform& getUniform(const unsigned int index){return *uniforms.getAssetAtIndex(index);}
     [[nodiscard]] ShaderScope getBoundScope() const {return boundScope;}
     void increaseAttributeStride(const unsigned short stride) {attributeStride += stride;}
-    [[nodiscard]] unsigned long getGlobalTextureCount() const {return globalTextures.getLength();}
+    [[nodiscard]] unsigned long getGlobalTextureCount() const {return globalTextureMaps.getLength();}
     [[nodiscard]] unsigned int getUniformCount() const {return uniforms.getAssetCount();}
     [[nodiscard]] unsigned long getGlobalSize() const {return globalSize;}
     [[nodiscard]] unsigned long getInstanceSize() const {return instanceSize;}
-    [[nodiscard]] bool useLocals() const { return bUseLocals; }
     [[nodiscard]] unsigned long getPushConstantSize() const {return pushConstantSize;}
     [[nodiscard]] ShaderState getState() const {return state;}
+    [[nodiscard]] unsigned long getFrameNumber() const {return frameNumber;}
 
     template<typename T>
     requires std::derived_from<T, IBackendShader>
@@ -139,13 +137,14 @@ public:
     void setRequiredAlignment(const unsigned long value) {requiredAlignment = value;}
     void setBoundOffset(const unsigned int value) {boundOffset = value;}
     void setBoundInstanceId(const unsigned int value) {boundInstanceId = value;}
-    void setUniformTexture(const unsigned short location, Texture& texture) {globalTextures[location] = &texture;}
+    void setUniformTexture(const unsigned short location, Texture& texture) {globalTextureMaps[location]->texture = &texture;}
     void setState(const ShaderState newState) {state = newState;}
     void addAttribute(const ShaderAttribute& attribute) {attributes.push(attribute);}
-    void addGlobalTexture(Texture& texture) {globalTextures.push(&texture);}
+    void addGlobalTextureMap(TextureMap* map) {globalTextureMaps.push(map);}
     void incrementInstanceTextureCount() {++instanceTextureCount;}
     void increaseGlobalSize(const unsigned int size) {globalSize += size;}
     void increaseInstanceSize(const unsigned int size) {instanceSize += size;}
+    void setFrameNumber(const unsigned long value) {frameNumber = value;}
 
     void setGlobalStride();
     void setInstanceStride();
@@ -154,5 +153,7 @@ public:
     void setPushConstantRange(MemoryRange range);
     bool isUniformNameValid(const String &uniformName);
     void clearName();
+    void setTextureMap(unsigned int index, TextureMap* map);
+    void destroyTextureMaps();
 
 };

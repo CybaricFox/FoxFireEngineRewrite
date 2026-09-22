@@ -41,6 +41,7 @@ public:
         bool bDepthTestEnabled,
         unsigned int pushConstantRangeCount,
         MemoryRange* pushConstantRanges,
+        CullMode cullMode,
         VulkanDevice &device
     );
 };

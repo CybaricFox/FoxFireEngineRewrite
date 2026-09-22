@@ -20,5 +20,7 @@ class ImageLoader final : public ResourceLoader{
 public:
     ImageLoader();
 
-    bool load(String name, Resource &outResource, String basePath) override;
+    bool load(String name, Resource &outResource, String basePath, ILoaderParameters *params) override;
+
+    void unload(Resource &resource) override;
 };

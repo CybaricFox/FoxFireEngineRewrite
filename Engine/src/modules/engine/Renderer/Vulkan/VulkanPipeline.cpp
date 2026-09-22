@@ -27,7 +27,7 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
                                     unsigned int attributeCount, VkVertexInputAttributeDescription *attributes,
                                     unsigned int descriptorSetLayoutCount, VkDescriptorSetLayout *descriptorSetLayouts, unsigned int stageCount,
                                     VkPipelineShaderStageCreateInfo *shaderStages, VkViewport viewport, VkRect2D scissor, bool bIsWireframe, bool
-                                    bDepthTestEnabled, unsigned int pushConstantRangeCount, MemoryRange *pushConstantRanges, VulkanDevice &device) {
+                                    bDepthTestEnabled, unsigned int pushConstantRangeCount, MemoryRange *pushConstantRanges, CullMode cullMode, VulkanDevice &device) {
 
     VkPipelineViewportStateCreateInfo viewportState{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
     viewportState.viewportCount = 1;
@@ -40,12 +40,29 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
     rasterizerInfo.rasterizerDiscardEnable = false;
     rasterizerInfo.polygonMode = bIsWireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizerInfo.lineWidth = 1.0f;
-    rasterizerInfo.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizerInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizerInfo.depthBiasEnable = false;
     rasterizerInfo.depthBiasConstantFactor = 0.0f;
     rasterizerInfo.depthBiasClamp = 0.0f;
     rasterizerInfo.depthBiasSlopeFactor = 0.0f;
+    switch (cullMode) {
+        case CULL_MODE_NONE: {
+            rasterizerInfo.cullMode = VK_CULL_MODE_NONE;
+            break;
+        }
+        case CULL_MODE_FRONT: {
+            rasterizerInfo.cullMode = VK_CULL_MODE_FRONT_BIT;
+            break;
+        }
+        case CULL_MODE_BACK: {
+            rasterizerInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+            break;
+        }
+        case CULL_MODE_FRONT_AND_BACK: {
+            rasterizerInfo.cullMode = VK_CULL_MODE_FRONT_AND_BACK;
+            break;
+        }
+    }
 
     VkPipelineMultisampleStateCreateInfo multisampleInfo{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
     multisampleInfo.sampleShadingEnable = false;

@@ -4,38 +4,15 @@
 
 #include "Game.h"
 
+#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
+#include "src/modules/system/FoxFire_Renders/SkyboxRenderView.h"
+#include "src/modules/system/FoxFire_Renders/UIRenderView.h"
+#include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
 #include "src/modules/system/FoxFire_Textures/FoxFire_GeometrySystem.h"
 #include "src/modules/system/FoxFire_Textures/FoxFire_MaterialSystem.h"
 #include "src/modules/system/FoxFire_Textures/FoxFire_TextureSystem.h"
-
-void Game::recalculateView(GameState *state) {
-    if (!state->bIsCameraDirty) return;
-
-    const Mat4 rotation = createEuler(state->cameraEuler.x, state->cameraEuler.y, state->cameraEuler.z);
-    const Mat4 translation = createTranslationMatrix(state->cameraPos);
-    state->view = rotation * translation;
-    state->view = invertMatrix(state->view);
-    state->bIsCameraDirty = false;
-}
-
-void Game::increaseCameraYaw(GameState *state, const float amount) {
-    state->cameraEuler.y += amount;
-    state->bIsCameraDirty = true;
-}
-
-void Game::increaseCameraPitch(GameState *state, const float amount) {
-    state->cameraEuler.x += amount;
-    const float limit =  degreesToRadians(89.0f);
-    state->cameraEuler.x = std::clamp(state->cameraEuler.x, -limit, limit);
-    state->bIsCameraDirty = true;
-}
-
-void Game::increaseCameraRoll(GameState *state, const float amount) {
-    state->cameraEuler.z += amount;
-    state->bIsCameraDirty = true;
-}
 
 Game::Game(const GameInstance& instance)
     :Engine(instance)
@@ -51,10 +28,52 @@ Game::~Game() {
 }
 
 void Game::startup() {
-    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Engine.quit", KEY_ESCAPE);
+    //Assign the camera
+    reinterpret_cast<GameState *>(gameInstance.state)->worldCamera = getDefaultCamera();
 
-    //event system
-    swapTextureEvent.subscribe([this]() {onDebugEvent();});
+    //Create RenderViews
+    RenderViewConfig worldConfig{};
+    worldConfig.type = RENDER_VIEW_WORLD;
+    worldConfig.width = 0;
+    worldConfig.height = 0;
+    worldConfig.name = "Fox_Fire_World_View";
+    worldConfig.renderpassCount = 1;
+    RenderViewRenderpassConfig passConfigs[1]{};
+    passConfigs[0].renderpassName = "Fox_Fire_World_Renderpass";
+    worldConfig.renderpasses = passConfigs;
+    worldConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
+    createRenderView(worldConfig);
+    WorldRenderView& worldRenderView = *reinterpret_cast<WorldRenderView *>(getRenderView("Fox_Fire_World_View"));
+    worldRenderView.setCamera(getDefaultCamera());
+    worldRenderView.subToEvent(swapTextureEvent);
+
+    RenderViewConfig uiConfig{};
+    uiConfig.type = RENDER_VIEW_UI;
+    uiConfig.width = 0;
+    uiConfig.height = 0;
+    uiConfig.name = "Fox_Fire_UI_View";
+    uiConfig.renderpassCount = 1;
+    RenderViewRenderpassConfig passConfigsUI[1]{};
+    passConfigsUI[0].renderpassName = "Fox_Fire_UI_Renderpass";
+    uiConfig.renderpasses = passConfigsUI;
+    uiConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
+    createRenderView(uiConfig);
+
+    RenderViewConfig skyboxConfig{};
+    skyboxConfig.type = RENDER_VIEW_SKYBOX;
+    skyboxConfig.width = 0;
+    skyboxConfig.height = 0;
+    skyboxConfig.name = "Fox_Fire_Skybox_View";
+    skyboxConfig.renderpassCount = 1;
+    RenderViewRenderpassConfig passConfigsSkybox[1]{};
+    passConfigsSkybox[0].renderpassName = "Fox_Fire_Skybox_Renderpass";
+    skyboxConfig.renderpasses = passConfigsSkybox;
+    skyboxConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
+    createRenderView(skyboxConfig);
+    SkyboxRenderView& skyboxRenderView = *reinterpret_cast<SkyboxRenderView *>(getRenderView("Fox_Fire_Skybox_View"));
+    skyboxRenderView.setCamera(getDefaultCamera());
+
+    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Engine.quit", KEY_ESCAPE);
     inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {swapTextureEvent.call();}, "Game.swapTexture", KEY_L);
 
     Engine::startup();
@@ -69,92 +88,58 @@ bool Game::update(const float deltaTime) {
     }
 
     auto* state = reinterpret_cast<GameState*>(gameInstance.state);
+    Camera& camera = *MasterEntityComponentSystem::getComponent<Camera>(state->worldCamera);
 
     if (inputSystem->isKeyDown(KEY_LEFT)) {
-        increaseCameraYaw(state, 1.0f * deltaTime);
+        CameraUtils::adjustYaw(camera, 1.0f * deltaTime);
     }
     if (inputSystem->isKeyDown(KEY_RIGHT)) {
-        increaseCameraYaw(state, -1.0f * deltaTime);
+        CameraUtils::adjustYaw(camera, -1.0f * deltaTime);
     }
 
     if (inputSystem->isKeyDown(KEY_UP)) {
-        increaseCameraPitch(state, 1.0f * deltaTime);
+        CameraUtils::adjustPitch(camera, 1.0f * deltaTime);
     }
     if (inputSystem->isKeyDown(KEY_DOWN)) {
-        increaseCameraPitch(state, -1.0f * deltaTime);
+        CameraUtils::adjustPitch(camera, -1.0f * deltaTime);
     }
 
-    float moveSpeed = 50.0f;
-    Vector3f velocity = zeroVector3f();
+    static constexpr float moveSpeed = 50.0f;
 
     if (inputSystem->isKeyDown(KEY_W)) {
-        Vector3f forward = getForwardDirection(state->view);
-        velocity += forward;
+        CameraUtils::moveForward(camera, moveSpeed * deltaTime);
 
     }
     if (inputSystem->isKeyDown(KEY_S)) {
-        Vector3f backward = getBackwardDirection(state->view);
-        velocity += backward;
+        CameraUtils::moveBackward(camera, moveSpeed * deltaTime);
     }
 
     if (inputSystem->isKeyDown(KEY_A)) {
-        Vector3f left = getLeftDirection(state->view);
-        velocity += left;
+        CameraUtils::moveLeft(camera, moveSpeed * deltaTime);
 
     }
     if (inputSystem->isKeyDown(KEY_D)) {
-        Vector3f right = getRightDirection(state->view);
-        velocity += right;
+        CameraUtils::moveRight(camera, moveSpeed * deltaTime);
     }
 
     if (inputSystem->isKeyDown(KEY_SPACE)) {
-        velocity.y += 1.0f;
+        CameraUtils::moveUp(camera, moveSpeed * deltaTime);
     }
     if (inputSystem->isKeyDown(KEY_LSHIFT)) {
-        velocity.y -= 1.0f;
+        CameraUtils::moveDown(camera, moveSpeed * deltaTime);
     }
-
-    Vector3f z = zeroVector3f();
-    if (!compareVectors(z, velocity, 0.0002f)) {
-        normalize(&velocity);
-        state->cameraPos += (velocity * moveSpeed * deltaTime);
-        state->bIsCameraDirty = true;
-    }
-
-    //These should be removed eventually
-    recalculateView(state);
-    masterRenderSystem.setView(state->view, state->cameraPos);
 
     if (inputSystem->isKeyUp(KEY_P) && inputSystem->wasKeyDown(KEY_P)) {
-        Logger::logDebug("Camera Pos: " + std::to_string(state->cameraPos.x) + " " + std::to_string(state->cameraPos.y) + " " + std::to_string(state->cameraPos.z));
+        Logger::logDebug("Camera Pos: " + std::to_string(CameraUtils::getPosition(camera).x) + " " + std::to_string(CameraUtils::getPosition(camera).y) + " " + std::to_string(CameraUtils::getPosition(camera).z));
     }
 
     return Engine::update(deltaTime);
 }
 
 void Game::initialize() {
-    const auto state = createGameState<GameState>();
-    state->cameraPos = {0, 0, 30};
-    state->cameraEuler = zeroVector3f();
+    createGameState<GameState>();
 
-    state->view = createTranslationMatrix(state->cameraPos);
-    state->view = invertMatrix(state->view);
-    state->bIsCameraDirty = true;
-
-    //User defined renderpasses
-    RenderpassProfile mainProfile{};
-    mainProfile.name = "Fox_Fire_World_Renderpass";
-    mainProfile.id = 0;
-    mainProfile.clearFlags = RENDERPASS_CLEAR_COLOR | RENDERPASS_CLEAR_DEPTH | RENDERPASS_CLEAR_STENCIL;
-    mainProfile.clearColor = {0, 0, 0.2, 1};
-    masterRenderSystem.addRenderpassProfile(mainProfile);
-
-    RenderpassProfile uiProfile{};
-    uiProfile.name = "Fox_Fire_UI_Renderpass";
-    uiProfile.id = 1;
-    uiProfile.clearFlags = RENDERPASS_CLEAR_NONE;
-    uiProfile.clearColor = {0, 0, 0, 0};
-    masterRenderSystem.addRenderpassProfile(uiProfile);
+    swapTextureEvent.registerEvent();
 
     Engine::initialize();
 }

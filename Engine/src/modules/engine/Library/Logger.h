@@ -19,6 +19,9 @@
 //Enable or disable debug messages depending on the type of release
 #define ENABLE_DEBUG_LOGGING 1
 
+/**
+ * @brief Corresponds to different types of log messages.
+ */
 enum LogLevel {
     DEBUG = 4,
     INFO = 3,
@@ -60,9 +63,29 @@ public:
      */
     static void log(LogLevel level,const String &message);
 
+    /**
+     * @brief Logs a message as fatal to console.
+     * @param message
+     */
     static void logFatal(const String &message) {log(FATAL, message);}
+    /**
+     * @brief Logs a message as error to console.
+     * @param message
+     */
     static void logError(const String &message) {log(SEVERE, message);}
+    /**
+     * @brief Logs a message as warning to console.
+     * @param message
+     */
     static void logWarn(const String &message) {log(WARN, message);}
+    /**
+     * @brief Logs a message as info to console.
+     * @param message
+     */
     static void logInfo(const String &message) {log(INFO, message);}
+    /**
+     * @brief Logs a message as debug to console.
+     * @param message
+     */
     static void logDebug(const String &message);
 };

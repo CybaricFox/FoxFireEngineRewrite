@@ -8,6 +8,8 @@
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
+#include "src/modules/engine/Library/JsonHandler.h"
+#include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
 
 void Engine::startup()
 {
@@ -23,7 +25,6 @@ void Engine::startup()
     //Setup builtin engine events
     inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
     inputSystem->subscribeToEngineEvent(RESIZED, [this](const EngineInputContext context) {resize(context.mouseX, context.mouseY);}, "Static.resize");
-    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {masterRenderSystem.changeRenderMode(static_cast<Keys>(context.key));}, "MasterRender.default_render");
 
     bIsInitialized = true;
     bIsRunning = true;
@@ -72,41 +73,45 @@ void Engine::run() {
                 bIsRunning = false;
             }
 
-            RenderPacket packet{};
-            packet.deltaTime = static_cast<float>(deltaTime);
-
             //temp code
             const unsigned int meshCount = ECSSystem.getEntityCount("Basic_Entity");
             if (meshCount > 0) {
-                packet.geometries.initialize();
-
                 const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, 0.5f * static_cast<float>(deltaTime), false);
-                TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(0), rotation);
+                TransformUtils::addRotation(*MasterEntityComponentSystem::getComponent<Transform>(1), rotation);
 
                 if (meshCount > 1) {
-                    TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(1), rotation);
+                    TransformUtils::addRotation(*MasterEntityComponentSystem::getComponent<Transform>(2), rotation);
                 }
                 if (meshCount > 2) {
-                    TransformUtils::addRotation(*ECSSystem.getComponent<Transform>(2), rotation);
-                }
-
-                for (unsigned int i = 0; i < meshCount; i++) {
-                    Mesh& mesh = *ECSSystem.getComponent<Mesh>(i);
-                    for (unsigned int j = 0; j < mesh.geometryCount; j++) {
-                        GeometryRenderData data{};
-                        data.geometry = mesh.geometries[j];
-                        data.model = TransformUtils::getWorldPos(*mesh.transform);
-                        packet.geometries.push(data);
-                        packet.geometryCount++;
-                    }
+                    TransformUtils::addRotation(*MasterEntityComponentSystem::getComponent<Transform>(3), rotation);
                 }
             }
 
-            GeometryRenderData testUIData{};
-            testUIData.geometry = testUIGeometry;
-            testUIData.model = createTranslationMatrix({0, 0, 0});
-            packet.uiGeometryCount = 1;
-            packet.uiGeometries = &testUIData;
+            RenderPacket packet{};
+            packet.deltaTime = static_cast<float>(deltaTime);
+            packet.viewCount = 3;
+            RenderViewPacket views[3]{};
+            packet.views = views;
+
+            masterRenderSystem.buildSkybox(packet);
+
+            MeshPacketData worldMeshData{};
+            worldMeshData.meshCount = meshCount;
+            DynamicArray<unsigned int>& basicEntities = ECSSystem.getAllEntitiesOfType("Basic_Entity");
+            worldMeshData.meshes = basicEntities.getData(); //All of these entities have meshes
+            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_World_View"), &worldMeshData, packet.views[1])) {
+                Logger::logError("Failed to build world packet");
+                return;
+            }
+
+            MeshPacketData uiMeshData{};
+            uiMeshData.meshCount = ECSSystem.getEntityCount("Basic_UI");
+            DynamicArray<unsigned int>& uiEntities = ECSSystem.getAllEntitiesOfType("Basic_UI");
+            uiMeshData.meshes = uiEntities.getData(); //All of these entities have meshes
+            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiMeshData, packet.views[2])) {
+                Logger::logError("Failed to build ui packet");
+                return;
+            }
             //end temp code
 
             if (!masterRenderSystem.drawFrame(packet)) {
@@ -114,9 +119,21 @@ void Engine::run() {
                 bIsRunning = false;
             }
 
-            if (!packet.geometries.isEmpty()) {
-                packet.geometries.shutdown();
+            //Cleanup Packet
+            worldMeshData.meshes = nullptr;
+            basicEntities.shutdown();
+            FF_Memory::ff_free_class<DynamicArray<unsigned int>>(&basicEntities, sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
+
+            uiMeshData.meshes = nullptr;
+            uiEntities.shutdown();
+            FF_Memory::ff_free_class<DynamicArray<unsigned int>>(&uiEntities, sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
+
+            for (unsigned int i = 0; i < packet.viewCount; i++) {
+                RenderViewPacket& view = packet.views[i];
+                view.geometries.shutdown();
             }
+
+            masterRenderSystem.cleanupSkybox(packet);
 
             //How long did the frame take
             const double endTime = Platform::getAbsoluteTime();
@@ -181,6 +198,12 @@ bool Engine::render(float deltaTime) {
     return true;
 }
 
+void Engine::createRenderView(const RenderViewConfig &config) {
+    if (!masterRenderSystem.createRenderView(config)) {
+        Logger::logFatal("Failed to create world render view.");
+    }
+}
+
 Engine::Engine(const GameInstance& instance)
 {
     if (!initializeMemory()) throw;
@@ -234,8 +257,19 @@ void Engine::initialize() {
     }
 
     //Start renderer
-    if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance, width, height, resourceSystem)) {
+    if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance, resourceSystem)) {
         Logger::logFatal("Failed to initialize the render system!");
+        return;
+    }
+
+    //Start ECS system
+    ECSSystem.initialize();
+
+    //Start camera system
+    CameraSystemConfig cameraConfig{};
+    cameraConfig.maxCameraCount = 16; //NOTE: THIS DOES NOTHING.
+    if (!masterRenderSystem.initializeCameraSystem(cameraConfig, &ECSSystem)) {
+        Logger::logFatal("Failed to initialize the camera system!");
         return;
     }
 
@@ -262,77 +296,109 @@ void Engine::initialize() {
         return;
     }
 
-    ECSSystem.initialize();
+    //Start render views
+    RenderViewSystemConfig renderViewConfig{};
+    renderViewConfig.maxViewCount = 251;
+    if (!masterRenderSystem.initializeRenderViewSystem(renderViewConfig)) {
+        Logger::logFatal("Failed to initialize the render view system!");
+        return;
+    }
+
+    masterRenderSystem.initializeSkybox();
 
     //Temp code
-    unsigned int cube1 = ECSSystem.createEntity("Basic_Entity");
+    const unsigned int cube1 = ECSSystem.createEntity("Basic_Entity");
     Mesh* cubeMesh = ECSSystem.getComponent<Mesh>(cube1);
     cubeMesh->geometryCount = 1;
     cubeMesh->geometries.initialize(cubeMesh->geometryCount);
     GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
-    GeometryUtils::generateTangents(cubeConfig.vertexCount, static_cast<Vertex3d *>(cubeConfig.vertices), cubeConfig.indexCount, static_cast<unsigned int *>(cubeConfig.indices));
-    cubeMesh->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
-    cubeMesh->transform = ECSSystem.getComponent<Transform>(cube1);
-    masterRenderSystem.destroyGeometryConfig(&cubeConfig);
 
-    unsigned int cube2 = ECSSystem.createEntity("Basic_Entity");
+    cubeMesh->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
+    GeometryUtils::destroyConfig(&cubeConfig);
+
+    const unsigned int cube2 = ECSSystem.createEntity("Basic_Entity");
     Mesh* cubeMesh2 = ECSSystem.getComponent<Mesh>(cube2);
     cubeMesh2->geometryCount = 1;
     cubeMesh2->geometries.initialize(cubeMesh2->geometryCount);
     GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
-    GeometryUtils::generateTangents(cubeConfig2.vertexCount, static_cast<Vertex3d *>(cubeConfig2.vertices), cubeConfig2.indexCount, static_cast<unsigned int *>(cubeConfig2.indices));
     cubeMesh2->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
-    cubeMesh2->transform = ECSSystem.getComponent<Transform>(cube2);
-    cubeMesh2->transform->position = Vector3f{10, 0, 1};
-    cubeMesh2->transform->parent = ECSSystem.getComponent<Transform>(0);
-    masterRenderSystem.destroyGeometryConfig(&cubeConfig2);
+    const auto cube2Transform = ECSSystem.getComponent<Transform>(cube2);
+    cube2Transform->position = Vector3f{10, 0, 1};
+    cube2Transform->parent = cube1;
+    cube2Transform->bIsDirty = true;
+    GeometryUtils::destroyConfig(&cubeConfig2);
 
-    unsigned int cube3 = ECSSystem.createEntity("Basic_Entity");
+    const unsigned int cube3 = ECSSystem.createEntity("Basic_Entity");
     Mesh* cubeMesh3 = ECSSystem.getComponent<Mesh>(cube3);
     cubeMesh3->geometryCount = 1;
     cubeMesh3->geometries.initialize(cubeMesh3->geometryCount);
     GeometryConfig cubeConfig3 = masterRenderSystem.generateCubeConfig(2, 2, 2, 1, 1, "Test_Cube_3", "MaterialTemplate");
-    GeometryUtils::generateTangents(cubeConfig3.vertexCount, static_cast<Vertex3d *>(cubeConfig3.vertices), cubeConfig3.indexCount, static_cast<unsigned int *>(cubeConfig3.indices));
     cubeMesh3->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig3, true));
-    cubeMesh3->transform = ECSSystem.getComponent<Transform>(cube3);
-    cubeMesh3->transform->position = Vector3f{5, 0, 1};
-    cubeMesh3->transform->parent = ECSSystem.getComponent<Transform>(1);
-    masterRenderSystem.destroyGeometryConfig(&cubeConfig3);
+    const auto cube3Transform = ECSSystem.getComponent<Transform>(cube3);
+    cube3Transform->position = Vector3f{5, 0, 1};
+    cube3Transform->parent = cube2;
+    cube3Transform->bIsDirty = true;
+    GeometryUtils::destroyConfig(&cubeConfig3);
+
+    const unsigned int maxwell = ECSSystem.createEntity("Basic_Entity");
+    Mesh* maxwellMesh = ECSSystem.getComponent<Mesh>(maxwell);
+    Resource maxwellResource{};
+    if (!resourceSystem.load("Maxwell", RESOURCE_TYPE_MESH, maxwellResource)) {
+        Logger::logFatal("Maxwell? Maxwell?! MAXWELL!!!!!!!");
+        return;
+    } else {
+        GeometryConfig* maxwellConfigs = &(*static_cast<DynamicArray<GeometryConfig>*>(maxwellResource.data))[0];
+        maxwellMesh->geometryCount = maxwellResource.dataSize; //Data size in this context is the number of geometries
+        maxwellMesh->geometries.initialize(maxwellMesh->geometryCount);
+        for (unsigned int i = 0; i < maxwellMesh->geometryCount; i++) {
+            GeometryConfig* currentConfig = &maxwellConfigs[i];
+            maxwellMesh->geometries.push(&masterRenderSystem.acquireGeometry(maxwellConfigs[i], true));
+        }
+        const auto maxwellTransform = ECSSystem.getComponent<Transform>(maxwell);
+        maxwellTransform->position = Vector3f{15, 0, 1};
+        maxwellTransform->scale = Vector3f{10, 10, 10};
+        maxwellTransform->bIsDirty = true;
+        resourceSystem.unload(maxwellResource);
+    }
 
     //Ui geo
+    const unsigned int ui1 = ECSSystem.createEntity("Basic_UI");
+    Mesh* ui1Mesh = ECSSystem.getComponent<Mesh>(ui1);
+    ui1Mesh->geometryCount = 1;
+    ui1Mesh->geometries.initialize(ui1Mesh->geometryCount);
+
     GeometryConfig configUI{};
-    configUI.vertexSize = sizeof(Vertex2d);
-    configUI.vertexCount = 4;
-    configUI.indexSize = sizeof(unsigned int);
-    configUI.indexCount = 6;
+    configUI.vertices.initialize<Vertex2d>(4);
+    configUI.indices.initialize<unsigned int>(6);
     configUI.materialName = "GenericUI";
     configUI.name = "test ui geometry";
 
     constexpr float w = 512;
     constexpr float h = 256;
-    Vertex2d uiVerts[4];
-    uiVerts[0].position.x = 0;
-    uiVerts[0].position.y = 0;
-    uiVerts[0].textureCoordinate.x = 0;
-    uiVerts[0].textureCoordinate.y = 0;
-    uiVerts[1].position.x = w;
-    uiVerts[1].position.y = h;
-    uiVerts[1].textureCoordinate.x = 1;
-    uiVerts[1].textureCoordinate.y = 1;
-    uiVerts[2].position.x = 0;
-    uiVerts[2].position.y = h;
-    uiVerts[2].textureCoordinate.x = 0;
-    uiVerts[2].textureCoordinate.y = 1;
-    uiVerts[3].position.x = w;
-    uiVerts[3].position.y = 0;
-    uiVerts[3].textureCoordinate.x = 1;
-    uiVerts[3].textureCoordinate.y = 0;
-    configUI.vertices = uiVerts;
+    auto array = reinterpret_cast<Vertex2d *>(configUI.vertices.getVertex(0));
+    array[0].position.x = 0;
+    array[0].position.y = 0;
+    array[0].textureCoordinate.x = 0;
+    array[0].textureCoordinate.y = 0;
+    array[1].position.x = w;
+    array[1].position.y = h;
+    array[1].textureCoordinate.x = 1;
+    array[1].textureCoordinate.y = 1;
+    array[2].position.x = 0;
+    array[2].position.y = h;
+    array[2].textureCoordinate.x = 0;
+    array[2].textureCoordinate.y = 1;
+    array[3].position.x = w;
+    array[3].position.y = 0;
+    array[3].textureCoordinate.x = 1;
+    array[3].textureCoordinate.y = 0;
 
-    unsigned int uiIndices[6] = {2, 1, 0, 3, 0, 1};
-    configUI.indices = uiIndices;
+    const unsigned int uiIndices[6] = {2, 1, 0, 3, 0, 1};
+    for (unsigned int i = 0; i < 6; i++) {
+        configUI.indices.setIndex(uiIndices[i], i);
+    }
 
-    testUIGeometry = &masterRenderSystem.acquireGeometry(configUI, true);
+    ui1Mesh->geometries[0] = &masterRenderSystem.acquireGeometry(configUI, true);
     //End temp code
 
     startup();

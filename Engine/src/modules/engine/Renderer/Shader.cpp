@@ -13,14 +13,12 @@ bool Shader::initializeShader(const ShaderConfig &config, const unsigned int new
 
     state = SHADER_STATE_NOT_CREATED;
     name = config.name;
-    bUseInstances = config.bUseInstances;
-    bUseLocals = config.bUseLocals;
     pushConstantRangeCount = 0;
     FF_Memory::ff_clear(pushConstantRanges, sizeof(MemoryRange) * 32);
     boundInstanceId = INVALID_ID_U32;
     attributeStride = 0;
-    globalTextures.shutdown();
-    globalTextures.initialize(0);
+    globalTextureMaps.shutdown();
+    globalTextureMaps.initialize(0);
     uniforms.shutdown();
     uniforms.initialize(0);
     attributes.shutdown();
@@ -44,11 +42,22 @@ void Shader::setPushConstantRange(const MemoryRange range) {
 }
 
 bool Shader::isUniformNameValid(const String &uniformName) {
-    return uniforms.getContext(uniformName) == nullptr;
+    return uniforms.getContext(uniformName).index == INVALID_ID_U32;
 }
 
 void Shader::clearName() {
     if (!name.empty()) name.clear();
+}
+
+void Shader::setTextureMap(const unsigned int index, TextureMap *map) {
+    globalTextureMaps[index] = map;
+}
+
+void Shader::destroyTextureMaps() {
+    for (TextureMap* map : globalTextureMaps) {
+        FF_Memory::ff_free(map, sizeof(TextureMap), RENDER);
+    }
+    globalTextureMaps.shutdown();
 }
 
 void Shader::setGlobalStride() {

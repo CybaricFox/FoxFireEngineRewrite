@@ -24,8 +24,8 @@ bool ShaderSystem::initialize(const ShaderSystemConfig newConfig, IRendererBacke
 }
 
 void ShaderSystem::shutdown() {
-    for (Shader& shader : assets.getData().getData()) {
-        destroyShader(shader);
+    for (Shader* shader : assets.getAssetsAsArray()) {
+        destroyShader(*shader);
     }
     assets.shutdown();
 
@@ -34,7 +34,7 @@ void ShaderSystem::shutdown() {
 }
 
 unsigned int ShaderSystem::getId(const String &shaderName) {
-    const unsigned int shaderId = assets.getContext(shaderName)->index;
+    const unsigned int shaderId = assets.getContext(shaderName).index;
 
     if (shaderId == INVALID_ID_U32) {
         Logger::logError("There is no registered shader named " + shaderName);
@@ -45,11 +45,11 @@ unsigned int ShaderSystem::getId(const String &shaderName) {
 }
 
 Shader *ShaderSystem::getShader(const unsigned int shaderId) {
-    if (shaderId >= config.maxShaderCount || assets.getData().get(shaderId).getId() == INVALID_ID_U32) {
+    if (shaderId >= config.maxShaderCount || assets.getAssetAtIndex(shaderId)->getId() == INVALID_ID_U32) {
         return nullptr;
     }
 
-    return &assets.getData().get(shaderId);
+    return assets.getAssetAtIndex(shaderId);
 }
 
 Shader *ShaderSystem::getShader(const String &shaderName) {
@@ -82,14 +82,9 @@ bool ShaderSystem::createShader(ShaderConfig& shaderConfig) {
 
     if (!shader->initializeShader(shaderConfig, context.index)) return false;
 
-    unsigned char renderpassId = INVALID_ID_U8;
-    if (!backendRef->getRenderpassId(shaderConfig.renderpassName, renderpassId)) {
+    Renderpass* renderpass = backendRef->getRenderpass(shaderConfig.renderpassName);
+    if (!renderpass) {
         Logger::logError("Failed to find renderpass: " + shaderConfig.renderpassName);
-        return false;
-    }
-
-    if (!backendRef->createShader(*shader, renderpassId, shaderConfig.stageCount, shaderConfig.stageFileNames, shaderConfig.stages)) {
-        Logger::logError("Failed to create shader.");
         return false;
     }
 
@@ -105,6 +100,10 @@ bool ShaderSystem::createShader(ShaderConfig& shaderConfig) {
         } else {
             addUniform(*shader, shaderConfig.uniforms[i]);
         }
+    }
+    if (!backendRef->createShader(*shader, shaderConfig, *renderpass, shaderConfig.stageCount, shaderConfig.stageFileNames, shaderConfig.stages)) {
+        Logger::logError("Failed to create shader.");
+        return false;
     }
 
     if (!backendRef->initializeShader(*shader)) {
@@ -146,12 +145,12 @@ bool ShaderSystem::setUniform(const String &uniformName, void *value) {
         return false;
     }
 
-    Shader& shader = assets.getData().get(currentShaderId);
+    Shader& shader = *assets.getAssetAtIndex(currentShaderId);
     return setUniform(getUniformIndex(shader, uniformName), value);
 }
 
 bool ShaderSystem::setUniform(const unsigned short index, void *value) {
-    Shader& shader = assets.getData().get(currentShaderId);
+    Shader& shader = *assets.getAssetAtIndex(currentShaderId);
     ShaderUniform& uniform = shader.getUniform(index);
     if (shader.getBoundScope() != uniform.scope) {
         switch (uniform.scope) {
@@ -179,15 +178,15 @@ bool ShaderSystem::setSampler(const unsigned short index, Texture &texture) {
 }
 
 bool ShaderSystem::applyGlobal() {
-    return backendRef->applyShaderGlobals(assets.getData().get(currentShaderId));
+    return backendRef->applyShaderGlobals(*assets.getAssetAtIndex(currentShaderId));
 }
 
-bool ShaderSystem::applyInstance() {
-    return backendRef->applyShaderInstance(assets.getData().get(currentShaderId));
+bool ShaderSystem::applyInstance(const bool update) {
+    return backendRef->applyShaderInstance(*assets.getAssetAtIndex(currentShaderId), update);
 }
 
 bool ShaderSystem::bindInstance(const unsigned int instanceId) {
-    Shader& shader = assets.getData().get(currentShaderId);
+    Shader& shader = *assets.getAssetAtIndex(currentShaderId);
     shader.setBoundInstanceId(instanceId);
     backendRef->bindShaderInstance(shader, instanceId);
 
@@ -245,11 +244,6 @@ bool ShaderSystem::addAttribute(Shader &shader, const ShaderAttributeConfig &att
 }
 
 bool ShaderSystem::addSampler(Shader &shader, const ShaderUniformConfig &uniformConfig) {
-    if (uniformConfig.scope == SHADER_SCOPE_INSTANCE && !shader.useInstances()) {
-        Logger::logError("Cannot add a sampler to a shader that doesn't use instances.");
-        return false;
-    }
-
     if (uniformConfig.scope == SHADER_SCOPE_LOCAL) {
         Logger::logError("Samplers cannot be used within local scope.");
         return false;
@@ -267,7 +261,24 @@ bool ShaderSystem::addSampler(Shader &shader, const ShaderUniformConfig &uniform
             return false;
         }
         location = globalTextureCount;
-        shader.addGlobalTexture(textureSystemRef->getDefaultDiffuseTexture());
+
+        //Create default texture map
+        TextureMap defaultMap{};
+        defaultMap.filterMag = TEXTURE_FILTER_BILINEAR;
+        defaultMap.filterMin = TEXTURE_FILTER_BILINEAR;
+        defaultMap.repeatU = TEXTURE_REPEAT;
+        defaultMap.repeatV = TEXTURE_REPEAT;
+        defaultMap.repeatW = TEXTURE_REPEAT;
+        defaultMap.use = TEXTURE_USE_UNKNOWN;
+        if (!backendRef->acquireTextureMapResources(defaultMap)) {
+            Logger::logError("Failed to acquire global texture map resources during shader creation.");
+            return false;
+        }
+        const auto map = static_cast<TextureMap *>(FF_Memory::ff_allocate(sizeof(TextureMap), RENDER));
+        *map = defaultMap;
+        map->texture = &textureSystemRef->getDefaultDiffuseTexture();
+        shader.addGlobalTextureMap(map);
+
     } else {
         if (shader.getInstanceTextureCount() + 1 > config.maxInstanceTextures) {
            Logger::logError("Shader instance texture count exceeds " + std::to_string(config.maxInstanceTextures));
@@ -322,11 +333,6 @@ bool ShaderSystem::addUniform(Shader &shader, const String &uniformName, const u
         uniform->offset = isSampler ? 0 : isGlobal ? shader.getGlobalSize() : shader.getInstanceSize();
         uniform->size = isSampler ? 0 : size;
     } else {
-        if (uniform->scope == SHADER_SCOPE_LOCAL && !shader.useLocals()) {
-            Logger::logError("Cannot add a local uniform to a shader that doesn't use locals.");
-            return false;
-        }
-
         uniform->descriptorIndex = INVALID_ID_U8;
         const MemoryRange range = getAlignedRange(shader.getPushConstantSize(), size, 4);
         uniform->offset = range.offset;
@@ -372,6 +378,7 @@ bool ShaderSystem::isUniformStateValid(const Shader &shader) {
 void ShaderSystem::destroyShader(Shader &shader) const {
     backendRef->destroyShader(shader);
     shader.setState(SHADER_STATE_NOT_CREATED);
+    shader.destroyTextureMaps();
     shader.clearName();
 }
 
@@ -379,7 +386,7 @@ void ShaderSystem::destroyShader(const String &name) {
     const unsigned int shaderId = getId(name);
     if (shaderId == INVALID_ID_U32) return;
 
-    Shader& shader = assets.getData().get(shaderId);
+    Shader& shader = *assets.getAssetAtIndex(shaderId);
 
     destroyShader(shader);
 }

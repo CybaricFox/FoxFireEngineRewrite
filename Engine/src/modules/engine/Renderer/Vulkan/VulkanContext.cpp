@@ -66,70 +66,36 @@ void VulkanContext::clearImagesInFlight() {
     }
 }
 
-void VulkanContext::addRenderpass(VulkanRenderpass& newRenderpass) {
-    if (renderpasses.getLength() == 0) renderpasses.initialize(1);
-
-    for (VulkanRenderpass& pass : renderpasses) {
-        if (pass.getId() == newRenderpass.getId()) {
-            Logger::logError("Cannot add renderpass because it already exists: " + std::to_string(pass.getId()));
-            return;
-        }
+Renderpass* VulkanContext::addRenderpass(const RenderpassConfig& config) {
+    if (renderpasses.getContext(config.name).index != INVALID_ID_U32) {
+        Logger::logError("A renderpass with the name: " + config.name + " already exists!");
+        return nullptr;
     }
 
-    const unsigned int index = renderpasses.getLength();
-    if (index == 0) {
-        newRenderpass.setPreviousPass(false);
-    } else {
-        newRenderpass.setPreviousPass(true);
-        renderpasses[index - 1].setNextPass(true);
-    }
+    AssetContext context{};
+    Renderpass& renderpass = *renderpasses.createAsset(config.name, context);
 
-    renderpasses.push(std::move(newRenderpass));
+    renderpass.setId(context.index);
+    renderpass.setClearFlags(config.clearFlags);
+    renderpass.setClearColor(config.clearColor);
+    renderpass.setRenderArea(config.renderArea);
+
+    return &renderpass;
 }
 
-void VulkanContext::createFramebuffers() {
-    for (VulkanRenderpass& renderpass : renderpasses) {
-        renderpass.setupFramebuffers(swapchain.getImageCount());
-    }
+Renderpass *VulkanContext::getRenderpass(const unsigned char id) {
+    return renderpasses.getAssetAtIndex(id);
 }
 
-void VulkanContext::destroyRenderpasses() {
-    for (VulkanRenderpass& renderpass : renderpasses) {
-        renderpass.destroyRenderpass(device);
-    }
-}
-
-void VulkanContext::destroyFramebuffers() {
-    for (VulkanRenderpass& renderpass : renderpasses) {
-        renderpass.destroyFramebuffers(device);
-    }
-}
-
-VulkanRenderpass & VulkanContext::getRenderpass(const unsigned char id) {
-    for (VulkanRenderpass &pass : renderpasses) {
-        if (pass.getId() == id) {
-            return pass;
-        }
-    }
-
-    Logger::logFatal("Failed to retrieve renderpass: " + std::to_string(id));
-    return renderpasses[0];
-}
-
-VkFramebuffer& VulkanContext::getCurrentFramebuffer(const unsigned int id) {
-    for (VulkanRenderpass &pass : renderpasses) {
-        if (pass.getId() == id) {
-            return pass.getFramebuffer(imageIndex);
-        }
-    }
-
-    Logger::logFatal("Renderpass does not exist: " + std::to_string(id));
-    throw;
+Renderpass * VulkanContext::getRenderpass(const String &renderName) {
+    return renderpasses.getAsset(renderName);
 }
 
 void VulkanContext::destroyContext() {
     geometries.shutdown();
     renderpasses.shutdown();
+
+    resizeRenderTargetsEvent.destroyEvent();
 
     FF_Memory::ff_clear(&device.getSwapChainSupportInfo().capabilities, sizeof(device.getSwapChainSupportInfo().capabilities));
 

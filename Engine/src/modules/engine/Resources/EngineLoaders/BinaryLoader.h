@@ -20,5 +20,5 @@ class BinaryLoader final : public ResourceLoader{
 public:
     BinaryLoader();
 
-    bool load(String name, Resource &outResource, String basePath) override;
+    bool load(String name, Resource &outResource, String basePath, ILoaderParameters *params) override;
 };

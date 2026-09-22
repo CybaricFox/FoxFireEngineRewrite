@@ -197,11 +197,11 @@ public:
 
             HashValue<K, V> entry{};
             if (!entry.keyRefs.push(key)) {
-                Logger::logError("Failed to inset key reference into new hash value!");
+                Logger::logError("Failed to insert key reference into new hash value!");
                 return;
             }
             if (!entry.values.push(value)) {
-                Logger::logError("Failed to inset value into new hash value!");
+                Logger::logError("Failed to insert value into new hash value!");
                 return;
             }
 
