@@ -444,8 +444,8 @@ bool PlatformLinux::initialize(const String &applicationName, const int x, const
 
     //Loop through screens
     xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
-    constexpr int screen = 0;
-    for (int i = screen; i > 0; i--) {
+    constexpr int constScreen = 0;
+    for (int i = constScreen; i > 0; i--) {
         xcb_screen_next(&iter);
     }
 

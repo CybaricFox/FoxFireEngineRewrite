@@ -48,8 +48,8 @@ private:
     VkSurfaceKHR surface{};
 
 public:
-    explicit PlatformLinux(const ULong newSize)
-        : PlatformState(newSize) {
+    explicit PlatformLinux()
+        : PlatformState(sizeof(PlatformLinux)) {
     }
 
 private:
