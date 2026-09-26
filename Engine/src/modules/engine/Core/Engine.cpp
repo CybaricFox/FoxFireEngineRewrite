@@ -206,7 +206,9 @@ void Engine::createRenderView(const RenderViewConfig &config) {
 
 Engine::Engine(const GameInstance& instance)
 {
+    platform.setPlatform();
     if (!initializeMemory()) throw;
+
     Logger::initializeFile(logHandler);
     gameInstance = instance;
     gameInstance.state = FF_Memory::ff_allocate_class<BaseGameState>(instance.memoryRequirement, GAME);

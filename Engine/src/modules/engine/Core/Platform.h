@@ -12,14 +12,9 @@
 
 #pragma once
 
+#include "PlatformState.h"
 #include "../Input/IInputSystem.h"
 #include "src/defines.h"
-
-/**
- * @brief Platform data is different per Platform. This stuct contains a pointer to the platform-specific state.
- * The platform state can be found in the .cpp file.
- */
-struct PlatformState {};
 
 /**
  * @brief Handles platform-specific operations.
@@ -62,7 +57,7 @@ public:
     /**
      * @brief Interfaces with the input system to process inputs in the order they were activated.
      */
-    void processInputs();
+    void processInputs() const;
 
     /**
      * @brief
@@ -75,6 +70,7 @@ public:
      * @return True on success, False on failure.
      */
     bool initialize(const String &applicationName, int x, int y, int width, int height, IInputSystem* inputSystem);
+    void setPlatform();
 
     /**
      * @brief Pauses the application
@@ -124,7 +120,7 @@ public:
 
 private:
     /** @brief stored platform state */
-    PlatformState* platformState = nullptr;
+    static PlatformState* platformState;
 
 };
 
