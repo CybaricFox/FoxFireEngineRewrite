@@ -126,6 +126,11 @@ public:
      * @param size size to clear out.
      */
     static void platform_clear(void* memory, unsigned long size);
+
+    static bool createMutex(Mutex& mutex);
+    static void destroyMutex(Mutex& mutex);
+    static bool lockMutex(Mutex& mutex);
+    static bool unlockMutex(Mutex& mutex);
 };
 
 

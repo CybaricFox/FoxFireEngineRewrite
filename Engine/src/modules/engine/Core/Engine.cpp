@@ -206,7 +206,6 @@ void Engine::createRenderView(const RenderViewConfig &config) {
 
 Engine::Engine(const GameInstance& instance)
 {
-    platform.setPlatform();
     if (!initializeMemory()) throw;
 
     Logger::initializeFile(logHandler);
@@ -215,6 +214,8 @@ Engine::Engine(const GameInstance& instance)
 }
 
 bool Engine::initializeMemory() {
+    platform.setPlatform();
+
     MemoryConfig config{};
     config.totalAllocationSize = GIBIBYTES(1);
     if (!FF_Memory::initialize(config)) {
@@ -250,6 +251,19 @@ void Engine::initialize() {
 
         Logger::logFatal("The platform failed to initialize!");
         return;
+    }
+
+    //Initialize multithreading
+    int threadCount = platform.getProcessorCount() - 1;
+    if (threadCount < 1) {
+        Logger::logFatal("Platform reported " + std::to_string(threadCount) + " extra threads. At least 1 extra thread is required for this engine.");
+        return;
+    }
+    Logger::logDebug("Extra threads available: " + std::to_string(threadCount));
+
+    if (threadCount > MAX_THREAD_COUNT) {
+        Logger::logDebug("Extra threads will be capped to " + std::to_string(MAX_THREAD_COUNT) + ".");
+        threadCount = MAX_THREAD_COUNT;
     }
 
     //Initialize the resource system

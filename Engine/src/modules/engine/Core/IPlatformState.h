@@ -4,6 +4,8 @@
 
 #pragma once
 #include "src/modules/engine/Input/IInputSystem.h"
+#include "src/modules/engine/Threads/Mutex.h"
+#include "src/modules/engine/Threads/Thread.h"
 
 struct KeyState {
     Buttons button;
@@ -82,7 +84,18 @@ public:
     virtual bool processMessages() = 0;
     virtual void getRequiredExtensions(DynamicArray<const char*>& extensions) = 0;
     virtual void ff_sleep(unsigned long ms) = 0;
-    virtual void *allocate(const unsigned long size, bool align) = 0;
+    virtual void *allocate(unsigned long size, bool align) = 0;
     virtual void freeMemory(void *memory, bool align) = 0;
-    virtual void clear(void *memory, const unsigned long size) = 0;
+    virtual void clear(void *memory, unsigned long size) = 0;
+    virtual bool createThread(ThreadFunction threadFunction, void* params, bool autoDetach, Thread& outThread) = 0;
+    virtual void destroyThread(Thread& thread) = 0;
+    virtual void cancelThread(Thread& thread) = 0;
+    virtual void detachThread(Thread& thread) = 0;
+    virtual bool isThreadActive(Thread& thread) = 0;
+    virtual void pauseThread(Thread& thread, ULong ms) = 0;
+    virtual ULong getCurrentThreadId() = 0;
+    virtual bool createMutex(Mutex& outMutex) = 0;
+    virtual void destroyMutex(Mutex& mutex) = 0;
+    virtual bool lockMutex(Mutex& mutex) = 0;
+    virtual bool unlockMutex(Mutex& mutex) = 0;
 };

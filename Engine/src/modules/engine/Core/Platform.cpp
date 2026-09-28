@@ -62,6 +62,22 @@ void Platform::platform_clear(void *memory, const unsigned long size) {
     platformState->clear(memory, size);
 }
 
+bool Platform::createMutex(Mutex &mutex) {
+    return platformState->createMutex(mutex);
+}
+
+void Platform::destroyMutex(Mutex &mutex) {
+    platformState->destroyMutex(mutex);
+}
+
+bool Platform::lockMutex(Mutex &mutex) {
+    return platformState->lockMutex(mutex);
+}
+
+bool Platform::unlockMutex(Mutex &mutex) {
+    return platformState->unlockMutex(mutex);
+}
+
 void Platform::printConsoleMessage(const String& message, const unsigned char color) {
     platformState->printConsoleMessage(message, color);
 }

@@ -23,6 +23,8 @@
 #include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 
+#define MAX_THREAD_COUNT 15
+
 /**
  * @brief The core of the engine.
  */

@@ -59,6 +59,18 @@ public:
     void freeMemory(void *memory, bool align) override;
     void clear(void *memory, unsigned long size) override;
     int getProcessorCount() override;
+
+    bool createThread(ThreadFunction threadFunction, void *params, bool autoDetach, Thread &outThread) override;
+    void destroyThread(Thread &thread) override;
+    void cancelThread(Thread &thread) override;
+    void detachThread(Thread &thread) override;
+    bool isThreadActive(Thread &thread) override;
+    void pauseThread(Thread &thread, ULong ms) override;
+    ULong getCurrentThreadId() override;
+    bool createMutex(Mutex &outMutex) override;
+    void destroyMutex(Mutex &mutex) override;
+    bool lockMutex(Mutex &mutex) override;
+    bool unlockMutex(Mutex &mutex) override;
 };
 
 #endif

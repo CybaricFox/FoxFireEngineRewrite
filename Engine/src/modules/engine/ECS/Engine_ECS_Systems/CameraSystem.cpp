@@ -22,6 +22,7 @@ bool CameraSystem::initialize(const CameraSystemConfig systemConfig, MasterEntit
     const auto cameraTransform = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
     cameraEntity->components.push(cameraTransform);
     const auto cameraComponent = FF_Memory::ff_allocate_class<Camera>(sizeof(Camera), ECS);
+    cameraComponent->bIsDirty = true;
     cameraEntity->components.push(cameraComponent);
 
     //Create a default camera. This camera will be used as a fallback.

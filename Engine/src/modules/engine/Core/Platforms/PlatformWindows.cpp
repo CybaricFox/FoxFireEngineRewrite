@@ -278,7 +278,7 @@ void PlatformWindows::getRequiredExtensions(DynamicArray<const char *> &extensio
     extensions.push("VK_KHR_win32_surface");
 }
 
-void PlatformWindows::ff_sleep(unsigned long ms) {
+void PlatformWindows::ff_sleep(const unsigned long ms) {
     Sleep(ms);
 }
 
@@ -295,7 +295,108 @@ void PlatformWindows::clear(void *memory, const unsigned long size) {
 }
 
 int PlatformWindows::getProcessorCount() {
+    SYSTEM_INFO sysInfo{};
+    GetSystemInfo(&sysInfo);
+    Logger::logInfo(std::to_string(sysInfo.dwNumberOfProcessors) + " cores were found.");
+    return sysInfo.dwNumberOfProcessors;
+}
 
+bool PlatformWindows::createThread(const ThreadFunction threadFunction, void *params, const bool autoDetach, Thread &outThread) {
+    if (threadFunction == nullptr) return false;
+
+    outThread.data = CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(threadFunction), params, 0, reinterpret_cast<DWORD *>(&outThread.id));
+
+    Logger::logDebug("Starting proces on thread " + std::to_string(outThread.id));
+
+    if (!outThread.data) {
+        return false;
+    }
+    if (autoDetach) {
+        CloseHandle(outThread.data);
+    }
+
+    return true;
+}
+
+void PlatformWindows::destroyThread(Thread &thread) {
+    if (!thread.data) return;
+
+    DWORD exitCode = 0;
+    GetExitCodeThread(thread.data, &exitCode);
+    CloseHandle(thread.data);
+    thread.data = nullptr;
+    thread.id = 0;
+}
+
+void PlatformWindows::cancelThread(Thread &thread) {
+    if (!thread.data) return;
+
+    TerminateThread(thread.data, 0);
+    thread.data = nullptr;
+}
+
+void PlatformWindows::detachThread(Thread &thread) {
+    if (!thread.data) return;
+
+    CloseHandle(thread.data);
+    thread.data = nullptr;
+}
+
+bool PlatformWindows::isThreadActive(Thread &thread) {
+    if (!thread.data) return false;
+
+    DWORD exitCode = WaitForSingleObject(thread.data, 0);
+    if (exitCode == WAIT_TIMEOUT) return true;
+
+    return false;
+}
+
+void PlatformWindows::pauseThread(Thread &thread, const ULong ms) {
+    ff_sleep(ms);
+}
+
+ULong PlatformWindows::getCurrentThreadId() {
+    return GetCurrentThreadId();
+}
+
+bool PlatformWindows::createMutex(Mutex &outMutex) {
+    outMutex.data = CreateMutex(nullptr, 0, nullptr);
+    if (outMutex.data == nullptr) {
+        Logger::logError("Failed to create mutex.");
+        return false;
+    }
+
+    return true;
+}
+
+void PlatformWindows::destroyMutex(Mutex &mutex) {
+    if (!mutex.data) return;
+
+    CloseHandle(mutex.data);
+    mutex.data = nullptr;
+}
+
+bool PlatformWindows::lockMutex(Mutex &mutex) {
+    DWORD result = WaitForSingleObject(mutex.data, INFINITE);
+    switch (result) {
+        case WAIT_OBJECT_0: {
+            return true;
+        }
+        case WAIT_ABANDONED: {
+            Logger::logError("Failed to lock mutex.");
+            return false;
+        }
+        default: break;
+    }
+
+    return true;
+}
+
+bool PlatformWindows::unlockMutex(Mutex &mutex) {
+    if (!mutex.data) return false;
+
+    const int result = ReleaseMutex(mutex.data);
+    return result != 0;
 }
 
 #endif

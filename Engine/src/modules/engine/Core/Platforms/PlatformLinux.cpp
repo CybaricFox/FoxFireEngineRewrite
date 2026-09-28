@@ -543,4 +543,207 @@ void PlatformLinux::clear(void *memory, const unsigned long size) {
     memset(memory, 0, size);
 }
 
+int PlatformLinux::getProcessorCount() {
+    const int processorCount = get_nprocs_conf();
+    const int processorsAvailable = get_nprocs();
+    Logger::logInfo(std::to_string(processorCount) + " processors found. " + std::to_string(processorsAvailable) + " are available.");
+    return processorsAvailable;
+}
+
+bool PlatformLinux::createThread(const ThreadFunction threadFunction, void *params, const bool autoDetach, Thread &outThread) {
+    if (threadFunction == nullptr) return false;
+
+    int result = pthread_create(reinterpret_cast<pthread_t *>(&outThread.id), nullptr, reinterpret_cast<void* (*)(void *)>(threadFunction), params);
+    if (result != 0) {
+        switch (result) {
+            case EAGAIN: {
+                Logger::logError("Failed to create thread. Not enough resources.");
+                return false;
+            }
+            case EINVAL: {
+                Logger::logError("Failed to create thread. Invalid settings.");
+                return false;
+            }
+            default: {
+                Logger::logError("Failed to create thread. Unknown error: " + std::to_string(result));
+                return false;
+            }
+        }
+    }
+
+    Logger::logDebug("Thread created with id " + std::to_string(outThread.id) + ".");
+
+    if (!autoDetach) {
+        outThread.data = allocate(sizeof(ULong), false);
+        *static_cast<ULong *>(outThread.data) = outThread.id;
+    } else {
+        result = pthread_detach(outThread.id);
+        if (result != 0) {
+            switch (result) {
+                case EINVAL: {
+                    Logger::logError("Failed to detach thread. Thread is not joinable.");
+                    return false;
+                }
+                case ESRCH: {
+                    Logger::logError("Failed to detach thread. Thread not found.");
+                    return false;
+                }
+                default: {
+                    Logger::logError("Failed to detach thread. Unknown error: " + std::to_string(result));
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+void PlatformLinux::destroyThread(Thread &thread) {
+    cancelThread(thread);
+}
+
+void PlatformLinux::cancelThread(Thread &thread) {
+    if (!thread.data) return;
+
+    const int result = pthread_cancel(*static_cast<pthread_t *>(thread.data));
+    if (result != 0) {
+        switch (result) {
+            case ESRCH: {
+                Logger::logError("Failed to cancel thread: " + std::to_string(thread.id) + ". Thread not found.");
+                break;
+            }
+            default: {
+                Logger::logError("Failed to cancel thread. Unknown error: " + std::to_string(result));
+                break;
+            }
+        }
+    }
+
+    freeMemory(thread.data, false);
+    thread.data = nullptr;
+    thread.id = 0;
+}
+
+void PlatformLinux::detachThread(Thread &thread) {
+    if (!thread.data) return;
+
+    const int result = pthread_detach(thread.id);
+    if (result != 0) {
+        switch (result) {
+            case EINVAL: {
+                Logger::logError("Failed to detach thread. Thread is not joinable.");
+                break;
+            }
+            case ESRCH: {
+                Logger::logError("Failed to detach thread. Thread not found.");
+                break;
+            }
+            default: {
+                Logger::logError("Failed to detach thread. Unknown error: " + std::to_string(result));
+                break;
+            }
+        }
+    }
+
+    freeMemory(thread.data, false);
+    thread.data = nullptr;
+}
+
+bool PlatformLinux::isThreadActive(Thread &thread) {
+    return thread.data != nullptr;
+}
+
+void PlatformLinux::pauseThread(Thread &thread, const ULong ms) {
+    ff_sleep(ms);
+}
+
+ULong PlatformLinux::getCurrentThreadId() {
+    return pthread_self();
+}
+
+bool PlatformLinux::createMutex(Mutex &outMutex) {
+    pthread_mutex_t mutex{};
+    const int result = pthread_mutex_init(&mutex, nullptr);
+    if (result != 0) {
+        Logger::logError("Failed to create mutex.");
+        return false;
+    }
+
+    outMutex.data = allocate(sizeof(pthread_mutex_t), false);
+    *static_cast<pthread_mutex_t *>(outMutex.data) = mutex;
+
+    return true;
+}
+
+void PlatformLinux::destroyMutex(Mutex &mutex) {
+    const int result = pthread_mutex_destroy(static_cast<pthread_mutex_t *>(mutex.data));
+    switch (result) {
+        case 0: break;
+        case EBUSY: {
+            Logger::logError("Failed to destroy mutex. Mutex is locked or referenced.");
+            break;
+        }
+        case EINVAL: {
+            Logger::logError("Failed to destroy mutex. Invalid Mutex.");
+            break;
+        }
+        default: {
+            Logger::logError("Failed to destroy mutex. Unknown error: " + std::to_string(result));
+            break;
+        }
+    }
+
+    freeMemory(mutex.data, false);
+    mutex.data = nullptr;
+}
+
+bool PlatformLinux::lockMutex(Mutex &mutex) {
+    const int result = pthread_mutex_lock(static_cast<pthread_mutex_t *>(mutex.data));
+    switch (result) {
+        case 0: return true;
+        case EOWNERDEAD: {
+            Logger::logError("Failed to lock mutex. The owning thread was terminated while the mutext was still alive.");
+            return false;
+        }
+        case EAGAIN: {
+            Logger::logError("Failed to lock mutex. The maximum number of recursive mutex locks has been reached.");
+            return false;
+        }
+        case EBUSY: {
+            Logger::logError("Failed to lock mutex. The mutex is already locked.");
+            return false;
+        }
+        case EDEADLK: {
+            Logger::logError("Failed to lock mutex. The thread is dead locked.");
+            return false;
+        }
+        default: {
+            Logger::logError("Failed to lock mutex. Unknown error: " + std::to_string(result));
+            return false;
+        }
+    }
+}
+
+bool PlatformLinux::unlockMutex(Mutex &mutex) {
+    if (mutex.data == nullptr) return false;
+
+    const int result = pthread_mutex_unlock(static_cast<pthread_mutex_t *>(mutex.data));
+    switch (result) {
+        case 0: return true;
+        case EOWNERDEAD: {
+            Logger::logError("Failed to unlock mutex. Owning thread was terminated while the mutex was still alive.");
+            return false;
+        }
+        case EPERM: {
+            Logger::logError("Failed to unlock mutex. The current thread does not own the mutex.");
+            return false;
+        }
+        default: {
+            Logger::logError("Failed to unlock mutex. Unknown error: " + std::to_string(result));
+            return false;
+        }
+    }
+}
+
 #endif

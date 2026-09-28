@@ -57,6 +57,11 @@ void FF_Memory::ff_free(void * block, const unsigned long size, const MemoryTag 
         return;
     }
 
+    if (!Platform::lockMutex(memorySystem->allocationMutex)) {
+        Logger::logFatal("Memory system failed to lock mutex during free.");
+        return;
+    }
+
     memorySystem->memoryData.totalAllocated -= size;
     memorySystem->memoryData.taggedAllocations[tag] -= size;
     memorySystem->allocationCount--;
@@ -64,6 +69,8 @@ void FF_Memory::ff_free(void * block, const unsigned long size, const MemoryTag 
     if (!memorySystem->allocator.free(block, size)) {
         Platform::platform_free(block, false);
     }
+
+    Platform::unlockMutex(memorySystem->allocationMutex);
 }
 
 void * FF_Memory::ff_clear(void *block, const unsigned long size) {
@@ -138,12 +145,20 @@ bool FF_Memory::initialize(const MemoryConfig config) {
     void* allocatorMemory = static_cast<unsigned char *>(memory) + systemMemoryRequirement;
     memorySystem->allocator.initialize(config.totalAllocationSize, allocatorMemory);
 
+    //Setup mutex for memory system
+    if (!Platform::createMutex(memorySystem->allocationMutex)) {
+        Logger::logFatal("Memory system failed to create mutex.");
+        return false;
+    }
+
     Logger::logDebug("Memory system allocated successfully with " + std::to_string(config.totalAllocationSize) + " bytes.");
     return true;
 }
 
 void FF_Memory::shutdown() {
     if (memorySystem) {
+        Platform::destroyMutex(memorySystem->allocationMutex);
+
         memorySystem->allocator.shutdown();
         std::destroy_at(memorySystem);
         Platform::platform_free(memorySystem, false);
@@ -182,10 +197,16 @@ void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag) {
 
     void* memory = nullptr;
     if (memorySystem) {
+        if (!Platform::lockMutex(memorySystem->allocationMutex)) {
+            Logger::logFatal("Memory system failed to lock mutex during allocation.");
+            return nullptr;
+        }
         memorySystem->memoryData.totalAllocated += size;
         memorySystem->memoryData.taggedAllocations[tag] += size;
         memorySystem->allocationCount++;
         memory = memorySystem->allocator.allocate(size);
+
+        Platform::unlockMutex(memorySystem->allocationMutex);
     } else {
         Logger::logError("Allocate called before memory system is initialized!");
         memory = Platform::platform_allocate(size, false);

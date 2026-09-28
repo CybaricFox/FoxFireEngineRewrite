@@ -16,6 +16,7 @@
 
 #include "DynamicAllocator.h"
 #include "src/defines.h"
+#include "src/modules/engine/Threads/Mutex.h"
 
 /**
  * @brief Tag an allocation belongs to. Used to track memory allocation types.
@@ -57,6 +58,7 @@ private:;
     unsigned long allocationCount = 0;
     unsigned long allocationMemoryRequirement = 0;
     DynamicAllocator allocator{};
+    Mutex allocationMutex{};
 
     FF_Memory() = default;
 
