@@ -14,7 +14,7 @@
 #include "Platforms/PlatformLinux.h"
 #include "Platforms/PlatformWindows.h"
 
-PlatformState* Platform::platformState = nullptr;
+IPlatformState* Platform::platformState = nullptr;
 
 
 void Platform::processInputs() const {

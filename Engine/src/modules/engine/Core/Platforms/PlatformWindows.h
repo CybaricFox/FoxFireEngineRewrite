@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "src/modules/engine/Core/PlatformState.h"
+#include "src/modules/engine/Core/IPlatformState.h"
 
 #if FOXFIRE_PLATFORM_WINDOWS == 1
 
@@ -27,7 +27,7 @@
  *  @copyright (c) 2026
  */
 
-class PlatformWindows final : public PlatformState{
+class PlatformWindows final : public IPlatformState{
 private:
     HINSTANCE instance{};
     HWND hwnd{};
@@ -42,7 +42,7 @@ public:
 
     PlatformWindows();
 
-    bool initialize(const String &applicationName, const int x, const int y, const int width, const int height) override;
+    bool initialize(const String &applicationName, int x, int y, int width, int height) override;
     void addKeyInput(Buttons button, Keys key, bool isPressed);
     void addMouseInput(int x, int y, int z);
 
@@ -55,9 +55,10 @@ public:
     void getRequiredExtensions(DynamicArray<const char*>& extensions) override;
     void ff_sleep(unsigned long ms) override;
 
-    void *allocate(const unsigned long size, bool align) override;
+    void *allocate(unsigned long size, bool align) override;
     void freeMemory(void *memory, bool align) override;
-    void clear(void *memory, const unsigned long size) override;
+    void clear(void *memory, unsigned long size) override;
+    int getProcessorCount() override;
 };
 
 #endif

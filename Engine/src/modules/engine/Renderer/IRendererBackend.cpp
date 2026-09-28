@@ -7,7 +7,7 @@
 #include "Vulkan/VulkanBackend.h"
 #include "../Library/Logger.h"
 
-IRendererBackend* IRendererBackend::create(const RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance) {
+IRendererBackend* IRendererBackend::create(const RendererBackendType type, IPlatformState& newPlatformState, const GameInstance& gameInstance) {
     IRendererBackend* backend;
 
     if (type == VULKAN) {

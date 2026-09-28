@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "src/modules/engine/Core/PlatformState.h"
+#include "src/modules/engine/Core/IPlatformState.h"
 
 /**
  *  @file PlatformLinux.h
@@ -37,7 +37,7 @@
 #include <vulkan/vulkan.h>
 #include "src/modules/engine/Renderer/Vulkan/VulkanBackend.h"
 
-class PlatformLinux final : public PlatformState {
+class PlatformLinux final : public IPlatformState {
 private:
     Display* display = nullptr;
     xcb_connection_t* connection = nullptr;
@@ -49,7 +49,7 @@ private:
 
 public:
     explicit PlatformLinux()
-        : PlatformState(sizeof(PlatformLinux)) {
+        : IPlatformState(sizeof(PlatformLinux)) {
     }
 
 private:
@@ -70,6 +70,7 @@ public:
     void * allocate(const unsigned long size, bool align) override;
     void freeMemory(void *memory, bool align) override;
     void clear(void *memory, const unsigned long size) override;
+    int getProcessorCount() override;
 };
 
 #endif

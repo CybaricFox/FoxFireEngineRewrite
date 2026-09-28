@@ -109,11 +109,11 @@ LRESULT CALLBACK win32ProcessMessage(HWND hwnd, unsigned int msg, WPARAM wParam,
 }
 
 PlatformWindows::PlatformWindows()
-    : PlatformState(sizeof(PlatformWindows))
+    : IPlatformState(sizeof(PlatformWindows))
 {}
 
 bool PlatformWindows::initialize(const String &applicationName, const int x, const int y, const int width, const int height) {
-    PlatformState::initialize(applicationName, x , y , width, height);
+    IPlatformState::initialize(applicationName, x , y , width, height);
 
     self = this;
 
@@ -259,7 +259,7 @@ void PlatformWindows::shutdown() {
         hwnd = nullptr;
     }
 
-    PlatformState::shutdown();
+    IPlatformState::shutdown();
 
     self = nullptr;
 }
@@ -292,6 +292,10 @@ void PlatformWindows::freeMemory(void *memory, bool align) {
 
 void PlatformWindows::clear(void *memory, const unsigned long size) {
     memset(memory, 0, size);
+}
+
+int PlatformWindows::getProcessorCount() {
+
 }
 
 #endif

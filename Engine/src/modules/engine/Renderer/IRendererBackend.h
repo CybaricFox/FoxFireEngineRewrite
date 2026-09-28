@@ -32,7 +32,7 @@ struct RendererBackendConfig {
 class IRendererBackend {
 private:
     /** @brief pointer to platform data */
-    PlatformState* platformState = nullptr;
+    IPlatformState* platformState = nullptr;
     /** @brief Current frame*/
     unsigned long frameNumber = 0;
 
@@ -50,7 +50,7 @@ public:
      * @param gameInstance Game specific data.
      * @return The specific backend to use.
      */
-    static IRendererBackend* create(RendererBackendType type, PlatformState& newPlatformState, const GameInstance& gameInstance);
+    static IRendererBackend* create(RendererBackendType type, IPlatformState& newPlatformState, const GameInstance& gameInstance);
 
     /**
      * @brief Gets the current frame number.

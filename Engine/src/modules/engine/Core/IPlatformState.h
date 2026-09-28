@@ -17,7 +17,7 @@ struct MouseState {
     char z;
 };
 
-class PlatformState {
+class IPlatformState {
 private:
     ULong size = 0;
 
@@ -26,10 +26,11 @@ protected:
     DynamicArray<MouseState> mouseInputs{};
 
 public:
-    explicit PlatformState(const ULong newSize) : size(newSize) {};
-    virtual ~PlatformState() = default;
+    explicit IPlatformState(const ULong newSize) : size(newSize) {};
+    virtual ~IPlatformState() = default;
 
-    ULong getSize() const { return size; }
+    [[nodiscard]] ULong getSize() const { return size; }
+    virtual int getProcessorCount() = 0;
 
     void processInputs(IInputSystem& inputSystem) {
         for (const KeyState& input : keyInputs) {
