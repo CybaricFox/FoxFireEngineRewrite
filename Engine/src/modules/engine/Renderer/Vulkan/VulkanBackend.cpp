@@ -920,6 +920,9 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     VulkanUtils::vulkanCheck(vkCreateInstance(&createInfo, nullptr, &vulkanContext.getInstance()));
     Logger::logInfo("Vulkan Instance Created Successfully.");
 
+    //Setup multithreading
+    vulkanContext.setMultithread(false);
+
 #if ENABLE_DEBUG_LOGGING == true
     Logger::logDebug("Creating Vulkan debugger.");
     constexpr unsigned int logSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;

@@ -77,7 +77,7 @@ public:
     void shutdown();
     MasterRenderSystem() = default;
 
-    [[nodiscard]] IRendererBackend* getBackend() const {return backend;}
+    //[[nodiscard]] IRendererBackend* getBackend() const {return backend;}
     [[nodiscard]] Texture& getDefaultDiffuseTexture() const {return textureSystem->getDefaultDiffuseTexture();}
     [[nodiscard]] Texture& getDefaultSpecularTexture() const {return textureSystem->getDefaultSpecularTexture();}
     [[nodiscard]] Texture& getDefaultNormalTexture() const {return textureSystem->getDefaultNormalTexture();}
@@ -85,6 +85,7 @@ public:
     [[nodiscard]] Renderpass* getRenderPass(const String &name) const {return backend->getRenderpass(name);}
     IRenderView* getRenderView(const String &name) {return renderViewSystem.getRenderView(name);}
     [[nodiscard]] unsigned int getDefaultCamera() const {return cameraSystem.getDefaultCamera();}
+    [[nodiscard]] bool isRenderSystemMultithreaded() const {return backend->isMultithreaded();}
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);

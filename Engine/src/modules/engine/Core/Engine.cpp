@@ -63,6 +63,9 @@ void Engine::run() {
             const double deltaTime = currentTime - lastTime;
             const double frameStartTime = Platform::getAbsoluteTime();
 
+            //Updates jobs
+            jobSystem.update();
+
             if (!engine->update(static_cast<float>(deltaTime))) {
                 Logger::logFatal("Game update tick failed!");
                 bIsRunning = false;
@@ -253,7 +256,20 @@ void Engine::initialize() {
         return;
     }
 
+    //Initialize the resource system
+    if (!resourceSystem.initialize("Assets", 32)) {
+        Logger::logFatal("Failed to initialize the resource system!");
+        return;
+    }
+
+    //Start renderer
+    if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance, resourceSystem)) {
+        Logger::logFatal("Failed to initialize the render system!");
+        return;
+    }
+
     //Initialize multithreading
+    bool multithreadRenderer = masterRenderSystem.isRenderSystemMultithreaded();
     int threadCount = platform.getProcessorCount() - 1;
     if (threadCount < 1) {
         Logger::logFatal("Platform reported " + std::to_string(threadCount) + " extra threads. At least 1 extra thread is required for this engine.");
@@ -266,15 +282,23 @@ void Engine::initialize() {
         threadCount = MAX_THREAD_COUNT;
     }
 
-    //Initialize the resource system
-    if (!resourceSystem.initialize("Assets", 32)) {
-        Logger::logFatal("Failed to initialize the resource system!");
-        return;
+    unsigned int threadTypes[15]{};
+    for (unsigned int& threadType : threadTypes) {
+        threadType = GENERAL_JOB;
     }
 
-    //Start renderer
-    if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance, resourceSystem)) {
-        Logger::logFatal("Failed to initialize the render system!");
+    if (threadCount == 1 || !multithreadRenderer) {
+        threadTypes[0] |= (GPU_JOB | RESOURCE_LOAD_JOB);
+    } else if (threadCount == 2) {
+        threadTypes[0] |= GPU_JOB;
+        threadTypes[1] |= RESOURCE_LOAD_JOB;
+    } else {
+        threadTypes[0] = GPU_JOB;
+        threadTypes[1] = RESOURCE_LOAD_JOB;
+    }
+
+    if (!jobSystem.initialize(threadCount, threadTypes)) {
+        Logger::logFatal("Failed to initialize the job system.");
         return;
     }
 
@@ -324,7 +348,7 @@ void Engine::initialize() {
 
     //Temp code
     const unsigned int cube1 = ECSSystem.createEntity("Basic_Entity");
-    Mesh* cubeMesh = ECSSystem.getComponent<Mesh>(cube1);
+    Mesh* cubeMesh = MasterEntityComponentSystem::getComponent<Mesh>(cube1);
     cubeMesh->geometryCount = 1;
     cubeMesh->geometries.initialize(cubeMesh->geometryCount);
     GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
@@ -333,31 +357,31 @@ void Engine::initialize() {
     GeometryUtils::destroyConfig(&cubeConfig);
 
     const unsigned int cube2 = ECSSystem.createEntity("Basic_Entity");
-    Mesh* cubeMesh2 = ECSSystem.getComponent<Mesh>(cube2);
+    Mesh* cubeMesh2 = MasterEntityComponentSystem::getComponent<Mesh>(cube2);
     cubeMesh2->geometryCount = 1;
     cubeMesh2->geometries.initialize(cubeMesh2->geometryCount);
     GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
     cubeMesh2->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
-    const auto cube2Transform = ECSSystem.getComponent<Transform>(cube2);
+    const auto cube2Transform = MasterEntityComponentSystem::getComponent<Transform>(cube2);
     cube2Transform->position = Vector3f{10, 0, 1};
     cube2Transform->parent = cube1;
     cube2Transform->bIsDirty = true;
     GeometryUtils::destroyConfig(&cubeConfig2);
 
     const unsigned int cube3 = ECSSystem.createEntity("Basic_Entity");
-    Mesh* cubeMesh3 = ECSSystem.getComponent<Mesh>(cube3);
+    Mesh* cubeMesh3 = MasterEntityComponentSystem::getComponent<Mesh>(cube3);
     cubeMesh3->geometryCount = 1;
     cubeMesh3->geometries.initialize(cubeMesh3->geometryCount);
     GeometryConfig cubeConfig3 = masterRenderSystem.generateCubeConfig(2, 2, 2, 1, 1, "Test_Cube_3", "MaterialTemplate");
     cubeMesh3->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig3, true));
-    const auto cube3Transform = ECSSystem.getComponent<Transform>(cube3);
+    const auto cube3Transform = MasterEntityComponentSystem::getComponent<Transform>(cube3);
     cube3Transform->position = Vector3f{5, 0, 1};
     cube3Transform->parent = cube2;
     cube3Transform->bIsDirty = true;
     GeometryUtils::destroyConfig(&cubeConfig3);
 
     const unsigned int maxwell = ECSSystem.createEntity("Basic_Entity");
-    Mesh* maxwellMesh = ECSSystem.getComponent<Mesh>(maxwell);
+    Mesh* maxwellMesh = MasterEntityComponentSystem::getComponent<Mesh>(maxwell);
     Resource maxwellResource{};
     if (!resourceSystem.load("Maxwell", RESOURCE_TYPE_MESH, maxwellResource)) {
         Logger::logFatal("Maxwell? Maxwell?! MAXWELL!!!!!!!");
@@ -435,6 +459,8 @@ Engine::~Engine() {
     engineEventsSystem.shutdown();
 
     gameInstance.shutdown();
+
+    jobSystem.shutdown();
 
     //Destroy resources in opposite order of creation
     geometrySystem = nullptr;

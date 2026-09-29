@@ -34,6 +34,8 @@ enum MemoryTag {
     REUSABLE_ARRAY,
     MATERIAL,
     ECS,
+    RING_QUEUE,
+    JOB,
     MAX_TAGS
 };
 

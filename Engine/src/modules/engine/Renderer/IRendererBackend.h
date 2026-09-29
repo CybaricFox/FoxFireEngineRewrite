@@ -62,6 +62,7 @@ public:
     virtual Texture* getWindowAttachment(unsigned char index) = 0;
     virtual Texture* getDepthAttachment() = 0;
     virtual unsigned char getWindowAttachmentIndex() = 0;
+    virtual bool isMultithreaded() = 0;
 
     /**
      * @brief Initializes the backend

@@ -44,6 +44,7 @@ private:
     ReusableArray<GeometryData> geometries{};
     AssetMap<Renderpass, AssetContext> renderpasses{};
     RenderTarget worldRenderTargets[3]{};
+    bool bIsMultithreaded = false;
 
 #if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT debugMessenger{};
@@ -79,6 +80,7 @@ public:
     [[nodiscard]] float getDeltaTime() const { return deltaTime; }
     GeometryData& getGeometry(const unsigned int id) { return *geometries.get(id); }
     RenderTarget& getRenderTarget(const unsigned int index) {return worldRenderTargets[index];}
+    [[nodiscard]] bool isMultithreaded() const { return bIsMultithreaded; }
 
     void setWidth(const unsigned int width) {frameBufferWidth = width;}
     void setHeight(const unsigned int height) {frameBufferHeight = height;}
@@ -89,6 +91,7 @@ public:
     void initializeGeometry() {geometries.initialize(MAX_GEOMETRY_COUNT);}
     void initializeRenderpasses() {renderpasses.initialize(VULKAN_MAX_RENDERPASSES);}
     void initializeEvents() {resizeRenderTargetsEvent.registerEvent();}
+    void setMultithread(const bool value) {bIsMultithreaded = value;}
 
     VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}
 

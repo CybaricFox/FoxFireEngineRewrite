@@ -131,6 +131,9 @@ public:
     static void destroyMutex(Mutex& mutex);
     static bool lockMutex(Mutex& mutex);
     static bool unlockMutex(Mutex& mutex);
+    static ULong getCurrentThread() {return platformState->getCurrentThreadId();}
+    static bool createThread(const ThreadFunction threadFunction, void* params, const bool autoDetach, Thread& outThread) {return platformState->createThread(threadFunction, params, autoDetach, outThread);}
+    static void destroyThread(Thread& thread) {platformState->destroyThread(thread);}
+    static void pauseThread(Thread& thread, const ULong ms) {platformState->pauseThread(thread, ms);}
+
 };
-
-

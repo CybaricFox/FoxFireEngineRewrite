@@ -53,6 +53,12 @@ public:
 
     bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount, ResourceSystem *resources) override;
 
+    Renderpass* getRenderpass(String name) override;
+    Texture* getWindowAttachment(unsigned char index) override;
+    Texture* getDepthAttachment() override;
+    unsigned char getWindowAttachmentIndex() override;
+    bool isMultithreaded() override {return vulkanContext.isMultithreaded();}
+
     void setVersion(const GameInstance& gameInstance);
 
     void resize(unsigned short width, unsigned short height) override;
@@ -81,14 +87,7 @@ public:
     void createWritableTexture(Texture& texture) override;
     void resizeTexture(Texture& texture, unsigned int width, unsigned int height) override;
     void writeTextureData(Texture& texture, unsigned int offset, unsigned int size, const unsigned char* pixels) override;
-
-    Renderpass* getRenderpass(String name) override;
-    Texture* getWindowAttachment(unsigned char index) override;
-    Texture* getDepthAttachment() override;
-    unsigned char getWindowAttachmentIndex() override;
-    void createRenderTarget(unsigned char attachmentCount, DynamicArray<Texture *> &attachments, Renderpass &renderpass, unsigned width, unsigned
-                            height, RenderTarget
-                            &outTarget) override;
+    void createRenderTarget(unsigned char attachmentCount, DynamicArray<Texture *> &attachments, Renderpass &renderpass, unsigned width, unsigned height, RenderTarget& outTarget) override;
     void destroyRenderTarget(RenderTarget &target, bool freeMemory) override;
     void createRenderpass(Renderpass &outRenderpass, float depth, unsigned stencil, bool hasPreviousPass, bool hasNextPass) override;
     void destroyRenderpass(Renderpass &renderpass) override;

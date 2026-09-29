@@ -22,6 +22,7 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
+#include "src/modules/engine/Threads/JobSystem.h"
 
 #define MAX_THREAD_COUNT 15
 
@@ -42,9 +43,12 @@ private:
     EngineEvents engineEventsSystem{};
     /** @brief Handles the Component system */
     MasterEntityComponentSystem ECSSystem{};
-
     /** @brief Controls All Rendering. Do not give access to Game!*/
     MasterRenderSystem masterRenderSystem{};
+    /**
+     * @brief Controls multithreading.
+     */
+    JobSystem jobSystem{};
 
     /** @brief Pointer to the derived game class set by the user. */
     Engine* engine = nullptr;

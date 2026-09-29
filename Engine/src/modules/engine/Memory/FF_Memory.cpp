@@ -26,6 +26,8 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 9: return "REUSABLE_ARRAY";
         case 10: return "MATERIAL";
         case 11: return "ECS";
+        case 12: return "RING_QUEUE";
+        case 13: return "JOB";
         default: return " ";
     }
 }

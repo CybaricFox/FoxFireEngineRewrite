@@ -17,7 +17,14 @@
  *  @copyright (c) 2026
  */
 
-using ThreadFunction = void(*)(void*);
+/**
+ * @brief A function used by threads. Returns a Uint and takes a void* as a param.
+ */
+using ThreadFunction = unsigned int(*)(void*);
+/**
+ * @brief A function used by threads. Works identically to ThreadFunction but also includes an outResult argument.
+ */
+using ResultFunction = bool(*)(void*, void*&);
 
 struct Thread {
     ULong id = INVALID_ID_U64;
