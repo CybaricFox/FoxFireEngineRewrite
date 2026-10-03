@@ -41,7 +41,7 @@ public:
      * @param outSize OUT size of the file.
      * @return False if somethign went wrong
      */
-    bool getFileSize(unsigned long& outSize) const;
+    bool getFileSize(ULong &outSize) const;
 
     /**
      * @brief Checks if a file exists
@@ -95,14 +95,14 @@ public:
      * @param outBytesRead OUT bytes read
      * @return True on Success, False on failure
      */
-    bool readAll(unsigned char *&outBytes, unsigned long &outBytesRead) const;
+    bool readAll(unsigned char *&outBytes, ULong &outBytesRead) const;
     /**
      * @brief Reads the entire file (Applicable to Text files)
      * @param outText OUT Text
      * @param outBytesRead OUT bytes read
      * @return True on Success, False on failure
      */
-    bool readAll(String& outText, unsigned long& outBytesRead) const;
+    bool readAll(String &outText, ULong &outBytesRead) const;
 
     /**
      * @brief Writes bytes to a file

@@ -36,16 +36,34 @@ enum JobPriority {
     JOB_PRIORITY_HIGH
 };
 
+struct IThreadParam {
+    virtual ~IThreadParam() = default;
+    virtual void copyTo(IThreadParam* destination) const = 0;
+    virtual void destroy() = 0;
+    virtual ULong getSize() = 0;
+};
+
+template <typename T>
+struct ThreadParam : IThreadParam{
+    void copyTo(IThreadParam *destination) const override {
+        std::construct_at(static_cast<T *>(destination), static_cast<const T&>(*this));
+    }
+    void destroy() override {
+        std::destroy_at(static_cast<T *>(this));
+    }
+    ULong getSize() override {
+        return sizeof(T);
+    }
+};
+
 struct JobContext {
     JobType type{};
     JobPriority priority{};
     ResultFunction entryFunction{};
     ThreadFunction successFunction{};
     ThreadFunction failureFunction{};
-    void* params = nullptr;
-    unsigned int paramsSize = 0;
-    void* result = nullptr;
-    unsigned int resultSize = 0;
+    IThreadParam* params = nullptr;
+    IThreadParam* result = nullptr;
 };
 
 struct JobThread {
@@ -59,8 +77,7 @@ struct JobThread {
 struct JobResultEntry {
     unsigned short id = INVALID_ID_U16;
     ThreadFunction callback{};
-    unsigned int paramsSize = 0;
-    void* params = nullptr;
+    IThreadParam* params = nullptr;
 };
 
 class JobSystem {
@@ -81,14 +98,37 @@ private:
     static JobSystem* instance;
 
     static unsigned int runThread(void* params);
-    static void storeResult(ThreadFunction callback, unsigned int paramSize, const void* params);
+    static void storeResult(ThreadFunction callback, IThreadParam *params);
     void processQueue(RingQueue<JobContext>& queue, Mutex& queueMutex);
 
 public:
     bool initialize(unsigned char maxThreadCount, unsigned int typeMasks[]);
     void shutdown();
 
+    static JobSystem& getInstance() {return *instance;}
+
     void update();
     void submit(JobContext jobContext);
-    JobContext createJob(ResultFunction entryFunction, ThreadFunction successFunction, ThreadFunction failureFunction, const void* params, unsigned int paramsSize, unsigned int resultsSize, JobType type = GENERAL_JOB, JobPriority priority = JOB_PRIORITY_NORMAL);
+
+    template <typename P, typename R>
+    requires (std::same_as<P, void> || std::derived_from<P, IThreadParam>) && (std::same_as<R, void> || std::derived_from<R, IThreadParam>)
+    JobContext createJob(const ResultFunction entryFunction, const ThreadFunction successFunction, const ThreadFunction failureFunction, P* params, const JobType type = GENERAL_JOB, const JobPriority priority = JOB_PRIORITY_NORMAL) {
+        JobContext context{};
+        context.entryFunction = entryFunction;
+        context.successFunction = successFunction;
+        context.failureFunction = failureFunction;
+        context.type = type;
+        context.priority = priority;
+
+        if constexpr (!std::is_void_v<P>) {
+            context.params = static_cast<P*>(FF_Memory::ff_allocate(sizeof(P), JOB));
+            std::construct_at(static_cast<P*>(context.params), *params);
+        }
+        if constexpr (!std::is_void_v<R>) {
+            context.result = static_cast<R *>(FF_Memory::ff_allocate(sizeof(R), JOB));
+            std::construct_at(static_cast<R*>(context.result));
+        }
+
+        return context;
+    }
 };

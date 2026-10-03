@@ -36,7 +36,6 @@ private:
     ReusableArray<GeometryContext> geometries;
 
     Geometry& acquireGeometry(unsigned int id);
-    void releaseGeometry(const Geometry& geometry);
     bool createDefaultGeometries();
     bool createGeometry(GeometryConfig &config, Geometry &geometry);
     void destroyGeometry(Geometry& geometry);
@@ -53,4 +52,5 @@ public:
     GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount, float xTile, float yTile, const String &name, const String &materialName) override;
     GeometryConfig generateCubeConfig(float width, float height, float depth, float xTile, float yTile, const String &name, const String &materialName) override;
     Geometry& acquireGeometry(GeometryConfig &config, bool autoRelease) override;
+    void releaseGeometry(const Geometry& geometry) override;
 };

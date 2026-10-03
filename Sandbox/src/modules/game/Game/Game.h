@@ -8,11 +8,14 @@ struct GameState : BaseGameState {
 };
 
 class Game final : public Engine{
+private:
+    void loadModels();
 public:
     explicit Game(const GameInstance& instance);
     ~Game() override;
 
     Event<void> swapTextureEvent{};
+    Event<void> loadModelsEvent{};
 
 protected:
     void startup() override;

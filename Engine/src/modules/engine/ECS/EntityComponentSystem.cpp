@@ -2,16 +2,16 @@
 // Created by cmorg on 8/12/2026.
 //
 
-#include "MasterEntityComponentSystem.h"
+#include "EntityComponentSystem.h"
 
 #include "Engine_Components/Camera.h"
 #include "Engine_Components/Mesh.h"
 #include "Engine_Components/Transform.h"
 
-AssetMap<EntityManager, AssetContext>* MasterEntityComponentSystem::instances = nullptr;
-DynamicArray<EntityContext>* MasterEntityComponentSystem::entities = nullptr;
+AssetMap<EntityManager, AssetContext>* EntityComponentSystem::instances = nullptr;
+DynamicArray<EntityContext>* EntityComponentSystem::entities = nullptr;
 
-String MasterEntityComponentSystem::getEntityName(const unsigned int id) {
+String EntityComponentSystem::getEntityName(const unsigned int id) {
     if (entities->isEmpty()) return "";
     unsigned int minIndex = 0;
     unsigned int maxIndex = entities->getLength() - 1;
@@ -37,7 +37,7 @@ String MasterEntityComponentSystem::getEntityName(const unsigned int id) {
     return "";
 }
 
-Entity *MasterEntityComponentSystem::createEntityType(const String &name) {
+Entity *EntityComponentSystem::createEntityType(const String &name) {
     AssetContext context{};
     Entity* entity = templates.createAsset(name, context);
     context.bAutoRelease = false;
@@ -45,7 +45,7 @@ Entity *MasterEntityComponentSystem::createEntityType(const String &name) {
     return entity;
 }
 
-void MasterEntityComponentSystem::initialize() {
+void EntityComponentSystem::initialize() {
     templates.initialize(0);
 
     entities = FF_Memory::ff_allocate_class<DynamicArray<EntityContext>>(sizeof(DynamicArray<EntityContext>), DYNAMIC_ARRAY);
@@ -69,7 +69,7 @@ void MasterEntityComponentSystem::initialize() {
     instances->initialize(1024);
 }
 
-void MasterEntityComponentSystem::shutdown() {
+void EntityComponentSystem::shutdown() {
     entities->shutdown();
     FF_Memory::ff_free_class<DynamicArray<EntityContext>>(entities, sizeof(DynamicArray<EntityContext>), DYNAMIC_ARRAY);
 
@@ -84,13 +84,13 @@ void MasterEntityComponentSystem::shutdown() {
     FF_Memory::ff_free_class<AssetMap<EntityManager, AssetContext>>(instances, sizeof(AssetMap<EntityManager, AssetContext>), ECS);
 }
 
-unsigned int MasterEntityComponentSystem::getEntityCount(const String &name) {
+unsigned int EntityComponentSystem::getEntityCount(const String &name) {
     const EntityManager* manager = instances->getAsset(name);
 
     return manager->getEntityCount();
 }
 
-DynamicArray<unsigned int>& MasterEntityComponentSystem::getAllEntitiesOfType(const String &type) {
+DynamicArray<unsigned int>& EntityComponentSystem::getAllEntitiesOfType(const String &type) {
     EntityManager* manager = instances->getAsset(type);
     const unsigned int count = manager->getEntityCount();
     auto& result = *FF_Memory::ff_allocate_class<DynamicArray<unsigned int>>(sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
@@ -103,7 +103,7 @@ DynamicArray<unsigned int>& MasterEntityComponentSystem::getAllEntitiesOfType(co
     return result;
 }
 
-unsigned int MasterEntityComponentSystem::createEntity(const String &name) {
+unsigned int EntityComponentSystem::createEntity(const String &name) {
     Entity* entity = templates.getAsset(name);
     EntityManager* manager = instances->getAsset(name);
 

@@ -2,12 +2,14 @@
 // Created by cmorg on 8/12/2026.
 
 #pragma once
+#include "src/modules/engine/ECS/ECSTypes.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 struct Mesh final : EntityComponentWrapper<Mesh> {
     unsigned short geometryCount = 0;
     DynamicArray<Geometry*> geometries{};
+    unsigned char generation = INVALID_ID_U8;
 
     Mesh() = default;
     ~Mesh() override {
@@ -15,7 +17,7 @@ struct Mesh final : EntityComponentWrapper<Mesh> {
     }
 
     Mesh(const Mesh& other)
-        : geometryCount(other.geometryCount) {
+        : geometryCount(other.geometryCount), generation(other.generation) {
 
         if (!other.geometries.isEmpty()) {
             geometries.initialize(other.geometries.getLength());

@@ -4,10 +4,10 @@
 
 #include "CameraSystem.h"
 
-#include "src/modules/engine/ECS/MasterEntityComponentSystem.h"
+#include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Transform.h"
 
-bool CameraSystem::initialize(const CameraSystemConfig systemConfig, MasterEntityComponentSystem *ecs) {
+bool CameraSystem::initialize(const CameraSystemConfig systemConfig, EntityComponentSystem *ecs) {
     if (systemConfig.maxCameraCount == 0) {
         Logger::logFatal("Camera system config contains a max camera count of 0!");
         return false;
@@ -38,14 +38,14 @@ void CameraSystem::shutdown() {
 
 Camera * CameraSystem::aquireCamera(const unsigned int id) const {
     if (id == defaultId) {
-        auto camera = MasterEntityComponentSystem::getComponent<Camera>(id);
+        auto camera = EntityComponentSystem::getComponent<Camera>(id);
         camera->referenceCount++;
         return camera;
     }
 
-    const auto camera = MasterEntityComponentSystem::getComponent<Camera>(id);
+    const auto camera = EntityComponentSystem::getComponent<Camera>(id);
     if (!camera) {
-        MasterEntityComponentSystem::addComponent<Camera>(id);
+        EntityComponentSystem::addComponent<Camera>(id);
         return nullptr;
     }
 
@@ -54,10 +54,10 @@ Camera * CameraSystem::aquireCamera(const unsigned int id) const {
 }
 
 void CameraSystem::releaseCamera(const unsigned int id) {
-    const auto camera = MasterEntityComponentSystem::getComponent<Camera>(id);
+    const auto camera = EntityComponentSystem::getComponent<Camera>(id);
     camera->referenceCount--;
 
     if (camera->referenceCount == 0 && camera->bAutoRelease) {
-        MasterEntityComponentSystem::removeComponent<Camera>(id);
+        EntityComponentSystem::removeComponent<Camera>(id);
     }
 }

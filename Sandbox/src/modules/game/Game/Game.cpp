@@ -5,6 +5,7 @@
 #include "Game.h"
 
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
 #include "src/modules/system/FoxFire_Renders/SkyboxRenderView.h"
@@ -13,6 +14,18 @@
 #include "src/modules/system/FoxFire_Textures/FoxFire_GeometrySystem.h"
 #include "src/modules/system/FoxFire_Textures/FoxFire_MaterialSystem.h"
 #include "src/modules/system/FoxFire_Textures/FoxFire_TextureSystem.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
+
+void Game::loadModels() {
+    if (!bModelsLoaded) {
+        Logger::logDebug("Loading models");
+        bModelsLoaded = true;
+
+        if (!MeshUtils::loadMeshFromResource("Maxwell", 4)) {
+            Logger::logError("Failed to load Maxwell.");
+        }
+    }
+}
 
 Game::Game(const GameInstance& instance)
     :Engine(instance)
@@ -74,7 +87,10 @@ void Game::startup() {
     skyboxRenderView.setCamera(getDefaultCamera());
 
     inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Engine.quit", KEY_ESCAPE);
-    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {swapTextureEvent.call();}, "Game.swapTexture", KEY_L);
+    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {swapTextureEvent.call();}, "Game.swapTexture", KEY_1);
+    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {loadModelsEvent.call();}, "Game.loadModels", KEY_2);
+
+    loadModelsEvent.subscribe([this](){loadModels();});
 
     Engine::startup();
 }
@@ -88,7 +104,7 @@ bool Game::update(const float deltaTime) {
     }
 
     auto* state = reinterpret_cast<GameState*>(gameInstance.state);
-    Camera& camera = *MasterEntityComponentSystem::getComponent<Camera>(state->worldCamera);
+    Camera& camera = *EntityComponentSystem::getComponent<Camera>(state->worldCamera);
 
     if (inputSystem->isKeyDown(KEY_LEFT)) {
         CameraUtils::adjustYaw(camera, 1.0f * deltaTime);
@@ -140,6 +156,7 @@ void Game::initialize() {
     createGameState<GameState>();
 
     swapTextureEvent.registerEvent();
+    loadModelsEvent.registerEvent();
 
     Engine::initialize();
 }

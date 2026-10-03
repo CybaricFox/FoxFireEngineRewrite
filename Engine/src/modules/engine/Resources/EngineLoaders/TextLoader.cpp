@@ -23,7 +23,7 @@ bool TextLoader::load(const String name, Resource &outResource, const String bas
 
     outResource.path = finalPath;
 
-    unsigned long fileSize = 0;
+    ULong fileSize = 0;
     if (!file.getFileSize(fileSize)) {
         Logger::logError("Text Loader failed to get file size: " + finalPath);
         file.closeFile();
@@ -31,7 +31,7 @@ bool TextLoader::load(const String name, Resource &outResource, const String bas
     }
 
     String string{};
-    unsigned long readSize = 0;
+    ULong readSize = 0;
     const auto resourceData = static_cast<char *>(FF_Memory::ff_allocate(sizeof(char) * fileSize, ARRAY));
     if (!file.readAll(string, readSize)) {
         Logger::logError("Text Loader failed to read file: " + finalPath);

@@ -5,9 +5,13 @@
 #include "FoxFire_TextureSystem.h"
 
 #include "src/modules/engine/Renderer/IRendererBackend.h"
+#include "src/modules/engine/Threads/JobSystem.h"
+
+FoxFire_TextureSystem* FoxFire_TextureSystem::instance = nullptr;
 
 bool FoxFire_TextureSystem::initialize(const unsigned int initialCapacity, IRendererBackend *backend, ResourceSystem *resources) {
     ITextureSystem::initialize(initialCapacity, backend, resources);
+    instance = this;
 
     assets.initialize(initialCapacity);
 
@@ -23,6 +27,8 @@ void FoxFire_TextureSystem::shutdown() {
     }
 
     destroyDefaultTextures();
+
+    instance = nullptr;
 }
 
 Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const bool skipLoad, const String& fileName, const TextureUseCase useCase) {
@@ -46,7 +52,6 @@ Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const bo
     texture->type = TEXTURE_2D;
 
     if (texture == nullptr) return getDefaultByCase(useCase);
-
 
     if (!skipLoad) {
         if (!loadTexture(*texture, fileName)) {
@@ -121,6 +126,70 @@ Texture & FoxFire_TextureSystem::acquireCubeTexture(String name, bool autoReleas
     return *texture;
 }
 
+unsigned int FoxFire_TextureSystem::textureLoadSuccess(void *params) {
+    auto& textureParams = *static_cast<TextureLoadParams *>(params);
+    const auto& resourceData = *static_cast<ImageResourceData *>(textureParams.imageResource.data);
+
+    instance->backendRef->createTexture(resourceData.pixels, textureParams.tempTexture);
+    Texture oldTexture = *textureParams.outTexture;
+    *textureParams.outTexture = textureParams.tempTexture;
+    instance->backendRef->destroyTexture(oldTexture);
+
+    if (textureParams.generation == INVALID_ID_U32) {
+        textureParams.outTexture->generation = 0;
+    } else {
+        textureParams.outTexture->generation = textureParams.generation + 1;
+    }
+
+    Logger::logDebug("Successfully loaded texture " + textureParams.name + " on job thread.");
+
+    instance->resourceRef->unload(textureParams.imageResource);
+
+    return 0;
+}
+
+unsigned int FoxFire_TextureSystem::textureLoadFail(void *params) {
+    auto& textureParams = *static_cast<TextureLoadParams *>(params);
+
+    Logger::logError("Failed to load texture: " + textureParams.name);
+    instance->resourceRef->unload(textureParams.imageResource);
+
+    return 0;
+}
+
+bool FoxFire_TextureSystem::textureLoadStart(void *params, void* result) {
+    auto& loadParams = *static_cast<TextureLoadParams *>(params);
+
+    ImageParameters resourceParams{};
+    resourceParams.bFlipY = true;
+
+    const bool loadResult = instance->resourceRef->load(loadParams.name, RESOURCE_TYPE_IMAGE, loadParams.imageResource, &resourceParams);
+
+    const auto imageData = static_cast<ImageResourceData *>(loadParams.imageResource.data);
+
+    loadParams.tempTexture.width = imageData->width;
+    loadParams.tempTexture.height = imageData->height;
+    loadParams.tempTexture.channelCount = imageData->channelCount;
+    loadParams.generation = loadParams.outTexture->generation;
+    loadParams.outTexture->generation = INVALID_ID_U32; //Prevents the texture from being used while its loading
+
+    const ULong totalSize = loadParams.tempTexture.width * loadParams.tempTexture.height * loadParams.tempTexture.channelCount;
+    bool isTransparent = false;
+    for (ULong i = 0; i < totalSize; i+= loadParams.tempTexture.channelCount) {
+        if (imageData->pixels[i + 3] < 255) {
+            isTransparent = true;
+            break;
+        }
+    }
+
+    loadParams.tempTexture.name = loadParams.name;
+    loadParams.tempTexture.generation = INVALID_ID_U32;
+    loadParams.tempTexture.flags |= isTransparent ? TEXTURE_BIT_TRANSPARENT : 0;
+    *static_cast<TextureLoadParams*>(result) = loadParams;
+
+    return loadResult;
+}
+
 Texture & FoxFire_TextureSystem::getDefaultByCase(const TextureUseCase useCase) {
     switch (useCase) {
         case TEXTURE_USE_MAP_DIFFUSE: return defaultDiffuseTexture;
@@ -186,51 +255,13 @@ void FoxFire_TextureSystem::destroyDefaultTextures() {
 }
 
 bool FoxFire_TextureSystem::loadTexture(Texture& texture, const String &fileName) const {
-    ImageParameters params{};
-    params.bFlipY = true;
+    TextureLoadParams loadParams{};
+    loadParams.name = fileName;
+    loadParams.outTexture = &texture;
+    loadParams.generation = texture.generation;
 
-    Resource imageResource{};
-    if (!resourceRef->load(fileName, RESOURCE_TYPE_IMAGE, imageResource, &params)) {
-        Logger::logError("Failed to load image resource for texture: " + fileName);
-        return false;
-    }
-
-    const auto* resourceData = static_cast<ImageResourceData *>(imageResource.data);
-
-    Texture tempTexture{};
-    tempTexture.width = resourceData->width;
-    tempTexture.height = resourceData->height;
-    tempTexture.channelCount = resourceData->channelCount;
-
-    const unsigned int currentGeneration = texture.generation;
-    texture.generation = INVALID_ID_U32;
-    const unsigned long totalSize = tempTexture.width * tempTexture.height * tempTexture.channelCount;
-
-    //transparency
-    TextureFlagBits flags = 0;
-    for (unsigned long i = 0; i < totalSize; i += tempTexture.channelCount) {
-        const unsigned char a = resourceData->pixels[i + 3];
-        if (a < 255) {
-            flags = TEXTURE_BIT_TRANSPARENT;
-            break;
-        }
-    }
-
-    tempTexture.name = fileName;
-    tempTexture.generation = INVALID_ID_U32;
-    tempTexture.flags = flags;
-
-    backendRef->createTexture(resourceData->pixels, tempTexture);
-    destroyTexture(texture);
-    texture = tempTexture;
-
-    if (currentGeneration == INVALID_ID_U32) {
-        texture.generation = 0;
-    } else {
-        texture.generation = currentGeneration + 1;
-    }
-
-    resourceRef->unload(imageResource);
+    const JobContext job = JobSystem::getInstance().createJob<TextureLoadParams, TextureLoadParams>(textureLoadStart, textureLoadSuccess, textureLoadFail, &loadParams, RESOURCE_LOAD_JOB, JOB_PRIORITY_HIGH);
+    JobSystem::getInstance().submit(job);
     return true;
 }
 

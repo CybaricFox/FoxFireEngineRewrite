@@ -7,6 +7,7 @@
 #include "TextureUtils.h"
 #include "../Library/Logger.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 
 Texture MasterRenderSystem::createBlankTexture() {
     Texture texture{};
@@ -148,7 +149,9 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
 bool MasterRenderSystem::initializeTextureSystem(const unsigned int initialCapacity, ITextureSystem *system, ResourceSystem* resourceSystem) {
     textureSystem = system;
     TextureUtils::setTextureSystemRef(textureSystem);
-    return textureSystem->initialize(initialCapacity, backend, resourceSystem);
+    const bool result = textureSystem->initialize(initialCapacity, backend, resourceSystem);
+    backend->setDefaultTextureReferences(&getDefaultDiffuseTexture(), &getDefaultSpecularTexture(), &getDefaultNormalTexture());
+    return result;
 }
 
 bool MasterRenderSystem::initializeMaterialSystem(const MaterialSystemConfig config, IMaterialSystem *system, ResourceSystem* resourceSystem) {
@@ -158,6 +161,9 @@ bool MasterRenderSystem::initializeMaterialSystem(const MaterialSystemConfig con
 
 bool MasterRenderSystem::initializeGeometrySystem(const unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem* resourceSystem) {
     geometrySystem = system;
+
+    MeshUtils::setGeometrySystemRef(geometrySystem);
+
     return geometrySystem->initialize(initialCapacity, backend, materialSystem, resourceSystem);
 }
 
@@ -207,7 +213,7 @@ bool MasterRenderSystem::initializeShaderSystem(const ShaderSystemConfig& config
     return true;
 }
 
-bool MasterRenderSystem::initializeCameraSystem(const CameraSystemConfig &config, MasterEntityComponentSystem* ecsRef) {
+bool MasterRenderSystem::initializeCameraSystem(const CameraSystemConfig &config, EntityComponentSystem* ecsRef) {
     const bool result = cameraSystem.initialize(config, ecsRef);
     if (result) {
 
@@ -239,7 +245,7 @@ bool MasterRenderSystem::initializeSkybox() {
     skybox.frameNumber = INVALID_ID_U64;
     const Shader& skyboxShader = *shaderSystem.getShader(DEFAULT_SKYBOX_SHADER_NAME);
     TextureMap* maps[1] = {&skybox.map};
-    if (!backend->acquireInstanceResources(skyboxShader, skybox.instanceId, textureSystem->getDefaultDiffuseTexture(), &maps[0])) {
+    if (!backend->acquireInstanceResources(skyboxShader, skybox.instanceId, &maps[0])) {
         Logger::logFatal("Failed to acquire instance resources for skybox!");
         return false;
     }

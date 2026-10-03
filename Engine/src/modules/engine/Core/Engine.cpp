@@ -6,6 +6,7 @@
 
 #include "../Library/Logger.h"
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
 #include "src/modules/engine/Library/JsonHandler.h"
@@ -80,13 +81,13 @@ void Engine::run() {
             const unsigned int meshCount = ECSSystem.getEntityCount("Basic_Entity");
             if (meshCount > 0) {
                 const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, 0.5f * static_cast<float>(deltaTime), false);
-                TransformUtils::addRotation(*MasterEntityComponentSystem::getComponent<Transform>(1), rotation);
+                TransformUtils::addRotation(*EntityComponentSystem::getComponent<Transform>(1), rotation);
 
                 if (meshCount > 1) {
-                    TransformUtils::addRotation(*MasterEntityComponentSystem::getComponent<Transform>(2), rotation);
+                    TransformUtils::addRotation(*EntityComponentSystem::getComponent<Transform>(2), rotation);
                 }
                 if (meshCount > 2) {
-                    TransformUtils::addRotation(*MasterEntityComponentSystem::getComponent<Transform>(3), rotation);
+                    TransformUtils::addRotation(*EntityComponentSystem::getComponent<Transform>(3), rotation);
                 }
             }
 
@@ -99,18 +100,32 @@ void Engine::run() {
             masterRenderSystem.buildSkybox(packet);
 
             MeshPacketData worldMeshData{};
-            worldMeshData.meshCount = meshCount;
+            DynamicArray<unsigned int> worldMeshes{0};
             DynamicArray<unsigned int>& basicEntities = ECSSystem.getAllEntitiesOfType("Basic_Entity");
-            worldMeshData.meshes = basicEntities.getData(); //All of these entities have meshes
+            for (unsigned int i = 0; i < meshCount; i++) {
+                const Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(basicEntities[i]);
+                if (mesh.generation != INVALID_ID_U8) {
+                    worldMeshes.push(basicEntities[i]);
+                }
+            }
+            worldMeshData.meshCount = worldMeshes.getLength();
+            worldMeshData.meshes = worldMeshes.getData(); //All of these entities have meshes
             if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_World_View"), &worldMeshData, packet.views[1])) {
                 Logger::logError("Failed to build world packet");
                 return;
             }
 
             MeshPacketData uiMeshData{};
-            uiMeshData.meshCount = ECSSystem.getEntityCount("Basic_UI");
+            DynamicArray<unsigned int> uiMeshes{0};
             DynamicArray<unsigned int>& uiEntities = ECSSystem.getAllEntitiesOfType("Basic_UI");
-            uiMeshData.meshes = uiEntities.getData(); //All of these entities have meshes
+            for (unsigned int i = 0; i < uiEntities.getLength(); i++) {
+                const Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(uiEntities[i]);
+                if (mesh.generation != INVALID_ID_U8) {
+                    uiMeshes.push(uiEntities[i]);
+                }
+            }
+            uiMeshData.meshCount = uiMeshes.getLength();
+            uiMeshData.meshes = uiMeshes.getData(); //All of these entities have meshes
             if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiMeshData, packet.views[2])) {
                 Logger::logError("Failed to build ui packet");
                 return;
@@ -261,6 +276,7 @@ void Engine::initialize() {
         Logger::logFatal("Failed to initialize the resource system!");
         return;
     }
+    MeshUtils::setResourceSystemRef(&resourceSystem);
 
     //Start renderer
     if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance, resourceSystem)) {
@@ -348,62 +364,51 @@ void Engine::initialize() {
 
     //Temp code
     const unsigned int cube1 = ECSSystem.createEntity("Basic_Entity");
-    Mesh* cubeMesh = MasterEntityComponentSystem::getComponent<Mesh>(cube1);
+    Mesh* cubeMesh = EntityComponentSystem::getComponent<Mesh>(cube1);
     cubeMesh->geometryCount = 1;
     cubeMesh->geometries.initialize(cubeMesh->geometryCount);
     GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
 
     cubeMesh->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
+    cubeMesh->generation = 0;
     GeometryUtils::destroyConfig(&cubeConfig);
 
     const unsigned int cube2 = ECSSystem.createEntity("Basic_Entity");
-    Mesh* cubeMesh2 = MasterEntityComponentSystem::getComponent<Mesh>(cube2);
+    Mesh* cubeMesh2 = EntityComponentSystem::getComponent<Mesh>(cube2);
     cubeMesh2->geometryCount = 1;
     cubeMesh2->geometries.initialize(cubeMesh2->geometryCount);
     GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
     cubeMesh2->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
-    const auto cube2Transform = MasterEntityComponentSystem::getComponent<Transform>(cube2);
+    const auto cube2Transform = EntityComponentSystem::getComponent<Transform>(cube2);
     cube2Transform->position = Vector3f{10, 0, 1};
     cube2Transform->parent = cube1;
     cube2Transform->bIsDirty = true;
+    cubeMesh2->generation = 0;
     GeometryUtils::destroyConfig(&cubeConfig2);
 
     const unsigned int cube3 = ECSSystem.createEntity("Basic_Entity");
-    Mesh* cubeMesh3 = MasterEntityComponentSystem::getComponent<Mesh>(cube3);
+    Mesh* cubeMesh3 = EntityComponentSystem::getComponent<Mesh>(cube3);
     cubeMesh3->geometryCount = 1;
     cubeMesh3->geometries.initialize(cubeMesh3->geometryCount);
     GeometryConfig cubeConfig3 = masterRenderSystem.generateCubeConfig(2, 2, 2, 1, 1, "Test_Cube_3", "MaterialTemplate");
     cubeMesh3->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig3, true));
-    const auto cube3Transform = MasterEntityComponentSystem::getComponent<Transform>(cube3);
+    const auto cube3Transform = EntityComponentSystem::getComponent<Transform>(cube3);
     cube3Transform->position = Vector3f{5, 0, 1};
     cube3Transform->parent = cube2;
     cube3Transform->bIsDirty = true;
+    cubeMesh3->generation = 0;
     GeometryUtils::destroyConfig(&cubeConfig3);
 
     const unsigned int maxwell = ECSSystem.createEntity("Basic_Entity");
-    Mesh* maxwellMesh = MasterEntityComponentSystem::getComponent<Mesh>(maxwell);
-    Resource maxwellResource{};
-    if (!resourceSystem.load("Maxwell", RESOURCE_TYPE_MESH, maxwellResource)) {
-        Logger::logFatal("Maxwell? Maxwell?! MAXWELL!!!!!!!");
-        return;
-    } else {
-        GeometryConfig* maxwellConfigs = &(*static_cast<DynamicArray<GeometryConfig>*>(maxwellResource.data))[0];
-        maxwellMesh->geometryCount = maxwellResource.dataSize; //Data size in this context is the number of geometries
-        maxwellMesh->geometries.initialize(maxwellMesh->geometryCount);
-        for (unsigned int i = 0; i < maxwellMesh->geometryCount; i++) {
-            GeometryConfig* currentConfig = &maxwellConfigs[i];
-            maxwellMesh->geometries.push(&masterRenderSystem.acquireGeometry(maxwellConfigs[i], true));
-        }
-        const auto maxwellTransform = ECSSystem.getComponent<Transform>(maxwell);
-        maxwellTransform->position = Vector3f{15, 0, 1};
-        maxwellTransform->scale = Vector3f{10, 10, 10};
-        maxwellTransform->bIsDirty = true;
-        resourceSystem.unload(maxwellResource);
-    }
+
+    const auto maxwellTransform = EntityComponentSystem::getComponent<Transform>(maxwell);
+    maxwellTransform->position = Vector3f{15, 0, 1};
+    maxwellTransform->scale = Vector3f{10, 10, 10};
+    maxwellTransform->bIsDirty = true;
 
     //Ui geo
     const unsigned int ui1 = ECSSystem.createEntity("Basic_UI");
-    Mesh* ui1Mesh = ECSSystem.getComponent<Mesh>(ui1);
+    Mesh* ui1Mesh = EntityComponentSystem::getComponent<Mesh>(ui1);
     ui1Mesh->geometryCount = 1;
     ui1Mesh->geometries.initialize(ui1Mesh->geometryCount);
 
@@ -439,6 +444,7 @@ void Engine::initialize() {
     }
 
     ui1Mesh->geometries[0] = &masterRenderSystem.acquireGeometry(configUI, true);
+    ui1Mesh->generation = 0;
     //End temp code
 
     startup();

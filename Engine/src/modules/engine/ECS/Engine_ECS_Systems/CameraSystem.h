@@ -17,7 +17,7 @@
  */
 
 #define DEFAULT_CAMERA_NAME "default"
-#include "src/modules/engine/ECS/MasterEntityComponentSystem.h"
+#include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Camera.h"
 
 struct CameraSystemConfig {
@@ -31,10 +31,10 @@ class CameraSystem {
 private:
     CameraSystemConfig config{};
     unsigned int defaultId = INVALID_ID_U32;
-    MasterEntityComponentSystem* ecsRef = nullptr;
+    EntityComponentSystem* ecsRef = nullptr;
 
 public:
-    bool initialize(CameraSystemConfig systemConfig, MasterEntityComponentSystem* ecs);
+    bool initialize(CameraSystemConfig systemConfig, EntityComponentSystem* ecs);
     void shutdown();
 
     [[nodiscard]] unsigned int getDefaultCamera() const {return defaultId;}

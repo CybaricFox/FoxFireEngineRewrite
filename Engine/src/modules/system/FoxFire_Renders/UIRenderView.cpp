@@ -4,7 +4,7 @@
 
 #include "UIRenderView.h"
 
-#include "src/modules/engine/ECS/MasterEntityComponentSystem.h"
+#include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
 #include "src/modules/engine/ECS/Engine_Components/Transform.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
@@ -49,9 +49,9 @@ bool UIRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     outPacket.viewMatrix = viewMatrix;
 
     for (unsigned int i = 0; i < meshData.meshCount; i++) {
-        Mesh& mesh = *MasterEntityComponentSystem::getComponent<Mesh>(meshData.meshes[i]);
+        Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(meshData.meshes[i]);
         for (unsigned int j = 0; j < mesh.geometryCount; j++) {
-            Transform& transform = *MasterEntityComponentSystem::getComponent<Transform>(meshData.meshes[i]);
+            Transform& transform = *EntityComponentSystem::getComponent<Transform>(meshData.meshes[i]);
             GeometryRenderData& renderData = *outPacket.geometries.emplace();
             renderData.geometry = mesh.geometries[j];
             renderData.model = TransformUtils::getWorldPos(transform);
@@ -99,7 +99,7 @@ bool UIRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumber
             materialSystemRef->applyLocal(*material, &outPacket.geometries[i].model);
 
             //In this case, the default material has the default texture.
-            backendRef->drawGeometry(outPacket.geometries[i], *materialSystemRef->getDefaultMaterial().diffuseMap.texture, materialSystemRef->getDefaultMaterial());
+            backendRef->drawGeometry(outPacket.geometries[i], materialSystemRef->getDefaultMaterial());
 
             if (!backendRef->endRenderpass(*renderpass)) {
                 Logger::logError("Failed to end ui render pass.");

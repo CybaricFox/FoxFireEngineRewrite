@@ -15,10 +15,19 @@
 #include <foxfire_export.h>
 #include "IRendererBackend.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
+#include "src/modules/engine/Threads/JobSystem.h"
 
 #define DEFAULT_DIFFUSE_TEXTURE_NAME "default"
 #define DEFAULT_SPECULAR_TEXTURE_NAME "default_specular"
 #define DEFAULT_NORMAL_TEXTURE_NAME "default_normal"
+
+struct TextureLoadParams final : ThreadParam<TextureLoadParams> {
+    String name{};
+    Texture* outTexture = nullptr;
+    Texture tempTexture{};
+    unsigned int generation = INVALID_ID_U32;
+    Resource imageResource{};
+};
 
 /**
  * @brief Abstract class that controls textures.

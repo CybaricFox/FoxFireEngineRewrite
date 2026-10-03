@@ -64,7 +64,7 @@ public:
     void resize(unsigned short width, unsigned short height) override;
     bool beginFrame(float deltaTime) override;
     bool endFrame(float deltaTime) override;
-    void drawGeometry(const GeometryRenderData &data, Texture &defaultTexture, Material &defaultMaterial) override;
+    void drawGeometry(const GeometryRenderData &data, Material &defaultMaterial) override;
     void createTexture(const unsigned char *pixels, Texture &texture) override;
     void destroyTexture(Texture &texture) override;
     bool createGeometry(Geometry &geometry, unsigned int vertexSize, unsigned int vertexCount, Vertex* vertices, unsigned int indexSize, unsigned int indexCount, void *indices) override;
@@ -80,7 +80,7 @@ public:
     bool setUniform(Shader &shader, ShaderUniform &uniform, void *value) override;
     bool applyShaderGlobals(Shader &shader) override;
     bool applyShaderInstance(Shader &shader, bool update) override;
-    bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap **maps) override;
+    bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, TextureMap **maps) override;
     bool releaseInstanceResources(const Shader &shader, unsigned int instanceId) override;
     bool acquireTextureMapResources(TextureMap &textureMap) override;
     void releaseTextureMapResources(TextureMap &textureMap) override;

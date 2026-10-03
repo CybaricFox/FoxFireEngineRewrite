@@ -92,4 +92,5 @@ public:
      * @return The acquired geometry, or default if something goes wrong.
      */
     virtual Geometry& acquireGeometry(GeometryConfig &config, bool autoRelease) = 0;
+    virtual void releaseGeometry(const Geometry& geometry) = 0;
 };

@@ -23,7 +23,7 @@ bool BinaryLoader::load(const String name, Resource &outResource, const String b
 
     outResource.path = finalPath;
 
-    unsigned long fileSize = 0;
+    ULong fileSize = 0;
     if (!file.getFileSize(fileSize)) {
         Logger::logError("Binary Loader failed to get file size: " + finalPath);
         file.closeFile();
@@ -31,7 +31,7 @@ bool BinaryLoader::load(const String name, Resource &outResource, const String b
     }
 
     auto resourceData = static_cast<unsigned char *>(FF_Memory::ff_allocate(sizeof(unsigned char) * fileSize, ARRAY));
-    unsigned long readSize = 0;
+    ULong readSize = 0;
     if (!file.readAll(resourceData, readSize)) {
         Logger::logError("Binary Loader failed to read file: " + finalPath);
         file.closeFile();

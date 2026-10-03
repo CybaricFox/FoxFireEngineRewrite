@@ -26,6 +26,14 @@ IRendererBackend* IRendererBackend::create(const RendererBackendType type, IPlat
     return backend;
 }
 
-IRendererBackend::~IRendererBackend() {
+void IRendererBackend::setDefaultTextureReferences(Texture *diffuse, Texture *specular, Texture *normal) {
+    defaultDiffuseTexture = diffuse;
+    defaultSpecularTexture = specular;
+    defaultNormalTexture = normal;
+}
 
+IRendererBackend::~IRendererBackend() {
+    defaultDiffuseTexture = nullptr;
+    defaultSpecularTexture = nullptr;
+    defaultNormalTexture = nullptr;
 }

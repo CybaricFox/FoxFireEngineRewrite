@@ -130,7 +130,7 @@ bool FoxFire_MaterialSystem::createDefaultMaterial() {
 
     TextureMap* maps[3]{&defaultMaterial.diffuseMap, &defaultMaterial.specularMap, &defaultMaterial.normalMap};
     const Shader* shader = shaderRef->getShader(DEFAULT_MATERIAL_SHADER_NAME);
-    if (!backendRef->acquireInstanceResources(*shader, defaultMaterial.internalId, textureSystemRef->getDefaultDiffuseTexture(), maps)) {
+    if (!backendRef->acquireInstanceResources(*shader, defaultMaterial.internalId, maps)) {
         Logger::logFatal("Failed to acquire resources for the default material.");
         return false;
     }
@@ -220,7 +220,7 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
     }
 
     TextureMap* maps[3]{&material.diffuseMap, &material.specularMap, &material.normalMap};
-    if (!backendRef->acquireInstanceResources(*shader, material.internalId, textureSystemRef->getDefaultDiffuseTexture(), maps)) {
+    if (!backendRef->acquireInstanceResources(*shader, material.internalId, maps)) {
         Logger::logError("Failed to acquire resources for material " + material.name + "!");
         return false;
     }

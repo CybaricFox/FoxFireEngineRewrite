@@ -5,6 +5,7 @@
 #include "ImageLoader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
+#define STBI_NO_STDIO
 #include <filesystem>
 
 #include "src/modules/engine/Memory/FF_Memory.h"
@@ -24,7 +25,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     const auto imageParams = reinterpret_cast<ImageParameters *>(params);
 
     constexpr int requiredChannelCount = 4;
-    stbi_set_flip_vertically_on_load(imageParams->bFlipY); //stb loads the image from down to top, this effectively makes it read top to down.
+    stbi_set_flip_vertically_on_load_thread(imageParams->bFlipY); //stb loads the image from down to top, this effectively makes it read top to down.
 
     String finalPath{};
     constexpr int IMAGE_EXTENSION_COUNT = 5;
@@ -38,38 +39,77 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
         }
     }
 
+    outResource.path = finalPath;
+    outResource.name = name;
+
     if (!found) {
         Logger::logError("Failed to load image file " + finalPath + " with any supported extension.");
+        return false;
+    }
+
+    FileHandler file{};
+    if (!file.openFile(finalPath, READ, true)) {
+        Logger::logError("Failed to read image file " + finalPath);
+        file.closeFile();
+        return false;
+    }
+
+    ULong fileSize = 0;
+    if (!file.getFileSize(fileSize)) {
+        Logger::logError("Failed to get size of image file " + finalPath);
+        file.closeFile();
         return false;
     }
 
     int width = 0;
     int height = 0;
     int channelCount = 0;
-    unsigned char* data = stbi_load(finalPath.c_str(), &width, &height, &channelCount, requiredChannelCount);
 
+    auto data = static_cast<unsigned char *>(FF_Memory::ff_allocate(fileSize, TEXTURE));
     if (!data) {
-        Logger::logError("Image Resource loader failed to load file: " + finalPath);
+        Logger::logError("Image Resource loader failed to allocate file: " + finalPath);
+        file.closeFile();
         return false;
     }
 
-    outResource.path = finalPath;
+    ULong bytesRead = 0;
+    const bool result = file.readAll(data, bytesRead);
+    file.closeFile();
+
+    if (!result) {
+        Logger::logError("Image Resource Loader failed to read file: " + finalPath);
+        return false;
+    }
+
+    if (bytesRead != fileSize) {
+        Logger::logError("Image Resource Loader read " + std::to_string(bytesRead) + " bytes but the file size is " + std::to_string(fileSize));
+        return false;
+    }
+
+    unsigned char* stbData = stbi_load_from_memory(data, static_cast<int>(fileSize), &width, &height, &channelCount, requiredChannelCount);
+    if (!stbData) {
+        Logger::logError("Image Resource Loader failed to load file: " + finalPath);
+        return false;
+    }
+
     const auto resourceData = static_cast<ImageResourceData *>(FF_Memory::ff_allocate(sizeof(ImageResourceData), TEXTURE));
-    resourceData->pixels = data;
+    resourceData->pixels = stbData;
     resourceData->width = width;
     resourceData->height = height;
     resourceData->channelCount = requiredChannelCount;
-
     outResource.data = resourceData;
     outResource.dataSize = sizeof(ImageResourceData);
-    outResource.name = name;
+
+    FF_Memory::ff_free(data, fileSize, TEXTURE);
 
     return true;
 }
 
 void ImageLoader::unload(Resource &resource) {
     const auto resourceData = static_cast<ImageResourceData *>(resource.data);
-    stbi_image_free(resourceData->pixels);
+    if (resourceData) {
+        stbi_image_free(resourceData->pixels);
+    }
 
     ResourceLoader::unload(resource);
 }

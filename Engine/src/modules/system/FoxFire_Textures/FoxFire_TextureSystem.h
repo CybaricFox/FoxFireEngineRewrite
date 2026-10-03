@@ -30,6 +30,7 @@ private:
     Texture defaultSpecularTexture{};
     Texture defaultNormalTexture{};
     AssetMap<Texture, AssetContext> assets{};
+    static FoxFire_TextureSystem* instance;
 
     Texture& getDefaultByCase(TextureUseCase useCase);
 
@@ -38,6 +39,10 @@ private:
     bool loadTexture(Texture &texture, const String &fileName) const;
     bool loadCubeTexture(const String &name, const String textureNames[6], Texture& texture) const;
     void destroyTexture(Texture &texture) const;
+
+    static unsigned int textureLoadSuccess(void *params);
+    static unsigned int textureLoadFail(void* params);
+    static bool textureLoadStart(void *params, void *result);
 
 public:
     FoxFire_TextureSystem();
@@ -52,7 +57,6 @@ public:
 
     Texture &acquireTexture(bool autoRelease, bool skipLoad, const String &fileName, TextureUseCase useCase) override;
     void releaseTexture(String name) override;
-
     Texture & acquireWritableTexture(String name, unsigned width, unsigned height, unsigned char channelCount, bool isTransparent) override;
     Texture & acquireCubeTexture(String name, bool autoRelease) override;
 };

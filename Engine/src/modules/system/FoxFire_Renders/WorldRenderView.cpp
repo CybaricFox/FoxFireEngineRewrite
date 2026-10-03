@@ -4,7 +4,7 @@
 
 #include "WorldRenderView.h"
 
-#include "src/modules/engine/ECS/MasterEntityComponentSystem.h"
+#include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
@@ -107,7 +107,7 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
         return false;
     }
     const MeshPacketData& meshData = *static_cast<MeshPacketData *>(data);
-    Camera& camera = *MasterEntityComponentSystem::getComponent<Camera>(worldCamera);
+    Camera& camera = *EntityComponentSystem::getComponent<Camera>(worldCamera);
 
     outPacket.geometries.initialize();
     outPacket.renderView = this;
@@ -120,8 +120,8 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
 
 
     for (unsigned int i = 0; i < meshData.meshCount; i++) {
-        Mesh& mesh = *MasterEntityComponentSystem::getComponent<Mesh>(meshData.meshes[i]);
-        Transform& transform = *MasterEntityComponentSystem::getComponent<Transform>(meshData.meshes[i]);
+        Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(meshData.meshes[i]);
+        Transform& transform = *EntityComponentSystem::getComponent<Transform>(meshData.meshes[i]);
         Mat4 model = TransformUtils::getWorldPos(transform);
 
         for (unsigned int j = 0; j < mesh.geometryCount; j++) {
@@ -194,7 +194,7 @@ bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long fr
             materialSystemRef->applyLocal(*material, &outPacket.geometries[i].model);
 
             //In this case, the default material has the default texture.
-            backendRef->drawGeometry(outPacket.geometries[i], *materialSystemRef->getDefaultMaterial().diffuseMap.texture, materialSystemRef->getDefaultMaterial());
+            backendRef->drawGeometry(outPacket.geometries[i], materialSystemRef->getDefaultMaterial());
         }
 
         if (!backendRef->endRenderpass(*renderpass)) {

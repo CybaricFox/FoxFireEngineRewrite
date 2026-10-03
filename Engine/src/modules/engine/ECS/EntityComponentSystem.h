@@ -9,7 +9,7 @@
 #include "src/modules/engine/Memory/DynamicArray.h"
 
 /**
- *  @file MasterEntityComponentSystem.h
+ *  @file EntityComponentSystem.h
  *  @layer Engine
  *  @module ECS
  *  @author CybaricFox
@@ -37,7 +37,7 @@ struct EntityContext {
 /**
  * @brief Controls entity components
  */
-class FOXFIRE_API MasterEntityComponentSystem {
+class FOXFIRE_API EntityComponentSystem {
 private:
     /**
      * @brief The next id that will be assigned

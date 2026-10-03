@@ -10,7 +10,7 @@
 #include "Logger.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 
-bool FileHandler::getFileSize(unsigned long &outSize) const {
+bool FileHandler::getFileSize(ULong &outSize) const {
     if (!handle) return false;
 
     fseek(handle, 0, SEEK_END);
@@ -109,19 +109,19 @@ bool FileHandler::read(const unsigned long size, void *outData, unsigned long &o
     return true;
 }
 
-bool FileHandler::readAll(unsigned char*& outBytes, unsigned long &outBytesRead) const {
+bool FileHandler::readAll(unsigned char*& outBytes, ULong &outBytesRead) const {
     if (!handle) return false;
 
-    unsigned long size = 0;
+    ULong size = 0;
     getFileSize(size);
 
     outBytesRead = fread(outBytes, 1, size, handle);
     return outBytesRead == size;
 }
-bool FileHandler::readAll(String &outText, unsigned long &outBytesRead) const {
+bool FileHandler::readAll(String &outText, ULong &outBytesRead) const {
     if (!handle) return false;
 
-    unsigned long size = 0;
+    ULong size = 0;
     getFileSize(size);
 
     outBytesRead = fread(&outText, 1, size, handle);

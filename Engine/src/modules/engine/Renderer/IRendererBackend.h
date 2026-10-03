@@ -39,6 +39,9 @@ private:
 protected:
     IRendererBackend() = default;
     ResourceSystem* resourceSystemRef = nullptr;
+    Texture* defaultDiffuseTexture = nullptr;
+    Texture* defaultSpecularTexture = nullptr;
+    Texture* defaultNormalTexture = nullptr;
 
 public:
     virtual ~IRendererBackend();
@@ -72,6 +75,8 @@ public:
      */
     virtual bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount, ResourceSystem *resources) = 0;
 
+    void setDefaultTextureReferences(Texture* diffuse, Texture* specular, Texture* normal);
+
     /**
      * @brief Runs at the start of the frame
      * @param deltaTime time this frame took
@@ -96,10 +101,9 @@ public:
     /**
      * @brief Draws geometry to screen
      * @param data Geometry data
-     * @param defaultTexture Reference to the Texture Systems default texture
      * @param defaultMaterial Reference to the Material Systems default material
      */
-    virtual void drawGeometry(const GeometryRenderData &data, Texture &defaultTexture, Material &defaultMaterial) = 0;
+    virtual void drawGeometry(const GeometryRenderData &data, Material &defaultMaterial) = 0;
 
     /**
      * @brief Creates a texture out of pixel data
@@ -219,11 +223,10 @@ public:
      * @brief
      * @param shader Shader to use
      * @param outInstanceId
-     * @param defaultTexture Reference to the Texture Systems default texture
      * @param maps
      * @return false on failure
      */
-    virtual bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap **maps) = 0;
+    virtual bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, TextureMap **maps) = 0;
 
     /**
      * @brief

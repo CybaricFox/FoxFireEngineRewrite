@@ -4,7 +4,7 @@
 
 #include "SkyboxRenderView.h"
 
-#include "src/modules/engine/ECS/MasterEntityComponentSystem.h"
+#include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Camera.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 
@@ -27,7 +27,7 @@ bool SkyboxRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
         Logger::logWarn("Skybox packet data is null! It cannot be built!");
         return false;
     }
-    Camera& camera = *MasterEntityComponentSystem::getComponent<Camera>(worldCamera);
+    Camera& camera = *EntityComponentSystem::getComponent<Camera>(worldCamera);
 
     outPacket.geometries.initialize();
     outPacket.renderView = this;
@@ -52,7 +52,7 @@ bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long f
             return false;
         }
 
-        Camera& camera = *MasterEntityComponentSystem::getComponent<Camera>(worldCamera);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(worldCamera);
         Mat4 view = CameraUtils::getViewMatrix(camera);
         view.data[12] = 0;
         view.data[13] = 0;
@@ -81,7 +81,7 @@ bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long f
 
         GeometryRenderData renderData{};
         renderData.geometry = boxData.skybox->geometry;
-        backendRef->drawGeometry(renderData, *materialSystemRef->getDefaultMaterial().diffuseMap.texture,materialSystemRef->getDefaultMaterial());
+        backendRef->drawGeometry(renderData,materialSystemRef->getDefaultMaterial());
 
         if (!backendRef->endRenderpass(*renderpass)) {
             Logger::logError("Failed to end skybox render pass.");

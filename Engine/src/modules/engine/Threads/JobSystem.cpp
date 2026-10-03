@@ -36,16 +36,20 @@ unsigned int JobSystem::runThread(void *params) {
             const bool result = context.entryFunction(context.params, context.result);
 
             if (result && context.successFunction) {
-                storeResult(context.successFunction, context.resultSize, context.result);
+                storeResult(context.successFunction, context.result);
             } else if (!result && context.failureFunction) {
-                storeResult(context.failureFunction, context.resultSize, context.result);
+                storeResult(context.failureFunction, context.result);
             }
 
             if (context.params) {
-                FF_Memory::ff_free(context.params, context.paramsSize, JOB);
+                const ULong size = context.params->getSize();
+                context.params->destroy();
+                FF_Memory::ff_free(context.params, size, JOB);
             }
             if (context.result) {
-                FF_Memory::ff_free(context.result, context.resultSize, JOB);
+                const ULong size = context.result->getSize();
+                context.result->destroy();
+                FF_Memory::ff_free(context.result, size, JOB);
             }
 
             if (!Platform::lockMutex(thread->infoMutex)) {
@@ -69,14 +73,13 @@ unsigned int JobSystem::runThread(void *params) {
     return 1;
 }
 
-void JobSystem::storeResult(const ThreadFunction callback, const unsigned int paramSize, const void *params) {
+void JobSystem::storeResult(const ThreadFunction callback, IThreadParam* params) {
     JobResultEntry entry{};
-    entry.paramsSize = paramSize;
     entry.callback = callback;
 
-    if (paramSize > 0) {
-        entry.params = FF_Memory::ff_allocate(paramSize, JOB);
-        FF_Memory::ff_copy(entry.params, params, paramSize);
+    if (params->getSize() > 0) {
+        entry.params = static_cast<IThreadParam *>(FF_Memory::ff_allocate(params->getSize(), JOB));
+        params->copyTo(entry.params);
     }
 
     if (!Platform::lockMutex(instance->resultMutex)) {
@@ -104,7 +107,7 @@ void JobSystem::processQueue(RingQueue<JobContext> &queue, Mutex &queueMutex) {
         for (unsigned char i = 0; i < threadCount; i++) {
             JobThread& thread = jobThreads[i];
 
-            if ((thread.typeMask & context.type) == 0) continue;
+            if ((thread.typeMask & queue.peek()->type) == 0) continue;
 
             if (!Platform::lockMutex(thread.infoMutex)) {
                 Logger::logError("Failed to lock job mutex");
@@ -205,7 +208,7 @@ void JobSystem::update() {
         if (!Platform::lockMutex(resultMutex)) {
             Logger::logError("Failed to lock result mutex");
         }
-        JobResultEntry entry = pendingResults[i];
+        const JobResultEntry entry = pendingResults[i];
         if (!Platform::unlockMutex(resultMutex)) {
             Logger::logError("Failed to unlock result mutex");
         }
@@ -214,7 +217,9 @@ void JobSystem::update() {
             entry.callback(entry.params);
 
             if (entry.params) {
-                FF_Memory::ff_free(entry.params, entry.paramsSize, JOB);
+                const ULong size = entry.params->getSize();
+                entry.params->destroy();
+                FF_Memory::ff_free(entry.params, size, JOB);
             }
 
             if (!Platform::lockMutex(resultMutex)) {
@@ -272,29 +277,4 @@ void JobSystem::submit(JobContext jobContext) {
     if (!Platform::unlockMutex(*mutex)) {
         Logger::logError("Failed to unlock queue mutex");
     }
-}
-
-JobContext JobSystem::createJob(const ResultFunction entryFunction, const ThreadFunction successFunction,
-    const ThreadFunction failureFunction, const void *params, const unsigned int paramsSize, const unsigned int resultsSize, const JobType type,
-    const JobPriority priority) {
-
-    JobContext context{};
-    context.entryFunction = entryFunction;
-    context.successFunction = successFunction;
-    context.failureFunction = failureFunction;
-    context.type = type;
-    context.priority = priority;
-
-    context.paramsSize = paramsSize;
-    if (paramsSize) {
-        context.params = FF_Memory::ff_allocate(paramsSize, JOB);
-        FF_Memory::ff_copy(context.params, params, paramsSize);
-    }
-
-    context.resultSize = resultsSize;
-    if (resultsSize) {
-        context.result = FF_Memory::ff_allocate(resultsSize, JOB);
-    }
-
-    return context;
 }

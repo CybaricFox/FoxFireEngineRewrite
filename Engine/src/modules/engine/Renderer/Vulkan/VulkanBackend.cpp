@@ -557,11 +557,35 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
             unsigned int updateSamplerCount = 0;
             for (unsigned int i = 0; i < totalSamplerCount; i++) {
                 const TextureMap* map = backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextureMaps[i];
-                const Texture* texture = map->texture;
+                Texture* texture = map->texture;
                 if (!texture) {
                     Logger::logFatal("Cannot apply shader instance because texture is null!");
                     return false;
                 }
+
+                //This is true when a model is loaded but the texture is still loading.
+                if (texture->generation == INVALID_ID_U32) {
+                    switch (map->use) {
+                        case TEXTURE_USE_MAP_DIFFUSE: {
+                            texture = defaultDiffuseTexture;
+                            break;
+                        }
+                        case TEXTURE_USE_MAP_SPECULAR: {
+                            texture = defaultSpecularTexture;
+                            break;
+                        }
+                        case TEXTURE_USE_MAP_NORMAL: {
+                            texture = defaultNormalTexture;
+                            break;
+                        }
+                        default: {
+                            Logger::logWarn("Undefined texture use case: " + std::to_string(map->use));
+                            texture = defaultDiffuseTexture;
+                            break;
+                        }
+                    }
+                }
+
                 VulkanImage& image = *static_cast<VulkanImage *>(texture->data);
                 imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 imageInfos[i].imageView = image.getImageView();
@@ -1097,7 +1121,7 @@ bool VulkanBackend::endFrame(const float deltaTime) {
     return true;
 }
 
-void VulkanBackend::drawGeometry(const GeometryRenderData &data, Texture& defaultTexture, Material& defaultMaterial) {
+void VulkanBackend::drawGeometry(const GeometryRenderData &data, Material& defaultMaterial) {
     //Geometry must be valid
     if (!data.geometry || data.geometry->internalId == INVALID_ID_U32) {
         return;
@@ -1407,7 +1431,7 @@ VkFormat VulkanBackend::convertChannelCountToFormat(const unsigned char channelC
     }
 }
 
-bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, Texture &defaultTexture, TextureMap** maps) {
+bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, TextureMap** maps) {
     auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
     outInstanceId = INVALID_ID_U32;
 
@@ -1434,7 +1458,7 @@ bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int 
         TextureMap*& map = *instanceState.instanceTextureMaps.emplace();
         map = maps[i];
         if (!maps[i]->texture) {
-            instanceState.instanceTextureMaps[i]->texture = &defaultTexture;
+            instanceState.instanceTextureMaps[i]->texture = defaultDiffuseTexture;
         }
     }
 

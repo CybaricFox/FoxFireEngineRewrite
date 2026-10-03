@@ -71,7 +71,7 @@ public:
     bool initializeMaterialSystem(MaterialSystemConfig config, IMaterialSystem *system, ResourceSystem *resourceSystem);
     bool initializeGeometrySystem(unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem *resourceSystem);
     bool initializeShaderSystem(const ShaderSystemConfig &config, ResourceSystem &resources);
-    bool initializeCameraSystem(const CameraSystemConfig &config, MasterEntityComponentSystem *ecsRef);
+    bool initializeCameraSystem(const CameraSystemConfig &config, EntityComponentSystem *ecsRef);
     bool initializeRenderViewSystem(const RenderViewSystemConfig &config);
     bool initializeSkybox();
     void shutdown();

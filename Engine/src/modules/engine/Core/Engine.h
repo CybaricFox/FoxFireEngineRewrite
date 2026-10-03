@@ -17,7 +17,7 @@
 #include "GameInstance.h"
 #include "foxfire_export.h"
 #include "../Input/IInputSystem.h"
-#include "src/modules/engine/ECS/MasterEntityComponentSystem.h"
+#include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "src/modules/engine/Renderer/ITextureSystem.h"
@@ -42,7 +42,7 @@ private:
     /** @brief Handles user input handling. Input systems interface with this */
     EngineEvents engineEventsSystem{};
     /** @brief Handles the Component system */
-    MasterEntityComponentSystem ECSSystem{};
+    EntityComponentSystem ECSSystem{};
     /** @brief Controls All Rendering. Do not give access to Game!*/
     MasterRenderSystem masterRenderSystem{};
     /**
@@ -150,6 +150,8 @@ protected:
     T* instantiateDerivedSubSystem() {
         return FF_Memory::ff_allocate_class<T>(sizeof(T), GAME);
     }
+
+    bool bModelsLoaded = false;
 
 public:
     explicit Engine(const GameInstance& instance);
