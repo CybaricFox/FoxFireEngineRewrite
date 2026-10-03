@@ -155,5 +155,6 @@ public:
     void clearName();
     void setTextureMap(unsigned int index, TextureMap* map);
     void destroyTextureMaps();
+    void ensureAttributeAlignment();
 
 };

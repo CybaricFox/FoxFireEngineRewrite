@@ -658,7 +658,7 @@ struct Vertex3d : Vertex{
     /**
      * @brief
      */
-    Vector4f tangent;
+    Vector3f tangent;
 };
 inline bool operator==(const Vertex3d& left, const Vertex3d& right) {
     return compareVectors(left.position, right.position, FF_EPSILON) &&

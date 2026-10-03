@@ -526,8 +526,9 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
 
         VkDescriptorBufferInfo bufferInfo{};
         VkWriteDescriptorSet instanceDescriptorWrite = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+
         if (backendShader->getInstanceUniformCount() > 0) {
-            unsigned char &instanceGeneration = state.descriptorSetState.descriptorStates[descriptorIndex].generations[imageIndex];
+            unsigned char& instanceGeneration = state.descriptorSetState.descriptorStates[descriptorIndex].generations[imageIndex];
 
             if (instanceGeneration == INVALID_ID_U8) {
                 bufferInfo.buffer = backendShader->getUniformBuffer().getBuffer();
@@ -913,8 +914,11 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     layerCount = validationLayers.getLength();
     unsigned int availableLayerCount = 0;
     VulkanUtils::vulkanCheck(vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr));
-    VkLayerProperties availableLayers[availableLayerCount];
-    VulkanUtils::vulkanCheck(vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers));
+    DynamicArray<VkLayerProperties> availableLayers{availableLayerCount};
+    for (unsigned int i = 0; i < availableLayerCount; i++) {
+        availableLayers.emplace();
+    }
+    VulkanUtils::vulkanCheck(vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.getData()));
 
     for (const char* requiredLayer : validationLayers) {
         Logger::logInfo("Searching for " + String(requiredLayer));
@@ -932,6 +936,8 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
         }
     }
 
+    availableLayers.shutdown();
+
     Logger::logDebug("All required validation layers were found!");
 
 #endif
@@ -943,6 +949,8 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
 
     VulkanUtils::vulkanCheck(vkCreateInstance(&createInfo, nullptr, &vulkanContext.getInstance()));
     Logger::logInfo("Vulkan Instance Created Successfully.");
+
+    validationLayers.shutdown();
 
     //Setup multithreading
     vulkanContext.setMultithread(false);

@@ -107,10 +107,10 @@ void GeometryUtils::generateTangents(unsigned int vertexCount, Vertex* vertices,
         const float tx = delta1V;
         const float ty = delta2V;
         const float handedness = ((tx * sy - ty * sx) < 0) ? -1 : 1;
-        const Vector4f t4 = toVector4f(tangent, handedness);
-        vertices3D[i0].tangent = t4;
-        vertices3D[i1].tangent = t4;
-        vertices3D[i2].tangent = t4;
+        const Vector3f t3 = tangent * handedness;
+        vertices3D[i0].tangent = t3;
+        vertices3D[i1].tangent = t3;
+        vertices3D[i2].tangent = t3;
     }
 }
 

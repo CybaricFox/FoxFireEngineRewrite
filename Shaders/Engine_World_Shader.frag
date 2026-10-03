@@ -47,7 +47,7 @@ layout(location = 1) in struct dto {
     vec3 view_position;
     vec3 frag_position;
     vec4 color;
-    vec4 tangent;
+    vec3 tangent;
 } in_dto;
 
 layout(location = 0) out vec4 out_color;
@@ -65,8 +65,8 @@ layout(set = 1, binding = 1) uniform sampler2D samplers[3];
 void main() {
     vec3 view_direction = normalize(in_dto.view_position - in_dto.frag_position);
     vec3 normal = in_dto.normal;
-    vec3 tangent = in_dto.tangent.xyz;
-    vec3 bitangent = cross(in_dto.normal, in_dto.tangent.xyz) * in_dto.tangent.w;
+    vec3 tangent = in_dto.tangent;
+    vec3 bitangent = cross(in_dto.normal, in_dto.tangent);
     vec3 localNormal = 2.0* texture(samplers[SAMPLER_NORMAL], in_dto.tex_coord).rgb - 1.0;
 
     tangent = (tangent - dot(tangent, normal) * normal);

@@ -186,7 +186,7 @@ struct FOXFIRE_API EngineInputContext {
     /** @brief Mouse y position */
     unsigned short mouseY;
     /** @brief Scrollwheel value */
-    unsigned short mouseZ;
+    char mouseZ;
     /** @brief Key Pressed/Released */
     unsigned short key;
 };

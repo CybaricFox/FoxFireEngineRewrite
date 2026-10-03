@@ -46,7 +46,7 @@ private:
     /** @brief mouse y position on the last frame*/
     short previousMouseY = 0;
     /** @brief Pressed state of each mouse button on the last frame */
-    unsigned char previousMouseButtons[MAX_BUTTONS]{};
+    bool previousMouseButtons[MAX_BUTTONS]{};
 
     bool bIsInitialized = false;
     unsigned long memorySize = 0;

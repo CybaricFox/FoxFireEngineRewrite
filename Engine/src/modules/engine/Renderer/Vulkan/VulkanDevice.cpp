@@ -94,6 +94,16 @@ bool VulkanDevice::selectPhysicalDevice(VkInstance& instance, VkSurfaceKHR& surf
     VkPhysicalDevice devices[32];
     VulkanUtils::vulkanCheck(vkEnumeratePhysicalDevices(instance, &deviceCount, devices));
 
+    //Requirements are request from engine. These are what the engine wants.
+    PhysicalDeviceRequirements requirements{};
+    requirements.graphics = true;
+    requirements.present = true;
+    requirements.transfer = true;
+    requirements.samplerAnisotrophy = true;
+    requirements.discreteGPU = true;
+    requirements.extensionNames.initialize();
+    requirements.extensionNames.push(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
     for (unsigned int i = 0; i < deviceCount; i++) {
         VkPhysicalDeviceProperties deviceProperties;
         vkGetPhysicalDeviceProperties(devices[i], &deviceProperties);
@@ -113,17 +123,6 @@ bool VulkanDevice::selectPhysicalDevice(VkInstance& instance, VkSurfaceKHR& surf
                 break;
             }
         }
-
-        //Requirements are request from engine. These are what the engine wants.
-        PhysicalDeviceRequirements requirements{};
-        requirements.graphics = true;
-        requirements.present = true;
-        requirements.transfer = true;
-        requirements.samplerAnisotrophy = true;
-        requirements.discreteGPU = true;
-        requirements.extensionNames.initialize();
-        requirements.extensionNames.clear();
-        requirements.extensionNames.push(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
         VulkanPhysicalDeviceFamilyInfo familyInfo{};
         const bool result = physicalDeviceMeetsRequirements(
@@ -196,6 +195,8 @@ bool VulkanDevice::selectPhysicalDevice(VkInstance& instance, VkSurfaceKHR& surf
             break;
         }
     }
+
+    requirements.extensionNames.shutdown();
 
     if (!physicalDevice) {
         Logger::logError("Failed to find a valid physical device.");

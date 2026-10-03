@@ -60,6 +60,20 @@ void Shader::destroyTextureMaps() {
     globalTextureMaps.shutdown();
 }
 
+void Shader::ensureAttributeAlignment() {
+    if (attributeStride % 16 != 0) {
+        Logger::logWarn("Attribute stride for shader " + name + " is not a multiple of 16! Forcing alignment!");
+
+        unsigned short stride = attributeStride;
+        while (stride > 16) {
+            stride -= 16;
+        }
+        Logger::logWarn("Old alignment: " + std::to_string(attributeStride));
+        attributeStride += (16 - stride);
+        Logger::logWarn("New alignment: " + std::to_string(attributeStride));
+    }
+}
+
 void Shader::setGlobalStride() {
     globalStride = alignMemory(globalSize, requiredAlignment);
 }

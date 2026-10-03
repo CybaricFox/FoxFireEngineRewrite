@@ -105,6 +105,7 @@ bool ShaderSystem::createShader(ShaderConfig& shaderConfig) {
         Logger::logError("Failed to create shader.");
         return false;
     }
+    shader->ensureAttributeAlignment();
 
     if (!backendRef->initializeShader(*shader)) {
         Logger::logError("Failed to initialize shader: " + shaderConfig.name);

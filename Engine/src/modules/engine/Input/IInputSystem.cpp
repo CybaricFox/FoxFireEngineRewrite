@@ -131,7 +131,7 @@ void IInputSystem::processMouseMove(const short x, const short y) {
 
 void IInputSystem::processMouseScroll(const char z) const {
     EngineInputContext context{};
-    context.mouseZ = static_cast<unsigned char>(z);
+    context.mouseZ = z;
     engineEventsSystemRef->callEvent(MOUSE_WHEEL, context);
 }
 

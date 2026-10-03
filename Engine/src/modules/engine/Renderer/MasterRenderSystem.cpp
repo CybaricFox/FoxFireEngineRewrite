@@ -308,6 +308,7 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
             framesSinceResizeRequested = 0;
             bIsCurrentlyResizing = false;
         } else {
+            Platform::ff_sleep(16);
             return true;
         }
     }

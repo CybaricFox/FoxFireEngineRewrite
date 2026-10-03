@@ -97,7 +97,7 @@ public:
      * @brief Pauses the application
      * @param ms Time to stay paused
      */
-    void ff_sleep(unsigned long ms);
+    static void ff_sleep(unsigned long ms);
 
     /**
      * @brief Creates render surface from os.

@@ -317,7 +317,7 @@ bool PlatformLinux::createSurface() {
 
 double PlatformLinux::getAbsoluteTime() {
     timespec now{};
-    clock_gettime(CLOCK_MONOTONIC, &now);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     return static_cast<double>(now.tv_sec) + static_cast<double>(now.tv_nsec) * 0.000000001;
 }
 

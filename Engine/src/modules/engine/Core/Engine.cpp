@@ -160,7 +160,7 @@ void Engine::run() {
             const double remainingTime = targetTime - elapsedTime;
             //Time left is given back to the OS
             if (remainingTime > 0) {
-                const unsigned long remainingMS = static_cast<unsigned long>(remainingTime) * 1000;
+                const auto remainingMS = static_cast<unsigned long>(remainingTime * 1000);
                 constexpr bool limitFrames = false;
                 if (remainingMS > 0 && limitFrames) {
                     platform.ff_sleep(remainingMS - 1);
