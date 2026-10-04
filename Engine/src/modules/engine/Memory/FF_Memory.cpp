@@ -28,12 +28,65 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 11: return "ECS";
         case 12: return "RING_QUEUE";
         case 13: return "JOB";
+        case 14: return "RENDER_BACKEND_MANUAL";
+        case 15: return "RENDER_BACKEND_AUTO";
+        case 16: return "GPU";
         default: return " ";
     }
 }
 
+String FF_Memory::getUnitForSize(const ULong size, float &outAmount) {
+    if (size >= GIBIBYTES(1)) {
+        outAmount = static_cast<float>(static_cast<double>(size) / GIBIBYTES(1));
+        return "GiB";
+    }
+
+    if (size >= MEBIBYTES(1)) {
+        outAmount = static_cast<float>(static_cast<double>(size) / MEBIBYTES(1));
+        return "MiB";
+    }
+
+    if (size >= KIBIBYTES(1)) {
+        outAmount = static_cast<float>(static_cast<double>(size) / KIBIBYTES(1));
+        return "KiB";
+    }
+
+    outAmount = static_cast<float>(size);
+    return "B";
+}
+
+bool FF_Memory::getSizeAndAlignment(void *memory, ULong &size, unsigned short &alignment) {
+    return allocator.getSizeAndAlignment(memory, size, alignment);
+}
+
+void FF_Memory::reportAllocation(const ULong size, const MemoryTag tag) {
+    if (!Platform::lockMutex(allocationMutex)) {
+        Logger::logFatal("Failed to lock allocation mutex while reporting an allocation.");
+        return;
+    }
+    memorySystem->memoryData.totalAllocated += size;
+    memorySystem->memoryData.taggedAllocations[tag] += size;
+    memorySystem->allocationCount++;
+    if (!Platform::unlockMutex(allocationMutex)) {
+        Logger::logFatal("Failed to unlock allocation mutex while reporting an allocation.");
+    }
+}
+
+void FF_Memory::removeReport(const ULong size, const MemoryTag tag) {
+    if (!Platform::lockMutex(allocationMutex)) {
+        Logger::logFatal("Failed to lock allocation mutex while removing a report.");
+        return;
+    }
+    memorySystem->memoryData.totalAllocated -= size;
+    memorySystem->memoryData.taggedAllocations[tag] -= size;
+    memorySystem->allocationCount--;
+    if (!Platform::unlockMutex(allocationMutex)) {
+        Logger::logFatal("Failed to unlock allocation mutex while removing a report.");
+    }
+}
+
 //ff_set should set the memory block to the beginning, but just in case, REMEMBER TO ZERO MEMORY IN OWNER IF HEAP CORRUPTION OCCURS!!!
-void FF_Memory::ff_free(void * block, const unsigned long size, const MemoryTag tag) {
+void FF_Memory::ff_free(void *block, const unsigned long size, const MemoryTag tag, unsigned short alignment) {
     if (!block) return;
 
     if (tag == UNKNOWN) {
@@ -52,6 +105,7 @@ void FF_Memory::ff_free(void * block, const unsigned long size, const MemoryTag 
             ". Current: " + std::to_string(memorySystem->memoryData.taggedAllocations[tag]) +
             ", freeing: " + std::to_string(size)
         );
+
         memorySystem->memoryData.totalAllocated -= memorySystem->memoryData.taggedAllocations[tag];
         memorySystem->memoryData.taggedAllocations[tag] = 0;
         memorySystem->allocationCount--;
@@ -68,7 +122,7 @@ void FF_Memory::ff_free(void * block, const unsigned long size, const MemoryTag 
     memorySystem->memoryData.taggedAllocations[tag] -= size;
     memorySystem->allocationCount--;
 
-    if (!memorySystem->allocator.free(block, size)) {
+    if (!memorySystem->allocator.free(block)) {
         Platform::platform_free(block, false);
     }
 
@@ -93,36 +147,39 @@ void * FF_Memory::ff_set(void *destination, const int value, const unsigned long
 }
 
 String FF_Memory::getMemoryUsage() {
-    constexpr unsigned long gb = 1024 * 1024 * 1024;
-    constexpr unsigned long mb = 1024 * 1024;
-    constexpr unsigned long kb = 1024;
-
     const String title = "Tracked system memory usage (tagged):\n";
     String outString{};
     outString.append(title);
 
     for (unsigned int i = 0; i < MAX_TAGS; i++) {
-        char unit[3] = "XB";
-        float amount = 0.0f;
-        if (memorySystem->memoryData.taggedAllocations[i] > gb) {
-            unit[0] = 'G';
-            amount = static_cast<float>(memorySystem->memoryData.taggedAllocations[i]) / static_cast<float>(gb);
-        } else if (memorySystem->memoryData.taggedAllocations[i] > mb) {
-            unit[0] = 'M';
-            amount = static_cast<float>(memorySystem->memoryData.taggedAllocations[i]) / mb;
-        } else if (memorySystem->memoryData.taggedAllocations[i] > kb) {
-            unit[0] = 'K';
-            amount = static_cast<float>(memorySystem->memoryData.taggedAllocations[i]) / kb;
-        } else {
-            unit[0] = 'B';
-            unit[1] = 0;
-            amount = static_cast<float>(memorySystem->memoryData.taggedAllocations[i]);
-        }
+        float amount = 1;
+        String unit = getUnitForSize(memorySystem->memoryData.taggedAllocations[i], amount);
 
         std::ostringstream oss;
         oss << getStringFromTag(i) << ": "<< std::fixed << std::setprecision(2) << amount << unit << "\n";
         outString.append(oss.str());
     }
+
+    ULong totalSpace = memorySystem->allocator.getTotalSpace();
+    ULong freeSpace = memorySystem->allocator.getFreeSpace();
+    ULong usedSpace = totalSpace - freeSpace;
+
+    float usedAmount = 1;
+    String usedUnit = getUnitForSize(usedSpace, usedAmount);
+
+    float totalAmount = 1;
+    String totalUnit = getUnitForSize(totalSpace, totalAmount);
+
+    double percentUsed = static_cast<double>(usedSpace) / static_cast<double>(totalSpace);
+
+    outString.append("Overall Memory Usage: \n");
+
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(2) << usedAmount << usedUnit << " Used.\n"
+    << std::fixed << std::setprecision(2) << totalAmount << totalUnit << " Total.\n"
+    << std::fixed << std::setprecision(2) << percentUsed << "% Used.";
+
+    outString.append(oss.str());
 
     return outString;
 }
@@ -176,23 +233,7 @@ unsigned long FF_Memory::getAllocationCount() {
     return 0;
 }
 
-void FF_Memory::trackEngineMemory(const unsigned long size) {
-    if (memorySystem) {
-        memorySystem->memoryData.totalAllocated += size;
-        memorySystem->memoryData.taggedAllocations[GAME] += size;
-        memorySystem->allocationCount++;
-    }
-}
-
-void FF_Memory::untrackEngineMemory(const unsigned long size) {
-    if (memorySystem) {
-        memorySystem->memoryData.totalAllocated -= size;
-        memorySystem->memoryData.taggedAllocations[GAME] -= size;
-        memorySystem->allocationCount--;
-    }
-}
-
-void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag) {
+void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag, unsigned short alignment) {
     if (tag == UNKNOWN) {
         Logger::logWarn("Allocate called with Unknown tag. Add a tag for this allocation!");
     }
@@ -206,7 +247,7 @@ void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag) {
         memorySystem->memoryData.totalAllocated += size;
         memorySystem->memoryData.taggedAllocations[tag] += size;
         memorySystem->allocationCount++;
-        memory = memorySystem->allocator.allocate(size);
+        memory = memorySystem->allocator.allocate(size, alignment);
 
         Platform::unlockMutex(memorySystem->allocationMutex);
     } else {

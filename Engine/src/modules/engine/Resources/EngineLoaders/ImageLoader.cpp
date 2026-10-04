@@ -92,7 +92,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
         return false;
     }
 
-    const auto resourceData = static_cast<ImageResourceData *>(FF_Memory::ff_allocate(sizeof(ImageResourceData), TEXTURE));
+    const auto resourceData = static_cast<ImageResourceData *>(FF_Memory::ff_allocate(sizeof(ImageResourceData), TEXTURE, alignof(ImageResourceData)));
     resourceData->pixels = stbData;
     resourceData->width = width;
     resourceData->height = height;

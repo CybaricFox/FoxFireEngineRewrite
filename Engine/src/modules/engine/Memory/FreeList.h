@@ -123,7 +123,7 @@ public:
      * @param offset OUT number of bytes from the first node
      * @return True on success, false on failure
      */
-    bool allocate(unsigned long size, unsigned long &offset);
+    bool allocate(unsigned long size, ULong &offset);
 
     /**
     * @brief Frees a node in the list

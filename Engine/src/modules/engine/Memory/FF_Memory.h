@@ -36,6 +36,9 @@ enum MemoryTag {
     ECS,
     RING_QUEUE,
     JOB,
+    RENDER_BACKEND_MANUAL,
+    RENDER_BACKEND_AUTO,
+    GPU,
     MAX_TAGS
 };
 
@@ -65,6 +68,8 @@ private:;
     FF_Memory() = default;
 
     static String getStringFromTag(unsigned long tag);
+    static String getUnitForSize(ULong size, float& outAmount);
+    bool getSizeAndAlignment(void* memory, ULong& size, unsigned short& alignment);
 
 public:
     ~FF_Memory() = default;
@@ -73,17 +78,19 @@ public:
      * @brief Allocates memory.
      * @param size Size of the memory.
      * @param tag The type of memory. Used for tracking.
+     * @param alignment
      * @return Pointer to the memory location.
      */
-    static void* ff_allocate(unsigned long size, MemoryTag tag);
+    static void* ff_allocate(unsigned long size, MemoryTag tag, unsigned short alignment = 1);
 
     /**
      * @brief Frees memory.
      * @param block Pointer to the memory location.
      * @param size Size of the memory.
      * @param tag The type of memory.
+     * @param alignment
      */
-    static void ff_free(void* block, unsigned long size, MemoryTag tag);
+    static void ff_free(void* block, unsigned long size, MemoryTag tag, unsigned short alignment = 1);
 
     /**
      * @brief Zeros out an area of memory.
@@ -134,13 +141,8 @@ public:
      */
     static unsigned long getAllocationCount();
     static bool isInitialized(){return memorySystem != nullptr;}
-
-    /**
-     * @brief Adds the engines memory to the tracker without allocating it.
-     * @param size Size of the engine.
-     */
-    static void trackEngineMemory(unsigned long size);
-    static void untrackEngineMemory(unsigned long size);
+    void reportAllocation(ULong size, MemoryTag tag);
+    void removeReport(ULong size, MemoryTag tag);
 
     /**
      * @brief Allocates memory and creates a class.
@@ -156,7 +158,7 @@ public:
             return nullptr;
         }
         //Allocate the memory block
-        void* destination = ff_allocate(size, tag);
+        void* destination = ff_allocate(size, tag, alignof(T));
         if (!destination) return nullptr;
         //construct the class
         T* result = static_cast<T *>(destination);
@@ -181,6 +183,6 @@ public:
         }
 
         std::destroy_at(static_cast<T*>(block));
-        ff_free(block, size, tag);
+        ff_free(block, size, tag, alignof(T));
     }
 };

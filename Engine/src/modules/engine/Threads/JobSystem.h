@@ -121,11 +121,11 @@ public:
         context.priority = priority;
 
         if constexpr (!std::is_void_v<P>) {
-            context.params = static_cast<P*>(FF_Memory::ff_allocate(sizeof(P), JOB));
+            context.params = static_cast<P*>(FF_Memory::ff_allocate(sizeof(P), JOB, alignof(P)));
             std::construct_at(static_cast<P*>(context.params), *params);
         }
         if constexpr (!std::is_void_v<R>) {
-            context.result = static_cast<R *>(FF_Memory::ff_allocate(sizeof(R), JOB));
+            context.result = static_cast<R *>(FF_Memory::ff_allocate(sizeof(R), JOB, alignof(R)));
             std::construct_at(static_cast<R*>(context.result));
         }
 

@@ -110,3 +110,7 @@ bool UIRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumber
 
     return true;
 }
+
+void UIRenderView::destroyPacket(RenderViewPacket &packet) {
+    packet.geometries.shutdown();
+}

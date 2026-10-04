@@ -176,7 +176,7 @@ public:
                     newCount++;
                 }
 
-                allocator.free(instance, instance->totalSize);
+                allocator.free(instance);
 
                 return result;
             }
@@ -270,7 +270,7 @@ public:
                     newCount++;
                 }
 
-                allocator.free(instance, instance->totalSize);
+                allocator.free(instance);
                 break;
             }
         }
@@ -299,7 +299,7 @@ public:
                 newCount++;
             }
 
-            allocator.free(instance, instance->totalSize);
+            allocator.free(instance);
         }
     }
 

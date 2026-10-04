@@ -308,7 +308,7 @@ bool VulkanDevice::physicalDeviceMeetsRequirements(VkPhysicalDevice vulkanPhysic
             VkExtensionProperties *availableExtensions = nullptr;
             VulkanUtils::vulkanCheck(vkEnumerateDeviceExtensionProperties(vulkanPhysicalDevice, nullptr, &extensionCount, nullptr));
             if (extensionCount != 0) {
-                availableExtensions = static_cast<VkExtensionProperties *>(FF_Memory::ff_allocate(sizeof(VkExtensionProperties) * extensionCount, RENDER));
+                availableExtensions = static_cast<VkExtensionProperties *>(FF_Memory::ff_allocate(sizeof(VkExtensionProperties) * extensionCount, RENDER, alignof(VkExtensionProperties)));
                 VulkanUtils::vulkanCheck(vkEnumerateDeviceExtensionProperties(vulkanPhysicalDevice, nullptr, &extensionCount, availableExtensions));
                 for (const char* extension : requirements.extensionNames) {
                     bool found = false;
@@ -357,13 +357,13 @@ void VulkanDevice::querySwapChainSupport(VkPhysicalDevice vulkanPhysicalDevice, 
 
     VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.formatCount, nullptr));
     if (vulkanSwapchainSupportInfo.formatCount > 0) {
-        vulkanSwapchainSupportInfo.formats = static_cast<VkSurfaceFormatKHR *>(FF_Memory::ff_allocate(sizeof(VkSurfaceFormatKHR) * vulkanSwapchainSupportInfo.formatCount, RENDER));
+        vulkanSwapchainSupportInfo.formats = static_cast<VkSurfaceFormatKHR *>(FF_Memory::ff_allocate(sizeof(VkSurfaceFormatKHR) * vulkanSwapchainSupportInfo.formatCount, RENDER, alignof(VkSurfaceFormatKHR)));
         VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.formatCount, vulkanSwapchainSupportInfo.formats));
     }
 
     VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.presentCount, nullptr));
     if (vulkanSwapchainSupportInfo.presentCount > 0) {
-        vulkanSwapchainSupportInfo.presentModes = static_cast<VkPresentModeKHR *>(FF_Memory::ff_allocate(sizeof(VkPresentModeKHR) * vulkanSwapchainSupportInfo.presentCount, RENDER));
+        vulkanSwapchainSupportInfo.presentModes = static_cast<VkPresentModeKHR *>(FF_Memory::ff_allocate(sizeof(VkPresentModeKHR) * vulkanSwapchainSupportInfo.presentCount, RENDER, alignof(VkPresentModeKHR)));
         VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.presentCount, vulkanSwapchainSupportInfo.presentModes));
     }
 }

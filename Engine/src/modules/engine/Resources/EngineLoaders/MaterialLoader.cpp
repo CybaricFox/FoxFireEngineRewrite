@@ -24,7 +24,7 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
 
     outResource.path = finalPath;
 
-    const auto resourceData = static_cast<MaterialResourceData *>(FF_Memory::ff_allocate(sizeof(MaterialResourceData), MATERIAL));
+    const auto resourceData = static_cast<MaterialResourceData *>(FF_Memory::ff_allocate(sizeof(MaterialResourceData), MATERIAL, alignof(MaterialResourceData)));
     resourceData->shaderName = "Fox_Fire_Material_Shader";
     resourceData->bAutoRelease = true;
     resourceData->diffuseColor = oneVector4f();

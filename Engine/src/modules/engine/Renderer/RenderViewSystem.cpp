@@ -39,7 +39,6 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
         case RENDER_VIEW_WORLD: {
             view = FF_Memory::ff_allocate_class<WorldRenderView>(sizeof(WorldRenderView), RENDER);
             size = sizeof(WorldRenderView);
-
             break;
         }
         case RENDER_VIEW_UI: {

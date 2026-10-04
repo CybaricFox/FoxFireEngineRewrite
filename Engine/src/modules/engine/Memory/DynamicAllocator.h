@@ -13,6 +13,11 @@
 #pragma once
 #include "FreeList.h"
 
+struct AllocationHeader {
+    void* start = nullptr;
+    unsigned short alignment = 0;
+};
+
 /**
  * @brief Memory Allocator for allocating different size objects to one area of memory. It saves a pointer to every
  * allocation and reuses freed space.
@@ -47,20 +52,23 @@ public:
     [[nodiscard]] unsigned long getFreeSpace() const {
         return freeList.getFreeSpace();
     }
+    bool getSizeAndAlignment(void* memory, ULong& outSize, unsigned short& outAlignment);
+    [[nodiscard]] ULong getTotalSpace() const {return totalSize;}
 
     /**
      * @brief Allocates an object to memory.
      * @param size Size of the object.
+     * @param alignment
      * @return Pointer to the memory location.
      */
-    [[nodiscard]] void* allocate(unsigned long size);
+    [[nodiscard]] void* allocate(unsigned long size, unsigned short alignment = 1);
 
     /**
      * @brief Frees an object in memory.
      * @param memory
-     * @param size
+     * @param size Size of the object. If memory is aligned, no size is needed.
      * @return
      */
-    bool free(void* memory, unsigned long size);
+    bool free(void* memory);
 
 };

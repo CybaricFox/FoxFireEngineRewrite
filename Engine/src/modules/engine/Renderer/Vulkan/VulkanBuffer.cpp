@@ -173,7 +173,7 @@ void VulkanBuffer::unlockBuffer(VulkanDevice &device) const {
     vkUnmapMemory(device.getLogicalDevice(), deviceMemory);
 }
 
-bool VulkanBuffer::allocate(const unsigned long size, unsigned long &outOffset) {
+bool VulkanBuffer::allocate(const unsigned long size, ULong &outOffset) {
     return bufferFreeList.allocate(size, outOffset);
 }
 

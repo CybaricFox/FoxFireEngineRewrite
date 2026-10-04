@@ -79,7 +79,7 @@ private:
     unsigned long requiredAlignment = 0;
     unsigned long globalSize = 0;
     unsigned long globalStride = 0;
-    unsigned long globalOffset = 0;
+    ULong globalOffset = 0;
     unsigned long instanceSize = 0;
     unsigned long instanceStride = 0;
     unsigned long pushConstantSize = 0;
@@ -111,7 +111,7 @@ public:
     MemoryRange* getPushConstantRanges() {return pushConstantRanges;}
     [[nodiscard]] unsigned long getGlobalStride() const {return globalStride;}
     [[nodiscard]] unsigned long getInstanceStride() const {return instanceStride;}
-    [[nodiscard]] unsigned long& getGlobalOffset() {return globalOffset;}
+    [[nodiscard]] ULong& getGlobalOffset() {return globalOffset;}
     [[nodiscard]] unsigned int getBoundInstanceId() const {return boundInstanceId;}
     Texture& getUniformTexture(const unsigned short location) {return *globalTextureMaps[location]->texture;}
     [[nodiscard]] unsigned int getBoundOffset() const {return boundOffset;}

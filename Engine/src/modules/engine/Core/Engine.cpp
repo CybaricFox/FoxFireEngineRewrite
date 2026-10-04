@@ -138,6 +138,10 @@ void Engine::run() {
             }
 
             //Cleanup Packet
+            for (unsigned int i = 0; i < packet.viewCount; i++) {
+                packet.views[i].renderView->destroyPacket(packet.views[i]);
+            }
+
             worldMeshData.meshes = nullptr;
             basicEntities.shutdown();
             FF_Memory::ff_free_class<DynamicArray<unsigned int>>(&basicEntities, sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
@@ -145,11 +149,6 @@ void Engine::run() {
             uiMeshData.meshes = nullptr;
             uiEntities.shutdown();
             FF_Memory::ff_free_class<DynamicArray<unsigned int>>(&uiEntities, sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
-
-            for (unsigned int i = 0; i < packet.viewCount; i++) {
-                RenderViewPacket& view = packet.views[i];
-                view.geometries.shutdown();
-            }
 
             masterRenderSystem.cleanupSkybox(packet);
 
@@ -240,8 +239,6 @@ bool Engine::initializeMemory() {
         Logger::logError("Failed to initialize memory!");
         return false;
     }
-
-    FF_Memory::trackEngineMemory(sizeof(Engine));
 
     return true;
 }

@@ -38,7 +38,8 @@ private:
     bool swapchainAcquireNextImageIndex(unsigned long timeout, VkSemaphore semaphore, VkFence fence, unsigned int& outImageIndex);
     void presentSwapchain();
     void allocateCommandBuffers();
-    bool uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, unsigned long &outOffset, unsigned long size, const void *data);
+    bool uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, ULong &outOffset, unsigned long size, const
+                           void *data);
     bool freeRangeOfData(VulkanBuffer &buffer, unsigned long offset, unsigned long size);
     bool createBuffers();
     bool createModule(const VulkanShaderStageConfig &config, VulkanShaderStage &stage) const;

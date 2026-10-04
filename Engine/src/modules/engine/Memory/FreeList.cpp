@@ -38,7 +38,7 @@ void FreeList::initialize(const unsigned long size, unsigned long memoryRequirem
 }
 
 bool FreeList::free(const unsigned long size, const unsigned long offset) {
-        if (nodes == nullptr) return false;
+    if (nodes == nullptr) return false;
 
         FreeListNode* node = first;
         FreeListNode* previous = nullptr;
@@ -263,7 +263,7 @@ void FreeList::shutdown() {
     totalSize = 0;
 }
 
-bool FreeList::allocate(const unsigned long size, unsigned long &offset) {
+bool FreeList::allocate(const unsigned long size, ULong& offset) {
     if (nodes == nullptr) return false;
 
     FreeListNode* node = first;

@@ -44,11 +44,11 @@ using Long = long long;
 using ULong = unsigned long long;
 
 struct MemoryRange {
-    unsigned long offset = 0;
-    unsigned long size = 0;
+    ULong offset = 0;
+    ULong size = 0;
 };
 
-inline unsigned long alignMemory(const unsigned long operand, const unsigned long granularity) {
+inline ULong alignMemory(const ULong operand, const ULong granularity) {
     return ((operand + (granularity - 1)) & ~(granularity - 1));
 }
 

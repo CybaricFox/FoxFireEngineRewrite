@@ -49,7 +49,7 @@ private:
             Logger::logFatal("Dynamic Arrays cannot be created prior to FF_Memory!");
             return nullptr;
         }
-        return static_cast<T*>(FF_Memory::ff_allocate(sizeof(T) * size, tag));
+        return static_cast<T*>(FF_Memory::ff_allocate(sizeof(T) * size, tag, alignof(T)));
     }
 
     void destroy() {

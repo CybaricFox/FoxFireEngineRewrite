@@ -100,6 +100,8 @@ bool Game::update(const float deltaTime) {
     const unsigned long previousAllocationCount = allocationCount;
     allocationCount = FF_Memory::getAllocationCount();
     if (inputSystem->isKeyUp(KEY_M) && inputSystem->wasKeyDown(KEY_M)) {
+        const String usage = FF_Memory::getMemoryUsage();
+        Logger::logDebug(usage);
         Logger::logDebug("Allocations: " + std::to_string(allocationCount) + ". " + std::to_string(allocationCount - previousAllocationCount) + " this frame.");
     }
 

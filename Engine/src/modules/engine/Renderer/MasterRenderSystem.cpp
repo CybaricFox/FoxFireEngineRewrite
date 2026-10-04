@@ -53,7 +53,7 @@ bool MasterRenderSystem::buildPacket(IRenderView *renderView, void* meshData, Re
 }
 
 void MasterRenderSystem::buildSkybox(const RenderPacket& packet) {
-    auto skyboxData = static_cast<SkyboxPacketData *>(FF_Memory::ff_allocate(sizeof(SkyboxPacketData), RENDER));
+    auto skyboxData = static_cast<SkyboxPacketData *>(FF_Memory::ff_allocate(sizeof(SkyboxPacketData), RENDER, alignof(SkyboxPacketData)));
     skyboxData->skybox = &skybox;
     if (!buildPacket(getRenderView("Fox_Fire_Skybox_View"), skyboxData, packet.views[0])) {
         Logger::logError("Failed to build skybox packet.");
@@ -113,9 +113,9 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
         Logger::logFatal("Renderer Backend failed to initialize!");
         return false;
     }
-    void* worldTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY);
-    void* uiTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY);
-    void* skyboxTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY);
+    void* worldTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY, alignof(RenderTarget));
+    void* uiTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY, alignof(RenderTarget));
+    void* skyboxTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY, alignof(RenderTarget));
     for (unsigned int i = 0; i < renderTargetCount; i++) {
         const auto worldTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(worldTargets) + (sizeof(RenderTarget) * i));
         std::construct_at(worldTarget);

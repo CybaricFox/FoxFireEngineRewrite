@@ -70,7 +70,7 @@ public:
      * @param outOffset
      * @return False if the allocation fails.
      */
-    bool allocate(unsigned long size, unsigned long& outOffset);
+    bool allocate(unsigned long size, ULong &outOffset);
 
     /**
      * @brief Frees memory in the buffers free list.

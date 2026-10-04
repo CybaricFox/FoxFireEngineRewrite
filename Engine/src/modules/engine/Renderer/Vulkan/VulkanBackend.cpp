@@ -137,7 +137,7 @@ void VulkanBackend::allocateCommandBuffers() {
     Logger::logInfo("Vulkan command buffers created and allocated.");
 }
 
-bool VulkanBackend::uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, unsigned long& outOffset, const unsigned long size, const void *data) {
+bool VulkanBackend::uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, ULong& outOffset, const unsigned long size, const void *data) {
     //Allocate buffer space
     if (!buffer.allocate(size, outOffset)) {
         Logger::logError("Failed to allocate data range for upload.");

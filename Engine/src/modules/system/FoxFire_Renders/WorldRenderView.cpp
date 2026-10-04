@@ -205,3 +205,7 @@ bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long fr
 
     return true;
 }
+
+void WorldRenderView::destroyPacket(RenderViewPacket &packet) {
+    packet.geometries.shutdown();
+}

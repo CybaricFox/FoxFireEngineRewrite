@@ -48,7 +48,7 @@ public:
         }
 
         capacity = initialCapacity;
-        memory = static_cast<T *>(FF_Memory::ff_allocate(sizeof(T) * capacity, RING_QUEUE));
+        memory = static_cast<T *>(FF_Memory::ff_allocate(sizeof(T) * capacity, RING_QUEUE, alignof(T)));
     }
     void shutdown() {
         if (!memory) return;

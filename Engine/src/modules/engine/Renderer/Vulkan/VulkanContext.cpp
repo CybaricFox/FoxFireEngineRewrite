@@ -10,7 +10,7 @@
 
 void VulkanContext::createCommandBuffers() {
     if (!commandBuffers) {
-        commandBuffers = static_cast<VulkanCommandBuffer *>(FF_Memory::ff_allocate(sizeof(VulkanCommandBuffer) * swapchain.getImageCount(), ARRAY));
+        commandBuffers = static_cast<VulkanCommandBuffer *>(FF_Memory::ff_allocate(sizeof(VulkanCommandBuffer) * swapchain.getImageCount(), ARRAY, alignof(VulkanCommandBuffer)));
         for (unsigned int i = 0; i < swapchain.getImageCount(); i++) {
             FF_Memory::ff_clear(&commandBuffers[i], sizeof(VulkanCommandBuffer));
         }

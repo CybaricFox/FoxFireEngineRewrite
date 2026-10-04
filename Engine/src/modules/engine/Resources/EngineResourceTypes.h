@@ -53,9 +53,9 @@ struct GeometryData {
     unsigned int id = INVALID_ID_U32;
     unsigned int generation = INVALID_ID_U32;
     unsigned int vertexCount = 0;
-    unsigned long vertexBufferOffset = 0;
+    ULong vertexBufferOffset = 0;
     unsigned int vertexElementSize = 0;
     unsigned int indexCount = 0;
-    unsigned long indexBufferOffset = 0;
+    ULong indexBufferOffset = 0;
     unsigned int indexElementSize = 0;
 };

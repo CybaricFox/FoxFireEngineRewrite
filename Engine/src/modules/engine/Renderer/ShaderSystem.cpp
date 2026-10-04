@@ -275,7 +275,7 @@ bool ShaderSystem::addSampler(Shader &shader, const ShaderUniformConfig &uniform
             Logger::logError("Failed to acquire global texture map resources during shader creation.");
             return false;
         }
-        const auto map = static_cast<TextureMap *>(FF_Memory::ff_allocate(sizeof(TextureMap), RENDER));
+        const auto map = static_cast<TextureMap *>(FF_Memory::ff_allocate(sizeof(TextureMap), RENDER, alignof(TextureMap)));
         *map = defaultMap;
         map->texture = &textureSystemRef->getDefaultDiffuseTexture();
         shader.addGlobalTextureMap(map);
