@@ -48,7 +48,8 @@ public:
     void finishRecreateSwapchain() {bRecreateSwapchain = false;}
     void resize() {bIsSwapchainDirty = true;}
 
-    bool createSwapchain(unsigned int frameBufferWidth, unsigned int frameBufferHeight, VulkanDevice &device, const VkSurfaceKHR &surface, unsigned int &currentFrame, IRendererBackend *backendRef);
+    bool createSwapchain(unsigned int frameBufferWidth, unsigned int frameBufferHeight, VulkanDevice &device, const VkSurfaceKHR &surface, unsigned
+                         int &currentFrame, IRendererBackend *backendRef, VkAllocationCallbacks *allocator);
     bool detectDepthFormat(VulkanDevice &device);
-    void destroySwapchain(VulkanDevice &device);
+    void destroySwapchain(VulkanDevice &device, const VkAllocationCallbacks *allocator);
 };

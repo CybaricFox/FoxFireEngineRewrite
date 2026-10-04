@@ -306,7 +306,7 @@ bool PlatformLinux::createSurface() {
     createInfo.connection = connection;
     createInfo.window = window;
 
-    if (const VkResult result = vkCreateXcbSurfaceKHR(vulkanContext->getInstance(), &createInfo, nullptr, &surface); result != VK_SUCCESS) {
+    if (const VkResult result = vkCreateXcbSurfaceKHR(vulkanContext->getInstance(), &createInfo, vulkanContext->getAllocator(), &surface); result != VK_SUCCESS) {
         printConsoleError("Failed to create Vulkan surface for linux.", 0);
         return false;
     }

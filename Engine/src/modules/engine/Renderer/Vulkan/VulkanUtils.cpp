@@ -165,7 +165,7 @@ bool VulkanUtils::createShaderModule(VulkanContext &context, const String &name,
     shaderStages[stageIndex].createInfo.codeSize = binaryResource.dataSize;
     shaderStages[stageIndex].createInfo.pCode = static_cast<unsigned int *>(binaryResource.data);
 
-    vulkanCheck(vkCreateShaderModule(context.getDevice().getLogicalDevice(), &shaderStages[stageIndex].createInfo, nullptr, &shaderStages[stageIndex].handle));
+    vulkanCheck(vkCreateShaderModule(context.getDevice().getLogicalDevice(), &shaderStages[stageIndex].createInfo, context.getAllocator(), &shaderStages[stageIndex].handle));
     resources.unload(binaryResource);
 
     shaderStages[stageIndex].shaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;

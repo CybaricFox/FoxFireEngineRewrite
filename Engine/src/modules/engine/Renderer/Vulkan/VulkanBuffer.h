@@ -22,6 +22,7 @@ private:
     VkBufferUsageFlagBits usageFlags{};
     bool bIsLocked = false;
     VkDeviceMemory deviceMemory{};
+    VkMemoryRequirements memoryRequirements{};
     int memoryIndex = 0;
     unsigned int memoryPropertyFlags = 0;
     unsigned long freeListMemoryRequirement = 0;
@@ -29,7 +30,7 @@ private:
     FreeList bufferFreeList{};
 
     void bindBuffer(VulkanDevice &device, unsigned long offset) const;
-    bool resizeBuffer(VulkanDevice &device, unsigned long newSize, VkQueue queue, VkCommandPool pool);
+    bool resizeBuffer(VulkanDevice &device, unsigned long newSize, VkQueue queue, VkCommandPool pool, const VkAllocationCallbacks *allocator);
     void destroyFreeList();
 
 public:
@@ -38,7 +39,8 @@ public:
      * @return
      */
     VkBuffer& getBuffer() {return handle;}
-    bool createBuffer(VulkanDevice& device, unsigned long size, VkBufferUsageFlagBits usage, unsigned int memoryFlags, bool bBind);
+    bool createBuffer(VulkanDevice &device, unsigned long size, VkBufferUsageFlagBits usage, unsigned int memoryFlags, bool bBind, const VkAllocationCallbacks
+                      *allocator);
 
     /**
      * @brief Copys the buffer data to another buffer.
@@ -62,7 +64,7 @@ public:
      * @param data OUT data.
      */
     void loadBufferData(VulkanDevice &device, unsigned long offset, unsigned long size, const void *data) const;
-    void destroyBuffer(VulkanDevice &device);
+    void destroyBuffer(VulkanDevice &device, const VkAllocationCallbacks *allocator);
 
     /**
      * @brief Allocates memory to the buffer's free list.

@@ -12,12 +12,23 @@
 
 #pragma once
 
+//Traces allocations
+//#ifndef VULKAN_ALLOCATOR_TRACE
+//    #define VULKAN_ALLOCATOR_TRACE 1
+//#endif
+
+//Enable or disable the use of a custom allocator in Vulkan
+#ifndef VULKAN_USE_CUSTOM_ALLOCATOR
+    #define VULKAN_USE_CUSTOM_ALLOCATOR 1
+#endif
+
 #include "VulkanBackendShader.h"
 #include "../IRendererBackend.h"
 
 #include "VulkanContext.h"
 #include "VulkanUtils.h"
 #include "src/modules/engine/Core/GameInstance.h"
+#include <sstream>
 
 class VulkanBackend final : public IRendererBackend{
 private:
@@ -38,14 +49,147 @@ private:
     bool swapchainAcquireNextImageIndex(unsigned long timeout, VkSemaphore semaphore, VkFence fence, unsigned int& outImageIndex);
     void presentSwapchain();
     void allocateCommandBuffers();
-    bool uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, ULong &outOffset, unsigned long size, const
-                           void *data);
+    bool uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, ULong &outOffset, unsigned long size, const void *data);
     bool freeRangeOfData(VulkanBuffer &buffer, unsigned long offset, unsigned long size);
     bool createBuffers();
     bool createModule(const VulkanShaderStageConfig &config, VulkanShaderStage &stage) const;
     VkSamplerAddressMode convertTextureRepeatToVulkan(const String &axis, TextureRepeat repeat);
     VkFilter convertTextureFilterToVulkan(const String &op, TextureFilter filter);
     VkFormat convertChannelCountToFormat(unsigned char channelCount, VkFormat defaultFormat);
+
+#if VULKAN_USE_CUSTOM_ALLOCATOR == 1
+    /**
+     * @brief Allocation used by vulkan if enabled.
+     * @link https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkAllocationFunction.html
+     * @param data
+     * @param size
+     * @param alignment
+     * @param scope
+     * @return
+     */
+    static void* vulkanAllocate(void* data, const size_t size, const size_t alignment, VkSystemAllocationScope scope) {
+        if (size == 0) return nullptr;
+        if (!FF_Memory::isInitialized()) {
+            Logger::logFatal("Vulkan attempted an allocation when FF_Memory is not initialized!");
+            return nullptr;
+        }
+
+        void* result = FF_Memory::ff_allocate(size, RENDER_BACKEND_MANUAL, static_cast<unsigned short>(alignment));
+
+        #ifdef VULKAN_ALLOCATOR_TRACE
+        std::ostringstream oss{};
+        oss << result;
+        Logger::logDebug("Vulkan allocated memory block: " + oss.str() + " Size: " + std::to_string(size) + " Alignment: " + std::to_string(alignment));
+        #endif
+
+        return result;
+    }
+
+    static void vulkanFree(void* data, void* memory) {
+        if (!memory) {
+            #ifdef VULKAN_ALLOCATOR_TRACE
+            Logger::logDebug("Vulkan cannot free memory because memory is null.");
+            #endif
+            return;
+        }
+
+        ULong size = 0;
+        unsigned short alignment = 1;
+        const bool result = FF_Memory::getSizeAndAlignment(memory, size, alignment);
+        std::ostringstream oss{};
+        oss << memory;
+
+        if (!result) {
+            Logger::logError("Vulkan failed to free memory block: " + oss.str());
+            return;
+        }
+
+        #ifdef VULKAN_ALLOCATOR_TRACE
+        Logger::logDebug("Vulkan successfully freed memory block: " + oss.str());
+        #endif
+        FF_Memory::ff_free(memory, size, RENDER_BACKEND_MANUAL, alignment);
+    }
+
+    static void* vulkanReallocate(void* data, void* original, const size_t size, const size_t alignment, const VkSystemAllocationScope scope) {
+        //No reallocation necessary. Just allocate.
+        if (!original) {
+            return vulkanAllocate(data, size, alignment, scope);
+        }
+
+        std::ostringstream oss{};
+        oss << original;
+        ULong allocationSize = 0;
+        unsigned short allocationAlignment = 1;
+        if (!FF_Memory::getSizeAndAlignment(original, allocationSize, allocationAlignment)) {
+            Logger::logError("Vulkan cannot realign memory block: " + oss.str());
+            return nullptr;
+        }
+        if (size == 0) {
+            FF_Memory::ff_free(original, allocationSize, RENDER_BACKEND_MANUAL, allocationAlignment);
+            return nullptr;
+        }
+
+        if (allocationAlignment != alignment) {
+            Logger::logError("Vulkan reallocation is using a different alignment than the original! Original: " + std::to_string(allocationAlignment) + " Passed: " + std::to_string(alignment));
+            return nullptr;
+        }
+
+        void* result = vulkanAllocate(data, size, allocationAlignment, scope);
+        if (!result) {
+        #ifdef VULKAN_ALLOCATOR_TRACE
+            Logger::logDebug("Vulkan failed to reallocate original: " + oss.str());
+        #endif
+            return result;
+        }
+
+        #ifdef VULKAN_ALLOCATOR_TRACE
+        std::ostringstream rss{};
+        rss << result;
+        Logger::logDebug("Vulkan successfully reallocated memory block " + oss.str() + " to " + rss.str());
+        #endif
+
+        FF_Memory::ff_copy(result, original, size);
+        #ifdef VULKAN_ALLOCATOR_TRACE
+        Logger::logDebug("Now freeing original memory " + oss.str());
+        #endif
+
+        FF_Memory::ff_free(original, allocationSize, RENDER_BACKEND_MANUAL, allocationAlignment);
+
+        return result;
+    }
+
+    static void vulkanInternalAllocate(void* data, const size_t size, VkInternalAllocationType type, VkSystemAllocationScope scope) {
+        #ifdef VULKAN_ALLOCATOR_TRACE
+        Logger::logDebug("Vulkan is externally allocating " + std::to_string(size) + " bytes.");
+        #endif
+
+        FF_Memory::reportAllocation(size, RENDER_BACKEND_AUTO);
+    }
+
+    static void vulkanInternalFree(void* data, const size_t size, VkInternalAllocationType type, VkSystemAllocationScope scope) {
+        #ifdef VULKAN_ALLOCATOR_TRACE
+        Logger::logDebug("Vulkan is externally freeing " + std::to_string(size) + " bytes.");
+        #endif
+
+        FF_Memory::removeReport(size, RENDER_BACKEND_AUTO);
+    }
+
+    bool createVulkanAllocator(VkAllocationCallbacks* callbacks) {
+        if (!callbacks) {
+            return false;
+        }
+
+        callbacks->pfnAllocation = vulkanAllocate;
+        callbacks->pfnReallocation = vulkanReallocate;
+        callbacks->pfnFree = vulkanFree;
+        callbacks->pfnInternalAllocation = vulkanInternalAllocate;
+        callbacks->pfnInternalFree = vulkanInternalFree;
+        callbacks->pUserData = &vulkanContext;
+
+        return true;
+    }
+#endif
+
 public:
     VulkanBackend() = default;
     ~VulkanBackend() override;

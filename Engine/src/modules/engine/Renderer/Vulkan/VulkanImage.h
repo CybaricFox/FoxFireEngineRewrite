@@ -22,14 +22,17 @@ class VulkanImage {
 private:
     VkImage handle{};
     VkDeviceMemory deviceMemory{};
+    VkMemoryRequirements memoryRequirements{};
+    VkMemoryPropertyFlags memoryFlags = 0;
     VkImageView view{};
     unsigned int width = 0;
     unsigned int height = 0;
 
-    void createImageView(VkFormat format, VkImageAspectFlags aspectFlags, VulkanDevice &device, TextureType type);
+    void createImageView(VkFormat format, VkImageAspectFlags aspectFlags, VulkanDevice &device, TextureType type, const VkAllocationCallbacks *
+                         allocator);
 
 public:
-    void destroy(VulkanDevice& device);
+    void destroy(VulkanDevice &device, const VkAllocationCallbacks *allocator);
 
     VkImageView& getImageView() {return view;}
     VkImage& getImage() {return handle;}
@@ -45,8 +48,8 @@ public:
     void copyFromBuffer(VkBuffer buffer, VulkanCommandBuffer &commandBuffer, TextureType type) const;
 
     void createImage(
-            TextureType imageType, unsigned int newWidth, unsigned int newHeight, VkFormat format,
-            VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags, bool createView,
-            VkImageAspectFlags aspect, VulkanDevice &device
+        TextureType imageType, unsigned int newWidth, unsigned int newHeight, VkFormat format,
+        VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags, bool createView,
+        VkImageAspectFlags aspect, VulkanDevice &device, const VkAllocationCallbacks *allocator
     );
 };

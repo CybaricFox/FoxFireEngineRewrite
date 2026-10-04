@@ -66,12 +66,12 @@ bool VulkanBackend::recreateSwapchain() {
         }
     }
 
-    vulkanContext.getSwapchain().destroySwapchain(vulkanContext.getDevice());
+    vulkanContext.getSwapchain().destroySwapchain(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     vulkanContext.getDevice().querySwapChainSupport(vulkanContext.getDevice().getPhysicalDevice(), vulkanContext.getSurface(), vulkanContext.getDevice().getSwapChainSupportInfo());
     vulkanContext.getSwapchain().detectDepthFormat(vulkanContext.getDevice());
 
-    vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame(), this);
+    vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame(), this, vulkanContext.getAllocator());
 
     vulkanContext.getSwapchain().finishResize();
 
@@ -147,12 +147,12 @@ bool VulkanBackend::uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue
     //Create staging buffer
     constexpr VkBufferUsageFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     VulkanBuffer stagingBuffer{};
-    stagingBuffer.createBuffer(vulkanContext.getDevice(), size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, flags, true);
+    stagingBuffer.createBuffer(vulkanContext.getDevice(), size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, flags, true, vulkanContext.getAllocator());
 
     //Load staging buffer
     stagingBuffer.loadBufferData(vulkanContext.getDevice(), 0, size, data);
     stagingBuffer.copyBufferData(vulkanContext.getDevice(), pool, fence, queue, stagingBuffer.getBuffer(), 0, buffer.getBuffer(), outOffset, size);
-    stagingBuffer.destroyBuffer(vulkanContext.getDevice());
+    stagingBuffer.destroyBuffer(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     return true;
 }
@@ -322,7 +322,6 @@ bool VulkanBackend::createShader(Shader &shader, ShaderConfig& config, Renderpas
 }
 
 bool VulkanBackend::initializeShader(Shader &shader) {
-    VkAllocationCallbacks* vkAllocator = nullptr;
     auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
 
     for (unsigned int i = 0; i < backendShader->getStageCount(); i++) {
@@ -357,11 +356,11 @@ bool VulkanBackend::initializeShader(Shader &shader) {
     }
 
     //Create descriptor pool
-    if (!backendShader->createDescriptorPool(vulkanContext.getDevice(), vkAllocator)) return false;
+    if (!backendShader->createDescriptorPool(vulkanContext.getDevice(), vulkanContext.getAllocator())) return false;
 
     //Create descriptor set layouts
     for (unsigned int i = 0; i < backendShader->getConfig().descriptorSetCount; i++) {
-        if (!backendShader->createDescriptorSetLayout(i, vulkanContext.getDevice(), vkAllocator)) return false;
+        if (!backendShader->createDescriptorSetLayout(i, vulkanContext.getDevice(), vulkanContext.getAllocator())) return false;
     }
 
     //Viewport
@@ -386,8 +385,8 @@ bool VulkanBackend::initializeShader(Shader &shader) {
     }
 
     const bool result = backendShader->createPipeline(shader.getAttributeStride(), shader.getAttributeCount(),
-        shaderStageCreateInfo, viewport, scissor, shader.getPushConstantRangeCount(), shader.getPushConstantRanges(),
-        vulkanContext.getDevice());
+                                                      shaderStageCreateInfo, viewport, scissor, shader.getPushConstantRangeCount(), shader.getPushConstantRanges(),
+                                                      vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     if (!result) {
         Logger::logError("Failed to load pipeline for shader.");
@@ -401,9 +400,9 @@ bool VulkanBackend::initializeShader(Shader &shader) {
     const unsigned int deviceLocalBits = vulkanContext.getDevice().supportsDeviceLocalBit() ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
     const unsigned long totalBufferSize = shader.getGlobalStride() + (shader.getInstanceStride() * MAX_MATERIAL_COUNT);
     if (!backendShader->getUniformBuffer().createBuffer(vulkanContext.getDevice(), totalBufferSize,
-        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | deviceLocalBits,
-        true)) {
+                                                        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
+                                                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | deviceLocalBits,
+                                                        true, vulkanContext.getAllocator())) {
 
         Logger::logError("Failed to create uniform buffer for shader.");
         return false;
@@ -424,7 +423,7 @@ void VulkanBackend::destroyShader(Shader &shader) {
 
     auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
 
-    backendShader->shutdown(vulkanContext.getDevice(), nullptr);
+    backendShader->shutdown(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     FF_Memory::ff_free_class<VulkanBackendShader>(shader.getBackendShader(), sizeof(VulkanBackendShader), RENDER);
     shader.setBackendShader(nullptr);
@@ -677,14 +676,14 @@ void VulkanBackend::createRenderTarget(const unsigned char attachmentCount, Dyna
     framebufferCreateInfo.height = height;
     framebufferCreateInfo.layers = 1;
 
-    VulkanUtils::vulkanCheck(vkCreateFramebuffer(vulkanContext.getDevice().getLogicalDevice(), &framebufferCreateInfo, nullptr, reinterpret_cast<VkFramebuffer *>(&outTarget.framebuffer)));
+    VulkanUtils::vulkanCheck(vkCreateFramebuffer(vulkanContext.getDevice().getLogicalDevice(), &framebufferCreateInfo, vulkanContext.getAllocator(), reinterpret_cast<VkFramebuffer *>(&outTarget.framebuffer)));
 }
 
 void VulkanBackend::destroyRenderTarget(RenderTarget &target, const bool freeMemory) {
     vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
 
     if (target.framebuffer) {
-        vkDestroyFramebuffer(vulkanContext.getDevice().getLogicalDevice(), static_cast<VkFramebuffer>(target.framebuffer), nullptr);
+        vkDestroyFramebuffer(vulkanContext.getDevice().getLogicalDevice(), static_cast<VkFramebuffer>(target.framebuffer), vulkanContext.getAllocator());
         target.framebuffer = nullptr;
     }
 
@@ -802,7 +801,7 @@ void VulkanBackend::createRenderpass(Renderpass &outRenderpass, float depth, uns
     renderPassCreateInfo.pNext = nullptr;
     renderPassCreateInfo.flags = 0;
 
-    VulkanUtils::vulkanCheck(vkCreateRenderPass(vulkanContext.getDevice().getLogicalDevice(), &renderPassCreateInfo, nullptr, &pass->getHandle()));
+    VulkanUtils::vulkanCheck(vkCreateRenderPass(vulkanContext.getDevice().getLogicalDevice(), &renderPassCreateInfo, vulkanContext.getAllocator(), &pass->getHandle()));
 }
 
 void VulkanBackend::destroyRenderpass(Renderpass &renderpass) {
@@ -811,8 +810,8 @@ void VulkanBackend::destroyRenderpass(Renderpass &renderpass) {
     VulkanRenderpass& pass = *reinterpret_cast<VulkanRenderpass *>(renderpass.getData());
 
     if (pass.getHandle() != VK_NULL_HANDLE) {
-        pass.destroyFramebuffers(vulkanContext.getDevice());
-        vkDestroyRenderPass(vulkanContext.getDevice().getLogicalDevice(), pass.getHandle(), nullptr);
+        pass.destroyFramebuffers(vulkanContext.getDevice(), vulkanContext.getAllocator());
+        vkDestroyRenderPass(vulkanContext.getDevice().getLogicalDevice(), pass.getHandle(), vulkanContext.getAllocator());
         pass.shutdown();
 
         FF_Memory::ff_free_class<VulkanRenderpass>(&pass, sizeof(VulkanRenderpass), RENDER);
@@ -832,8 +831,8 @@ VulkanBackend::~VulkanBackend() {
     vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
 
     //Destroy buffers
-    vulkanContext.getVertexBuffer().destroyBuffer(vulkanContext.getDevice());
-    vulkanContext.getIndexBuffer().destroyBuffer(vulkanContext.getDevice());
+    vulkanContext.getVertexBuffer().destroyBuffer(vulkanContext.getDevice(), vulkanContext.getAllocator());
+    vulkanContext.getIndexBuffer().destroyBuffer(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     Logger::logDebug("Destroying sync objects");
     //Destroy sync objects
@@ -865,7 +864,7 @@ VulkanBackend::~VulkanBackend() {
 
     //Destroy swap chain
     Logger::logDebug("Destroying Swapchain.");
-    vulkanContext.getSwapchain().destroySwapchain(vulkanContext.getDevice());
+    vulkanContext.getSwapchain().destroySwapchain(vulkanContext.getDevice(), vulkanContext.getAllocator());
     vulkanContext.destroyContext();
 }
 
@@ -873,6 +872,19 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     resourceSystemRef = resources;
     vulkanContext.initializeEvents();
     vulkanContext.initializeGeometry();
+
+    #if VULKAN_USE_CUSTOM_ALLOCATOR == 1
+    auto callbacks = static_cast<VkAllocationCallbacks *>(FF_Memory::ff_allocate(sizeof(VkAllocationCallbacks), RENDER, alignof(VkAllocationCallbacks)));
+    if (!createVulkanAllocator(callbacks)) {
+        Logger::logFatal("Failed to create custom Vulkan allocator.");
+        FF_Memory::ff_free(callbacks, sizeof(VkAllocationCallbacks),RENDER, alignof(VkAllocationCallbacks));
+        vulkanContext.setAllocator(nullptr);
+    } else {
+        vulkanContext.setAllocator(callbacks);
+    }
+    #else
+    vulkanContext.setAllocator(nullptr);
+    #endif
 
     //Connect refresh function here
     vulkanContext.resizeRenderTargetsEvent.subscribe(config.func);
@@ -921,11 +933,11 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     VulkanUtils::vulkanCheck(vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.getData()));
 
     for (const char* requiredLayer : validationLayers) {
-        Logger::logInfo("Searching for " + String(requiredLayer));
         bool found = false;
         for (const VkLayerProperties properties : availableLayers) {
             if (strcmp(requiredLayer, properties.layerName) == 0) {
                 found = true;
+                Logger::logInfo("Found validation layer: " + String(requiredLayer));
                 break;
             }
         }
@@ -947,7 +959,39 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     createInfo.enabledLayerCount = layerCount;
     createInfo.ppEnabledLayerNames = validationLayers.getData();
 
-    VulkanUtils::vulkanCheck(vkCreateInstance(&createInfo, nullptr, &vulkanContext.getInstance()));
+    //Check that the required extensions exist
+    unsigned int availableExtensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, nullptr);
+    DynamicArray<VkExtensionProperties> availableExtensions{availableExtensionCount};
+    for (unsigned int i = 0; i < availableExtensionCount; i++) {
+        availableExtensions.emplace();
+    }
+    vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.getData());
+
+    for (const char* extension : requiredExtensions) {
+        bool found = false;
+        for (VkExtensionProperties properties : availableExtensions) {
+            if (strcmp(extension, properties.extensionName) == 0) {
+                found = true;
+                Logger::logInfo("Required extension Found: " + String(extension));
+                break;
+            }
+        }
+
+        if (!found) {
+            Logger::logFatal("Required extension " + String(extension) + " could not be found.");
+            return false;
+        }
+    }
+
+    availableExtensions.shutdown();
+
+    VkResult result = vkCreateInstance(&createInfo, vulkanContext.getAllocator(), &vulkanContext.getInstance());
+    if (!VulkanUtils::vulkanCheck(result)) {
+        Logger::logFatal("Failed to create Vulkan instance: " + VulkanUtils::getResultAsString(result, true));
+        return false;
+    }
+
     Logger::logInfo("Vulkan Instance Created Successfully.");
 
     validationLayers.shutdown();
@@ -978,12 +1022,12 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     Logger::logInfo("Created Vulkan surface successfully.");
 
     //Create device
-    if (!vulkanContext.getDevice().createDevice(vulkanContext.getInstance(), vulkanContext.getSurface())) {
+    if (!vulkanContext.getDevice().createDevice(vulkanContext.getInstance(), vulkanContext.getSurface(), vulkanContext.getAllocator())) {
         Logger::logFatal("Failed to create Vulkan device.");
         return false;
     }
 
-    vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame(), this);
+    vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame(), this, vulkanContext.getAllocator());
 
     outRenderTargetCount = vulkanContext.getSwapchain().getImageCount();
 
@@ -1005,15 +1049,15 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
 
     for (unsigned char i = 0; i < vulkanContext.getSwapchain().getMaxFramesInFlight(); i++) {
         VkSemaphoreCreateInfo semCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        vkCreateSemaphore(vulkanContext.getDevice().getLogicalDevice(), &semCreateInfo, nullptr, &vulkanContext.getImageAvailableSemaphores()[i]);
+        vkCreateSemaphore(vulkanContext.getDevice().getLogicalDevice(), &semCreateInfo, vulkanContext.getAllocator(), &vulkanContext.getImageAvailableSemaphores()[i]);
 
         VkFenceCreateInfo fenceCreateInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
         fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        VulkanUtils::vulkanCheck(vkCreateFence(vulkanContext.getDevice().getLogicalDevice(), &fenceCreateInfo, nullptr, &vulkanContext.getFenceInFlight(i)));
+        VulkanUtils::vulkanCheck(vkCreateFence(vulkanContext.getDevice().getLogicalDevice(), &fenceCreateInfo, vulkanContext.getAllocator(), &vulkanContext.getFenceInFlight(i)));
     }
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
         VkSemaphoreCreateInfo semCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        vkCreateSemaphore(vulkanContext.getDevice().getLogicalDevice(), &semCreateInfo, nullptr, &vulkanContext.getQueueCompleteSemaphores()[i]);
+        vkCreateSemaphore(vulkanContext.getDevice().getLogicalDevice(), &semCreateInfo, vulkanContext.getAllocator(), &vulkanContext.getQueueCompleteSemaphores()[i]);
     }
 
     //Set initial state to 0. This is allocated in createSyncObject().
@@ -1159,8 +1203,8 @@ void VulkanBackend::createTexture(const unsigned char *pixels, Texture &texture)
     VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
     data.createImage(texture.type, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
+                     VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     writeTextureData(texture, 0, imageSize, pixels);
 
@@ -1173,7 +1217,7 @@ void VulkanBackend::destroyTexture(Texture &texture) {
     if (texture.data) {
         VulkanImage& data = *static_cast<VulkanImage *>(texture.data);
 
-        data.destroy(vulkanContext.getDevice());
+        data.destroy(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
         FF_Memory::ff_free_class<VulkanImage>(texture.data, sizeof(VulkanImage), TEXTURE);
     }
@@ -1273,8 +1317,8 @@ bool VulkanBackend::createBuffers() {
 
     constexpr unsigned long vertexBufferSize = sizeof(Vertex3d) * 1024 * 1024; //Vertex Buffer should be 64mb with this
     if (!vulkanContext.getVertexBuffer().createBuffer(vulkanContext.getDevice(), vertexBufferSize,
-        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
-        memoryPropertyFlags, true)) {
+                                                      static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
+                                                      memoryPropertyFlags, true, vulkanContext.getAllocator())) {
 
         Logger::logError("Error creating vertex buffer!");
         return false;
@@ -1282,8 +1326,8 @@ bool VulkanBackend::createBuffers() {
 
     constexpr unsigned long indexBufferSize = sizeof(unsigned int) * 1024 * 1024;
     if (!vulkanContext.getIndexBuffer().createBuffer(vulkanContext.getDevice(), indexBufferSize,
-        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
-        memoryPropertyFlags, true)) {
+                                                     static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
+                                                     memoryPropertyFlags, true, vulkanContext.getAllocator())) {
 
         Logger::logError("Error creating index buffer!");
         return false;
@@ -1304,7 +1348,7 @@ bool VulkanBackend::createModule(const VulkanShaderStageConfig &config, VulkanSh
     stage.createInfo.codeSize = binaryResource.dataSize;
     stage.createInfo.pCode = static_cast<unsigned int *>(binaryResource.data);
 
-    VulkanUtils::vulkanCheck(vkCreateShaderModule(vulkanContext.getDevice().getLogicalDevice(), &stage.createInfo, nullptr, &stage.handle));
+    VulkanUtils::vulkanCheck(vkCreateShaderModule(vulkanContext.getDevice().getLogicalDevice(), &stage.createInfo, vulkanContext.getAllocator(), &stage.handle));
 
     resourceSystemRef->unload(binaryResource);
 
@@ -1339,7 +1383,7 @@ bool VulkanBackend::acquireTextureMapResources(TextureMap &textureMap) {
     info.minLod = 0.0f;
     info.maxLod = 0.0f;
 
-    VkResult result = vkCreateSampler(vulkanContext.getDevice().getLogicalDevice(), &info, nullptr, reinterpret_cast<VkSampler *>(&textureMap.data));
+    VkResult result = vkCreateSampler(vulkanContext.getDevice().getLogicalDevice(), &info, vulkanContext.getAllocator(), reinterpret_cast<VkSampler *>(&textureMap.data));
     if (!VulkanUtils::vulkanCheck(result)) {
         Logger::logError("An error occured while creating VkSampler: " + VulkanUtils::getResultAsString(result, true));
         return false;
@@ -1349,7 +1393,7 @@ bool VulkanBackend::acquireTextureMapResources(TextureMap &textureMap) {
 }
 
 void VulkanBackend::releaseTextureMapResources(TextureMap &textureMap) {
-    vkDestroySampler(vulkanContext.getDevice().getLogicalDevice(), static_cast<VkSampler>(textureMap.data), nullptr);
+    vkDestroySampler(vulkanContext.getDevice().getLogicalDevice(), static_cast<VkSampler>(textureMap.data), vulkanContext.getAllocator());
     textureMap.data = nullptr;
 }
 
@@ -1359,8 +1403,8 @@ void VulkanBackend::createWritableTexture(Texture &texture) {
 
     VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
     image.createImage(texture.type, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
+                      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     texture.generation++;
 }
@@ -1369,13 +1413,13 @@ void VulkanBackend::resizeTexture(Texture &texture, unsigned int width, unsigned
     if (!texture.data) return;
 
     VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
-    image.destroy(vulkanContext.getDevice());
+    image.destroy(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
 
     image.createImage(texture.type, width, height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice());
+                      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     texture.generation++;
 }
@@ -1388,7 +1432,7 @@ void VulkanBackend::writeTextureData(Texture &texture, unsigned int offset, unsi
     VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     VulkanBuffer stagingBuffer{};
-    stagingBuffer.createBuffer(vulkanContext.getDevice(), imageSize, usage, memoryFlags, true);
+    stagingBuffer.createBuffer(vulkanContext.getDevice(), imageSize, usage, memoryFlags, true, vulkanContext.getAllocator());
     stagingBuffer.loadBufferData(vulkanContext.getDevice(), 0, imageSize, pixels);
 
     VulkanCommandBuffer tempBuffer = VulkanCommandBuffer::allocateAndBeginSingleUseCommandBuffer(vulkanContext.getDevice());
@@ -1400,7 +1444,7 @@ void VulkanBackend::writeTextureData(Texture &texture, unsigned int offset, unsi
     image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.type, vulkanContext.getDevice());
 
     tempBuffer.endSingleUseCommandBuffer(queue, vulkanContext.getDevice());
-    stagingBuffer.destroyBuffer(vulkanContext.getDevice());
+    stagingBuffer.destroyBuffer(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     texture.generation++;
 }

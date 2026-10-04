@@ -49,5 +49,5 @@ public:
     void setStencil(const unsigned int newStencil) { stencil = newStencil; }
 
     void setupFramebuffers(unsigned int count);
-    void destroyFramebuffers(VulkanDevice &device);
+    void destroyFramebuffers(VulkanDevice &device, VkAllocationCallbacks *allocator);
 };

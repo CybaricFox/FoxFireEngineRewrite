@@ -36,11 +36,11 @@ void VulkanContext::destroySyncObjects() {
     if (imageAvailableSemaphores) {
         for (unsigned char i = 0; i < swapchain.getMaxFramesInFlight(); i++) {
             if (imageAvailableSemaphores[i]) {
-                vkDestroySemaphore(device.getLogicalDevice(), imageAvailableSemaphores[i], nullptr);
+                vkDestroySemaphore(device.getLogicalDevice(), imageAvailableSemaphores[i], allocator);
                 imageAvailableSemaphores[i] = nullptr;
             }
 
-            vkDestroyFence(device.getLogicalDevice(), inFlightFences[i], nullptr);
+            vkDestroyFence(device.getLogicalDevice(), inFlightFences[i], allocator);
         }
         FF_Memory::ff_free(imageAvailableSemaphores, sizeof(VkSemaphore) * swapchain.getMaxFramesInFlight(), ARRAY);
         imageAvailableSemaphores = nullptr;
@@ -49,7 +49,7 @@ void VulkanContext::destroySyncObjects() {
     if (queueCompleteSemaphores) {
         for (unsigned int i = 0; i < swapchain.getImageCount(); i++) {
             if (queueCompleteSemaphores[i]) {
-                vkDestroySemaphore(device.getLogicalDevice(), queueCompleteSemaphores[i], nullptr);
+                vkDestroySemaphore(device.getLogicalDevice(), queueCompleteSemaphores[i], allocator);
                 queueCompleteSemaphores[i] = nullptr;
             }
         }
@@ -105,13 +105,13 @@ void VulkanContext::destroyContext() {
 
     if (device.getCommandPool()) {
         Logger::logDebug("Destroying command pools.");
-        vkDestroyCommandPool(device.getLogicalDevice(), device.getCommandPool(), nullptr);
+        vkDestroyCommandPool(device.getLogicalDevice(), device.getCommandPool(), allocator);
         device.getCommandPool() = nullptr;
     }
 
     Logger::logDebug("Destroying logical device.");
     if (device.getLogicalDevice()) {
-        vkDestroyDevice(device.getLogicalDevice(), nullptr);
+        vkDestroyDevice(device.getLogicalDevice(), allocator);
         device.getLogicalDevice() = nullptr;
     }
 
@@ -145,13 +145,18 @@ void VulkanContext::destroyContext() {
 
     if (surface) {
         Logger::logDebug("Destroying Vulkan surface.");
-        vkDestroySurfaceKHR(instance, surface, nullptr);
+        vkDestroySurfaceKHR(instance, surface, allocator);
         surface = nullptr;
     }
 
     if (instance) {
         Logger::logDebug("Destroying Vulkan instance.");
-        vkDestroyInstance(instance, nullptr);
+        vkDestroyInstance(instance, allocator);
         instance = nullptr;
+    }
+
+    if (allocator) {
+        FF_Memory::ff_free(allocator, sizeof(VkAllocationCallbacks), RENDER, alignof(VkAllocationCallbacks));
+        allocator = nullptr;
     }
 }

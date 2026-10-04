@@ -23,7 +23,7 @@ private:
 public:
     VkPipelineLayout& getPipelineLayout() {return pipelineLayout;}
 
-    void destroyPipeline(VulkanDevice &device);
+    void destroyPipeline(VulkanDevice &device, const VkAllocationCallbacks *allocator);
     void bindPipeline(VulkanCommandBuffer &commandBuffer, VkPipelineBindPoint pipelineBindPoint) const;
 
     bool createPipeline(
@@ -40,8 +40,8 @@ public:
         bool bIsWireframe,
         bool bDepthTestEnabled,
         unsigned int pushConstantRangeCount,
-        MemoryRange* pushConstantRanges,
+        MemoryRange *pushConstantRanges,
         CullMode cullMode,
-        VulkanDevice &device
+        VulkanDevice &device, VkAllocationCallbacks *allocator
     );
 };

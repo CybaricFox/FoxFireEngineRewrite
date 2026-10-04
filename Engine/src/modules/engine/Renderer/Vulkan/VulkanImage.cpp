@@ -8,10 +8,11 @@
 
 void VulkanImage::createImage(const TextureType imageType, const unsigned int newWidth, const unsigned int newHeight, VkFormat format,
                               VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags, const bool createView,
-                              VkImageAspectFlags aspect, VulkanDevice& device) {
+                              VkImageAspectFlags aspect, VulkanDevice& device, const VkAllocationCallbacks* allocator) {
 
     width = newWidth;
     height = newHeight;
+    memoryFlags = memoryPropertyFlags;
 
     VkImageCreateInfo imageCreateInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -37,41 +38,47 @@ void VulkanImage::createImage(const TextureType imageType, const unsigned int ne
         }
     }
 
-    VulkanUtils::vulkanCheck(vkCreateImage(device.getLogicalDevice(), &imageCreateInfo, nullptr, &handle));
+    VulkanUtils::vulkanCheck(vkCreateImage(device.getLogicalDevice(), &imageCreateInfo, allocator, &handle));
 
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(device.getLogicalDevice(), handle, &memRequirements);
-    const int memoryType = VulkanUtils::findMemoryIndex(static_cast<int>(memRequirements.memoryTypeBits), memoryPropertyFlags, device.getPhysicalDevice());
+    vkGetImageMemoryRequirements(device.getLogicalDevice(), handle, &memoryRequirements);
+    const int memoryType = VulkanUtils::findMemoryIndex(static_cast<int>(memoryRequirements.memoryTypeBits), memoryPropertyFlags, device.getPhysicalDevice());
     if (memoryType == -1) {
         Logger::logError("Memory type could not be found. The image in invalid.");
         return;
     }
 
     VkMemoryAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    allocateInfo.allocationSize = memRequirements.size;
+    allocateInfo.allocationSize = memoryRequirements.size;
     allocateInfo.memoryTypeIndex = memoryType;
-    VulkanUtils::vulkanCheck(vkAllocateMemory(device.getLogicalDevice(), &allocateInfo, nullptr, &deviceMemory));
+    VulkanUtils::vulkanCheck(vkAllocateMemory(device.getLogicalDevice(), &allocateInfo, allocator, &deviceMemory));
     VulkanUtils::vulkanCheck(vkBindImageMemory(device.getLogicalDevice(), handle, deviceMemory, 0));
+
+    const bool isDeviceMemory = (memoryFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    FF_Memory::reportAllocation(memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
 
     if (createView) {
         view = nullptr;
-        createImageView(format, aspect, device, imageType);
+        createImageView(format, aspect, device, imageType, allocator);
     }
 }
 
-void VulkanImage::destroy(VulkanDevice &device) {
+void VulkanImage::destroy(VulkanDevice &device, const VkAllocationCallbacks* allocator) {
     if (view) {
-        vkDestroyImageView(device.getLogicalDevice(), view, nullptr);
+        vkDestroyImageView(device.getLogicalDevice(), view, allocator);
         view = nullptr;
     }
     if (handle) {
-        vkDestroyImage(device.getLogicalDevice(), handle, nullptr);
+        vkDestroyImage(device.getLogicalDevice(), handle, allocator);
         handle = nullptr;
     }
     if (deviceMemory) {
-        vkFreeMemory(device.getLogicalDevice(), deviceMemory, nullptr);
+        vkFreeMemory(device.getLogicalDevice(), deviceMemory, allocator);
         deviceMemory = nullptr;
     }
+
+    const bool isDeviceMemory = (memoryFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    FF_Memory::removeReport(memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
+    FF_Memory::ff_clear(&memoryRequirements, sizeof(VkMemoryRequirements));
 }
 
 void VulkanImage::transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, const TextureType type, VulkanDevice& device) const {
@@ -131,7 +138,7 @@ void VulkanImage::copyFromBuffer(VkBuffer buffer, VulkanCommandBuffer &commandBu
     vkCmdCopyBufferToImage(commandBuffer.getHandle(), buffer, handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
-void VulkanImage::createImageView(VkFormat format, VkImageAspectFlags aspectFlags, VulkanDevice& device, const TextureType type) {
+void VulkanImage::createImageView(VkFormat format, VkImageAspectFlags aspectFlags, VulkanDevice& device, const TextureType type, const VkAllocationCallbacks* allocator) {
     VkImageViewCreateInfo viewCreateInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     viewCreateInfo.image = handle;
     viewCreateInfo.format = format;
@@ -151,5 +158,5 @@ void VulkanImage::createImageView(VkFormat format, VkImageAspectFlags aspectFlag
         }
     }
 
-    VulkanUtils::vulkanCheck(vkCreateImageView(device.getLogicalDevice(), &viewCreateInfo, nullptr, &view));
+    VulkanUtils::vulkanCheck(vkCreateImageView(device.getLogicalDevice(), &viewCreateInfo, allocator, &view));
 }

@@ -11,7 +11,7 @@
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/engine/Renderer/TextureUtils.h"
 
-bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, VulkanDevice& device, const VkSurfaceKHR& surface, unsigned int& currentFrame, IRendererBackend* backendRef) {
+bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, VulkanDevice& device, const VkSurfaceKHR& surface, unsigned int& currentFrame, IRendererBackend* backendRef, VkAllocationCallbacks* allocator) {
     VkExtent2D swapchainExtent{frameBufferWidth, frameBufferHeight};
 
     bool found = false;
@@ -86,7 +86,7 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
     swapChainCreateInfo.clipped = true;
     swapChainCreateInfo.oldSwapchain = nullptr;
 
-    if (!VulkanUtils::vulkanCheck(vkCreateSwapchainKHR(device.getLogicalDevice(), &swapChainCreateInfo, nullptr, &handle))) return false;
+    if (!VulkanUtils::vulkanCheck(vkCreateSwapchainKHR(device.getLogicalDevice(), &swapChainCreateInfo, allocator, &handle))) return false;
 
     currentFrame = 0;
     imageCount = 0;
@@ -136,7 +136,7 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
         viewCreateInfo.subresourceRange.baseArrayLayer = 0;
         viewCreateInfo.subresourceRange.layerCount = 1;
 
-        if (!VulkanUtils::vulkanCheck(vkCreateImageView(device.getLogicalDevice(), &viewCreateInfo, nullptr, &image.getImageView()))) return false;
+        if (!VulkanUtils::vulkanCheck(vkCreateImageView(device.getLogicalDevice(), &viewCreateInfo, allocator, &image.getImageView()))) return false;
     }
 
     if (!detectDepthFormat(device)) {
@@ -147,15 +147,15 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
 
     auto image = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
     image->createImage(TEXTURE_2D,
-                swapchainExtent.width,
-                swapchainExtent.height,
-                device.getDepthFormat(),
-                VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                true,
-                VK_IMAGE_ASPECT_DEPTH_BIT,
-                device
+                       swapchainExtent.width,
+                       swapchainExtent.height,
+                       device.getDepthFormat(),
+                       VK_IMAGE_TILING_OPTIMAL,
+                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                       true,
+                       VK_IMAGE_ASPECT_DEPTH_BIT,
+                       device, allocator
     );
 
     depthTexture = TextureUtils::wrapTexture("Fox_Fire_Default_Depth_Texture", swapchainExtent.width, swapchainExtent.height, device.getChannelCount(), false, true, false, image);
@@ -190,11 +190,11 @@ bool VulkanSwapchain::detectDepthFormat(VulkanDevice& device) {
     return false;
 }
 
-void VulkanSwapchain::destroySwapchain(VulkanDevice& device) {
+void VulkanSwapchain::destroySwapchain(VulkanDevice& device, const VkAllocationCallbacks* allocator) {
     vkDeviceWaitIdle(device.getLogicalDevice());
 
     const auto depthImage = static_cast<VulkanImage *>(depthTexture->data);
-    depthImage->destroy(device);
+    depthImage->destroy(device, allocator);
     FF_Memory::ff_free_class<VulkanImage>(depthImage, sizeof(VulkanImage), TEXTURE);
     depthTexture->data = nullptr;
     FF_Memory::ff_free(depthTexture, sizeof(Texture), TEXTURE);
@@ -202,11 +202,11 @@ void VulkanSwapchain::destroySwapchain(VulkanDevice& device) {
 
     for (unsigned int i = 0; i < imageCount; i++) {
         VulkanImage& image = *static_cast<VulkanImage *>(textures[i]->data);
-        vkDestroyImageView(device.getLogicalDevice(), image.getImageView(), nullptr);
+        vkDestroyImageView(device.getLogicalDevice(), image.getImageView(), allocator);
     }
 
     if (handle) {
-        vkDestroySwapchainKHR(device.getLogicalDevice(), handle, nullptr);
+        vkDestroySwapchainKHR(device.getLogicalDevice(), handle, allocator);
         handle = nullptr;
     }
 

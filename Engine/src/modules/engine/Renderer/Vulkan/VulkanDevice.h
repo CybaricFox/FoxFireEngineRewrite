@@ -69,7 +69,7 @@ private:
         VulkanPhysicalDeviceFamilyInfo& physicalDeviceFamilyInfo,
         VulkanSwapChainSupportInfo& swapChainSupport);
 public:
-    bool createDevice(VkInstance &instance, VkSurfaceKHR &surface);
+    bool createDevice(VkInstance &instance, VkSurfaceKHR &surface, const VkAllocationCallbacks *allocator);
     void querySwapChainSupport(VkPhysicalDevice vulkanPhysicalDevice, VkSurfaceKHR surface, VulkanSwapChainSupportInfo& vulkanSwapchainSupportInfo);
     [[nodiscard]] bool supportsDeviceLocalBit() const {return bSupportsDeviceLocalBit;}
 

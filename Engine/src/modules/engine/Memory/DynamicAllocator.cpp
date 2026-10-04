@@ -90,9 +90,9 @@ bool DynamicAllocator::free(void *memory) {
     if (memory < memoryBlock || memory > static_cast<unsigned char *>(memoryBlock) + totalSize) {
         void* endOfBlock = static_cast<unsigned char *>(memoryBlock) + totalSize;
         Logger::logError("Dynamic Allocator tryed to free memory block: " +
-            std::to_string(*static_cast<unsigned char *>(memory)) + " outside of range: " +
-            std::to_string(*static_cast<unsigned char *>(memoryBlock)) + " - " +
-            std::to_string(*static_cast<unsigned char *>(endOfBlock)));
+            std::to_string(reinterpret_cast<ULong>(memory)) + " outside of range: " +
+            std::to_string(reinterpret_cast<ULong>(memoryBlock)) + " - " +
+            std::to_string(reinterpret_cast<ULong>(endOfBlock)));
         return false;
     }
 

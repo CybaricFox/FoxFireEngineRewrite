@@ -60,6 +60,7 @@ public:
     VkInstance& getInstance() {return instance;}
     [[nodiscard]] unsigned int getFrameBufferWidth() const { return frameBufferWidth; }
     [[nodiscard]] unsigned int getFrameBufferHeight() const { return frameBufferHeight; }
+    [[nodiscard]] VkAllocationCallbacks* getAllocator() const { return allocator; }
 
     Renderpass *getRenderpass(unsigned char id);
     Renderpass* getRenderpass(const String &renderName);
@@ -92,6 +93,7 @@ public:
     void initializeRenderpasses() {renderpasses.initialize(VULKAN_MAX_RENDERPASSES);}
     void initializeEvents() {resizeRenderTargetsEvent.registerEvent();}
     void setMultithread(const bool value) {bIsMultithreaded = value;}
+    void setAllocator(VkAllocationCallbacks* callback) {allocator = callback;}
 
     VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}
 

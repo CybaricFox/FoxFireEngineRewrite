@@ -56,31 +56,31 @@ String FF_Memory::getUnitForSize(const ULong size, float &outAmount) {
 }
 
 bool FF_Memory::getSizeAndAlignment(void *memory, ULong &size, unsigned short &alignment) {
-    return allocator.getSizeAndAlignment(memory, size, alignment);
+    return memorySystem->allocator.getSizeAndAlignment(memory, size, alignment);
 }
 
 void FF_Memory::reportAllocation(const ULong size, const MemoryTag tag) {
-    if (!Platform::lockMutex(allocationMutex)) {
+    if (!Platform::lockMutex(memorySystem->allocationMutex)) {
         Logger::logFatal("Failed to lock allocation mutex while reporting an allocation.");
         return;
     }
     memorySystem->memoryData.totalAllocated += size;
     memorySystem->memoryData.taggedAllocations[tag] += size;
     memorySystem->allocationCount++;
-    if (!Platform::unlockMutex(allocationMutex)) {
+    if (!Platform::unlockMutex(memorySystem->allocationMutex)) {
         Logger::logFatal("Failed to unlock allocation mutex while reporting an allocation.");
     }
 }
 
 void FF_Memory::removeReport(const ULong size, const MemoryTag tag) {
-    if (!Platform::lockMutex(allocationMutex)) {
+    if (!Platform::lockMutex(memorySystem->allocationMutex)) {
         Logger::logFatal("Failed to lock allocation mutex while removing a report.");
         return;
     }
     memorySystem->memoryData.totalAllocated -= size;
     memorySystem->memoryData.taggedAllocations[tag] -= size;
     memorySystem->allocationCount--;
-    if (!Platform::unlockMutex(allocationMutex)) {
+    if (!Platform::unlockMutex(memorySystem->allocationMutex)) {
         Logger::logFatal("Failed to unlock allocation mutex while removing a report.");
     }
 }
@@ -88,6 +88,11 @@ void FF_Memory::removeReport(const ULong size, const MemoryTag tag) {
 //ff_set should set the memory block to the beginning, but just in case, REMEMBER TO ZERO MEMORY IN OWNER IF HEAP CORRUPTION OCCURS!!!
 void FF_Memory::ff_free(void *block, const unsigned long size, const MemoryTag tag, unsigned short alignment) {
     if (!block) return;
+    if (!memorySystem) {
+        Logger::logError("ff_free called after memory system was destroyed!");
+        Platform::platform_free(block, false);
+        return;
+    }
 
     if (tag == UNKNOWN) {
         Logger::logWarn("Free called with Unknown tag. Add a tag for this allocation!");
@@ -123,7 +128,8 @@ void FF_Memory::ff_free(void *block, const unsigned long size, const MemoryTag t
     memorySystem->allocationCount--;
 
     if (!memorySystem->allocator.free(block)) {
-        Platform::platform_free(block, false);
+        Logger::logError("ff_free failed to free memory. The given memory block is not within the allocator!");
+        //Platform::platform_free(block, false);
     }
 
     Platform::unlockMutex(memorySystem->allocationMutex);

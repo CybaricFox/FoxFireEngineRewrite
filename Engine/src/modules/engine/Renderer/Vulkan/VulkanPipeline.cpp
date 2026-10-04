@@ -7,14 +7,14 @@
 #include "VulkanUtils.h"
 #include "src/modules/engine/Library/FF_Math.h"
 
-void VulkanPipeline::destroyPipeline(VulkanDevice& device) {
+void VulkanPipeline::destroyPipeline(VulkanDevice& device, const VkAllocationCallbacks* allocator) {
     if (handle) {
-        vkDestroyPipeline(device.getLogicalDevice(), handle, nullptr);
+        vkDestroyPipeline(device.getLogicalDevice(), handle, allocator);
         handle = nullptr;
     }
 
     if (pipelineLayout) {
-        vkDestroyPipelineLayout(device.getLogicalDevice(), pipelineLayout, nullptr);
+        vkDestroyPipelineLayout(device.getLogicalDevice(), pipelineLayout, allocator);
         pipelineLayout = nullptr;
     }
 }
@@ -27,7 +27,8 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
                                     unsigned int attributeCount, VkVertexInputAttributeDescription *attributes,
                                     unsigned int descriptorSetLayoutCount, VkDescriptorSetLayout *descriptorSetLayouts, unsigned int stageCount,
                                     VkPipelineShaderStageCreateInfo *shaderStages, VkViewport viewport, VkRect2D scissor, bool bIsWireframe, bool
-                                    bDepthTestEnabled, unsigned int pushConstantRangeCount, MemoryRange *pushConstantRanges, CullMode cullMode, VulkanDevice &device) {
+                                    bDepthTestEnabled, unsigned int pushConstantRangeCount, MemoryRange *pushConstantRanges, CullMode cullMode, VulkanDevice &device,
+                                    VkAllocationCallbacks *allocator) {
 
     VkPipelineViewportStateCreateInfo viewportState{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
     viewportState.viewportCount = 1;
@@ -149,7 +150,7 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
     }
 
     //Create the pipeline layout
-    VulkanUtils::vulkanCheck(vkCreatePipelineLayout(device.getLogicalDevice(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
+    VulkanUtils::vulkanCheck(vkCreatePipelineLayout(device.getLogicalDevice(), &pipelineLayoutCreateInfo, allocator, &pipelineLayout));
 
     VkGraphicsPipelineCreateInfo graphicsPipelineInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
     graphicsPipelineInfo.stageCount = stageCount;
@@ -169,7 +170,7 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
     graphicsPipelineInfo.basePipelineHandle = nullptr;
     graphicsPipelineInfo.basePipelineIndex = -1;
 
-    VkResult result = vkCreateGraphicsPipelines(device.getLogicalDevice(), nullptr, 1, &graphicsPipelineInfo, nullptr, &handle);
+    VkResult result = vkCreateGraphicsPipelines(device.getLogicalDevice(), nullptr, 1, &graphicsPipelineInfo, allocator, &handle);
     if (VulkanUtils::vulkanCheck(result)) {
         Logger::logDebug("Graphics pipeline created!");
         return true;

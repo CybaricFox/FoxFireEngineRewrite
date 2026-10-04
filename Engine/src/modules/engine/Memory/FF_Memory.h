@@ -69,7 +69,6 @@ private:;
 
     static String getStringFromTag(unsigned long tag);
     static String getUnitForSize(ULong size, float& outAmount);
-    bool getSizeAndAlignment(void* memory, ULong& size, unsigned short& alignment);
 
 public:
     ~FF_Memory() = default;
@@ -132,6 +131,8 @@ public:
      * @return String containing the chart.
      */
     static String getMemoryUsage();
+    static bool getSizeAndAlignment(void* memory, ULong& size, unsigned short& alignment);
+
     static bool initialize(MemoryConfig config);
     static void shutdown();
 
@@ -141,8 +142,8 @@ public:
      */
     static unsigned long getAllocationCount();
     static bool isInitialized(){return memorySystem != nullptr;}
-    void reportAllocation(ULong size, MemoryTag tag);
-    void removeReport(ULong size, MemoryTag tag);
+    static void reportAllocation(ULong size, MemoryTag tag);
+    static void removeReport(ULong size, MemoryTag tag);
 
     /**
      * @brief Allocates memory and creates a class.

@@ -12,7 +12,7 @@
 #include "VulkanUtils.h"
 #include "src/modules/engine/Library/Logger.h"
 
-bool VulkanDevice::createDevice(VkInstance& instance, VkSurfaceKHR& surface) {
+bool VulkanDevice::createDevice(VkInstance& instance, VkSurfaceKHR& surface, const VkAllocationCallbacks* allocator) {
     if (!selectPhysicalDevice(instance, surface)) {
         return false;
     }
@@ -66,7 +66,7 @@ bool VulkanDevice::createDevice(VkInstance& instance, VkSurfaceKHR& surface) {
     const auto extensionNames = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
     createInfo.ppEnabledExtensionNames = &extensionNames;
 
-    VulkanUtils::vulkanCheck(vkCreateDevice(physicalDevice, &createInfo, nullptr, &logicalDevice));
+    VulkanUtils::vulkanCheck(vkCreateDevice(physicalDevice, &createInfo, allocator, &logicalDevice));
     Logger::logInfo("Vulkan logical device created.");
 
     vkGetDeviceQueue(logicalDevice, graphicsQueueIndex, 0, &graphicsQueue);
@@ -77,7 +77,7 @@ bool VulkanDevice::createDevice(VkInstance& instance, VkSurfaceKHR& surface) {
     VkCommandPoolCreateInfo poolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     poolCreateInfo.queueFamilyIndex = graphicsQueueIndex;
     poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    VulkanUtils::vulkanCheck(vkCreateCommandPool(logicalDevice, &poolCreateInfo, nullptr, &commandPool));
+    VulkanUtils::vulkanCheck(vkCreateCommandPool(logicalDevice, &poolCreateInfo, allocator, &commandPool));
     Logger::logInfo("Graphics command pool created.");
 
     return true;

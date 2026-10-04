@@ -7,7 +7,7 @@
 #include "VulkanCommandBuffer.h"
 #include "VulkanUtils.h"
 
-bool VulkanBuffer::createBuffer(VulkanDevice& device, const unsigned long size, VkBufferUsageFlagBits usage, const unsigned int memoryFlags, const bool bBind) {
+bool VulkanBuffer::createBuffer(VulkanDevice& device, const unsigned long size, VkBufferUsageFlagBits usage, const unsigned int memoryFlags, const bool bBind, const VkAllocationCallbacks* allocator) {
     totalSize = size;
     usageFlags = usage;
     memoryPropertyFlags = memoryFlags;
@@ -26,11 +26,10 @@ bool VulkanBuffer::createBuffer(VulkanDevice& device, const unsigned long size, 
     bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VulkanUtils::vulkanCheck(vkCreateBuffer(device.getLogicalDevice(), &bufferInfo, nullptr, &handle));
+    VulkanUtils::vulkanCheck(vkCreateBuffer(device.getLogicalDevice(), &bufferInfo, allocator, &handle));
 
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device.getLogicalDevice(), handle, &memRequirements);
-    memoryIndex = VulkanUtils::findMemoryIndex(static_cast<int>(memRequirements.memoryTypeBits), memoryPropertyFlags, device.getPhysicalDevice());
+    vkGetBufferMemoryRequirements(device.getLogicalDevice(), handle, &memoryRequirements);
+    memoryIndex = VulkanUtils::findMemoryIndex(static_cast<int>(memoryRequirements.memoryTypeBits), memoryPropertyFlags, device.getPhysicalDevice());
     if (memoryIndex == -1) {
         Logger::logError("Can't find memory index for vulkan buffer!");
         destroyFreeList();
@@ -38,10 +37,14 @@ bool VulkanBuffer::createBuffer(VulkanDevice& device, const unsigned long size, 
     }
 
     VkMemoryAllocateInfo allocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.allocationSize = memoryRequirements.size;
     allocInfo.memoryTypeIndex = memoryIndex;
 
-    VkResult result = vkAllocateMemory(device.getLogicalDevice(), &allocInfo, nullptr, &deviceMemory);
+    VkResult result = vkAllocateMemory(device.getLogicalDevice(), &allocInfo, allocator, &deviceMemory);
+
+    const bool isDeviceMemory = (memoryPropertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    FF_Memory::reportAllocation(memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
+
     if (result != VK_SUCCESS) {
         Logger::logError("Failed to allocate memory for a new vulkan buffer: " + VulkanUtils::getResultAsString(result, true));
         destroyFreeList();
@@ -59,24 +62,29 @@ void VulkanBuffer::bindBuffer(VulkanDevice& device, const unsigned long offset) 
     VulkanUtils::vulkanCheck(vkBindBufferMemory(device.getLogicalDevice(), handle, deviceMemory, offset));
 }
 
-void VulkanBuffer::destroyBuffer(VulkanDevice& device) {
+void VulkanBuffer::destroyBuffer(VulkanDevice& device, const VkAllocationCallbacks* allocator) {
     if (memoryBlock) {
         destroyFreeList();
     }
 
     if (deviceMemory) {
-        vkFreeMemory(device.getLogicalDevice(), deviceMemory, nullptr);
+        vkFreeMemory(device.getLogicalDevice(), deviceMemory, allocator);
         deviceMemory = nullptr;
     }
     if (handle) {
-        vkDestroyBuffer(device.getLogicalDevice(), handle, nullptr);
+        vkDestroyBuffer(device.getLogicalDevice(), handle, allocator);
         handle = nullptr;
     }
+
+    const bool isDeviceMemory = (memoryPropertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    FF_Memory::removeReport(memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
+    FF_Memory::ff_clear(&memoryRequirements, sizeof(VkMemoryRequirements));
+
     totalSize = 0;
     bIsLocked = false;
 }
 
-bool VulkanBuffer::resizeBuffer(VulkanDevice& device, const unsigned long newSize, VkQueue queue, VkCommandPool pool) {
+bool VulkanBuffer::resizeBuffer(VulkanDevice& device, const unsigned long newSize, VkQueue queue, VkCommandPool pool, const VkAllocationCallbacks* allocator) {
     if (newSize < totalSize) {
         Logger::logError("Buffer resize requires the new size to be larger than the old size!");
         return false;
@@ -104,7 +112,7 @@ bool VulkanBuffer::resizeBuffer(VulkanDevice& device, const unsigned long newSiz
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VkBuffer newBuffer;
-    VulkanUtils::vulkanCheck(vkCreateBuffer(device.getLogicalDevice(), &bufferInfo, nullptr, &newBuffer));
+    VulkanUtils::vulkanCheck(vkCreateBuffer(device.getLogicalDevice(), &bufferInfo, allocator, &newBuffer));
 
     VkMemoryRequirements requirements;
     vkGetBufferMemoryRequirements(device.getLogicalDevice(), newBuffer, &requirements);
@@ -114,7 +122,7 @@ bool VulkanBuffer::resizeBuffer(VulkanDevice& device, const unsigned long newSiz
     allocInfo.memoryTypeIndex = memoryIndex;
 
     VkDeviceMemory newMemory;
-    VkResult result = vkAllocateMemory(device.getLogicalDevice(), &allocInfo, nullptr, &newMemory);
+    VkResult result = vkAllocateMemory(device.getLogicalDevice(), &allocInfo, allocator, &newMemory);
     if (result != VK_SUCCESS) {
         Logger::logError("Failed to resize vulkan buffer: " + VulkanUtils::getResultAsString(result, true));
         return false;
@@ -127,13 +135,20 @@ bool VulkanBuffer::resizeBuffer(VulkanDevice& device, const unsigned long newSiz
     vkDeviceWaitIdle(device.getLogicalDevice());
 
     if (deviceMemory) {
-        vkFreeMemory(device.getLogicalDevice(), deviceMemory, nullptr);
+        vkFreeMemory(device.getLogicalDevice(), deviceMemory, allocator);
         deviceMemory = nullptr;
     }
     if (handle) {
-        vkDestroyBuffer(device.getLogicalDevice(), handle, nullptr);
+        vkDestroyBuffer(device.getLogicalDevice(), handle, allocator);
         handle = nullptr;
     }
+
+    const bool isDeviceMemory = (memoryPropertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    FF_Memory::removeReport(memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
+    memoryRequirements = requirements;
+    FF_Memory::reportAllocation(memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
+
+
     totalSize = newSize;
     deviceMemory = newMemory;
     handle = newBuffer;

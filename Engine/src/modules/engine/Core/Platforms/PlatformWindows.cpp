@@ -234,7 +234,7 @@ bool PlatformWindows::createSurface() {
     createInfo.hinstance = instance;
     createInfo.hwnd = hwnd;
 
-    if (const VkResult result = vkCreateWin32SurfaceKHR(vulkanContext->getInstance(), &createInfo, nullptr, &surface); result != VK_SUCCESS) {
+    if (const VkResult result = vkCreateWin32SurfaceKHR(vulkanContext->getInstance(), &createInfo, vulkanContext->getAllocator(), &surface); result != VK_SUCCESS) {
         printConsoleError("Failed to create Vulkan surface for windows.", 0);
         return false;
     }

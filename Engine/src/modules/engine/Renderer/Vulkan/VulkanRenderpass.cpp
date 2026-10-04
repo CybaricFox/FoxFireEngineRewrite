@@ -20,8 +20,8 @@ void VulkanRenderpass::setupFramebuffers(const unsigned int count) {
     }
 }
 
-void VulkanRenderpass::destroyFramebuffers(VulkanDevice &device) {
+void VulkanRenderpass::destroyFramebuffers(VulkanDevice &device, VkAllocationCallbacks *allocator) {
     for (VkFramebuffer& framebuffer : framebuffers) {
-        vkDestroyFramebuffer(device.getLogicalDevice(), framebuffer, nullptr);
+        vkDestroyFramebuffer(device.getLogicalDevice(), framebuffer, allocator);
     }
 }

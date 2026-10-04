@@ -88,9 +88,9 @@ void VulkanBackendShader::shutdown(VulkanDevice& device, const VkAllocationCallb
     }
 
     uniformBuffer.unlockBuffer(device);
-    uniformBuffer.destroyBuffer(device);
+    uniformBuffer.destroyBuffer(device, allocator);
 
-    pipeline.destroyPipeline(device);
+    pipeline.destroyPipeline(device, allocator);
 
     for (unsigned int i = 0; i < config.stageCount; i++) {
         vkDestroyShaderModule(device.getLogicalDevice(), stages[i].handle, allocator);
@@ -169,7 +169,7 @@ void VulkanBackendShader::finalizeDescriptorSets(const unsigned int imagecount, 
 
 bool VulkanBackendShader::createPipeline(const unsigned int stride, const unsigned int attributeCount,
                                          VkPipelineShaderStageCreateInfo* shaderStageCreateInfos, VkViewport viewport, VkRect2D scissor,
-                                         const unsigned int pushConstantRangeCount, MemoryRange* memoryRanges, VulkanDevice& device) {
+                                         const unsigned int pushConstantRangeCount, MemoryRange* memoryRanges, VulkanDevice& device, VkAllocationCallbacks* allocator) {
 
     if (!renderpass) {
         Logger::logFatal("Attempted to create pipeline for a shader but renderpass is null!");
@@ -192,5 +192,5 @@ bool VulkanBackendShader::createPipeline(const unsigned int stride, const unsign
         pushConstantRangeCount,
         memoryRanges,
         config.cullMode,
-        device);
+        device, allocator);
 }

@@ -240,9 +240,10 @@ public:
      * @param pushConstantRangeCount
      * @param memoryRanges
      * @param device
+     * @param allocator
      * @return
      */
     bool createPipeline(unsigned int stride, unsigned int attributeCount,
                         VkPipelineShaderStageCreateInfo *shaderStageCreateInfos, VkViewport viewport, VkRect2D scissor,
-                        unsigned int pushConstantRangeCount, MemoryRange *memoryRanges, VulkanDevice &device);
+                        unsigned int pushConstantRangeCount, MemoryRange *memoryRanges, VulkanDevice &device, VkAllocationCallbacks *allocator);
 };
