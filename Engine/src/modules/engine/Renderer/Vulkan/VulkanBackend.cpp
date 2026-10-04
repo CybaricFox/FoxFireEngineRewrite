@@ -18,9 +18,13 @@ VulkanContext VulkanBackend::vulkanContext{};
 constexpr unsigned int GLOBAL_DESCRIPTOR_SET_INDEX = 0;
 constexpr unsigned int  INSTANCE_DESCRIPTOR_SET_INDEX = 1;
 
+bool VulkanBackend::hasFlag(const VulkanBuffer &buffer, VkMemoryPropertyFlagBits flag) {
+    return (buffer.memoryPropertyFlags & flag) == flag;
+}
+
 VkBool32 VulkanBackend::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
-    void *userData) {
+                                      VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
+                                      void *userData) {
 
     switch (messageSeverity) {
         default:
@@ -135,30 +139,6 @@ void VulkanBackend::allocateCommandBuffers() {
     }
 
     Logger::logInfo("Vulkan command buffers created and allocated.");
-}
-
-bool VulkanBackend::uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, ULong& outOffset, const unsigned long size, const void *data) {
-    //Allocate buffer space
-    if (!buffer.allocate(size, outOffset)) {
-        Logger::logError("Failed to allocate data range for upload.");
-        return false;
-    }
-
-    //Create staging buffer
-    constexpr VkBufferUsageFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    VulkanBuffer stagingBuffer{};
-    stagingBuffer.createBuffer(vulkanContext.getDevice(), size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, flags, true, vulkanContext.getAllocator());
-
-    //Load staging buffer
-    stagingBuffer.loadBufferData(vulkanContext.getDevice(), 0, size, data);
-    stagingBuffer.copyBufferData(vulkanContext.getDevice(), pool, fence, queue, stagingBuffer.getBuffer(), 0, buffer.getBuffer(), outOffset, size);
-    stagingBuffer.destroyBuffer(vulkanContext.getDevice(), vulkanContext.getAllocator());
-
-    return true;
-}
-
-bool VulkanBackend::freeRangeOfData(VulkanBuffer &buffer, const unsigned long offset, const unsigned long size) {
-    return buffer.free(size, offset);
 }
 
 bool VulkanBackend::beginRenderpass(Renderpass &renderpass, RenderTarget &target) {
@@ -397,22 +377,20 @@ bool VulkanBackend::initializeShader(Shader &shader) {
     shader.setGlobalStride();
     shader.setInstanceStride();
 
-    const unsigned int deviceLocalBits = vulkanContext.getDevice().supportsDeviceLocalBit() ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
     const unsigned long totalBufferSize = shader.getGlobalStride() + (shader.getInstanceStride() * MAX_MATERIAL_COUNT);
-    if (!backendShader->getUniformBuffer().createBuffer(vulkanContext.getDevice(), totalBufferSize,
-                                                        static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-                                                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | deviceLocalBits,
-                                                        true, vulkanContext.getAllocator())) {
-
-        Logger::logError("Failed to create uniform buffer for shader.");
+    backendShader->getUniformBuffer().initialize(RENDERBUFFER_TYPE_UNIFORM, totalBufferSize, true);
+    if (!createBuffer(backendShader->getUniformBuffer())) {
+        Logger::logError("Failed to create uniform buffer for shader: " + shader.getName());
         return false;
     }
-    if (!backendShader->getUniformBuffer().allocate(shader.getGlobalStride(), shader.getGlobalOffset())) {
-        Logger::logError("Failed to allocate space for a uniform buffer for a shader.");
+    bindBuffer(backendShader->getUniformBuffer(), 0);
+
+    if (!backendShader->getUniformBuffer().allocateBuffer(shader.getGlobalStride(), shader.getGlobalOffset())) {
+        Logger::logError("Failed to allocate uniform buffer space for shader: " + shader.getName());
         return false;
     }
 
-    backendShader->finalizeBuffer(vulkanContext.getDevice());
+    backendShader->setUniformBufferBlock(mapBufferMemory(backendShader->getUniformBuffer(), 0, VK_WHOLE_SIZE));
     backendShader->finalizeDescriptorSets(vulkanContext.getSwapchain().getImageCount(), GLOBAL_DESCRIPTOR_SET_INDEX, vulkanContext.getDevice());
 
     return true;
@@ -422,6 +400,10 @@ void VulkanBackend::destroyShader(Shader &shader) {
     if (!shader.getBackendShader()) return;
 
     auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
+
+    //Destroy the uniform buffer.
+    unmapBufferMemory(backendShader->getUniformBuffer(), 0, VK_WHOLE_SIZE);
+    destroyBuffer(backendShader->getUniformBuffer());
 
     backendShader->shutdown(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
@@ -478,7 +460,7 @@ bool VulkanBackend::applyShaderGlobals(Shader &shader) {
     VkDescriptorSet& globalDescriptor = backendShader->getDescriptorSet(imageIndex);
 
     VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = backendShader->getUniformBuffer().getBuffer();
+    bufferInfo.buffer = reinterpret_cast<VulkanBuffer *>(backendShader->getUniformBuffer().getInternalBuffer())->handle;
     bufferInfo.offset = shader.getGlobalOffset();
     bufferInfo.range = shader.getGlobalStride();
 
@@ -530,7 +512,7 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
             unsigned char& instanceGeneration = state.descriptorSetState.descriptorStates[descriptorIndex].generations[imageIndex];
 
             if (instanceGeneration == INVALID_ID_U8) {
-                bufferInfo.buffer = backendShader->getUniformBuffer().getBuffer();
+                bufferInfo.buffer = reinterpret_cast<VulkanBuffer *>(backendShader->getUniformBuffer().getInternalBuffer())->handle;
                 bufferInfo.offset = state.offset;
                 bufferInfo.range = shader.getInstanceStride();
 
@@ -819,6 +801,320 @@ void VulkanBackend::destroyRenderpass(Renderpass &renderpass) {
     }
 }
 
+bool VulkanBackend::createBuffer(RenderBuffer &buffer) {
+    VulkanBuffer internalBuffer{};
+
+    switch (buffer.getType()) {
+        case RENDERBUFFER_TYPE_VERTEX: {
+            internalBuffer.usageFlags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            internalBuffer.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            break;
+        }
+        case RENDERBUFFER_TYPE_INDEX: {
+            internalBuffer.usageFlags = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            internalBuffer.memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            break;
+        }
+        case RENDERBUFFER_TYPE_UNIFORM: {
+            const unsigned int deviceLocalBits = vulkanContext.getDevice().supportsDeviceLocalBit() ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
+            internalBuffer.usageFlags = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            internalBuffer.memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | deviceLocalBits;
+            break;
+        }
+        case RENDERBUFFER_TYPE_STAGING: {
+            internalBuffer.usageFlags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            internalBuffer.memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            break;
+        }
+        case RENDERBUFFER_TYPE_READ: {
+            internalBuffer.usageFlags = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            internalBuffer.memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            break;
+        }
+        case RENDERBUFFER_TYPE_STORAGE: {
+            Logger::logError("Storage buffers are not currently supported.");
+            return false;
+        }
+        default: {
+            Logger::logError("Unknown buffer type: " + std::to_string(buffer.getType()));
+            return false;
+        }
+    }
+
+    VkBufferCreateInfo bufferCreateInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferCreateInfo.size = buffer.getTotalSize();
+    bufferCreateInfo.usage = internalBuffer.usageFlags;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VulkanUtils::vulkanCheck(vkCreateBuffer(vulkanContext.getDevice().getLogicalDevice(), &bufferCreateInfo, vulkanContext.getAllocator(), &internalBuffer.handle));
+    vkGetBufferMemoryRequirements(vulkanContext.getDevice().getLogicalDevice(), internalBuffer.handle, &internalBuffer.memoryRequirements);
+    internalBuffer.memoryIndex = VulkanUtils::findMemoryIndex(internalBuffer.memoryRequirements.memoryTypeBits, internalBuffer.memoryPropertyFlags, vulkanContext.getDevice().getPhysicalDevice());
+
+    if (internalBuffer.memoryIndex == -1) {
+        Logger::logError("Failed to create vulkan buffer because the required memory index was not found.");
+        return false;
+    }
+
+    VkMemoryAllocateInfo memoryAllocateInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    memoryAllocateInfo.allocationSize = internalBuffer.memoryRequirements.size;
+    memoryAllocateInfo.memoryTypeIndex = static_cast<unsigned int>(internalBuffer.memoryIndex);
+
+    VkResult result = vkAllocateMemory(vulkanContext.getDevice().getLogicalDevice(), &memoryAllocateInfo, vulkanContext.getAllocator(), &internalBuffer.deviceMemory);
+    const bool isDeviceMemory = (internalBuffer.memoryPropertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    FF_Memory::reportAllocation(internalBuffer.memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
+
+    if (result != VK_SUCCESS) {
+        Logger::logError("Failed to allocate vulkan buffer memory: " + std::to_string(result));
+        return false;
+    }
+
+    buffer.setInternalBuffer(FF_Memory::ff_allocate_class<VulkanBuffer>(sizeof(VulkanBuffer), RENDER_BACKEND_MANUAL));
+    *static_cast<VulkanBuffer *>(buffer.getInternalBuffer()) = internalBuffer;
+
+    return true;
+}
+
+void VulkanBackend::destroyBuffer(RenderBuffer &buffer) {
+    const auto internalBuffer = reinterpret_cast<VulkanBuffer *>(buffer.getInternalBuffer());
+    if (!internalBuffer) return;
+
+    if (internalBuffer->deviceMemory) {
+        vkFreeMemory(vulkanContext.getDevice().getLogicalDevice(), internalBuffer->deviceMemory, vulkanContext.getAllocator());
+        internalBuffer->deviceMemory = nullptr;
+    }
+    if (internalBuffer->handle) {
+        vkDestroyBuffer(vulkanContext.getDevice().getLogicalDevice(), internalBuffer->handle, vulkanContext.getAllocator());
+        internalBuffer->handle = nullptr;
+    }
+
+    const bool isDeviceMemory = (internalBuffer->memoryPropertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    FF_Memory::removeReport(internalBuffer->memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
+    FF_Memory::ff_clear(&internalBuffer->memoryRequirements, sizeof(VkMemoryRequirements));
+    internalBuffer->usageFlags = 0;
+    internalBuffer->bIsLocked = false;
+
+    FF_Memory::ff_free_class<VulkanBuffer>(buffer.getInternalBuffer(), sizeof(VulkanBuffer), RENDER_BACKEND_MANUAL);
+}
+
+bool VulkanBackend::bindBuffer(RenderBuffer &buffer, const ULong offset) {
+    if (!buffer.getInternalBuffer()) {
+        Logger::logError("Cannot bind vulkan buffer. Vulkan buffer is null.");
+        return false;
+    }
+
+    const VulkanBuffer& internalBuffer = *reinterpret_cast<VulkanBuffer*>(buffer.getInternalBuffer());
+    VulkanUtils::vulkanCheck(vkBindBufferMemory(vulkanContext.getDevice().getLogicalDevice(), internalBuffer.handle, internalBuffer.deviceMemory, offset));
+
+    return true;
+}
+
+bool VulkanBackend::unbindBuffer(RenderBuffer &buffer) {
+    if (!buffer.getInternalBuffer()) {
+        Logger::logError("Cannot unbind vulkan buffer. Vulkan buffer is null.");
+        return false;
+    }
+
+    return true;
+}
+
+void * VulkanBackend::mapBufferMemory(RenderBuffer &buffer, const ULong offset, const ULong size) {
+    if (!buffer.getInternalBuffer()) {
+        Logger::logError("Cannot map vulkan buffer memory. Vulkan buffer is null.");
+        return nullptr;
+    }
+
+    const VulkanBuffer& internalBuffer = *reinterpret_cast<VulkanBuffer*>(buffer.getInternalBuffer());
+    void* data = nullptr;
+    VulkanUtils::vulkanCheck(vkMapMemory(vulkanContext.getDevice().getLogicalDevice(), internalBuffer.deviceMemory, offset, size, 0, &data));
+    return data;
+}
+
+void VulkanBackend::unmapBufferMemory(RenderBuffer &buffer, ULong offset, ULong size) {
+    if (!buffer.getInternalBuffer()) {
+        Logger::logError("Cannot unmap vulkan buffer memory. Vulkan buffer is null.");
+        return;
+    }
+
+    const VulkanBuffer& internalBuffer = *reinterpret_cast<VulkanBuffer*>(buffer.getInternalBuffer());
+    vkUnmapMemory(vulkanContext.getDevice().getLogicalDevice(), internalBuffer.deviceMemory);
+}
+
+bool VulkanBackend::flushBuffer(RenderBuffer &buffer, const ULong offset, const ULong size) {
+    if (!buffer.getInternalBuffer()) {
+        Logger::logError("Cannot flush vulkan buffer memory. Vulkan buffer is null.");
+        return false;
+    }
+
+    const VulkanBuffer& internalBuffer = *reinterpret_cast<VulkanBuffer*>(buffer.getInternalBuffer());
+
+    if (!hasFlag(internalBuffer, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+        VkMappedMemoryRange mappedMemoryRange{VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE};
+        mappedMemoryRange.memory = internalBuffer.deviceMemory;
+        mappedMemoryRange.offset = offset;
+        mappedMemoryRange.size = size;
+        VulkanUtils::vulkanCheck(vkFlushMappedMemoryRanges(vulkanContext.getDevice().getLogicalDevice(), 1, &mappedMemoryRange));
+    }
+
+    return true;
+}
+
+bool VulkanBackend::readBuffer(RenderBuffer &buffer, const ULong offset, const ULong size, void *& outMemory) {
+    if (!buffer.getInternalBuffer() || outMemory == nullptr) {
+        Logger::logError("Cannot read vulkan buffer memory. Vulkan buffer is null or outMemory is null.");
+        return false;
+    }
+
+    const VulkanBuffer& internalBuffer = *reinterpret_cast<VulkanBuffer*>(buffer.getInternalBuffer());
+
+    if (hasFlag(internalBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) && !hasFlag(internalBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+        RenderBuffer read{};
+
+        read.initialize(RENDERBUFFER_TYPE_READ, size, false);
+        if(!createBuffer(read)) {
+            Logger::logError("Cannot read vulkan buffer. Failed to create read buffer.");
+            return false;
+        }
+        bindBuffer(read, 0);
+
+        const VulkanBuffer& internalRead = *reinterpret_cast<VulkanBuffer*>(read.getInternalBuffer());
+
+        copyBufferRange(buffer, offset, read, 0, size);
+
+        void* mappedData = nullptr;
+        VulkanUtils::vulkanCheck(vkMapMemory(vulkanContext.getDevice().getLogicalDevice(), internalRead.deviceMemory, 0, size, 0, &mappedData));
+        FF_Memory::ff_copy(outMemory, mappedData, size);
+        vkUnmapMemory(vulkanContext.getDevice().getLogicalDevice(), internalRead.deviceMemory);
+
+        unbindBuffer(read);
+        read.shutdown();
+        destroyBuffer(read);
+    } else {
+        void* data = nullptr;
+
+        VulkanUtils::vulkanCheck(vkMapMemory(vulkanContext.getDevice().getLogicalDevice(), internalBuffer.deviceMemory, offset, size, 0, &data));
+        FF_Memory::ff_copy(outMemory, data, size);
+        vkUnmapMemory(vulkanContext.getDevice().getLogicalDevice(), internalBuffer.deviceMemory);
+    }
+
+    return true;
+}
+
+bool VulkanBackend::resizeBuffer(RenderBuffer &buffer, const ULong newSize) {
+    if (!buffer.getInternalBuffer()) return false;
+
+    auto& internalBuffer = *reinterpret_cast<VulkanBuffer *>(buffer.getInternalBuffer());
+
+    VkBufferCreateInfo bufferCreateInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferCreateInfo.size = newSize;
+    bufferCreateInfo.usage = internalBuffer.usageFlags;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkBuffer newBuffer{};
+    VulkanUtils::vulkanCheck(vkCreateBuffer(vulkanContext.getDevice().getLogicalDevice(), &bufferCreateInfo, vulkanContext.getAllocator(), &newBuffer));
+
+    VkMemoryRequirements memoryRequirements{};
+    vkGetBufferMemoryRequirements(vulkanContext.getDevice().getLogicalDevice(), newBuffer, &memoryRequirements);
+
+    VkMemoryAllocateInfo memoryAllocateInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    memoryAllocateInfo.allocationSize = memoryRequirements.size;
+    memoryAllocateInfo.memoryTypeIndex = static_cast<unsigned int>(internalBuffer.memoryIndex);
+
+    VkDeviceMemory newDeviceMemory{};
+    VkResult result = vkAllocateMemory(vulkanContext.getDevice().getLogicalDevice(), &memoryAllocateInfo, vulkanContext.getAllocator(), &newDeviceMemory);
+    if (result != VK_SUCCESS) {
+        Logger::logError("Failed to allocatme memory in order to resize vulkan buffer.");
+        return false;
+    }
+
+    VulkanUtils::vulkanCheck(vkBindBufferMemory(vulkanContext.getDevice().getLogicalDevice(), newBuffer, newDeviceMemory, 0));
+    copyBufferRange(internalBuffer.handle, 0, newBuffer, 0, buffer.getTotalSize());
+
+    vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
+
+    if (internalBuffer.deviceMemory) {
+        vkFreeMemory(vulkanContext.getDevice().getLogicalDevice(), internalBuffer.deviceMemory, vulkanContext.getAllocator());
+        internalBuffer.deviceMemory = nullptr;
+    }
+    if (internalBuffer.handle) {
+        vkDestroyBuffer(vulkanContext.getDevice().getLogicalDevice(), internalBuffer.handle, vulkanContext.getAllocator());
+        internalBuffer.handle = nullptr;
+    }
+
+    const bool isDeviceMemory = (internalBuffer.memoryPropertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    FF_Memory::removeReport(internalBuffer.memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
+    internalBuffer.memoryRequirements = memoryRequirements;
+    FF_Memory::reportAllocation(internalBuffer.memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
+
+    internalBuffer.deviceMemory = newDeviceMemory;
+    internalBuffer.handle = newBuffer;
+
+    return true;
+}
+
+bool VulkanBackend::loadBufferRange(RenderBuffer &buffer, const ULong offset, const ULong size, const void *data) {
+    if (!buffer.getInternalBuffer() || !data) {
+        Logger::logError("Vulkan cannot load buffer range. internal data or data is null!");
+        return false;
+    }
+
+    const auto& internalBuffer = *reinterpret_cast<VulkanBuffer *>(buffer.getInternalBuffer());
+    if (hasFlag(internalBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) && !hasFlag(internalBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+        RenderBuffer staging{};
+        staging.initialize(RENDERBUFFER_TYPE_STAGING, size, false);
+        if (!createBuffer(staging)) {
+            Logger::logError("Failed to load buffer range. Failed to create staging buffer.");
+            return false;
+        }
+        bindBuffer(staging, 0);
+        loadBufferRange(staging, 0, size, data);
+        copyBufferRange(staging, 0, buffer, offset, size);
+        unbindBuffer(staging);
+        staging.shutdown();
+        destroyBuffer(staging);
+    } else {
+        void* dataPtr = nullptr;
+        VulkanUtils::vulkanCheck(vkMapMemory(vulkanContext.getDevice().getLogicalDevice(), internalBuffer.deviceMemory, offset, size, 0, &dataPtr));
+        FF_Memory::ff_copy(dataPtr, data, size);
+        vkUnmapMemory(vulkanContext.getDevice().getLogicalDevice(), internalBuffer.deviceMemory);
+    }
+
+    return true;
+}
+
+bool VulkanBackend::copyBufferRange(RenderBuffer &source, const ULong sourceOffset, RenderBuffer &destination, const ULong destOffset, const ULong size) {
+    if (!source.getInternalBuffer() || !destination.getInternalBuffer()) {
+        Logger::logError("Cannot copy buffer range because source or destination buffers are null.");
+        return false;
+    }
+
+    return copyBufferRange(static_cast<VulkanBuffer *>(source.getInternalBuffer())->handle, sourceOffset, static_cast<VulkanBuffer *>(destination.getInternalBuffer())->handle, destOffset, size);
+}
+
+bool VulkanBackend::drawBuffer(RenderBuffer &buffer, const ULong offset, const unsigned elementCount, const bool bindOnly) {
+    VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
+
+    if (buffer.getType() == RENDERBUFFER_TYPE_VERTEX) {
+        VkDeviceSize offsets[1] = {offset};
+        vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, &reinterpret_cast<VulkanBuffer *>(buffer.getInternalBuffer())->handle, offsets);
+        if (!bindOnly) {
+            vkCmdDraw(commandBuffer.getHandle(), elementCount, 1, 0, 0);
+        }
+        return true;
+    }
+    if (buffer.getType() == RENDERBUFFER_TYPE_INDEX) {
+        vkCmdBindIndexBuffer(commandBuffer.getHandle(), reinterpret_cast<VulkanBuffer *>(buffer.getInternalBuffer())->handle, offset, VK_INDEX_TYPE_UINT32);
+        if (!bindOnly) {
+            vkCmdDrawIndexed(commandBuffer.getHandle(), elementCount, 1, 0, 0, 0);
+        }
+        return true;
+    }
+
+    Logger::logError("Cannot draw buffer of type " + std::to_string(buffer.getType()));
+    return false;
+}
+
 void VulkanBackend::resize(const unsigned short width, const unsigned short height) {
     vulkanContext.setWidth(width);
     vulkanContext.setHeight(height);
@@ -831,8 +1127,10 @@ VulkanBackend::~VulkanBackend() {
     vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
 
     //Destroy buffers
-    vulkanContext.getVertexBuffer().destroyBuffer(vulkanContext.getDevice(), vulkanContext.getAllocator());
-    vulkanContext.getIndexBuffer().destroyBuffer(vulkanContext.getDevice(), vulkanContext.getAllocator());
+    vulkanContext.getVertexBuffer().shutdown();
+    destroyBuffer(vulkanContext.getVertexBuffer());
+    vulkanContext.getIndexBuffer().shutdown();
+    destroyBuffer(vulkanContext.getIndexBuffer());
 
     Logger::logDebug("Destroying sync objects");
     //Destroy sync objects
@@ -1063,7 +1361,23 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     //Set initial state to 0. This is allocated in createSyncObject().
     vulkanContext.clearImagesInFlight();
 
-    createBuffers();
+    //Create buffers
+    constexpr ULong vertexBufferSize = sizeof(Vertex3d) * 1024 * 1024;
+    vulkanContext.getVertexBuffer().initialize(RENDERBUFFER_TYPE_VERTEX, vertexBufferSize, true);
+    if (!createBuffer(vulkanContext.getVertexBuffer())) {
+        Logger::logError("Vulkan failed to create vertex buffer.");
+        return false;
+    }
+    bindBuffer(vulkanContext.getVertexBuffer(), 0);
+
+    constexpr ULong indexBufferSize = sizeof(unsigned int) * 1024 * 1024;
+    vulkanContext.getIndexBuffer().initialize(RENDERBUFFER_TYPE_INDEX, indexBufferSize, true);
+    if (!createBuffer(vulkanContext.getIndexBuffer())) {
+        Logger::logError("Vulkan failed to create index buffer.");
+        return false;
+    }
+    bindBuffer(vulkanContext.getIndexBuffer(), 0);
+
 
     Logger::logInfo("Vulkan renderer initialized");
     return true;
@@ -1180,16 +1494,17 @@ void VulkanBackend::drawGeometry(const GeometryRenderData &data, Material& defau
     }
 
     const GeometryData& bufferData = vulkanContext.getGeometry(data.geometry->internalId);
-    VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
+    const bool hasIndexData = bufferData.indexCount > 0;
 
-    VkDeviceSize offsets[1] = {bufferData.vertexBufferOffset};
-    vkCmdBindVertexBuffers(commandBuffer.getHandle(), 0, 1, &vulkanContext.getVertexBuffer().getBuffer(), offsets);
+    if (!drawBuffer(vulkanContext.getVertexBuffer(), bufferData.vertexBufferOffset, bufferData.vertexCount, hasIndexData)) {
+        Logger::logError("Vulkan failed to draw geometry from the vertex buffer.");
+        return;
+    }
 
-    if (bufferData.indexCount > 0) {
-        vkCmdBindIndexBuffer(commandBuffer.getHandle(), vulkanContext.getIndexBuffer().getBuffer(), bufferData.indexBufferOffset, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(commandBuffer.getHandle(), bufferData.indexCount, 1, 0, 0, 0);
-    } else {
-        vkCmdDraw(commandBuffer.getHandle(), bufferData.vertexCount, 1, 0, 0);
+    if (hasIndexData) {
+        if (!drawBuffer(vulkanContext.getIndexBuffer(), bufferData.indexBufferOffset, bufferData.indexCount, false)) {
+            Logger::logError("Vulkan failed to draw geometry from the index buffer.");
+        }
     }
 }
 
@@ -1199,7 +1514,7 @@ void VulkanBackend::createTexture(const unsigned char *pixels, Texture &texture)
     texture.data = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
     VulkanImage& data = *static_cast<VulkanImage *>(texture.data);
 
-    const unsigned int imageSize = texture.width * texture.height * texture.channelCount;
+    const unsigned int imageSize = texture.width * texture.height * texture.channelCount * (texture.type == TEXTURE_CUBE ? 6 : 1);
     VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
     data.createImage(texture.type, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
@@ -1253,15 +1568,16 @@ bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertex
         return false;
     }
 
-    VkCommandPool pool = vulkanContext.getDevice().getCommandPool();
-    VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
-
     //upload vertexes
     data->vertexCount = vertexCount;
     data->vertexElementSize = vertexSize;
     const unsigned int vertexTotalSize = data->vertexElementSize * vertexCount;
-    if (!uploadRangeOfData(pool, nullptr, queue, vulkanContext.getVertexBuffer(), data->vertexBufferOffset, vertexTotalSize, vertices)) {
-        Logger::logError("Failed to upload geometry vertex data!");
+    if (!vulkanContext.getVertexBuffer().allocateBuffer(vertexTotalSize, data->vertexBufferOffset)) {
+        Logger::logError("Failed to allocate space for geometry vertex data from the vertex buffer!");
+        return false;
+    }
+    if (!loadBufferRange(vulkanContext.getVertexBuffer(), data->vertexBufferOffset, vertexTotalSize, vertices)) {
+        Logger::logError("Failed to upload geometry vertex data to the vertex buffer!");
         return false;
     }
 
@@ -1270,8 +1586,12 @@ bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertex
         data->indexCount = indexCount;
         data->indexElementSize = indexSize;
         const unsigned int indexTotalSize = data->indexElementSize * indexCount;
-        if (!uploadRangeOfData(pool, nullptr, queue, vulkanContext.getIndexBuffer(), data->indexBufferOffset, indexTotalSize, indices)) {
-            Logger::logError("Failed to upload geometry index data!");
+        if (!vulkanContext.getIndexBuffer().allocateBuffer(indexTotalSize, data->indexBufferOffset)) {
+            Logger::logError("Failed to allocate space for geometry index data from the index buffer!");
+            return false;
+        }
+        if (!loadBufferRange(vulkanContext.getIndexBuffer(), data->indexBufferOffset, indexTotalSize, indices)) {
+            Logger::logError("Failed to upload geometry index data to the index buffer!");
             return false;
         }
     }
@@ -1284,9 +1604,15 @@ bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertex
 
     //Free old data
     if (isReupload) {
-        freeRangeOfData(vulkanContext.getVertexBuffer(), oldData.vertexBufferOffset, oldData.vertexElementSize * oldData.vertexCount);
+        if (!vulkanContext.getVertexBuffer().freeBuffer(oldData.vertexElementSize * oldData.vertexCount, oldData.vertexBufferOffset)) {
+            Logger::logError("Failed to free space from geometry vertex data!");
+            return false;
+        }
         if (oldData.indexCount > 0) {
-            freeRangeOfData(vulkanContext.getIndexBuffer(), oldData.indexBufferOffset, oldData.indexElementSize * oldData.indexCount);
+            if (!vulkanContext.getIndexBuffer().freeBuffer(oldData.indexElementSize * oldData.indexCount, oldData.indexBufferOffset)) {
+                Logger::logError("Failed to free space from geometry vertex data!");
+                return false;
+            }
         }
     }
 
@@ -1300,40 +1626,17 @@ void VulkanBackend::destroyGeometry(Geometry &geometry) {
 
     GeometryData& data = vulkanContext.getGeometry(geometry.internalId);
 
-    //Free vertexes
-    freeRangeOfData(vulkanContext.getVertexBuffer(), data.vertexBufferOffset, data.vertexElementSize * data.vertexCount);
-
-    //Free indices if they exist
+    if (!vulkanContext.getVertexBuffer().freeBuffer(data.vertexElementSize * data.vertexCount, data.vertexBufferOffset)) {
+        Logger::logError("Failed to free space from geometry vertex data!");
+    }
     if (data.indexCount > 0) {
-        freeRangeOfData(vulkanContext.getIndexBuffer(), data.indexBufferOffset, data.indexElementSize * data.indexCount);
+        if (!vulkanContext.getIndexBuffer().freeBuffer(data.indexElementSize * data.indexCount, data.indexBufferOffset)) {
+            Logger::logError("Failed to free space from geometry vertex data!");
+        }
     }
 
     //Reset data
     data = GeometryData{};
-}
-
-bool VulkanBackend::createBuffers() {
-    VkMemoryPropertyFlags memoryPropertyFlags{VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
-
-    constexpr unsigned long vertexBufferSize = sizeof(Vertex3d) * 1024 * 1024; //Vertex Buffer should be 64mb with this
-    if (!vulkanContext.getVertexBuffer().createBuffer(vulkanContext.getDevice(), vertexBufferSize,
-                                                      static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
-                                                      memoryPropertyFlags, true, vulkanContext.getAllocator())) {
-
-        Logger::logError("Error creating vertex buffer!");
-        return false;
-        }
-
-    constexpr unsigned long indexBufferSize = sizeof(unsigned int) * 1024 * 1024;
-    if (!vulkanContext.getIndexBuffer().createBuffer(vulkanContext.getDevice(), indexBufferSize,
-                                                     static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
-                                                     memoryPropertyFlags, true, vulkanContext.getAllocator())) {
-
-        Logger::logError("Error creating index buffer!");
-        return false;
-        }
-
-    return true;
 }
 
 bool VulkanBackend::createModule(const VulkanShaderStageConfig &config, VulkanShaderStage &stage) const {
@@ -1393,6 +1696,7 @@ bool VulkanBackend::acquireTextureMapResources(TextureMap &textureMap) {
 }
 
 void VulkanBackend::releaseTextureMapResources(TextureMap &textureMap) {
+    vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
     vkDestroySampler(vulkanContext.getDevice().getLogicalDevice(), static_cast<VkSampler>(textureMap.data), vulkanContext.getAllocator());
     textureMap.data = nullptr;
 }
@@ -1426,25 +1730,29 @@ void VulkanBackend::resizeTexture(Texture &texture, unsigned int width, unsigned
 
 void VulkanBackend::writeTextureData(Texture &texture, unsigned int offset, unsigned int size, const unsigned char *pixels) {
     const VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
-    VkDeviceSize imageSize = texture.width * texture.height * texture.channelCount * (texture.type == TEXTURE_CUBE ? 6 : 1);
     VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
 
-    VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    VulkanBuffer stagingBuffer{};
-    stagingBuffer.createBuffer(vulkanContext.getDevice(), imageSize, usage, memoryFlags, true, vulkanContext.getAllocator());
-    stagingBuffer.loadBufferData(vulkanContext.getDevice(), 0, imageSize, pixels);
+    RenderBuffer stagingBuffer{};
+    stagingBuffer.initialize(RENDERBUFFER_TYPE_STAGING, size, false);
+    if (!createBuffer(stagingBuffer)) {
+        Logger::logError("Failed to create staging buffer for writing texture data.");
+        return;
+    }
+    bindBuffer(stagingBuffer, 0);
+    loadBufferRange(stagingBuffer, 0, size, pixels);
 
     VulkanCommandBuffer tempBuffer = VulkanCommandBuffer::allocateAndBeginSingleUseCommandBuffer(vulkanContext.getDevice());
     VkCommandPool pool = vulkanContext.getDevice().getCommandPool();
     VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
 
     image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture.type, vulkanContext.getDevice());
-    image.copyFromBuffer(stagingBuffer.getBuffer(), tempBuffer, texture.type);
+    image.copyFromBuffer(reinterpret_cast<VulkanBuffer *>(stagingBuffer.getInternalBuffer())->handle, tempBuffer, texture.type);
     image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.type, vulkanContext.getDevice());
 
     tempBuffer.endSingleUseCommandBuffer(queue, vulkanContext.getDevice());
-    stagingBuffer.destroyBuffer(vulkanContext.getDevice(), vulkanContext.getAllocator());
+    unbindBuffer(stagingBuffer);
+    stagingBuffer.shutdown();
+    destroyBuffer(stagingBuffer);
 
     texture.generation++;
 }
@@ -1483,6 +1791,23 @@ VkFormat VulkanBackend::convertChannelCountToFormat(const unsigned char channelC
     }
 }
 
+bool VulkanBackend::copyBufferRange(VkBuffer source, const ULong sourceOffset, VkBuffer dest, const ULong destOffset, const ULong size) {
+    VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
+    vkQueueWaitIdle(queue);
+
+    VulkanCommandBuffer tempCommandBuffer = VulkanCommandBuffer::allocateAndBeginSingleUseCommandBuffer(vulkanContext.getDevice());
+
+    VkBufferCopy copyRegion{};
+    copyRegion.srcOffset = sourceOffset;
+    copyRegion.dstOffset = destOffset;
+    copyRegion.size = size;
+    vkCmdCopyBuffer(tempCommandBuffer.getHandle(), source, dest, 1, &copyRegion);
+
+    tempCommandBuffer.endSingleUseCommandBuffer(queue, vulkanContext.getDevice());
+
+    return true;
+}
+
 bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, TextureMap** maps) {
     auto* backendShader = shader.getBackendShader<VulkanBackendShader>();
     outInstanceId = INVALID_ID_U32;
@@ -1516,7 +1841,7 @@ bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int 
 
     const ULong size = shader.getInstanceStride();
     if (size > 0) {
-        if (!backendShader->getUniformBuffer().allocate(size, instanceState.offset)) {
+        if (!backendShader->getUniformBuffer().allocateBuffer(size, instanceState.offset)) {
             Logger::logError("Failed to acquire space for instance resources!");
             return false;
         }
@@ -1576,7 +1901,7 @@ bool VulkanBackend::releaseInstanceResources(const Shader &shader, const unsigne
     instanceState.instanceTextureMaps.shutdown();
     instanceState.descriptorSetState.descriptorSets.shutdown();
 
-    const bool freeResult = backendShader->getUniformBuffer().free(shader.getInstanceStride(), instanceState.offset);
+    const bool freeResult = backendShader->getUniformBuffer().freeBuffer(shader.getInstanceStride(), instanceState.offset);
     instanceState.offset = INVALID_ID_U32;
     instanceState.id = INVALID_ID_U32;
 

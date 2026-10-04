@@ -32,7 +32,7 @@ private:
     VkDescriptorSetLayout descriptorSetLayouts[2]{};
     DynamicArray<VkDescriptorSet> descriptorSets{};
     void* uniformBufferMemoryBlock = nullptr;
-    VulkanBuffer uniformBuffer{};
+    RenderBuffer uniformBuffer{};
     VulkanPipeline pipeline{};
     unsigned int instanceCount = 0;
     VulkanShaderInstanceState instanceStates[MAX_MATERIAL_COUNT]{};
@@ -63,7 +63,7 @@ public:
      * @brief Gets the uniform buffer.
      * @return
      */
-    VulkanBuffer& getUniformBuffer() {return uniformBuffer;}
+    RenderBuffer& getUniformBuffer() {return uniformBuffer;}
     /**
      * @brief Gets the pipeline used by this shader.
      * @return
@@ -176,6 +176,8 @@ public:
      */
     void setPoolSizes();
 
+    void setUniformBufferBlock(void* newBlock) {uniformBufferMemoryBlock = newBlock;}
+
     /**
      * @brief Creates the global UBO config.
      * @param index Unifrom index.
@@ -215,12 +217,6 @@ public:
      * @return
      */
     bool createDescriptorSetLayout(unsigned int index, VulkanDevice &device, const VkAllocationCallbacks *allocator);
-
-    /**
-     * @brief Locks the uniform's buffer.
-     * @param device
-     */
-    void finalizeBuffer(VulkanDevice &device);
 
     /**
      * @brief Tells vulkan to allocate the descriptor sets.

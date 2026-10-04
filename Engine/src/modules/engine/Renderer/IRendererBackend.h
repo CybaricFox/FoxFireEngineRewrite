@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "RenderBuffer.h"
 #include "Renderpass.h"
 #include "Shader.h"
 #include "src/modules/engine/Core/GameInstance.h"
@@ -66,6 +67,14 @@ public:
     virtual Texture* getDepthAttachment() = 0;
     virtual unsigned char getWindowAttachmentIndex() = 0;
     virtual bool isMultithreaded() = 0;
+    /**
+     * @brief Increments the frame number.
+     */
+    void incrementFrameNumber() {frameNumber++;}
+    /**
+     * @brief Sets the frame number to 0.
+     */
+    void clearFrameNumber() {frameNumber = 0;}
 
     /**
      * @brief Initializes the backend
@@ -308,12 +317,16 @@ public:
      */
     virtual void destroyRenderpass(Renderpass& renderpass) = 0;
 
-    /**
-     * @brief Increments the frame number.
-     */
-    void incrementFrameNumber() {frameNumber++;}
-    /**
-     * @brief Sets the frame number to 0.
-     */
-    void clearFrameNumber() {frameNumber = 0;}
+    virtual bool createBuffer(RenderBuffer& buffer) = 0;
+    virtual void destroyBuffer(RenderBuffer& buffer) = 0;
+    virtual bool bindBuffer(RenderBuffer& buffer, ULong offset) = 0;
+    virtual bool unbindBuffer(RenderBuffer& buffer) = 0;
+    virtual void* mapBufferMemory(RenderBuffer& buffer, ULong offset, ULong size) = 0;
+    virtual void unmapBufferMemory(RenderBuffer& buffer, ULong offset, ULong size) = 0;
+    virtual bool flushBuffer(RenderBuffer& buffer, ULong offset, ULong size) = 0;
+    virtual bool readBuffer(RenderBuffer& buffer, ULong offset, ULong size, void*& outMemory) = 0;
+    virtual bool resizeBuffer(RenderBuffer& buffer, ULong newSize) = 0;
+    virtual bool loadBufferRange(RenderBuffer& buffer, ULong offset, ULong size, const void* data) = 0;
+    virtual bool copyBufferRange(RenderBuffer& source, ULong sourceOffset, RenderBuffer& destination, ULong destOffset, ULong size) = 0;
+    virtual bool drawBuffer(RenderBuffer& buffer, ULong offset, unsigned int elementCount, bool bindOnly) = 0;
 };

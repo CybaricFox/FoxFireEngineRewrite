@@ -38,8 +38,8 @@ private:
     unsigned int inFlightFenceCount = 0;
     VkFence inFlightFences[2]{};
     DynamicArray<VkFence*> imagesInFlight{};
-    VulkanBuffer vertexBuffer{};
-    VulkanBuffer indexBuffer{};
+    RenderBuffer vertexBuffer{};
+    RenderBuffer indexBuffer{};
     float deltaTime = 0.0f;
     ReusableArray<GeometryData> geometries{};
     AssetMap<Renderpass, AssetContext> renderpasses{};
@@ -76,8 +76,8 @@ public:
     [[nodiscard]] VulkanCommandBuffer& getCurrentCommandBuffer() const {return commandBuffers[imageIndex];}
     VkFence*& getCurrentImageInFlight() {return imagesInFlight[imageIndex];}
     VkSemaphore& getCurrentQueueCompleteSemaphore() const {return queueCompleteSemaphores[imageIndex];}
-    VulkanBuffer& getVertexBuffer() { return vertexBuffer; }
-    VulkanBuffer& getIndexBuffer() { return indexBuffer; }
+    RenderBuffer& getVertexBuffer() { return vertexBuffer; }
+    RenderBuffer& getIndexBuffer() { return indexBuffer; }
     [[nodiscard]] float getDeltaTime() const { return deltaTime; }
     GeometryData& getGeometry(const unsigned int id) { return *geometries.get(id); }
     RenderTarget& getRenderTarget(const unsigned int index) {return worldRenderTargets[index];}

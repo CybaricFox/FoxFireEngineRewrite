@@ -16,6 +16,7 @@
 #include "ITextureSystem.h"
 #include "IRendererBackend.h"
 #include "IRenderView.h"
+#include "RenderBuffer.h"
 #include "RenderViewSystem.h"
 #include "src/defines.h"
 #include "src/modules/engine/Core/Platform.h"
@@ -64,6 +65,10 @@ private:
 
     Texture createBlankTexture();
     void regenerateRenderTargets() const;
+
+    bool createRenderBuffer(RenderBufferType type, ULong size, bool useFreeList, RenderBuffer& outBuffer) const;
+    void destroyRenderBuffer(RenderBuffer& buffer) const;
+    bool resizeRenderBuffer(RenderBuffer& buffer, ULong newSize) const;
 
 public:
     bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, ResourceSystem &resources);

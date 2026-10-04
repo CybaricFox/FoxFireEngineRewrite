@@ -36,6 +36,34 @@ void MasterRenderSystem::regenerateRenderTargets() const {
     }
 }
 
+bool MasterRenderSystem::createRenderBuffer(const RenderBufferType type, const ULong size, const bool useFreeList, RenderBuffer &outBuffer) const {
+    outBuffer.initialize(type, size, useFreeList);
+    if (!backend->createBuffer(outBuffer)) {
+        Logger::logFatal("Failed to create render buffer");
+        return false;
+    }
+
+    return true;
+}
+
+void MasterRenderSystem::destroyRenderBuffer(RenderBuffer &buffer) const {
+    buffer.shutdown();
+    backend->destroyBuffer(buffer);
+}
+
+bool MasterRenderSystem::resizeRenderBuffer(RenderBuffer &buffer, const ULong newSize) const {
+    bool result = buffer.resizeBuffer(newSize);
+    if (!result) return false;
+
+    result = backend->resizeBuffer(buffer, newSize);
+    if (result) {
+        buffer.setTotalSize(newSize);
+    } else {
+        Logger::logError("Failed to resize backend render buffer");
+    }
+    return result;
+}
+
 Material & MasterRenderSystem::acquireMaterial(const String &name) const {
     return materialSystem->acquireMaterial(name);
 }

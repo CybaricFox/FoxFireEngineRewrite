@@ -36,6 +36,8 @@ private:
     int minorVersion = 0;
     int patchVersion = 0;
 
+    bool hasFlag(const VulkanBuffer& buffer, VkMemoryPropertyFlagBits flag);
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageTypes,
@@ -49,13 +51,11 @@ private:
     bool swapchainAcquireNextImageIndex(unsigned long timeout, VkSemaphore semaphore, VkFence fence, unsigned int& outImageIndex);
     void presentSwapchain();
     void allocateCommandBuffers();
-    bool uploadRangeOfData(VkCommandPool pool, VkFence fence, VkQueue queue, VulkanBuffer &buffer, ULong &outOffset, unsigned long size, const void *data);
-    bool freeRangeOfData(VulkanBuffer &buffer, unsigned long offset, unsigned long size);
-    bool createBuffers();
     bool createModule(const VulkanShaderStageConfig &config, VulkanShaderStage &stage) const;
     VkSamplerAddressMode convertTextureRepeatToVulkan(const String &axis, TextureRepeat repeat);
     VkFilter convertTextureFilterToVulkan(const String &op, TextureFilter filter);
     VkFormat convertChannelCountToFormat(unsigned char channelCount, VkFormat defaultFormat);
+    bool copyBufferRange(VkBuffer source, ULong sourceOffset, VkBuffer dest, ULong destOffset, ULong size);
 
 #if VULKAN_USE_CUSTOM_ALLOCATOR == 1
     /**
@@ -236,4 +236,17 @@ public:
     void destroyRenderTarget(RenderTarget &target, bool freeMemory) override;
     void createRenderpass(Renderpass &outRenderpass, float depth, unsigned stencil, bool hasPreviousPass, bool hasNextPass) override;
     void destroyRenderpass(Renderpass &renderpass) override;
+
+    bool createBuffer(RenderBuffer &buffer) override;
+    void destroyBuffer(RenderBuffer &buffer) override;
+    bool bindBuffer(RenderBuffer &buffer, ULong offset) override;
+    bool unbindBuffer(RenderBuffer &buffer) override;
+    void* mapBufferMemory(RenderBuffer &buffer, ULong offset, ULong size) override;
+    void unmapBufferMemory(RenderBuffer &buffer, ULong offset, ULong size) override;
+    bool flushBuffer(RenderBuffer &buffer, ULong offset, ULong size) override;
+    bool readBuffer(RenderBuffer &buffer, ULong offset, ULong size, void *&outMemory) override;
+    bool resizeBuffer(RenderBuffer &buffer, ULong newSize) override;
+    bool loadBufferRange(RenderBuffer &buffer, ULong offset, ULong size, const void *data) override;
+    bool copyBufferRange(RenderBuffer &source, ULong sourceOffset, RenderBuffer &destination, ULong destOffset, ULong size) override;
+    bool drawBuffer(RenderBuffer &buffer, ULong offset, unsigned elementCount, bool bindOnly) override;
 };

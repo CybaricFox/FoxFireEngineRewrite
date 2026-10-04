@@ -87,8 +87,9 @@ void VulkanBackendShader::shutdown(VulkanDevice& device, const VkAllocationCallb
         vkDestroyDescriptorPool(device.getLogicalDevice(), descriptorPool, allocator);
     }
 
-    uniformBuffer.unlockBuffer(device);
-    uniformBuffer.destroyBuffer(device, allocator);
+    //REMINDER! Buffer is destroyed in backend.
+    uniformBufferMemoryBlock = nullptr;
+    uniformBuffer.shutdown();
 
     pipeline.destroyPipeline(device, allocator);
 
@@ -148,10 +149,6 @@ bool VulkanBackendShader::createDescriptorSetLayout(const unsigned int index, Vu
     }
 
     return true;
-}
-
-void VulkanBackendShader::finalizeBuffer(VulkanDevice& device) {
-    uniformBufferMemoryBlock = uniformBuffer.lockBufferWhole(device, 0, 0);
 }
 
 void VulkanBackendShader::finalizeDescriptorSets(const unsigned int imagecount, const unsigned int descriptorIndex, VulkanDevice& device) {
