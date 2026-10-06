@@ -41,12 +41,12 @@ public:
     [[nodiscard]] unsigned int getId() const {return id;}
     [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}
 
-    [[nodiscard]] bool isCustomType() const {return !customType.empty();}
+    [[nodiscard]] bool isCustomType() const {return !customType.isEmpty();}
     void setId(const unsigned int newId) {
         if (id == INVALID_ID_U32) {
             id = newId;
         } else {
-            Logger::logError("Resource system cannot assign an id to a loader because the loader already has an id! New ID: " + std::to_string(newId) + " Existing Id: " + std::to_string(id));
+            Logger::logError("Resource system cannot assign an id to a loader because the loader already has an id! New ID: " + toString(newId) + " Existing Id: " + toString(id));
         }
     }
 

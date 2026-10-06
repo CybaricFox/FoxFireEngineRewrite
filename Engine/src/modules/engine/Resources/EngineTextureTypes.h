@@ -11,7 +11,8 @@
  */
 
 #pragma once
-#include "src/defines.h"
+
+#include "src/modules/engine/Library/String.h"
 
 enum TextureUseCase {
     TEXTURE_USE_UNKNOWN,

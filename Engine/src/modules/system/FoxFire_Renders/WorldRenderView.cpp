@@ -74,7 +74,7 @@ int WorldRenderView::partition(GeometryDistance* array, const int low, const int
 
 bool WorldRenderView::initialize(ShaderSystem *shaderRef, const unsigned long newSize) {
     IRenderView::initialize(shaderRef, newSize);
-    shaderId = shaderRef->getId(!customShaderName.empty() ? customShaderName : "Fox_Fire_Material_Shader");
+    shaderId = shaderRef->getId(!customShaderName.isEmpty() ? customShaderName : "Fox_Fire_Material_Shader");
     nearClip = 0.1f;
     farClip = 1000;
     fov = degreesToRadians(45.0f);

@@ -36,7 +36,7 @@ void* LinearAllocator::allocate(const unsigned long size) {
         //Overflow
         if (allocated + size > totalSize) {
             const unsigned long remaining = totalSize - allocated;
-            Logger::logError("Failed to allocate: " + std::to_string(size) + "B! Not enough memory space allocated! Remaining size: " + std::to_string(remaining) + "B!");
+            Logger::logError("Failed to allocate: " + toString(size) + "B! Not enough memory space allocated! Remaining size: " + toString(remaining) + "B!");
             return nullptr;
         }
 

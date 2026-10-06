@@ -24,19 +24,19 @@ struct BaseGameState {};
  */
 struct GameConfig {
     /** @brief Name of the application */
-    String appName;
+    const char* appName{};
     /** @brief Starting x screen position of the window */
-    short startingX;
+    short startingX = 0;
     /** @brief Starting y height position of the window */
-    short startingY;
+    short startingY = 0;
     /** @brief Starting width of the window */
-    short startingWidth;
+    short startingWidth = 0;
     /** @brief Starting height of the window */
-    short startingHeight;
+    short startingHeight = 0;
 
-    int gameVersionMajor;
-    int gameVersionMinor;
-    int gameVersionPatch;
+    int gameVersionMajor = 0;
+    int gameVersionMinor = 0;
+    int gameVersionPatch = 0;
 };
 
 /**

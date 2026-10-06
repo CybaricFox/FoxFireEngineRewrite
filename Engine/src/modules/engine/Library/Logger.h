@@ -14,7 +14,7 @@
 #include <foxfire_export.h>
 
 #include "FileHandler.h"
-#include "src/defines.h"
+#include "String.h"
 
 //Enable or disable debug messages depending on the type of release
 #define ENABLE_DEBUG_LOGGING 1
@@ -62,6 +62,13 @@ public:
      * @param message The message to log.
      */
     static void log(LogLevel level,const String &message);
+
+    /**
+     * @brief Uses std::string to log. This should only be used prior to FF_Memory loading because Strings use FF_Memory.
+     * @param level
+     * @param message
+     */
+    static void stdLog(LogLevel level,const std::string &message);
 
     /**
      * @brief Logs a message as fatal to console.

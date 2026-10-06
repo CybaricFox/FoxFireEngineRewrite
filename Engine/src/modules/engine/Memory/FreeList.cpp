@@ -16,7 +16,7 @@ void FreeList::initialize(const unsigned long size, unsigned long memoryRequirem
     //Free lists have a min memory recommendation. Warn the use if they are below this threshold.
     constexpr unsigned long minMemory = sizeof(FreeListNode) * 8;
     if (size < minMemory) {
-        Logger::logWarn("FreeList detected the given memory block is smaller than " + std::to_string(minMemory) + ". Using a free list here is not recommended.");
+        Logger::logWarn("FreeList detected the given memory block is smaller than " + toString(minMemory) + ". Using a free list here is not recommended.");
     }
 
     FF_Memory::ff_clear(memory, memoryRequirement);
@@ -69,7 +69,7 @@ bool FreeList::free(const unsigned long size, const unsigned long offset) {
                 return true;
             }
             if (node->offset == offset) {
-                Logger::logFatal("Double Free detected in Free List! Node Offset: " + std::to_string(node->offset));
+                Logger::logFatal("Double Free detected in Free List! Node Offset: " + toString(node->offset));
                 return false;
             }
             if (node->offset > offset) {
@@ -298,6 +298,6 @@ bool FreeList::allocate(const unsigned long size, ULong& offset) {
     }
 
     //Not enough space!
-    Logger::logWarn("FreeList could not find a memory block with enough free space. Requested: " + std::to_string(size) + " Available: " + std::to_string(getFreeSpace()));
+    Logger::logWarn("FreeList could not find a memory block with enough free space. Requested: " + toString(size) + " Available: " + toString(getFreeSpace()));
     return false;
 }

@@ -32,7 +32,7 @@ void FoxFire_TextureSystem::shutdown() {
 }
 
 Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const bool skipLoad, const String& fileName, const TextureUseCase useCase) {
-    if (fileName.empty()) {
+    if (fileName.isEmpty()) {
         return getDefaultByCase(useCase);
     }
 

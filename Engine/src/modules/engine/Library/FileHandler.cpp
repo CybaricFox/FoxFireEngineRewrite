@@ -24,7 +24,7 @@ FileHandler::~FileHandler() {
 }
 
 bool FileHandler::exists(const String &name) {
-    return std::filesystem::exists(name);
+    return std::filesystem::exists(name.getAsCharString());
 }
 
 bool FileHandler::openFile(const String &path, const FileMode mode, const bool isBinary) {
@@ -35,20 +35,32 @@ bool FileHandler::openFile(const String &path, const FileMode mode, const bool i
 
     switch (mode) {
         case READ: {
-            fileMode = isBinary ? "rb" : "r";
+            if (isBinary) {
+                fileMode = "rb";
+            } else {
+                fileMode = "r";
+            }
             break;
         }
         case WRITE: {
-            fileMode = isBinary ? "wb" : "w";
+            if (isBinary) {
+                fileMode = "wb";
+            } else {
+                fileMode = "w";
+            }
             break;
         }
         case BOTH: {
-            fileMode = isBinary ? "w+b" : "w+";
+            if (isBinary) {
+                fileMode = "w+b";
+            } else {
+                fileMode = "w+";
+            }
             break;
         }
     }
 
-    FILE* file = fopen(path.c_str(), fileMode.c_str());
+    FILE* file = fopen(path.getAsCharString(), fileMode.getAsCharString());
     if (!file) {
         Logger::logError("Failed to open file: " + path);
         return false;
@@ -71,12 +83,11 @@ void FileHandler::closeFile() {
 bool FileHandler::readLine(String& line, const unsigned long maxLength, unsigned long& outLength) const {
     if (!handle || maxLength == 0) return false;
 
-    //ensures string is the size of the line being read.
-    line.resize(maxLength);
-
-    if (fgets(line.data(), static_cast<int>(maxLength), handle) != nullptr) {
-        outLength = std::strlen(line.data());
-        line.resize(outLength);
+    char buffer[maxLength];
+    if (fgets(buffer, static_cast<int>(maxLength), handle) != nullptr) {
+        outLength = std::strlen(buffer);
+        line.setString(buffer, std::strlen(buffer));
+        FF_Memory::ff_clear(buffer, sizeof(char) * maxLength);
         return true;
     }
 
@@ -85,7 +96,7 @@ bool FileHandler::readLine(String& line, const unsigned long maxLength, unsigned
 
 bool FileHandler::writeLine(const String &text) const {
     if (handle) {
-        int result = fputs(text.c_str(), handle);
+        int result = fputs(text.getAsCharString(), handle);
         if (result != EOF) {
             result = fputc('\n', handle);
         }

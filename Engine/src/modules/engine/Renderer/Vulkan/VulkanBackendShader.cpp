@@ -25,7 +25,7 @@ void VulkanBackendShader::incrementUniformCount(const ShaderScope scope) {
 bool VulkanBackendShader::setStages(const unsigned char stageCount, DynamicArray<ShaderStage>& shaderStages, DynamicArray<String>& stageFileNames) {
     for (unsigned int i = 0; i < stageCount; i++) {
         if (config.stageCount + 1 > VULKAN_SHADER_MAX_STAGES) {
-            Logger::logError("Too many shader stages. Cannot have more stages than " + std::to_string(VULKAN_SHADER_MAX_STAGES) + ".");
+            Logger::logError("Too many shader stages. Cannot have more stages than " + toString(VULKAN_SHADER_MAX_STAGES) + ".");
             return false;
         }
 
@@ -40,7 +40,7 @@ bool VulkanBackendShader::setStages(const unsigned char stageCount, DynamicArray
                 break;
             }
             default: {
-                Logger::logError("Unsupported shader stage: " + std::to_string(shaderStages[i]));
+                Logger::logError("Unsupported shader stage: " + toString(shaderStages[i]));
                 continue;
             }
         }

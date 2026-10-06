@@ -31,6 +31,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 14: return "RENDER_BACKEND_MANUAL";
         case 15: return "RENDER_BACKEND_AUTO";
         case 16: return "GPU";
+        case 17: return "STRING";
         default: return " ";
     }
 }
@@ -106,9 +107,9 @@ void FF_Memory::ff_free(void *block, const unsigned long size, const MemoryTag t
     if (memorySystem->memoryData.taggedAllocations[tag] < size) {
         Logger::logError(
             "Memory underflow detected for tag " +
-            std::string(getStringFromTag(tag)) +
-            ". Current: " + std::to_string(memorySystem->memoryData.taggedAllocations[tag]) +
-            ", freeing: " + std::to_string(size)
+            getStringFromTag(tag) +
+            ". Current: " + toString(memorySystem->memoryData.taggedAllocations[tag]) +
+            ", freeing: " + toString(size)
         );
 
         memorySystem->memoryData.totalAllocated -= memorySystem->memoryData.taggedAllocations[tag];
@@ -155,15 +156,17 @@ void * FF_Memory::ff_set(void *destination, const int value, const unsigned long
 String FF_Memory::getMemoryUsage() {
     const String title = "Tracked system memory usage (tagged):\n";
     String outString{};
-    outString.append(title);
+    outString += title;
 
     for (unsigned int i = 0; i < MAX_TAGS; i++) {
         float amount = 1;
         String unit = getUnitForSize(memorySystem->memoryData.taggedAllocations[i], amount);
 
         std::ostringstream oss;
-        oss << getStringFromTag(i) << ": "<< std::fixed << std::setprecision(2) << amount << unit << "\n";
-        outString.append(oss.str());
+        oss << getStringFromTag(i).getAsCharString() << ": "<< std::fixed << std::setprecision(2) << amount << unit.getAsCharString() << "\n";
+        String string{};
+        string.setString(oss.str().c_str(), oss.str().size());
+        outString += string;
     }
 
     ULong totalSpace = memorySystem->allocator.getTotalSpace();
@@ -178,14 +181,16 @@ String FF_Memory::getMemoryUsage() {
 
     double percentUsed = static_cast<double>(usedSpace) / static_cast<double>(totalSpace);
 
-    outString.append("Overall Memory Usage: \n");
+    outString += "Overall Memory Usage: \n";
 
     std::ostringstream oss;
-    oss << std::fixed << std::setprecision(2) << usedAmount << usedUnit << " Used.\n"
-    << std::fixed << std::setprecision(2) << totalAmount << totalUnit << " Total.\n"
+    oss << std::fixed << std::setprecision(2) << usedAmount << usedUnit.getAsCharString() << " Used.\n"
+    << std::fixed << std::setprecision(2) << totalAmount << totalUnit.getAsCharString() << " Total.\n"
     << std::fixed << std::setprecision(2) << percentUsed << "% Used.";
+    String string{};
+    string.setString(oss.str().c_str(), oss.str().size());
 
-    outString.append(oss.str());
+    outString += string;
 
     return outString;
 }
@@ -216,7 +221,7 @@ bool FF_Memory::initialize(const MemoryConfig config) {
         return false;
     }
 
-    Logger::logDebug("Memory system allocated successfully with " + std::to_string(config.totalAllocationSize) + " bytes.");
+    Logger::logDebug("Memory system allocated successfully with " + toString(config.totalAllocationSize) + " bytes.");
     return true;
 }
 

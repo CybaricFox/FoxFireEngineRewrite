@@ -49,7 +49,7 @@ void EngineEvents::unsubscribe(const EngineEventCode code, const String& id) {
 
     unsigned long index = -1;
     for (unsigned long i = 0; i < event.getLength(); ++i) {
-        if (strcmp(event[i].id.c_str(), id.c_str()) == 0) {
+        if (strcmp(event[i].id.getAsCharString(), id.getAsCharString()) == 0) {
             index = i;
             break;
         }

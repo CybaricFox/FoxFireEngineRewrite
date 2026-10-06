@@ -16,7 +16,7 @@ bool JsonHandler::parse(JsonHeader* header, JsonObject& object) {
     file.readLine(line, 511, outBytes);
     if (outBytes == 0) return false;
 
-    StringUtils::trim(line);
+    line.trim();
 
     switch (line[0]) {
         case '}': {
@@ -40,15 +40,16 @@ bool JsonHandler::parse(JsonHeader* header, JsonObject& object) {
         case ' ': return false;
         case '"': {
             const unsigned int index = line.find(':');
-            if (index == static_cast<unsigned int>(String::npos)) {
+            if (index == static_cast<unsigned int>(INVALID_ID_U64)) {
                 Logger::logFatal("Json Parser ran into a fatal error! ':' was not found after \" initializer! Parser cannot continue!");
                 return true;
             }
-            String name = line.substr(0, index);
-            String value = line.substr(index + 1);
-            StringUtils::trim(name);
-            name = name.substr(1, name.length() - 2);
-            StringUtils::trim(value);
+            String name = line.substringLeft(index);
+            String value = line.substringRight(index + 1);
+            name.trim();
+            name = name.substringRight(1);
+            name = name.substringLeft(name.getSizeInBytes() - 2);
+            value.trim();
 
             JsonHeader& newHeader = *object.keys.emplace(name);
 
@@ -126,8 +127,9 @@ void JsonHandler::parseArray(JsonHeader& header, JsonObject& object) {
 void JsonHandler::parseValue(JsonHeader& header, JsonObject& object, String& value) {
     switch (value[0]) {
         case '"': {
-            String* stringValue = FF_Memory::ff_allocate_class<String>(sizeof(String), DYNAMIC_ARRAY);
-            *stringValue = value.substr(1, value.length() - 2);
+            const auto stringValue = FF_Memory::ff_allocate_class<String>(sizeof(String), DYNAMIC_ARRAY);
+            *stringValue = value.substringRight(1);
+            *stringValue = stringValue->substringLeft(stringValue->getSizeInBytes() - 2);
 
             object.values.push(stringValue);
             header.type = JSON_STRING;
@@ -144,7 +146,7 @@ void JsonHandler::parseValue(JsonHeader& header, JsonObject& object, String& val
                 const auto boolOut = static_cast<bool *>(FF_Memory::ff_allocate(sizeof(bool), DYNAMIC_ARRAY));
                 *boolOut = boolValue;
                 object.values.push(boolOut);
-            } else if (index == static_cast<unsigned int>(String::npos)) {
+            } else if (index == static_cast<unsigned int>(INVALID_ID_U64)) {
                 header.type = JSON_NUMBER;
                 const auto intValue = static_cast<int *>(FF_Memory::ff_allocate(sizeof(int), DYNAMIC_ARRAY));
                 StringUtils::stringToInt(value, *intValue);
@@ -168,15 +170,15 @@ void JsonHandler::logJsonObject(JsonObject &object) {
 
         switch (object.keys[i].type) {
             case JSON_NUMBER: {
-                outputString.append(std::to_string(*static_cast<int*>(object.values[i])));
+                outputString += toString(*static_cast<int*>(object.values[i]));
                 break;
             }
             case JSON_FLOAT: {
-                outputString.append(std::to_string(*static_cast<float*>(object.values[i])));
+                outputString += toString(*static_cast<float*>(object.values[i]));
                 break;
             }
             case JSON_STRING: {
-                outputString.append(*static_cast<String*>(object.values[i]));
+                outputString += *static_cast<String*>(object.values[i]);
                 break;
             }
             case JSON_OBJECT: {
@@ -200,7 +202,7 @@ void JsonHandler::logJsonObject(JsonObject &object) {
             default: break;
         }
 
-        if (outputString.empty()) continue;
+        if (outputString.isEmpty()) continue;
         Logger::logDebug(outputString);
         outputString.clear();
     }

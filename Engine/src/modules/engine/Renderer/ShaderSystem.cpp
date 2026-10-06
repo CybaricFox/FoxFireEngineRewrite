@@ -227,7 +227,7 @@ bool ShaderSystem::addAttribute(Shader &shader, const ShaderAttributeConfig &att
             break;
         }
         default: {
-            Logger::logError("Unrecognized attribute type: " + std::to_string(attributeConfig.type));
+            Logger::logError("Unrecognized attribute type: " + toString(attributeConfig.type));
             size = 4;
             break;
         }
@@ -258,7 +258,7 @@ bool ShaderSystem::addSampler(Shader &shader, const ShaderUniformConfig &uniform
     if (uniformConfig.scope == SHADER_SCOPE_GLOBAL) {
         unsigned int globalTextureCount = shader.getGlobalTextureCount();
         if (globalTextureCount + 1 > config.maxGlobalTextures) {
-            Logger::logError("Shader global texture count exceeds " + std::to_string(config.maxGlobalTextures));
+            Logger::logError("Shader global texture count exceeds " + toString(config.maxGlobalTextures));
             return false;
         }
         location = globalTextureCount;
@@ -282,7 +282,7 @@ bool ShaderSystem::addSampler(Shader &shader, const ShaderUniformConfig &uniform
 
     } else {
         if (shader.getInstanceTextureCount() + 1 > config.maxInstanceTextures) {
-           Logger::logError("Shader instance texture count exceeds " + std::to_string(config.maxInstanceTextures));
+           Logger::logError("Shader instance texture count exceeds " + toString(config.maxInstanceTextures));
             return false;
         }
         location = shader.getInstanceTextureCount();
@@ -307,7 +307,7 @@ bool ShaderSystem::addUniform(Shader &shader, const ShaderUniformConfig &uniform
 
 bool ShaderSystem::addUniform(Shader &shader, const String &uniformName, const unsigned int size, const ShaderUniformType type, const ShaderScope scope, const unsigned int descriptorLocation, const bool isSampler) const {
     if (shader.getUniformCount() + 1 > config.maxUniformCount) {
-        Logger::logError("Number of shader uniforms and samplers cannot exceed " + std::to_string(shader.getUniformCount()));
+        Logger::logError("Number of shader uniforms and samplers cannot exceed " + toString(shader.getUniformCount()));
         return false;
     }
 
@@ -359,7 +359,7 @@ bool ShaderSystem::addUniform(Shader &shader, const String &uniformName, const u
 }
 
 bool ShaderSystem::isUniformNameValid(Shader &shader, const String &name) {
-    if (name.empty()) {
+    if (name.isEmpty()) {
         Logger::logError("Uniform name cannot be empty");
         return false;
     }

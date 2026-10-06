@@ -157,29 +157,33 @@ bool VulkanDevice::selectPhysicalDevice(VkInstance& instance, VkSurfaceKHR& surf
             }
 
             Logger::logInfo("GPU driver version: " +
-                std::to_string(VK_VERSION_MAJOR(deviceProperties.driverVersion)) +
+                toString(VK_VERSION_MAJOR(deviceProperties.driverVersion)) +
                 "." +
-                std::to_string(VK_VERSION_MINOR(deviceProperties.driverVersion)) +
+                toString(VK_VERSION_MINOR(deviceProperties.driverVersion)) +
                 "." +
-                std::to_string(VK_VERSION_PATCH(deviceProperties.driverVersion)));
+                toString(VK_VERSION_PATCH(deviceProperties.driverVersion)));
 
             Logger::logInfo("Vulkan API version: " +
-                std::to_string(VK_VERSION_MAJOR(deviceProperties.apiVersion)) +
+                toString(VK_VERSION_MAJOR(deviceProperties.apiVersion)) +
                 "." +
-                std::to_string(VK_VERSION_MINOR(deviceProperties.apiVersion)) +
+                toString(VK_VERSION_MINOR(deviceProperties.apiVersion)) +
                 "." +
-                std::to_string(VK_VERSION_PATCH(deviceProperties.apiVersion)));
+                toString(VK_VERSION_PATCH(deviceProperties.apiVersion)));
 
             for (unsigned int i = 0; i < deviceMemoryProperties.memoryHeapCount; i++) {
                 float memorySizeGB = static_cast<float>(deviceMemoryProperties.memoryHeaps[i].size) / 1024.0f / 1024.0f / 1024.0f;
                 if (deviceMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
                     std::ostringstream oss;
                     oss << "Local GPU memory: " << std::setprecision(2) << memorySizeGB << "GB";
-                    Logger::logInfo(oss.str());
+                    String string{};
+                    string.setString(oss.str().c_str(), oss.str().length());
+                    Logger::logInfo(string);
                 } else {
                     std::ostringstream oss;
                     oss << "Shared system memory: " << std::setprecision(2) << memorySizeGB << "GB";
-                    Logger::logInfo(oss.str());
+                    String string{};
+                    string.setString(oss.str().c_str(), oss.str().length());
+                    Logger::logInfo(string);
                 }
             }
 
@@ -234,7 +238,9 @@ bool VulkanDevice::physicalDeviceMeetsRequirements(VkPhysicalDevice vulkanPhysic
             std::setw(7) << "Compute" << std::setw(3) << " | " <<
                 std::setw(8) << "Transfer" << std::setw(3) << " | " <<
                     "Name";
-    Logger::logInfo(oss1.str());
+    String string{};
+    string.setString(oss1.str().c_str(), oss1.str().length());
+    Logger::logInfo(string);
 
     //Whether this device meets requirements
     //If the requirement is set to false, set the validity to true since we can ignore it
@@ -275,20 +281,21 @@ bool VulkanDevice::physicalDeviceMeetsRequirements(VkPhysicalDevice vulkanPhysic
     }
 
     std::ostringstream oss2;
-    oss2 << std::setw(8) << std::to_string(physicalDeviceFamilyInfo.graphicsFamily != -1) << std::setw(3) << " | " <<
-        std::setw(7) << std::to_string(physicalDeviceFamilyInfo.presentFamily != -1) << std::setw(3) << " | " <<
-            std::setw(7) << std::to_string(physicalDeviceFamilyInfo.computeFamily != -1) << std::setw(3) << " | " <<
-                std::setw(8) << std::to_string(physicalDeviceFamilyInfo.transferFamily != -1) << std::setw(3) << " | " <<
+    oss2 << std::setw(8) << toString(physicalDeviceFamilyInfo.graphicsFamily != -1).getAsCharString() << std::setw(3) << " | " <<
+        std::setw(7) << toString(physicalDeviceFamilyInfo.presentFamily != -1).getAsCharString() << std::setw(3) << " | " <<
+            std::setw(7) << toString(physicalDeviceFamilyInfo.computeFamily != -1).getAsCharString() << std::setw(3) << " | " <<
+                std::setw(8) << toString(physicalDeviceFamilyInfo.transferFamily != -1).getAsCharString() << std::setw(3) << " | " <<
                     deviceProperties.deviceName;
-    Logger::logInfo(oss2.str());
+    string.setString(oss2.str().c_str(), oss2.str().length());
+    Logger::logInfo(string);
     oss2.clear();
 
     if (validGraphics && validPresent && validTransfer && validCompute) {
         Logger::logInfo(String(deviceProperties.deviceName) + " meets requirements.");
-        Logger::logDebug("Graphics family index: " + std::to_string(physicalDeviceFamilyInfo.graphicsFamily));
-        Logger::logDebug("Present family index: " + std::to_string(physicalDeviceFamilyInfo.presentFamily));
-        Logger::logDebug("Transfer family index: " + std::to_string(physicalDeviceFamilyInfo.transferFamily));
-        Logger::logDebug("Compute family index: " + std::to_string(physicalDeviceFamilyInfo.computeFamily));
+        Logger::logDebug("Graphics family index: " + toString(physicalDeviceFamilyInfo.graphicsFamily));
+        Logger::logDebug("Present family index: " + toString(physicalDeviceFamilyInfo.presentFamily));
+        Logger::logDebug("Transfer family index: " + toString(physicalDeviceFamilyInfo.transferFamily));
+        Logger::logDebug("Compute family index: " + toString(physicalDeviceFamilyInfo.computeFamily));
 
         querySwapChainSupport(vulkanPhysicalDevice, surface, swapChainSupport);
 

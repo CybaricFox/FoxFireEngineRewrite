@@ -164,7 +164,7 @@ bool PlatformWindows::initialize(const String &applicationName, const int x, con
     HWND handle = CreateWindowExA(
         windowExStyle,
         "FoxFire_Window",
-        applicationName.c_str(),
+        applicationName.getAsCharString(),
         windowStyle,
         windowX,
         windowY,
@@ -203,26 +203,26 @@ void PlatformWindows::addMouseInput(int x, int y, int z) {
     mouseInputs.emplace(x, y, z);
 }
 
-void PlatformWindows::printConsoleMessage(const String &message, const unsigned char color) {
+void PlatformWindows::printConsoleMessage(const char *message, unsigned char color) {
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     if (!(color > 4 || color < 0)) {
         static unsigned char colors[5] = {64, 4, 6, 2, 1};
         SetConsoleTextAttribute(consoleHandle, colors[color]);
     }
 
-    OutputDebugStringA(message.c_str());
+    OutputDebugStringA(message);
 
     cout << message << endl;
 }
 
-void PlatformWindows::printConsoleError(const String &message, const unsigned char color) {
+void PlatformWindows::printConsoleError(const char* message, const unsigned char color) {
     HANDLE consoleHandle = GetStdHandle(STD_ERROR_HANDLE);
     if (!(color > 4 || color < 0)) {
         static unsigned char colors[5] = {64, 4, 6, 2, 1};
         SetConsoleTextAttribute(consoleHandle, colors[color]);
     }
 
-    OutputDebugStringA(message.c_str());
+    OutputDebugStringA(message);
 
     cerr << message << endl;
 }
@@ -297,7 +297,7 @@ void PlatformWindows::clear(void *memory, const unsigned long size) {
 int PlatformWindows::getProcessorCount() {
     SYSTEM_INFO sysInfo{};
     GetSystemInfo(&sysInfo);
-    Logger::logInfo(std::to_string(sysInfo.dwNumberOfProcessors) + " cores were found.");
+    Logger::logInfo(toString(sysInfo.dwNumberOfProcessors) + " cores were found.");
     return sysInfo.dwNumberOfProcessors;
 }
 
@@ -306,7 +306,7 @@ bool PlatformWindows::createThread(const ThreadFunction threadFunction, void *pa
 
     outThread.data = CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(threadFunction), params, 0, reinterpret_cast<DWORD *>(&outThread.id));
 
-    Logger::logDebug("Starting proces on thread " + std::to_string(outThread.id));
+    Logger::logDebug("Starting proces on thread " + toString(outThread.id));
 
     if (!outThread.data) {
         return false;

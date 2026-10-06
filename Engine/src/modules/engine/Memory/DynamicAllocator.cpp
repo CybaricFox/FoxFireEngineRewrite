@@ -77,7 +77,7 @@ void * DynamicAllocator::allocate(const unsigned long size, const unsigned short
 
     Logger::logError("Dynamic Allocator cannot find a memory block large enough to allocate from.");
     const unsigned long available = freeList.getFreeSpace();
-    Logger::logError("Requested size: " + std::to_string(size) + " Available: " + std::to_string(available));
+    Logger::logError("Requested size: " + toString(size) + " Available: " + toString(available));
     return nullptr;
 }
 
@@ -90,9 +90,9 @@ bool DynamicAllocator::free(void *memory) {
     if (memory < memoryBlock || memory > static_cast<unsigned char *>(memoryBlock) + totalSize) {
         void* endOfBlock = static_cast<unsigned char *>(memoryBlock) + totalSize;
         Logger::logError("Dynamic Allocator tryed to free memory block: " +
-            std::to_string(reinterpret_cast<ULong>(memory)) + " outside of range: " +
-            std::to_string(reinterpret_cast<ULong>(memoryBlock)) + " - " +
-            std::to_string(reinterpret_cast<ULong>(endOfBlock)));
+            toString(reinterpret_cast<ULong>(memory)) + " outside of range: " +
+            toString(reinterpret_cast<ULong>(memoryBlock)) + " - " +
+            toString(reinterpret_cast<ULong>(endOfBlock)));
         return false;
     }
 

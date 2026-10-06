@@ -87,9 +87,9 @@ public:
         if (!memory) {
             Logger::logFatal(
                 "Dynamic Array failed to allocate memory! Size: " +
-                std::to_string(sizeof(T)) +
+                toString(sizeof(T)) +
                 "B, Capacity: " +
-                std::to_string(finalCapacity)
+                toString(finalCapacity)
             );
             shutdown();
             return;
@@ -239,7 +239,7 @@ public:
      */
     void pop(const unsigned long index) {
         if (index >= length) {
-            Logger::logError("Index out of bounds! Length: " + std::to_string(length) + ", Index: " + std::to_string(index));
+            Logger::logError("Index out of bounds! Length: " + toString(length) + ", Index: " + toString(index));
             return;
         }
 
@@ -258,7 +258,7 @@ public:
      */
     void unorderedPop(const unsigned long index) {
         if (index >= length) {
-            Logger::logError("Index out of bounds! Length: " + std::to_string(length) + ", Index: " + std::to_string(index));
+            Logger::logError("Index out of bounds! Length: " + toString(length) + ", Index: " + toString(index));
             return;
         }
 
@@ -317,8 +317,8 @@ public:
 
         if (index > length) {
             Logger::logError(
-                "Index out of bounds! Length: " + std::to_string(length) +
-                ", Index: " + std::to_string(index)
+                "Index out of bounds! Length: " + toString(length) +
+                ", Index: " + toString(index)
             );
             return false;
         }
@@ -367,8 +367,8 @@ public:
 
         if (index > length) {
             Logger::logError(
-                "Index out of bounds! Length: " + std::to_string(length) +
-                ", Index: " + std::to_string(index)
+                "Index out of bounds! Length: " + toString(length) +
+                ", Index: " + toString(index)
             );
             return false;
         }

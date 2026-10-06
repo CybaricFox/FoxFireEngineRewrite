@@ -13,41 +13,13 @@
 #pragma once
 #include "src/defines.h"
 #include <foxfire_export.h>
-
 #include "src/modules/engine/Memory/DynamicArray.h"
-
-/*
- * REMINDER OF STRING FUNCTIONS THAT ARE USEFUL
- * string.substr(start, legnth) returns a substring.
- * string.length() returns the length of the string.
- * string.find(char) returns the index of the first occurence of that char.
- */
 
 /**
  * @brief Collection of string functions
  */
 class FOXFIRE_API StringUtils {
 public:
-    /**
-     * @brief Checks if strings are equal, ignoring their case.
-     * @return True if equal
-     */
-    static bool equalsIgnoreCase(const String &a, const String &b);
-
-    /**
-     * @brief Copies the first n characters
-     * @param string String to copy
-     * @param size number of characters from index 0
-     * @return Substring of only the first n characters
-     */
-    static String copyLimited(String string, long size);
-
-    /**
-     * @brief Removes whitespace from the start and end of the string
-     * @param out String to trim.
-     */
-    static void trim(String &out);
-
     /**
      * @brief Converts a string to the out type.
      * @param string
@@ -117,7 +89,7 @@ public:
      * @param out
      * @return False if the conversion failed.
      */
-    static bool stringToULong(const String &string, unsigned long& out);
+    static bool stringToULong(const String &string, ULong &out);
     /**
      * @brief Converts a string to the out type.
      * @param string
@@ -127,60 +99,34 @@ public:
     static bool stringToBool(const String &string, bool& out);
 
     /**
-     * @brief Gets the number of times the given char is found in the given string.
-     * @param string
-     * @param toFind
-     * @return
-     */
-    static unsigned int findAll(const String &string, char toFind);
-
-    /**
-     * @brief Gets an array of substrings split by the given regex.
+     * @brief Gets an array of substrings split by the given regex. Calls the strings inner recursiveSplit but because this version uses a dynamic array, string memory is automated.
      * @param string String to split.
      * @param regex Char to act as the split location.
      * @param array OUT array of strings.
      * @return Number of substrings.
      */
-    static unsigned int recursiveSplit(const String &string, char regex, DynamicArray<String>& array);
-
-    /**
-     * @brief Returns true if the 2 strings are equal starting at 0 until the length.
-     * @param a
-     * @param b
-     * @param length
-     * @return True if they are the same string.
-     */
-    static bool equalsN(const String &a, const String &b, unsigned long length);
-
-    /**
-     * @brief Returns true if the 2 strings are equal starting at 0 until the length. Ignores case.
-     * @param a
-     * @param b
-     * @param n
-     * @return True if they are the same string.
-     */
-    static bool equalsIgnoreCaseN(const String &a, const String &b, unsigned long n);
+    static unsigned int recursiveSplit(String &string, char regex, DynamicArray<String> &array);
 
     /**
      * @brief Returns the parent directory in the path.
      * @param path
      * @return
      */
-    static String getDirectoryFromPath(const String &path);
+    static String getDirectoryFromPath(String &path);
 
     /**
      * @brief Returns the file name and extension in the path.
      * @param path
      * @return
      */
-    static String getFilenameFromPath(const String &path);
+    static String getFilenameFromPath(String &path);
 
     /**
      * @brief Returns the file name in the path without the extension.
      * @param path
      * @return
      */
-    static String getFilenameNoExtensionFromPath(const String &path);
+    static String getFilenameNoExtensionFromPath(String &path);
 };
 
 

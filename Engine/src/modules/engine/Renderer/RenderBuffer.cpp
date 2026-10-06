@@ -48,7 +48,7 @@ bool RenderBuffer::freeBuffer(const ULong size, const ULong offset) {
 
 bool RenderBuffer::resizeBuffer(const ULong newSize) {
     if (newSize <= totalSize) {
-        Logger::logError("Render buffer resize cannot resize because the new size " + std::to_string(newSize) + " is less than or equal to the buffer size " + std::to_string(totalSize));
+        Logger::logError("Render buffer resize cannot resize because the new size " + toString(newSize) + " is less than or equal to the buffer size " + toString(totalSize));
         return false;
     }
 

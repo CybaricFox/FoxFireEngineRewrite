@@ -132,7 +132,7 @@ public:
             return true;
         }
 
-        Logger::logDebug(name + " has one less reference. " + std::to_string(context->referenceCount) + " remains.");
+        Logger::logDebug(name + " has one less reference. " + toString(context->referenceCount) + " remains.");
         return false;
     }
     /**
@@ -155,7 +155,7 @@ public:
             return true;
         }
 
-        Logger::logDebug(name + " has one less reference. " + std::to_string(context->referenceCount) + " remains.");
+        Logger::logDebug(name + " has one less reference. " + toString(context->referenceCount) + " remains.");
         return false;
     }
 

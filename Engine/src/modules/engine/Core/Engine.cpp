@@ -175,7 +175,7 @@ void Engine::run() {
             //Update last time
             lastTime = currentTime;
             if (deltaCount >= 1) {
-                Logger::logInfo("FPS: " + std::to_string(fps));
+                Logger::logInfo("FPS: " + toString(fps));
                 fps = 0;
                 deltaCount = 0;
             } else {
@@ -285,13 +285,13 @@ void Engine::initialize() {
     bool multithreadRenderer = masterRenderSystem.isRenderSystemMultithreaded();
     int threadCount = platform.getProcessorCount() - 1;
     if (threadCount < 1) {
-        Logger::logFatal("Platform reported " + std::to_string(threadCount) + " extra threads. At least 1 extra thread is required for this engine.");
+        Logger::logFatal("Platform reported " + toString(threadCount) + " extra threads. At least 1 extra thread is required for this engine.");
         return;
     }
-    Logger::logDebug("Extra threads available: " + std::to_string(threadCount));
+    Logger::logDebug("Extra threads available: " + toString(threadCount));
 
     if (threadCount > MAX_THREAD_COUNT) {
-        Logger::logDebug("Extra threads will be capped to " + std::to_string(MAX_THREAD_COUNT) + ".");
+        Logger::logDebug("Extra threads will be capped to " + toString(MAX_THREAD_COUNT) + ".");
         threadCount = MAX_THREAD_COUNT;
     }
 

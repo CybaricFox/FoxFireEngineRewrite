@@ -99,7 +99,7 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
             textures.emplace();
 
             void* data = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
-            String textureName = "Vulkan_Swapchain_Image_0" + std::to_string(i);
+            String textureName = "Vulkan_Swapchain_Image_0" + toString(i);
 
             textures[i] = TextureUtils::wrapTexture(textureName, swapchainExtent.width, swapchainExtent.height, 4, false, true, false, data);
 
@@ -197,7 +197,7 @@ void VulkanSwapchain::destroySwapchain(VulkanDevice& device, const VkAllocationC
     depthImage->destroy(device, allocator);
     FF_Memory::ff_free_class<VulkanImage>(depthImage, sizeof(VulkanImage), TEXTURE);
     depthTexture->data = nullptr;
-    FF_Memory::ff_free(depthTexture, sizeof(Texture), TEXTURE);
+    FF_Memory::ff_free_class<Texture>(depthTexture, sizeof(Texture), TEXTURE);
     depthTexture = nullptr;
 
     for (unsigned int i = 0; i < imageCount; i++) {
@@ -212,7 +212,7 @@ void VulkanSwapchain::destroySwapchain(VulkanDevice& device, const VkAllocationC
 
     for (unsigned int i = 0; i < imageCount; i++) {
         FF_Memory::ff_free_class<VulkanImage>(textures[i]->data, sizeof(VulkanImage), TEXTURE);
-        FF_Memory::ff_free(textures[i], sizeof(Texture), TEXTURE);
+        FF_Memory::ff_free_class<Texture>(textures[i], sizeof(Texture), TEXTURE);
     }
     textures.shutdown();
 

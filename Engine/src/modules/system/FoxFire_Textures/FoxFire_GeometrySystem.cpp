@@ -139,13 +139,13 @@ GeometryConfig FoxFire_GeometrySystem::generatePlaneConfig(float width, float he
         }
     }
 
-    if (!name.empty()) {
+    if (!name.isEmpty()) {
         config.name = name;
     } else {
         config.name = DEFAULT_GEOMETRY_NAME;
     }
 
-    if (!materialName.empty()) {
+    if (!materialName.isEmpty()) {
         config.materialName = materialName;
     } else {
         config.materialName = DEFAULT_MATERIAL_NAME;
@@ -218,7 +218,7 @@ bool FoxFire_GeometrySystem::createGeometry(GeometryConfig &config, Geometry &ge
     geometry.extent.min = config.minExtent;
     geometry.extent.max = config.maxExtent;
 
-    if (!config.materialName.empty()) {
+    if (!config.materialName.isEmpty()) {
         geometry.material = &materialSystemRef->acquireMaterial(config.materialName);
     }
 
@@ -228,7 +228,7 @@ bool FoxFire_GeometrySystem::createGeometry(GeometryConfig &config, Geometry &ge
 void FoxFire_GeometrySystem::destroyGeometry(Geometry &geometry) {
     backendRef->destroyGeometry(geometry);
 
-    if (geometry.material && !geometry.material->name.empty()) {
+    if (geometry.material && !geometry.material->name.isEmpty()) {
         materialSystemRef->releaseMaterial(geometry.material->name);
     }
 
@@ -370,13 +370,13 @@ GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float hei
         config.indices.setIndex(vOffset + 1, iOffset + 5);
     }
 
-    if (!name.empty()) {
+    if (!name.isEmpty()) {
         config.name = name;
     } else {
         config.name = DEFAULT_GEOMETRY_NAME;
     }
 
-    if (!materialName.empty()) {
+    if (!materialName.isEmpty()) {
         config.materialName = materialName;
     } else {
         config.materialName = DEFAULT_MATERIAL_NAME;

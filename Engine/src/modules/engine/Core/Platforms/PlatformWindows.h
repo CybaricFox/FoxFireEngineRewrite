@@ -46,8 +46,8 @@ public:
     void addKeyInput(Buttons button, Keys key, bool isPressed);
     void addMouseInput(int x, int y, int z);
 
-    void printConsoleMessage(const String &message, unsigned char color) override;
-    void printConsoleError(const String &message, unsigned char color) override;
+    void printConsoleMessage(const char* message, unsigned char color) override;
+    void printConsoleError(const char* message, unsigned char color) override;
     bool createSurface() override;
     double getAbsoluteTime() override;
     void shutdown() override;

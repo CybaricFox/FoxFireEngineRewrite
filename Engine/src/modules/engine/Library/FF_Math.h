@@ -754,7 +754,7 @@ inline Vector4f toVector4f(const Vector3f& vector3, const float w) {
  */
 inline bool stringToVector4f(const String &string, Vector4f& out) {
     FF_Memory::ff_clear(&out, sizeof(Vector4f));
-    const int result = sscanf(string.c_str(), "%f %f %f %f", &out.x, &out.y, &out.z, &out.w);
+    const int result = sscanf(string.getAsCharString(), "%f %f %f %f", &out.x, &out.y, &out.z, &out.w);
     return result != -1;
 }
 
@@ -764,14 +764,14 @@ inline bool stringToVector4f(const String &string, Vector4f& out) {
  * @param vector
  */
 inline void vector4fToString(String& outString, const Vector4f vector) {
-    outString.clear();
-    outString.append(std::to_string(vector.x));
-    outString.append(" ");
-    outString.append(std::to_string(vector.y));
-    outString.append(" ");
-    outString.append(std::to_string(vector.z));
-    outString.append(" ");
-    outString.append(std::to_string(vector.w));
+    outString.destroy();
+    outString += toString(vector.x);
+    outString += " ";
+    outString += toString(vector.y);
+    outString+=(" ");
+    outString +=toString(vector.z);
+    outString+=(" ");
+    outString += toString(vector.w);
 }
 
 /**
@@ -782,7 +782,7 @@ inline void vector4fToString(String& outString, const Vector4f vector) {
  */
 inline bool stringToVector3f(const String &string, Vector3f& out) {
     FF_Memory::ff_clear(&out, sizeof(Vector3f));
-    const int result = sscanf(string.c_str(), "%f %f %f", &out.x, &out.y, &out.z);
+    const int result = sscanf(string.getAsCharString(), "%f %f %f", &out.x, &out.y, &out.z);
     return result != -1;
 }
 
@@ -794,7 +794,7 @@ inline bool stringToVector3f(const String &string, Vector3f& out) {
  */
 inline bool stringToVector2f(const String &string, Vector2f& out) {
     FF_Memory::ff_clear(&out, sizeof(Vector2f));
-    const int result = sscanf(string.c_str(), "%f %f", &out.x, &out.y);
+    const int result = sscanf(string.getAsCharString(), "%f %f", &out.x, &out.y);
     return result != -1;
 }
 

@@ -120,7 +120,7 @@ struct GLTFMeshMaterial {
 
 class MeshLoader final : public ResourceLoader{
 private:
-    bool importGLTF(FileHandler &file, const String& fileName, DynamicArray<GeometryConfig>& resourceData);
+    bool importGLTF(FileHandler &file, String &fileName, DynamicArray<GeometryConfig> &resourceData);
 
     GLTFMeshDataContext processGLTFObject(const GLTFMeshAccessorData &accessorData, const GLTFMeshBufferView &bufferView, const GLTFMeshBuffer &buffer);
     void processExtents(GeometryConfig &config, const GLTFMeshAccessorData &positionData);

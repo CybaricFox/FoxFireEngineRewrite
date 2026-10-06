@@ -157,7 +157,7 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
         return false;
     }
 
-    if (!config.diffuseName.empty()) {
+    if (!config.diffuseName.isEmpty()) {
         material.diffuseMap.use = TEXTURE_USE_MAP_DIFFUSE;
         material.diffuseMap.texture = &textureSystemRef->acquireTexture(true, false, config.diffuseName, TEXTURE_USE_MAP_DIFFUSE);
         if (material.diffuseMap.texture == nullptr) {
@@ -179,7 +179,7 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
         return false;
     }
 
-    if (!config.specularName.empty()) {
+    if (!config.specularName.isEmpty()) {
         material.specularMap.use = TEXTURE_USE_MAP_SPECULAR;
         material.specularMap.texture = &textureSystemRef->acquireTexture(true, false, config.specularName, TEXTURE_USE_MAP_SPECULAR);
         if (material.specularMap.texture == nullptr) {
@@ -201,7 +201,7 @@ bool FoxFire_MaterialSystem::loadMaterial(const MaterialResourceData &config, Ma
         return false;
     }
 
-    if (!config.normalName.empty()) {
+    if (!config.normalName.isEmpty()) {
         material.normalMap.use = TEXTURE_USE_MAP_NORMAL;
         material.normalMap.texture = &textureSystemRef->acquireTexture(true, false, config.normalName, TEXTURE_USE_MAP_NORMAL);
         if (material.normalMap.texture == nullptr) {
@@ -296,7 +296,7 @@ bool FoxFire_MaterialSystem::applyGlobal(const unsigned int shaderId, unsigned l
             return false;
         }
     } else {
-        Logger::logError("Invalid shader id: " + std::to_string(shaderId));
+        Logger::logError("Invalid shader id: " + toString(shaderId));
         return false;
     }
 
@@ -346,7 +346,7 @@ bool FoxFire_MaterialSystem::applyInstance(Material &material, bool update) cons
                 return false;
             }
         } else {
-            Logger::logError("Invalid shader id: " + std::to_string(material.shaderId));
+            Logger::logError("Invalid shader id: " + toString(material.shaderId));
             return false;
         }
     }
@@ -363,7 +363,7 @@ bool FoxFire_MaterialSystem::applyLocal(const Material &material, Mat4* model) c
         return shaderRef->setUniform(uiShaderLocations.model, model);
     }
 
-    Logger::logError("Invalid shader id: " + std::to_string(material.shaderId));
+    Logger::logError("Invalid shader id: " + toString(material.shaderId));
     return false;
 }
 

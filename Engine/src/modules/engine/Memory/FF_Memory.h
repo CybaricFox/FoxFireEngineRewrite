@@ -39,6 +39,7 @@ enum MemoryTag {
     RENDER_BACKEND_MANUAL,
     RENDER_BACKEND_AUTO,
     GPU,
+    STRING,
     MAX_TAGS
 };
 

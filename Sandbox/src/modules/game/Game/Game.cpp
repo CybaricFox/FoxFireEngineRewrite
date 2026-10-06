@@ -102,7 +102,7 @@ bool Game::update(const float deltaTime) {
     if (inputSystem->isKeyUp(KEY_M) && inputSystem->wasKeyDown(KEY_M)) {
         const String usage = FF_Memory::getMemoryUsage();
         Logger::logDebug(usage);
-        Logger::logDebug("Allocations: " + std::to_string(allocationCount) + ". " + std::to_string(allocationCount - previousAllocationCount) + " this frame.");
+        Logger::logDebug("Allocations: " + toString(allocationCount) + ". " + toString(allocationCount - previousAllocationCount) + " this frame.");
     }
 
     auto* state = reinterpret_cast<GameState*>(gameInstance.state);
@@ -148,7 +148,7 @@ bool Game::update(const float deltaTime) {
     }
 
     if (inputSystem->isKeyUp(KEY_P) && inputSystem->wasKeyDown(KEY_P)) {
-        Logger::logDebug("Camera Pos: " + std::to_string(CameraUtils::getPosition(camera).x) + " " + std::to_string(CameraUtils::getPosition(camera).y) + " " + std::to_string(CameraUtils::getPosition(camera).z));
+        Logger::logDebug("Camera Pos: " + toString(CameraUtils::getPosition(camera).x) + " " + toString(CameraUtils::getPosition(camera).y) + " " + toString(CameraUtils::getPosition(camera).z));
     }
 
     return Engine::update(deltaTime);

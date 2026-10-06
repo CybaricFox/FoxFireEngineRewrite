@@ -12,7 +12,7 @@
 
 bool UIRenderView::initialize(ShaderSystem* shaderSystem, const unsigned long newSize) {
     IRenderView::initialize(shaderSystem, newSize);
-    shaderId = shaderSystemRef->getId(!customShaderName.empty() ? customShaderName : "Fox_Fire_UI_Shader");
+    shaderId = shaderSystemRef->getId(!customShaderName.isEmpty() ? customShaderName : "Fox_Fire_UI_Shader");
     nearClip = -100;
     farClip = 100;
     projectionMatrix = orthographic(0, 1280, 720, 0, nearClip, farClip);

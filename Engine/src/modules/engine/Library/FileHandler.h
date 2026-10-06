@@ -13,6 +13,7 @@
 #pragma once
 #include "src/defines.h"
 #include "foxfire_export.h"
+#include "String.h"
 
 /**
  * @brief The file mode to use when messing with files.

@@ -152,7 +152,7 @@ public:
     ShaderUniform* createUniform(const String &uniformName, AssetContext &context);
     void setPushConstantRange(MemoryRange range);
     bool isUniformNameValid(const String &uniformName);
-    void clearName();
+    void clearName() const;
     void setTextureMap(unsigned int index, TextureMap* map);
     void destroyTextureMaps();
     void ensureAttributeAlignment();

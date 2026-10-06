@@ -319,7 +319,7 @@ public:
         }
 
         if (pairs.getLength() != size) {
-            Logger::logWarn("KeyValuePairs does not contain the same number of pairs as the hashmap reports. Expected: " + std::to_string(size) + " got: " + std::to_string(pairs.getLength()));
+            Logger::logWarn("KeyValuePairs does not contain the same number of pairs as the hashmap reports. Expected: " + toString(size) + " got: " + toString(pairs.getLength()));
         }
 
         return pairs;

@@ -12,7 +12,7 @@ unsigned int JobSystem::runThread(void *params) {
     const unsigned int index = *static_cast<unsigned int *>(params);
     JobThread* thread = &instance->jobThreads[index];
     const ULong id = thread->thread.id;
-    Logger::logDebug("Starting job thread " + std::to_string(index) + ". ID: " + std::to_string(id) + "Type: " + std::to_string(thread->typeMask));
+    Logger::logDebug("Starting job thread " + toString(index) + ". ID: " + toString(id) + "Type: " + toString(thread->typeMask));
 
     if (!Platform::createMutex(thread->infoMutex)) {
         Logger::logError("Failed to create job mutex");
@@ -123,7 +123,7 @@ void JobSystem::processQueue(RingQueue<JobContext> &queue, Mutex &queueMutex) {
 
                 thread.context = context;
 
-                Logger::logDebug("Assigning job to thread " + std::to_string(thread.index));
+                Logger::logDebug("Assigning job to thread " + toString(thread.index));
 
                 foundThread = true;
             }
@@ -146,8 +146,8 @@ bool JobSystem::initialize(const unsigned char maxThreadCount, unsigned int type
     highPriorityQueue.initialize(1024);
     threadCount = maxThreadCount;
 
-    Logger::logDebug("Id of the main thread is " + std::to_string(Platform::getCurrentThread()));
-    Logger::logDebug("Creating " + std::to_string(threadCount) + " job threads.");
+    Logger::logDebug("Id of the main thread is " + toString(Platform::getCurrentThread()));
+    Logger::logDebug("Creating " + toString(threadCount) + " job threads.");
 
     for (unsigned int i = 0; i < threadCount; i++) {
         jobThreads[i].index = i;
@@ -252,7 +252,7 @@ void JobSystem::submit(JobContext jobContext) {
                     Logger::logError("Failed to lock job thread mutex");
                 }
                 if (!jobThreads[i].context.entryFunction) {
-                    Logger::logDebug("Job immediately submitted on thread " + std::to_string(jobThreads[i].index));
+                    Logger::logDebug("Job immediately submitted on thread " + toString(jobThreads[i].index));
                     jobThreads[i].context = jobContext;
                     found = true;
                 }

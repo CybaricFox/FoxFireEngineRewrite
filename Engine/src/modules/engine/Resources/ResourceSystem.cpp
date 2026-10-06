@@ -33,12 +33,14 @@ void ResourceSystem::shutdown() {
         FF_Memory::ff_free_class<ResourceLoader>(loader, loader->getMemorySize(), RESOURCE);
     }
     loaders.shutdown();
+
+    assetsPath.destroy();
 }
 
 bool ResourceSystem::registerLoader(ResourceLoader* loader) {
     for (const ResourceLoader* l : loaders) {
         if (l->getType() == loader->getType()) {
-            Logger::logError("Tried to register a resource loader but an identical resource loader already exists! Type id: " + std::to_string(loader->getType()));
+            Logger::logError("Tried to register a resource loader but an identical resource loader already exists! Type id: " + toString(loader->getType()));
             return false;
         }
         if (loader->isCustomType() && l->getCustomType() == loader->getCustomType()) {
@@ -49,7 +51,7 @@ bool ResourceSystem::registerLoader(ResourceLoader* loader) {
 
     loader->setId(loaders.getLength());
     loaders.push(loader);
-    Logger::logDebug("Loader registered successfully at: " + std::to_string(loader->getId()));
+    Logger::logDebug("Loader registered successfully at: " + toString(loader->getId()));
     return true;
 }
 
@@ -67,19 +69,19 @@ bool ResourceSystem::load(const String &name, const ResourceType type, Resource 
         }
     }
 
-    Logger::logError("Cannot find a resource loader for type: "+ std::to_string(type));
+    Logger::logError("Cannot find a resource loader for type: "+ toString(type));
     return false;
 }
 
 bool ResourceSystem::loadCustom(const String &name, const String &type, Resource &outResource, ILoaderParameters* params) {
-    if (type.empty()) {
+    if (type.isEmpty()) {
         outResource.loaderId = INVALID_ID_U32;
         Logger::logError("LoadCustom called with an empty name!");
         return false;
     }
 
     for (ResourceLoader* loader : loaders) {
-        if (loader->getId() != INVALID_ID_U32 && loader->getType() == RESOURCE_TYPE_CUSTOM && StringUtils::equalsIgnoreCase(name, loader->getCustomType())) {
+        if (loader->getId() != INVALID_ID_U32 && loader->getType() == RESOURCE_TYPE_CUSTOM && name.equalsIgnoreCase(loader->getCustomType())) {
             outResource.loaderId = loader->getId();
             return loader->load(name, outResource, assetsPath, params);
         }

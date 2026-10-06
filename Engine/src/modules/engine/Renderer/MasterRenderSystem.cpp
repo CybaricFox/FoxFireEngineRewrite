@@ -267,8 +267,8 @@ bool MasterRenderSystem::initializeSkybox() {
         return false;
     }
     cubeMap.texture = &textureSystem->acquireCubeTexture("Maxwell_Skybox", true);
-    GeometryConfig skyboxConfig = generateCubeConfig(10, 10, 10, 1, 1, "Maxwell_Skybox", "");
-    skyboxConfig.materialName = "";
+    GeometryConfig skyboxConfig = generateCubeConfig(10, 10, 10, 1, 1, "Maxwell_Skybox", String{});
+    skyboxConfig.materialName = String{};
     skybox.geometry = &acquireGeometry(skyboxConfig, true);
     skybox.frameNumber = INVALID_ID_U64;
     const Shader& skyboxShader = *shaderSystem.getShader(DEFAULT_SKYBOX_SHADER_NAME);
@@ -349,7 +349,7 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
 
     for (unsigned int i = 0; i < packet.viewCount; i++) {
         if (!renderViewSystem.render(*packet.views[i].renderView, packet.views[i], backend->getFrameNumber(), attachmentIndex)) {
-            Logger::logError("Failed to render view " + std::to_string(i));
+            Logger::logError("Failed to render view " + toString(i));
             return false;
         }
     }

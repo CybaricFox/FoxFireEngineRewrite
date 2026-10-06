@@ -49,14 +49,14 @@ public:
      * @param message The message to print
      * @param color Color of the message.
      */
-    static void printConsoleMessage(const String& message, unsigned char color);
+    static void printConsoleMessage(const char *message, unsigned char color);
 
     /**
      * @brief Prints a message to console via the error stream.
      * @param message The message to print.
      * @param color The color of the message.
      */
-    static void printConsoleError(const String& message, unsigned char color);
+    static void printConsoleError(const char *message, unsigned char color);
 
     /**
      * @brief Gets system time since EPOCH

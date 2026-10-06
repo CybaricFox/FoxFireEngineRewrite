@@ -14,7 +14,7 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
         Logger::logError("Render View " + config.name + " does not have any renderpasses.");
         return false;
     }
-    if (config.name.empty()) {
+    if (config.name.isEmpty()) {
         Logger::logError("Render view requires a name.");
         return false;
     }

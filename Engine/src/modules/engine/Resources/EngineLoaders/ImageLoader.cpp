@@ -19,7 +19,7 @@ ImageLoader::ImageLoader() {
 }
 
 bool ImageLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters* params) {
-    if (name.empty()) return false;
+    if (name.isEmpty()) return false;
     if (params == nullptr) return false;
 
     const auto imageParams = reinterpret_cast<ImageParameters *>(params);
@@ -33,7 +33,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     bool found = false;
     for (const auto & extension : extensions) {
         finalPath = basePath + "/" + path + "/" += name + extension;
-        if (std::filesystem::exists(finalPath)) {
+        if (std::filesystem::exists(finalPath.getAsCharString())) {
             found = true;
             break;
         }
@@ -82,7 +82,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     }
 
     if (bytesRead != fileSize) {
-        Logger::logError("Image Resource Loader read " + std::to_string(bytesRead) + " bytes but the file size is " + std::to_string(fileSize));
+        Logger::logError("Image Resource Loader read " + toString(bytesRead) + " bytes but the file size is " + toString(fileSize));
         return false;
     }
 

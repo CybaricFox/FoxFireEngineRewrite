@@ -103,7 +103,7 @@ public:
             }
         }
 
-        Logger::logWarn("getComponent reached the end of allocation without finding the entity: " + std::to_string(id) + ". This message should never appear.");
+        Logger::logWarn("getComponent reached the end of allocation without finding the entity: " + toString(id) + ". This message should never appear.");
         return nullptr;
     }
 
@@ -126,7 +126,7 @@ public:
                     //Check if the component is of the correct type
                     T* result = dynamic_cast<T*>(component);
                     if (result != nullptr) {
-                        Logger::logWarn("Attempted to add a component to " + std::to_string(id) + " but that component already exists!");
+                        Logger::logWarn("Attempted to add a component to " + toString(id) + " but that component already exists!");
                         return result;
                     }
 
@@ -182,7 +182,7 @@ public:
             }
         }
 
-        Logger::logWarn("addComponent reached the end of allocation without finding the entity: " + std::to_string(id) + ". This message should never appear.");
+        Logger::logWarn("addComponent reached the end of allocation without finding the entity: " + toString(id) + ". This message should never appear.");
         return nullptr;
     }
 
@@ -215,7 +215,7 @@ public:
                 }
 
                 if (!found) {
-                    Logger::logWarn("Cannot remove a component from " + std::to_string(id) + " because the component could not be found!");
+                    Logger::logWarn("Cannot remove a component from " + toString(id) + " because the component could not be found!");
                     return;
                 }
 

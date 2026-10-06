@@ -11,7 +11,7 @@ TextLoader::TextLoader() {
 }
 
 bool TextLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters *params) {
-    if (name.empty()) return false;
+    if (name.isEmpty()) return false;
 
     const String finalPath = basePath + path + "/" + name;
 
@@ -41,7 +41,7 @@ bool TextLoader::load(const String name, Resource &outResource, const String bas
 
     file.closeFile();
 
-    string.copy(resourceData, readSize);
+    string.setString(resourceData, readSize);
 
     outResource.data = resourceData;
     outResource.dataSize = readSize;

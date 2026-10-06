@@ -98,9 +98,11 @@ private:
         const bool result = FF_Memory::getSizeAndAlignment(memory, size, alignment);
         std::ostringstream oss{};
         oss << memory;
+        String string{};
+        string.setString(oss.str().c_str(), oss.str().length());
 
         if (!result) {
-            Logger::logError("Vulkan failed to free memory block: " + oss.str());
+            Logger::logError("Vulkan failed to free memory block: " + string);
             return;
         }
 
@@ -121,7 +123,9 @@ private:
         ULong allocationSize = 0;
         unsigned short allocationAlignment = 1;
         if (!FF_Memory::getSizeAndAlignment(original, allocationSize, allocationAlignment)) {
-            Logger::logError("Vulkan cannot realign memory block: " + oss.str());
+            String string{};
+            string.setString(oss.str().c_str(), oss.str().length());
+            Logger::logError("Vulkan cannot realign memory block: " + string);
             return nullptr;
         }
         if (size == 0) {
@@ -130,7 +134,7 @@ private:
         }
 
         if (allocationAlignment != alignment) {
-            Logger::logError("Vulkan reallocation is using a different alignment than the original! Original: " + std::to_string(allocationAlignment) + " Passed: " + std::to_string(alignment));
+            Logger::logError("Vulkan reallocation is using a different alignment than the original! Original: " + toString(allocationAlignment) + " Passed: " + toString(alignment));
             return nullptr;
         }
 

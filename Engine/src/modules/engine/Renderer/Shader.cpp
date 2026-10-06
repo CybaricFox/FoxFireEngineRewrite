@@ -45,8 +45,8 @@ bool Shader::isUniformNameValid(const String &uniformName) {
     return uniforms.getContext(uniformName).index == INVALID_ID_U32;
 }
 
-void Shader::clearName() {
-    if (!name.empty()) name.clear();
+void Shader::clearName() const {
+    if (!name.isEmpty()) name.clear();
 }
 
 void Shader::setTextureMap(const unsigned int index, TextureMap *map) {
@@ -68,9 +68,9 @@ void Shader::ensureAttributeAlignment() {
         while (stride > 16) {
             stride -= 16;
         }
-        Logger::logWarn("Old alignment: " + std::to_string(attributeStride));
+        Logger::logWarn("Old alignment: " + toString(attributeStride));
         attributeStride += (16 - stride);
-        Logger::logWarn("New alignment: " + std::to_string(attributeStride));
+        Logger::logWarn("New alignment: " + toString(attributeStride));
     }
 }
 

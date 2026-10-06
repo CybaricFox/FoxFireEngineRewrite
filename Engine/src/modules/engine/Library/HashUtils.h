@@ -11,8 +11,9 @@
  */
 
 #pragma once
-#include "src/defines.h"
 #include <foxfire_export.h>
+
+#include "String.h"
 
 /**
  * @brief Collection of functions for hashing types.

@@ -33,7 +33,7 @@ String EntityComponentSystem::getEntityName(const unsigned int id) {
     //If min and max are the same, check them before throwing.
     if ((*entities)[minIndex].id == id) return (*entities)[minIndex].entityName;
 
-    Logger::logWarn("Failed to retrieve name for entity: " + std::to_string(id) + " Entity does not exist!");
+    Logger::logWarn("Failed to retrieve name for entity: " + toString(id) + " Entity does not exist!");
     return "";
 }
 

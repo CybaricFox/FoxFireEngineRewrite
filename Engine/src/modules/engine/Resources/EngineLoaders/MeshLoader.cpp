@@ -6,7 +6,7 @@
 
 #include "src/modules/engine/Library/JsonHandler.h"
 
-bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicArray<GeometryConfig> &resourceData) {
+bool MeshLoader::importGLTF(FileHandler &file, String& fileName, DynamicArray<GeometryConfig> &resourceData) {
     JsonHandler json{file};
 
     //Materials
@@ -38,7 +38,7 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
 
             unsigned int index = 0;
             while (true) {
-                const int result = json.getInt("TEXCOORD_" + std::to_string(index), &attributes);
+                const int result = json.getInt("TEXCOORD_" + toString(index), &attributes);
 
                 if (result == INVALID_ID_U32 / 2) break;
 
@@ -108,7 +108,7 @@ bool MeshLoader::importGLTF(FileHandler &file, const String& fileName, DynamicAr
     FileHandler binFile{};
 
     for (GLTFMeshBuffer& buffer : buffers) {
-        if (buffer.fileRef.empty()) continue;
+        if (buffer.fileRef.isEmpty()) continue;
 
         String binPath = StringUtils::getDirectoryFromPath(fileName) + "/" + path + "/" + buffer.fileRef;
         if (!binFile.openFile(binPath, READ, true)) {
@@ -426,7 +426,7 @@ bool MeshLoader::createGLTFMaterials(FileHandler &file, JsonHandler& json, Dynam
         GLTFMeshImage& image = images[texture.source];
         String name = image.fileRef;
         unsigned int index = name.find('.');
-        name = name.substr(0, index);
+        name = name.substringLeft(index);
 
 
         materialResourceData.name = name + "_Material";
@@ -532,9 +532,9 @@ bool MeshLoader::writeFoxMesh(const String &path, const String &name, const unsi
     file.write(sizeof(unsigned short), &versionC, outBytes);
 
     //Name
-    unsigned int length = name.length();
+    unsigned int length = name.getSizeInBytes();
     file.write(sizeof(unsigned int), &length, outBytes);
-    file.write(sizeof(char) * length, name.c_str(), outBytes);
+    file.write(sizeof(char) * length, name.getAsCharString(), outBytes);
 
     //Geometry Count
     file.write(sizeof(unsigned int), &geometryCount, outBytes);
@@ -556,14 +556,14 @@ bool MeshLoader::writeFoxMesh(const String &path, const String &name, const unsi
         file.write(size * count, geometryConfig.indices.getIndex(0), outBytes);
 
         //Geometry name
-        length = geometryConfig.name.length();
+        length = geometryConfig.name.getSizeInBytes();
         file.write(sizeof(unsigned int), &length, outBytes);
-        file.write(sizeof(char) * length, geometryConfig.name.c_str(), outBytes);
+        file.write(sizeof(char) * length, geometryConfig.name.getAsCharString(), outBytes);
 
         //Material name
-        length = geometryConfig.materialName.length();
+        length = geometryConfig.materialName.getSizeInBytes();
         file.write(sizeof(unsigned int), &length, outBytes);
-        file.write(sizeof(char) * length, geometryConfig.materialName.c_str(), outBytes);
+        file.write(sizeof(char) * length, geometryConfig.materialName.getAsCharString(), outBytes);
 
         //Center
         file.write(sizeof(Vector3f), &geometryConfig.center, outBytes);
@@ -619,7 +619,7 @@ bool MeshLoader::writeFoxMaterial(const String &directory, const MaterialResourc
         file.closeFile();
         return false;
     }
-    result = file.writeLine("shine = " + std::to_string(config.shine));
+    result = file.writeLine("shine = " + toString(config.shine));
     if (!result) {
         Logger::logError("Failed to write file: " + finalPath);
         file.closeFile();
@@ -701,7 +701,7 @@ MeshLoader::MeshLoader() {
 }
 
 bool MeshLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters *params) {
-    if (name.empty()) return false;
+    if (name.isEmpty()) return false;
 
     String finalPath = basePath + "/" + path + "/" + name;
     FileHandler file{};

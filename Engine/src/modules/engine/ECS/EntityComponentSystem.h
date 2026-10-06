@@ -112,7 +112,7 @@ public:
     requires std::derived_from<T, EntityComponent>
     static T* getComponent(const unsigned int id) {
         const String entityName = getEntityName(id);
-        if (entityName.empty()) return nullptr;
+        if (entityName.isEmpty()) return nullptr;
 
         EntityManager* manager = instances->getAsset(entityName);
 
@@ -129,7 +129,7 @@ public:
     requires std::derived_from<T, EntityComponent>
     static T* addComponent(const unsigned int id) {
         const String entityName = getEntityName(id);
-        if (entityName.empty()) return nullptr;
+        if (entityName.isEmpty()) return nullptr;
 
         EntityManager* manager = instances->getAsset(entityName);
         return manager->addComponent<T>(id);
@@ -144,7 +144,7 @@ public:
     requires std::derived_from<T, EntityComponent>
     static void removeComponent(const unsigned int id) {
         const String entityName = getEntityName(id);
-        if (entityName.empty()) return;
+        if (entityName.isEmpty()) return;
 
         EntityManager* manager = instances->getAsset(entityName);
         return manager->removeComponent<T>(id);

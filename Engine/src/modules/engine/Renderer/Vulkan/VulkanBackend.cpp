@@ -145,7 +145,7 @@ bool VulkanBackend::beginRenderpass(Renderpass &renderpass, RenderTarget &target
     VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
     const auto vulkanRenderpass = reinterpret_cast<VulkanRenderpass *>(renderpass.getData());
     if (!vulkanRenderpass) {
-        Logger::logFatal("Failed to cast Vulkan Renderpass in Renderpass: " + std::to_string(renderpass.getId()));
+        Logger::logFatal("Failed to cast Vulkan Renderpass in Renderpass: " + toString(renderpass.getId()));
         return false;
     }
 
@@ -561,7 +561,7 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
                             break;
                         }
                         default: {
-                            Logger::logWarn("Undefined texture use case: " + std::to_string(map->use));
+                            Logger::logWarn("Undefined texture use case: " + toString(map->use));
                             texture = defaultDiffuseTexture;
                             break;
                         }
@@ -595,7 +595,7 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
 }
 
 Renderpass * VulkanBackend::getRenderpass(const String name) {
-    if (name.empty()) {
+    if (name.isEmpty()) {
         Logger::logError("Get Renderpass requires a name!");
         return nullptr;
     }
@@ -611,7 +611,7 @@ Renderpass * VulkanBackend::getRenderpass(const String name) {
 
 Texture * VulkanBackend::getWindowAttachment(unsigned char index) {
     if (index >= vulkanContext.getSwapchain().getImageCount()) {
-        Logger::logFatal("Cannot obtain attachment index that is out of range. Got " + std::to_string(index) + " but the size is " + std::to_string(vulkanContext.getSwapchain().getImageCount()));
+        Logger::logFatal("Cannot obtain attachment index that is out of range. Got " + toString(index) + " but the size is " + toString(vulkanContext.getSwapchain().getImageCount()));
         return nullptr;
     }
 
@@ -629,7 +629,7 @@ unsigned char VulkanBackend::getWindowAttachmentIndex() {
 void VulkanBackend::createRenderTarget(const unsigned char attachmentCount, DynamicArray<Texture *>& attachments, Renderpass &renderpass, const unsigned width, const unsigned height, RenderTarget &outTarget) {
     const auto pass = reinterpret_cast<VulkanRenderpass *>(renderpass.getData());
     if (!pass) {
-        Logger::logFatal("Failed to cast to Vulkan Render Pass while creating a render target for renderpass: " + std::to_string(renderpass.getId()));
+        Logger::logFatal("Failed to cast to Vulkan Render Pass while creating a render target for renderpass: " + toString(renderpass.getId()));
         return;
     }
 
@@ -836,7 +836,7 @@ bool VulkanBackend::createBuffer(RenderBuffer &buffer) {
             return false;
         }
         default: {
-            Logger::logError("Unknown buffer type: " + std::to_string(buffer.getType()));
+            Logger::logError("Unknown buffer type: " + toString(buffer.getType()));
             return false;
         }
     }
@@ -865,7 +865,7 @@ bool VulkanBackend::createBuffer(RenderBuffer &buffer) {
     FF_Memory::reportAllocation(internalBuffer.memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
 
     if (result != VK_SUCCESS) {
-        Logger::logError("Failed to allocate vulkan buffer memory: " + std::to_string(result));
+        Logger::logError("Failed to allocate vulkan buffer memory: " + toString(result));
         return false;
     }
 
@@ -1111,7 +1111,7 @@ bool VulkanBackend::drawBuffer(RenderBuffer &buffer, const ULong offset, const u
         return true;
     }
 
-    Logger::logError("Cannot draw buffer of type " + std::to_string(buffer.getType()));
+    Logger::logError("Cannot draw buffer of type " + toString(buffer.getType()));
     return false;
 }
 
@@ -1120,7 +1120,7 @@ void VulkanBackend::resize(const unsigned short width, const unsigned short heig
     vulkanContext.setHeight(height);
     vulkanContext.getSwapchain().resize();
 
-    Logger::logInfo("Vulkan backend resized to  " + std::to_string(width) + "x" + std::to_string(height));
+    Logger::logInfo("Vulkan backend resized to  " + toString(width) + "x" + toString(height));
 }
 
 VulkanBackend::~VulkanBackend() {
@@ -1192,7 +1192,7 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
 
     VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     appInfo.apiVersion = VK_API_VERSION_1_2;
-    appInfo.pApplicationName = config.appName.c_str();
+    appInfo.pApplicationName = config.appName.getAsCharString();
     appInfo.applicationVersion = VK_MAKE_VERSION(majorVersion, minorVersion, patchVersion);
     appInfo.pEngineName = "FoxFire Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
@@ -1335,7 +1335,7 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
         Renderpass* renderpass = vulkanContext.addRenderpass(config.configs[i]);
         if (!renderpass) continue;
 
-        createRenderpass(*renderpass, 1.0f, 0, !config.configs[i].prevName.empty(), !config.configs[i].nextName.empty());
+        createRenderpass(*renderpass, 1.0f, 0, !config.configs[i].prevName.isEmpty(), !config.configs[i].nextName.isEmpty());
     }
 
     Logger::logInfo("Creating and allocating command buffers");
@@ -1540,7 +1540,7 @@ void VulkanBackend::destroyTexture(Texture &texture) {
 
 bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertexSize, const unsigned int vertexCount, Vertex* vertices, const unsigned int indexSize, const unsigned int indexCount, void *indices) {
     if (vertexCount == 0) {
-        Logger::logError("No Vertex data was supplied for geometry creation! Vertex Count: " + std::to_string(vertexCount));
+        Logger::logError("No Vertex data was supplied for geometry creation! Vertex Count: " + toString(vertexCount));
         return false;
     }
 
@@ -1764,7 +1764,7 @@ VkSamplerAddressMode VulkanBackend::convertTextureRepeatToVulkan(const String &a
         case TEXTURE_CLAMP_TO_EDGE: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         case TEXTURE_CLAMP_TO_BORDER: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
         default: {
-            Logger::logWarn("Axis " + axis + " cannot be converted to repeat: " + std::to_string(repeat));
+            Logger::logWarn("Axis " + axis + " cannot be converted to repeat: " + toString(repeat));
             return VK_SAMPLER_ADDRESS_MODE_REPEAT;
         }
     }
@@ -1775,7 +1775,7 @@ VkFilter VulkanBackend::convertTextureFilterToVulkan(const String &op, const Tex
         case TEXTURE_FILTER_NEAREST: return VK_FILTER_NEAREST;
         case TEXTURE_FILTER_BILINEAR: return VK_FILTER_LINEAR;
         default: {
-            Logger::logWarn(op + " cannot convert filter to: " + std::to_string(filter));
+            Logger::logWarn(op + " cannot convert filter to: " + toString(filter));
             return VK_FILTER_LINEAR;
         }
     }

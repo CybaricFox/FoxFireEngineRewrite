@@ -6,63 +6,9 @@
 
 #include <cstring>
 
-
-bool StringUtils::equalsIgnoreCase(const String &a, const String &b) {
-    if (a.length() != b.length()) return false;
-
-    const char* ca = const_cast<char*>(a.c_str());
-    const char* cb = const_cast<char*>(b.c_str());
-
-    for (int i = 0; i <= a.length(); i++) {
-        if (std::tolower(static_cast<unsigned char>(ca[i])) != std::tolower(static_cast<unsigned char>(cb[i]))) return false;
-    }
-
-    return true;
-}
-
-String StringUtils::copyLimited(String string, const long size) {
-    if (string.length() <= size) return string;
-
-    String out;
-
-    for (int i = 0; i <= size; i++) {
-        out.push_back(string[i]);
-    }
-
-    return out;
-}
-
-void StringUtils::trim(String &out) {
-    if (out.empty()) return;
-
-    String temp = "NULL";
-    for (int i = 0; i <= out.length(); i++) {
-        if (!isspace(out[i])) {
-            temp = out.substr(i);
-            break;
-        }
-    }
-
-    for (unsigned long i = out.length() - 1; i > 0; i--) {
-        if (!isspace(out[i])) {
-            unsigned long cut = out.length() - 1 - i;
-
-            while (cut > 0) {
-                temp.pop_back();
-                cut--;
-            }
-            break;
-        }
-    }
-
-    if (temp != "NULL") {
-        out = temp;
-    }
-}
-
 bool StringUtils::stringToFloat(const String &string, float &out) {
     try {
-        out = std::stof(string);
+        out = std::stof(string.getAsCharString());
         return true;
     } catch (...) {
         return false;
@@ -71,7 +17,7 @@ bool StringUtils::stringToFloat(const String &string, float &out) {
 
 bool StringUtils::stringToDouble(const String &string, double &out) {
     try {
-        out = std::stod(string);
+        out = std::stod(string.getAsCharString());
         return true;
     } catch (...) {
         return false;
@@ -80,7 +26,7 @@ bool StringUtils::stringToDouble(const String &string, double &out) {
 
 bool StringUtils::stringToChar(const String &string, char &out) {
     try {
-        const int temp = std::stoi(string);
+        const int temp = std::stoi(string.getAsCharString());
         out = static_cast<char>(temp);
         return true;
     } catch (...) {
@@ -90,7 +36,7 @@ bool StringUtils::stringToChar(const String &string, char &out) {
 
 bool StringUtils::stringToShort(const String &string, short &out) {
     try {
-        const int temp = std::stoi(string);
+        const int temp = std::stoi(string.getAsCharString());
         out = static_cast<short>(temp);
         return true;
     } catch (...) {
@@ -100,7 +46,7 @@ bool StringUtils::stringToShort(const String &string, short &out) {
 
 bool StringUtils::stringToInt(const String &string, int &out) {
     try {
-        out = std::stoi(string);
+        out = std::stoi(string.getAsCharString());
         return true;
     } catch (...) {
         return false;
@@ -109,7 +55,7 @@ bool StringUtils::stringToInt(const String &string, int &out) {
 
 bool StringUtils::stringToUChar(const String &string, unsigned char &out) {
     try {
-        const long temp = std::stol(string);
+        const long temp = std::stol(string.getAsCharString());
         out = static_cast<unsigned char>(temp);
         return true;
     } catch (...) {
@@ -119,7 +65,7 @@ bool StringUtils::stringToUChar(const String &string, unsigned char &out) {
 
 bool StringUtils::stringToUShort(const String &string, unsigned short &out) {
     try {
-        const long temp = std::stol(string);
+        const long temp = std::stol(string.getAsCharString());
         out = static_cast<unsigned short>(temp);
         return true;
     } catch (...) {
@@ -129,7 +75,7 @@ bool StringUtils::stringToUShort(const String &string, unsigned short &out) {
 
 bool StringUtils::stringToUInt(const String &string, unsigned int &out) {
     try {
-        const long temp = std::stol(string);
+        const long temp = std::stol(string.getAsCharString());
         out = static_cast<unsigned int>(temp);
         return true;
     } catch (...) {
@@ -137,9 +83,9 @@ bool StringUtils::stringToUInt(const String &string, unsigned int &out) {
     }
 }
 
-bool StringUtils::stringToULong(const String &string, unsigned long &out) {
+bool StringUtils::stringToULong(const String &string, ULong &out) {
     try {
-        out = stoll(string);
+        out = std::stoll(string.getAsCharString());
         return true;
     } catch (...) {
         return false;
@@ -147,120 +93,72 @@ bool StringUtils::stringToULong(const String &string, unsigned long &out) {
 }
 
 bool StringUtils::stringToBool(const String &string, bool &out) {
-    if (equalsIgnoreCase(string, "true")) {
+    if (string.equalsIgnoreCase("true")) {
         out = true;
         return true;
     }
-    if (equalsIgnoreCase(string, "false")) {
+    if (string.equalsIgnoreCase("false")) {
         out = false;
         return true;
     }
     return false;
 }
 
-unsigned int StringUtils::findAll(const String &string, const char toFind) {
-    unsigned int count = 0;
-    for (const char& c : string) {
-        if (c == toFind) {
-            count++;
-        }
-    }
-
-    return count;
-}
-
-unsigned int StringUtils::recursiveSplit(const String &string, const char regex, DynamicArray<String> &array) {
-    String remaining = string;
-
+unsigned int StringUtils::recursiveSplit(String &string, const char regex, DynamicArray<String> &array) {
+    const unsigned int count = string.findAll(',') + 1;
     if (array.getCapacity() == 0) {
-        array.initialize();
+        array.initialize(count);
+    }
+    for (unsigned int i = 0; i < count; i++) {
+        array.emplace();
     }
 
-    while (!remaining.empty()) {
-        const unsigned int index = remaining.find(regex);
-        if (index == static_cast<unsigned int>(String::npos)) {
-            trim(remaining);
-            array.push(remaining);
-            remaining.clear();
-            continue;
-        }
-
-        String sub = remaining.substr(0, index);
-        trim(sub);
-        array.push(sub);
-        remaining = remaining.substr(index + 1);
-    }
-
-    return array.getLength();
+    return string.recursiveSplit(regex, array.getData());
 }
 
-bool StringUtils::equalsN(const String &a, const String &b, const unsigned long length) {
-    for (unsigned long i = 0; i < length; i++) {
-        if (a[i] != b[i]) return false;
-    }
-
-    return true;
-}
-
-bool StringUtils::equalsIgnoreCaseN(const String &a, const String &b, const unsigned long n) {
-    if (a.length() < n || b.length() < n) return false;
-
-    const char* ca = a.c_str();
-    const char* cb = b.c_str();
-
-    for (unsigned long i = 0; i < n; i++) {
-        if (std::tolower(static_cast<unsigned char>(ca[i])) !=
-            std::tolower(static_cast<unsigned char>(cb[i]))) {
-            return false;
-            }
-    }
-
-    return true;
-}
-
-String StringUtils::getDirectoryFromPath(const String &path) {
+String StringUtils::getDirectoryFromPath(String &path) {
     //Do not check 0 because /directory/file would return nothing.
     unsigned int index = path.find('/', 1);
-    if (index == static_cast<unsigned int>(String::npos)) {
+    if (index == static_cast<unsigned int>(INVALID_ID_U64)) {
         index = path.find('\\', 1);
-        if (index == static_cast<unsigned int>(String::npos)) {
+        if (index == static_cast<unsigned int>(INVALID_ID_U64)) {
             Logger::logWarn("Failed to fetch a directory from the file path: " + path);
             return "";
         }
     }
 
-    return path.substr(0, index);
+    return path.substringLeft(index);
 }
 
-String StringUtils::getFilenameFromPath(const String &path) {
+String StringUtils::getFilenameFromPath(String &path) {
     //Do not check 0 because /directory/file would return nothing.
     unsigned int index = path.find('/', 1);
-    if (index == static_cast<unsigned int>(String::npos)) {
+    if (index == static_cast<unsigned int>(INVALID_ID_U64)) {
         index = path.find('\\', 1);
-        if (index == static_cast<unsigned int>(String::npos)) {
+        if (index == static_cast<unsigned int>(INVALID_ID_U64)) {
             Logger::logWarn("Failed to fetch a filename from the file path: " + path);
             return "";
         }
     }
 
-    return path.substr(index + 1);
+    return path.substringRight(index + 1);
 }
 
-String StringUtils::getFilenameNoExtensionFromPath(const String &path) {
-    const String fileName = getFilenameFromPath(path);
+String StringUtils::getFilenameNoExtensionFromPath(String &path) {
+    String fileName = getFilenameFromPath(path);
 
-    const unsigned int index = fileName.find_last_of('.');
-    if (index == static_cast<unsigned int>(String::npos)) {
+    const unsigned int index = fileName.findLast('.');
+    if (index == static_cast<unsigned int>(INVALID_ID_U64)) {
         Logger::logWarn("Failed to fetch a filename (no extension) from the file path: " + path);
         return "";
     }
 
-    return fileName.substr(0, index);
+    return fileName.substringLeft(index);
 }
 
 bool StringUtils::stringToLong(const String &string, long &out) {
     try {
-        out = std::stol(string);
+        out = std::stol(string.getAsCharString());
         return true;
     } catch (...) {
         return false;

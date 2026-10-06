@@ -13,10 +13,10 @@
 FileHandler* Logger::logFile = nullptr;
 
 void Logger::appendLog(const String &message) {
-    const unsigned long length = message.length();
+    const unsigned long length = message.getSizeInBytes();
     unsigned long written = 0;
     if (!logFile) return;
-    if (!logFile->write(length, message.c_str(), written)) {
+    if (!logFile->write(length, message.getAsCharString(), written)) {
         logError("Failed to write log to file!");
     }
 }
@@ -45,12 +45,22 @@ void Logger::log(const LogLevel level, const String &message) {
     const String levelString[5] = {"[FATAL]: ", "[SEVERE]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: "};
 
     if (level < WARN) {
-        Platform::printConsoleError(levelString[level] + message, level);
+        Platform::printConsoleError((levelString[level] + message).getAsCharString(), level);
     } else {
-        Platform::printConsoleMessage(levelString[level] + message, level);
+        Platform::printConsoleMessage((levelString[level] + message).getAsCharString(), level);
     }
 
     appendLog(levelString[level] + message + "\n");
+}
+
+void Logger::stdLog(const LogLevel level, const std::string &message) {
+    const std::string levelString[5] = {"[FATAL]: ", "[SEVERE]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: "};
+
+    if (level < WARN) {
+        Platform::printConsoleError((levelString[level] + message).c_str(), level);
+    } else {
+        Platform::printConsoleMessage((levelString[level] + message).c_str(), level);
+    }
 }
 
 void Logger::logDebug(const String &message) {
