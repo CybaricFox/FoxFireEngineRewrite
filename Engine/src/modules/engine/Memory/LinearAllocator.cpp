@@ -16,7 +16,7 @@ void LinearAllocator::initialize(const unsigned long size) {
     allocated = 0;
 
     if (!block) {
-        block = FF_Memory::ff_allocate(totalSize, LINEAR_ALLOCATOR);
+        block = FF_Memory::ff_allocate_storage(totalSize, LINEAR_ALLOCATOR);
     }
 }
 
@@ -24,7 +24,7 @@ void LinearAllocator::shutdown() {
     allocated = 0;
 
     if (block) {
-        FF_Memory::ff_free(block, totalSize, LINEAR_ALLOCATOR);
+        FF_Memory::ff_free_storage(block, totalSize, LINEAR_ALLOCATOR);
     }
 
     block = nullptr;

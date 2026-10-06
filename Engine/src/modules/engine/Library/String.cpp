@@ -9,7 +9,7 @@
 void String::destroy() {
     if (string) {
         FF_Memory::ff_clear(string, sizeof(char) * (byteCount + 1));
-        FF_Memory::ff_free(string, sizeof(char) * (byteCount + 1), STRING);
+        FF_Memory::ff_free_recursive<char>(string, STRING, byteCount + 1);
         string = nullptr;
     }
 
@@ -157,7 +157,7 @@ unsigned int String::recursiveSplit(const char regex, String* strings) const {
     const unsigned int substrings = remaining.findAll(regex) + 1;
 
     if (strings == nullptr) {
-        FF_Memory::ff_allocate(sizeof(String) * substrings, STRING, alignof(String));
+        strings = FF_Memory::ff_allocate_recursive<String>(STRING, substrings);
 
         for (unsigned int i = 0; i < substrings; i++) {
             std::construct_at(&strings[i]);
@@ -166,7 +166,7 @@ unsigned int String::recursiveSplit(const char regex, String* strings) const {
 
     unsigned int stringCount = 0;
     while (!remaining.isEmpty()) {
-        ULong index = remaining.find(regex);
+        const ULong index = remaining.find(regex);
 
         //This should occur on the last substring.
         if (index == INVALID_ID_U64) {
@@ -191,16 +191,12 @@ unsigned int String::recursiveSplit(const char regex, String* strings) const {
 }
 
 void String::setString(const char *newString, const ULong bytes) {
-    if (tempCheck == false) {
-        throw;
-    }
-
     destroy();
 
     if (!newString) return;
 
     byteCount = bytes;
-    string = static_cast<char *>(FF_Memory::ff_allocate(sizeof(char) * (byteCount + 1), STRING));
+    string = FF_Memory::ff_allocate_recursive<char>(STRING, byteCount + 1);
     FF_Memory::ff_copy(string, newString, sizeof(char) * byteCount);
 
     string[byteCount] = '\0';
@@ -213,7 +209,7 @@ void String::reserve(const ULong newSize) {
     }
 
     byteCount = newSize;
-    string = static_cast<char *>(FF_Memory::ff_allocate(sizeof(char) * (newSize + 1), STRING));
+    string = FF_Memory::ff_allocate_recursive<char>(STRING, newSize + 1);
     string[byteCount] = '\0';
 }
 
@@ -224,7 +220,7 @@ String String::operator+(const String &other) const {
     if (other.isEmpty()) return *this;
 
     result.byteCount = byteCount + other.getSizeInBytes();
-    result.string = static_cast<char *>(FF_Memory::ff_allocate(sizeof(char) * (result.byteCount + 1), STRING));
+    result.string = FF_Memory::ff_allocate_recursive<char>( STRING, result.byteCount + 1);
 
     FF_Memory::ff_copy(result.string, string, sizeof(char) * byteCount);
     FF_Memory::ff_copy(&result.string[byteCount], other.string, sizeof(char) * other.getSizeInBytes());
@@ -238,12 +234,12 @@ String & String::operator+=(const String &other) {
 
     char* temp = string;
     const ULong newSize = byteCount + other.getSizeInBytes();
-    string = static_cast<char *>(FF_Memory::ff_allocate(sizeof(char) * (newSize + 1), STRING));
+    string = FF_Memory::ff_allocate_recursive<char>(STRING, newSize + 1);
 
     if (temp) {
         FF_Memory::ff_copy(string, temp, sizeof(char) * byteCount);
         FF_Memory::ff_clear(temp, sizeof(char) * (byteCount + 1));
-        FF_Memory::ff_free(temp, sizeof(char) * (byteCount + 1), STRING);
+        FF_Memory::ff_free_recursive<char>(temp, STRING, byteCount + 1);
     }
 
     FF_Memory::ff_copy(&string[byteCount], other.string, sizeof(char) * other.getSizeInBytes());

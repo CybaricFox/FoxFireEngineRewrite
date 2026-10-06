@@ -25,7 +25,7 @@ bool ShaderLoader::load(const String name, Resource &outResource, const String b
     }
 
     outResource.path = filePath;
-    auto resourceData = FF_Memory::ff_allocate_class<ShaderConfig>(sizeof(ShaderConfig), RENDER);
+    auto resourceData = FF_Memory::ff_allocate<ShaderConfig>(RENDER);
     resourceData->attributes.initialize();
     resourceData->uniforms.initialize();
     resourceData->stages.initialize();

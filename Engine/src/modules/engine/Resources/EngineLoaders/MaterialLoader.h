@@ -21,4 +21,5 @@ public:
     MaterialLoader();
 
     bool load(String name, Resource &outResource, String basePath, ILoaderParameters *params) override;
+    void unload(Resource &resource) override;
 };

@@ -291,11 +291,11 @@ bool FoxFire_TextureSystem::loadCubeTexture(const String &name, const String tex
             texture.generation = 0;
             texture.name = name;
             size = texture.width * texture.height * texture.channelCount;
-            pixels = static_cast<unsigned char *>(FF_Memory::ff_allocate(sizeof(unsigned char) * size * 6, ARRAY));
+            pixels = FF_Memory::ff_allocate_recursive<unsigned char>(ARRAY, size * 6);
         } else {
             if (texture.width != resourceData->width || texture.height != resourceData->height || texture.channelCount != resourceData->channelCount) {
                 Logger::logError("All textures for a cube map must have the same width, height, and channel count.");
-                FF_Memory::ff_free(pixels, sizeof(unsigned char) * size * 6, ARRAY);
+                FF_Memory::ff_free_recursive<unsigned char>(pixels, ARRAY, size * 6);
                 pixels = nullptr;
                 return false;
             }
@@ -306,7 +306,7 @@ bool FoxFire_TextureSystem::loadCubeTexture(const String &name, const String tex
     }
 
     backendRef->createTexture(pixels, texture);
-    FF_Memory::ff_free(pixels, sizeof(unsigned char) * size * 6, ARRAY);
+    FF_Memory::ff_free_recursive<unsigned char>(pixels, ARRAY, size * 6);
     pixels = nullptr;
 
     return true;

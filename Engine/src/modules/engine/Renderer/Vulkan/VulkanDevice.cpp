@@ -301,10 +301,10 @@ bool VulkanDevice::physicalDeviceMeetsRequirements(VkPhysicalDevice vulkanPhysic
 
         if (swapChainSupport.formatCount < 1 || swapChainSupport.presentCount < 1) {
             if (swapChainSupport.formats) {
-                FF_Memory::ff_free(swapChainSupport.formats, sizeof(VkSurfaceFormatKHR) * swapChainSupport.formatCount, RENDER);
+                FF_Memory::ff_free_recursive<VkSurfaceFormatKHR>(swapChainSupport.formats, RENDER, swapChainSupport.formatCount);
             }
             if (swapChainSupport.presentModes) {
-                FF_Memory::ff_free(swapChainSupport.presentModes, sizeof(VkPresentModeKHR) * swapChainSupport.presentCount, RENDER);
+                FF_Memory::ff_free<VkPresentModeKHR>(swapChainSupport.presentModes, RENDER, swapChainSupport.presentCount);
             }
             Logger::logInfo("Nevermind, Swap chain is not supported by this device. Skipping to next device.");
             return false;
@@ -315,7 +315,7 @@ bool VulkanDevice::physicalDeviceMeetsRequirements(VkPhysicalDevice vulkanPhysic
             VkExtensionProperties *availableExtensions = nullptr;
             VulkanUtils::vulkanCheck(vkEnumerateDeviceExtensionProperties(vulkanPhysicalDevice, nullptr, &extensionCount, nullptr));
             if (extensionCount != 0) {
-                availableExtensions = static_cast<VkExtensionProperties *>(FF_Memory::ff_allocate(sizeof(VkExtensionProperties) * extensionCount, RENDER, alignof(VkExtensionProperties)));
+                availableExtensions = FF_Memory::ff_allocate_recursive<VkExtensionProperties>(RENDER, extensionCount);
                 VulkanUtils::vulkanCheck(vkEnumerateDeviceExtensionProperties(vulkanPhysicalDevice, nullptr, &extensionCount, availableExtensions));
                 for (const char* extension : requirements.extensionNames) {
                     bool found = false;
@@ -328,12 +328,12 @@ bool VulkanDevice::physicalDeviceMeetsRequirements(VkPhysicalDevice vulkanPhysic
 
                     if (!found) {
                         Logger::logInfo(String(extension) + " not found. Skipping device.");
-                        FF_Memory::ff_free(availableExtensions, sizeof(VkExtensionProperties) * extensionCount, RENDER);
+                        FF_Memory::ff_free_recursive<VkExtensionProperties>(availableExtensions, RENDER, extensionCount);
                         return false;
                     }
                 }
             }
-            FF_Memory::ff_free(availableExtensions, sizeof(VkExtensionProperties) * extensionCount, RENDER);
+            FF_Memory::ff_free_recursive<VkExtensionProperties>(availableExtensions, RENDER, extensionCount);
         }
 
         if (requirements.samplerAnisotrophy && !deviceFeatures.samplerAnisotropy) {
@@ -351,26 +351,26 @@ void VulkanDevice::querySwapChainSupport(VkPhysicalDevice vulkanPhysicalDevice, 
     VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.capabilities));
 
     if (vulkanSwapchainSupportInfo.formats) {
-        FF_Memory::ff_free(vulkanSwapchainSupportInfo.formats,sizeof(VkSurfaceFormatKHR) * vulkanSwapchainSupportInfo.formatCount,RENDER);
+        FF_Memory::ff_free_recursive<VkSurfaceFormatKHR>(vulkanSwapchainSupportInfo.formats,RENDER, vulkanSwapchainSupportInfo.formatCount);
         vulkanSwapchainSupportInfo.formats = nullptr;
         vulkanSwapchainSupportInfo.formatCount = 0;
     }
 
     if (vulkanSwapchainSupportInfo.presentModes) {
-        FF_Memory::ff_free(vulkanSwapchainSupportInfo.presentModes,sizeof(VkPresentModeKHR) * vulkanSwapchainSupportInfo.presentCount,RENDER);
+        FF_Memory::ff_free_recursive<VkPresentModeKHR>(vulkanSwapchainSupportInfo.presentModes,RENDER, vulkanSwapchainSupportInfo.presentCount);
         vulkanSwapchainSupportInfo.presentModes = nullptr;
         vulkanSwapchainSupportInfo.presentCount = 0;
     }
 
     VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.formatCount, nullptr));
     if (vulkanSwapchainSupportInfo.formatCount > 0) {
-        vulkanSwapchainSupportInfo.formats = static_cast<VkSurfaceFormatKHR *>(FF_Memory::ff_allocate(sizeof(VkSurfaceFormatKHR) * vulkanSwapchainSupportInfo.formatCount, RENDER, alignof(VkSurfaceFormatKHR)));
+        vulkanSwapchainSupportInfo.formats = FF_Memory::ff_allocate_recursive<VkSurfaceFormatKHR>( RENDER, vulkanSwapchainSupportInfo.formatCount);
         VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.formatCount, vulkanSwapchainSupportInfo.formats));
     }
 
     VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.presentCount, nullptr));
     if (vulkanSwapchainSupportInfo.presentCount > 0) {
-        vulkanSwapchainSupportInfo.presentModes = static_cast<VkPresentModeKHR *>(FF_Memory::ff_allocate(sizeof(VkPresentModeKHR) * vulkanSwapchainSupportInfo.presentCount, RENDER, alignof(VkPresentModeKHR)));
+        vulkanSwapchainSupportInfo.presentModes = FF_Memory::ff_allocate_recursive<VkPresentModeKHR>( RENDER, vulkanSwapchainSupportInfo.presentCount);
         VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.presentCount, vulkanSwapchainSupportInfo.presentModes));
     }
 }

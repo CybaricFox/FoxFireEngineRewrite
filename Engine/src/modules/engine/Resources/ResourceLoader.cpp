@@ -7,7 +7,7 @@
 
 void ResourceLoader::unload(Resource &resource) {
     if (resource.data) {
-        FF_Memory::ff_free(resource.data, resource.dataSize, memoryTag);
+        FF_Memory::ff_free_raw(resource.data, resource.dataSize, memoryTag);
         resource.data = nullptr;
         resource.dataSize = 0;
         resource.loaderId = INVALID_ID_U32;

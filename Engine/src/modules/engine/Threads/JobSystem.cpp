@@ -42,14 +42,10 @@ unsigned int JobSystem::runThread(void *params) {
             }
 
             if (context.params) {
-                const ULong size = context.params->getSize();
                 context.params->destroy();
-                FF_Memory::ff_free(context.params, size, JOB);
             }
             if (context.result) {
-                const ULong size = context.result->getSize();
                 context.result->destroy();
-                FF_Memory::ff_free(context.result, size, JOB);
             }
 
             if (!Platform::lockMutex(thread->infoMutex)) {
@@ -78,7 +74,7 @@ void JobSystem::storeResult(const ThreadFunction callback, IThreadParam* params)
     entry.callback = callback;
 
     if (params->getSize() > 0) {
-        entry.params = static_cast<IThreadParam *>(FF_Memory::ff_allocate(params->getSize(), JOB));
+        entry.params = static_cast<IThreadParam *>(FF_Memory::ff_allocate_raw(params->getSize(), JOB, alignof(IThreadParam)));
         params->copyTo(entry.params);
     }
 
@@ -217,9 +213,7 @@ void JobSystem::update() {
             entry.callback(entry.params);
 
             if (entry.params) {
-                const ULong size = entry.params->getSize();
                 entry.params->destroy();
-                FF_Memory::ff_free(entry.params, size, JOB);
             }
 
             if (!Platform::lockMutex(resultMutex)) {

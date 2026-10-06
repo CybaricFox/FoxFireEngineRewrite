@@ -37,17 +37,17 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
     unsigned long size = 0;
     switch (config.type) {
         case RENDER_VIEW_WORLD: {
-            view = FF_Memory::ff_allocate_class<WorldRenderView>(sizeof(WorldRenderView), RENDER);
+            view = FF_Memory::ff_allocate<WorldRenderView>(RENDER);
             size = sizeof(WorldRenderView);
             break;
         }
         case RENDER_VIEW_UI: {
-            view = FF_Memory::ff_allocate_class<UIRenderView>(sizeof(UIRenderView), RENDER);
+            view = FF_Memory::ff_allocate<UIRenderView>(RENDER);
             size = sizeof(UIRenderView);
             break;
         }
         case RENDER_VIEW_SKYBOX: {
-            view = FF_Memory::ff_allocate_class<SkyboxRenderView>(sizeof(SkyboxRenderView), RENDER);
+            view = FF_Memory::ff_allocate<SkyboxRenderView>(RENDER);
             size = sizeof(SkyboxRenderView);
             break;
         }
@@ -73,7 +73,7 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
     if (!view->initialize(shaderSystemRef, size)) {
         Logger::logError("Failed to creat render view.");
         view->shutdown();
-        FF_Memory::ff_free_class<IRenderView>(view, size, RENDER);
+        FF_Memory::ff_free<IRenderView>(view, RENDER, size);
         assets.releaseAsset(config.name);
         return false;
     }
@@ -112,7 +112,7 @@ void RenderViewSystem::shutdown() {
     for (IRenderView** viewPtr : assets.getAssetsAsArray()) {
         IRenderView* view = *viewPtr;
         view->shutdown();
-        FF_Memory::ff_free_class<IRenderView>(view, view->getSize(), RENDER);
+        FF_Memory::ff_free<IRenderView>(view,  RENDER, view->getSize());
     }
 
     assets.shutdown();

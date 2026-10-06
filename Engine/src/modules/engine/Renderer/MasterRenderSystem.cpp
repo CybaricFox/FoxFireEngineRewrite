@@ -81,7 +81,7 @@ bool MasterRenderSystem::buildPacket(IRenderView *renderView, void* meshData, Re
 }
 
 void MasterRenderSystem::buildSkybox(const RenderPacket& packet) {
-    auto skyboxData = static_cast<SkyboxPacketData *>(FF_Memory::ff_allocate(sizeof(SkyboxPacketData), RENDER, alignof(SkyboxPacketData)));
+    auto skyboxData = FF_Memory::ff_allocate<SkyboxPacketData>(RENDER);
     skyboxData->skybox = &skybox;
     if (!buildPacket(getRenderView("Fox_Fire_Skybox_View"), skyboxData, packet.views[0])) {
         Logger::logError("Failed to build skybox packet.");
@@ -89,7 +89,7 @@ void MasterRenderSystem::buildSkybox(const RenderPacket& packet) {
 }
 
 void MasterRenderSystem::cleanupSkybox(const RenderPacket &packet) {
-    FF_Memory::ff_free(packet.views[0].data, sizeof(SkyboxPacketData), RENDER);
+    FF_Memory::ff_free<SkyboxPacketData>(packet.views[0].data, RENDER);
 }
 
 bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, ResourceSystem& resources) {
@@ -141,9 +141,9 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
         Logger::logFatal("Renderer Backend failed to initialize!");
         return false;
     }
-    void* worldTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY, alignof(RenderTarget));
-    void* uiTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY, alignof(RenderTarget));
-    void* skyboxTargets = FF_Memory::ff_allocate(sizeof(RenderTarget) * renderTargetCount, ARRAY, alignof(RenderTarget));
+    void* worldTargets = FF_Memory::ff_allocate_recursive<RenderTarget>(ARRAY, renderTargetCount);
+    void* uiTargets = FF_Memory::ff_allocate_recursive<RenderTarget>(ARRAY, renderTargetCount);
+    void* skyboxTargets = FF_Memory::ff_allocate_recursive<RenderTarget>(ARRAY, renderTargetCount);
     for (unsigned int i = 0; i < renderTargetCount; i++) {
         const auto worldTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(worldTargets) + (sizeof(RenderTarget) * i));
         std::construct_at(worldTarget);
@@ -292,32 +292,35 @@ void MasterRenderSystem::shutdown() {
         backend->destroyRenderTarget(skyboxRenderpass->getRenderTarget(i), true);
     }
 
-    std::destroy_at(&worldRenderpass->getRenderTarget(0));
-    std::destroy_at(&uiRenderpass->getRenderTarget(0));
-    std::destroy_at(&skyboxRenderpass->getRenderTarget(0));
-    FF_Memory::ff_free(&worldRenderpass->getRenderTarget(0), sizeof(RenderTarget) * renderTargetCount, ARRAY);
-    FF_Memory::ff_free(&uiRenderpass->getRenderTarget(0), sizeof(RenderTarget) * renderTargetCount, ARRAY);
-    FF_Memory::ff_free(&skyboxRenderpass->getRenderTarget(0), sizeof(RenderTarget) * renderTargetCount, ARRAY);
+    FF_Memory::ff_free_recursive<RenderTarget>(&worldRenderpass->getRenderTarget(0),  ARRAY, renderTargetCount);
+    FF_Memory::ff_free_recursive<RenderTarget>(&uiRenderpass->getRenderTarget(0),  ARRAY, renderTargetCount);
+    FF_Memory::ff_free_recursive<RenderTarget>(&skyboxRenderpass->getRenderTarget(0),  ARRAY, renderTargetCount);
 
+    Logger::logDebug("GEO");
     if (geometrySystem) {
-        FF_Memory::ff_free_class<IGeometrySystem>(geometrySystem, geometrySystem->getMemorySize(), GAME);
+        FF_Memory::ff_free<IGeometrySystem>(geometrySystem, GAME, geometrySystem->getMemorySize());
         geometrySystem = nullptr;
     }
+    Logger::logDebug("MAT");
     if (materialSystem) {
-        FF_Memory::ff_free_class<IMaterialSystem>(materialSystem, materialSystem->getMemorySize(), GAME);
+        FF_Memory::ff_free<IMaterialSystem>(materialSystem, GAME, materialSystem->getMemorySize());
         materialSystem = nullptr;
     }
 
+    Logger::logDebug("SHADER");
     shaderSystem.shutdown();
 
+    Logger::logDebug("SKYBOX");
     backend->releaseTextureMapResources(skybox.map);
 
+    Logger::logDebug("TEXTURE");
     //Destroy texture system
     if (textureSystem) {
-        FF_Memory::ff_free_class<ITextureSystem>(textureSystem, textureSystem->getMemorySize(), GAME);
+        FF_Memory::ff_free<ITextureSystem>(textureSystem, GAME, textureSystem->getMemorySize());
         textureSystem = nullptr;
     }
 
+    Logger::logDebug("BACKEND");
     delete backend;
     backend = nullptr;
 }

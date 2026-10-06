@@ -117,12 +117,12 @@ bool MeshLoader::importGLTF(FileHandler &file, String& fileName, DynamicArray<Ge
             return false;
         }
 
-        buffer.data = static_cast<unsigned char *>(FF_Memory::ff_allocate(buffer.byteSize, RESOURCE));
+        buffer.data = static_cast<unsigned char *>(FF_Memory::ff_allocate_raw(buffer.byteSize, RESOURCE));
 
         unsigned long bytesRead = 0;
         if (!binFile.read(buffer.byteSize, buffer.data, bytesRead)) {
             Logger::logError("Failed to read glTF buffer: " + buffer.fileRef);
-            FF_Memory::ff_free(buffer.data, buffer.byteSize, RESOURCE);
+            FF_Memory::ff_free_raw(buffer.data, buffer.byteSize, RESOURCE);
             buffer.data = nullptr;
             binFile.closeFile();
             return false;
@@ -282,7 +282,7 @@ bool MeshLoader::importGLTF(FileHandler &file, String& fileName, DynamicArray<Ge
             }
 
             unsigned int outCount = 0;
-            auto newVertices = FF_Memory::ff_allocate_class<DynamicArray<Vertex3d>>(sizeof(DynamicArray<Vertex3d>), DYNAMIC_ARRAY);
+            auto newVertices = FF_Memory::ff_allocate<DynamicArray<Vertex3d>>(DYNAMIC_ARRAY);
             newVertices->initialize(0);
             GeometryUtils::filterVertices(config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getCount(), config.indices.getIndex(0), outCount, *newVertices);
 
@@ -297,7 +297,7 @@ bool MeshLoader::importGLTF(FileHandler &file, String& fileName, DynamicArray<Ge
 
             GeometryUtils::generateTangents(config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getCount(), config.indices.getIndex(0));
 
-            FF_Memory::ff_free_class<DynamicArray<Vertex3d>>(newVertices, sizeof(DynamicArray<Vertex3d>), DYNAMIC_ARRAY);
+            FF_Memory::ff_free<DynamicArray<Vertex3d>>(newVertices, DYNAMIC_ARRAY);
         }
     }
 
@@ -312,7 +312,7 @@ bool MeshLoader::importGLTF(FileHandler &file, String& fileName, DynamicArray<Ge
     }
 
     for (GLTFMeshBuffer& buffer : buffers) {
-        FF_Memory::ff_free(buffer.data, buffer.byteSize, RESOURCE);
+        FF_Memory::ff_free_raw(buffer.data, buffer.byteSize, RESOURCE);
     }
 
     return writeFoxMesh(fileName, StringUtils::getFilenameFromPath(fileName), resourceData.getLength(), resourceData);
@@ -728,7 +728,7 @@ bool MeshLoader::load(const String name, Resource &outResource, const String bas
     }
 
     outResource.path = finalPath;
-    DynamicArray<GeometryConfig>* resourceData = FF_Memory::ff_allocate_class<DynamicArray<GeometryConfig>>(sizeof(DynamicArray<GeometryConfig>), DYNAMIC_ARRAY);
+    DynamicArray<GeometryConfig>* resourceData = FF_Memory::ff_allocate<DynamicArray<GeometryConfig>>(DYNAMIC_ARRAY);
 
     bool result = false;
     switch (type) {
@@ -754,7 +754,7 @@ bool MeshLoader::load(const String name, Resource &outResource, const String bas
     if (!result) {
         Logger::logError("Failed to process mesh file: " + finalPath);
         resourceData->shutdown();
-        FF_Memory::ff_free_class<DynamicArray<GeometryConfig>>(resourceData, sizeof(DynamicArray<GeometryConfig>), DYNAMIC_ARRAY);
+        FF_Memory::ff_free<DynamicArray<GeometryConfig>>(resourceData, DYNAMIC_ARRAY);
         outResource.data = nullptr;
         outResource.dataSize = 0;
         return false;
@@ -774,7 +774,7 @@ void MeshLoader::unload(Resource &resource) {
     }
 
     array->shutdown();
-    FF_Memory::ff_free_class<DynamicArray<GeometryConfig>>(resource.data, sizeof(DynamicArray<GeometryConfig>), DYNAMIC_ARRAY);
+    FF_Memory::ff_free<DynamicArray<GeometryConfig>>(resource.data, DYNAMIC_ARRAY);
     resource.data = nullptr;
     resource.dataSize = 0;
 }

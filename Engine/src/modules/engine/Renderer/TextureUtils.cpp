@@ -15,7 +15,7 @@ Texture * TextureUtils::wrapTexture(const String &name, const unsigned int width
     if (registerTexture) {
         texture = &textureSystemRef->acquireTexture(false, true, name, TEXTURE_USE_MAP_DIFFUSE);
     } else {
-        texture = static_cast<Texture *>(FF_Memory::ff_allocate(sizeof(Texture), TEXTURE, alignof(Texture)));
+        texture = FF_Memory::ff_allocate<Texture>(TEXTURE);
         texture->id = INVALID_ID_U32;
         Logger::logDebug("Creating unregistered texture: " + name + ". This texture must be manually deallocated.");
     }

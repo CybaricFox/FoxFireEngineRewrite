@@ -7,7 +7,7 @@
 
 EntityManager::EntityManager() {
     memorySize = DynamicAllocator::getMemoryRequirement(MEBIBYTES(1));
-    memory = FF_Memory::ff_allocate(memorySize, ECS);
+    memory = FF_Memory::ff_allocate_storage(memorySize, ECS, 1);
     allocator.initialize(MEBIBYTES(1), memory);
     instances.initialize();
 }
@@ -29,7 +29,7 @@ EntityManager::~EntityManager() {
     allocator.shutdown();
 
     if (memory) {
-        FF_Memory::ff_free(memory, memorySize, ECS);
+        FF_Memory::ff_free_storage(memory, memorySize, ECS, 1);
         memory = nullptr;
         memorySize = 0;
     }

@@ -49,7 +49,7 @@ private:
             Logger::logFatal("Dynamic Arrays cannot be created prior to FF_Memory!");
             return nullptr;
         }
-        return static_cast<T*>(FF_Memory::ff_allocate(sizeof(T) * size, tag, alignof(T)));
+        return static_cast<T*>(FF_Memory::ff_allocate_storage(sizeof(T) * size, tag, alignof(T)));
     }
 
     void destroy() {
@@ -60,9 +60,13 @@ private:
     }
 
     void free() {
+        if (length > 0) {
+            destroy();
+        }
         if (memory) {
-            FF_Memory::ff_free(memory, sizeof(T) * capacity, tag);
+            FF_Memory::ff_free_storage(memory, sizeof(T) * capacity, tag, alignof(T));
             memory = nullptr;
+            capacity = 0;
         }
     }
 
@@ -129,12 +133,7 @@ public:
     }
 
     void shutdown() {
-        if (memory) {
-            destroy();
-            free();
-        }
-
-        capacity = 0;
+        free();
     }
 
     /** @brief Returns the number of elements the array can currently support. */
@@ -412,10 +411,12 @@ public:
         }
     }
 
+
     /**
      * @brief Creates a copy of an element.
      * @return Returns the copy.
      */
+    /*
     T* duplicate() {
         Logger::logWarn("Duplicate is not fully setup and may cause unintended behavior!");
 
@@ -448,6 +449,7 @@ public:
 
         return copy;
     }
+    */
 
     T* getData() {
         return memory;
@@ -480,7 +482,7 @@ private:
                 return false;
             }
 
-            unsigned long i = 0;
+            ULong i = 0;
             try {
                 for (; i < length; ++i) {
                     std::construct_at(&temp[i], std::move_if_noexcept(memory[i]));
@@ -490,7 +492,7 @@ private:
                     std::destroy_at(&temp[j - 1]);
                 }
 
-                FF_Memory::ff_free(temp, sizeof(T) * requiredSize, tag);
+                FF_Memory::ff_free_storage(temp, sizeof(T) * requiredSize, tag, alignof(T));
                 Logger::logFatal("Dynamic Array reallocate failed while moving elements!");
                 return false;
             }

@@ -98,7 +98,7 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
         for (unsigned int i = 0; i < imageCount; i++) {
             textures.emplace();
 
-            void* data = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
+            void* data = FF_Memory::ff_allocate<VulkanImage>( TEXTURE);
             String textureName = "Vulkan_Swapchain_Image_0" + toString(i);
 
             textures[i] = TextureUtils::wrapTexture(textureName, swapchainExtent.width, swapchainExtent.height, 4, false, true, false, data);
@@ -145,7 +145,7 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
         return false;
     }
 
-    auto image = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
+    auto image = FF_Memory::ff_allocate<VulkanImage>(TEXTURE);
     image->createImage(TEXTURE_2D,
                        swapchainExtent.width,
                        swapchainExtent.height,
@@ -195,9 +195,9 @@ void VulkanSwapchain::destroySwapchain(VulkanDevice& device, const VkAllocationC
 
     const auto depthImage = static_cast<VulkanImage *>(depthTexture->data);
     depthImage->destroy(device, allocator);
-    FF_Memory::ff_free_class<VulkanImage>(depthImage, sizeof(VulkanImage), TEXTURE);
+    FF_Memory::ff_free<VulkanImage>(depthImage,  TEXTURE);
     depthTexture->data = nullptr;
-    FF_Memory::ff_free_class<Texture>(depthTexture, sizeof(Texture), TEXTURE);
+    FF_Memory::ff_free<Texture>(depthTexture,  TEXTURE);
     depthTexture = nullptr;
 
     for (unsigned int i = 0; i < imageCount; i++) {
@@ -211,8 +211,8 @@ void VulkanSwapchain::destroySwapchain(VulkanDevice& device, const VkAllocationC
     }
 
     for (unsigned int i = 0; i < imageCount; i++) {
-        FF_Memory::ff_free_class<VulkanImage>(textures[i]->data, sizeof(VulkanImage), TEXTURE);
-        FF_Memory::ff_free_class<Texture>(textures[i], sizeof(Texture), TEXTURE);
+        FF_Memory::ff_free<VulkanImage>(textures[i]->data,  TEXTURE);
+        FF_Memory::ff_free<Texture>(textures[i],  TEXTURE);
     }
     textures.shutdown();
 

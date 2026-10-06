@@ -19,9 +19,9 @@ bool CameraSystem::initialize(const CameraSystemConfig systemConfig, EntityCompo
     Entity* cameraEntity = ecs->createEntityType("Camera_Entity");
 
     cameraEntity->components.initialize(0, ECS);
-    const auto cameraTransform = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
+    const auto cameraTransform = FF_Memory::ff_allocate<Transform>(ECS);
     cameraEntity->components.push(cameraTransform);
-    const auto cameraComponent = FF_Memory::ff_allocate_class<Camera>(sizeof(Camera), ECS);
+    const auto cameraComponent = FF_Memory::ff_allocate<Camera>(ECS);
     cameraComponent->bIsDirty = true;
     cameraEntity->components.push(cameraComponent);
 

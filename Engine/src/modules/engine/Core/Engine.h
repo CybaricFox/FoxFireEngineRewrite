@@ -148,7 +148,7 @@ protected:
      */
     template<typename T>
     T* instantiateDerivedSubSystem() {
-        return FF_Memory::ff_allocate_class<T>(sizeof(T), GAME);
+        return FF_Memory::ff_allocate<T>( GAME);
     }
 
     bool bModelsLoaded = false;

@@ -144,11 +144,11 @@ void Engine::run() {
 
             worldMeshData.meshes = nullptr;
             basicEntities.shutdown();
-            FF_Memory::ff_free_class<DynamicArray<unsigned int>>(&basicEntities, sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
+            FF_Memory::ff_free<DynamicArray<unsigned int>>(&basicEntities, DYNAMIC_ARRAY);
 
             uiMeshData.meshes = nullptr;
             uiEntities.shutdown();
-            FF_Memory::ff_free_class<DynamicArray<unsigned int>>(&uiEntities, sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
+            FF_Memory::ff_free<DynamicArray<unsigned int>>(&uiEntities, DYNAMIC_ARRAY);
 
             masterRenderSystem.cleanupSkybox(packet);
 
@@ -227,7 +227,7 @@ Engine::Engine(const GameInstance& instance)
 
     Logger::initializeFile(logHandler);
     gameInstance = instance;
-    gameInstance.state = FF_Memory::ff_allocate_class<BaseGameState>(instance.memoryRequirement, GAME);
+    gameInstance.state = FF_Memory::ff_allocate<BaseGameState>(GAME, instance.memoryRequirement);
 }
 
 bool Engine::initializeMemory() {
@@ -472,7 +472,7 @@ Engine::~Engine() {
     masterRenderSystem.shutdown();
 
     if (inputSystem) {
-        FF_Memory::ff_free_class<IInputSystem>(inputSystem, inputSystem->getMemorySize(), GAME);
+        FF_Memory::ff_free<IInputSystem>(inputSystem, GAME, inputSystem->getMemorySize());
         inputSystem = nullptr;
     }
 

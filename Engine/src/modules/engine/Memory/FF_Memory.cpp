@@ -87,7 +87,7 @@ void FF_Memory::removeReport(const ULong size, const MemoryTag tag) {
 }
 
 //ff_set should set the memory block to the beginning, but just in case, REMEMBER TO ZERO MEMORY IN OWNER IF HEAP CORRUPTION OCCURS!!!
-void FF_Memory::ff_free(void *block, const unsigned long size, const MemoryTag tag, unsigned short alignment) {
+void FF_Memory::ff_free_raw(void *block, const unsigned long size, const MemoryTag tag, unsigned short alignment) {
     if (!block) return;
     if (!memorySystem) {
         Logger::logError("ff_free called after memory system was destroyed!");
@@ -181,6 +181,7 @@ String FF_Memory::getMemoryUsage() {
 
     double percentUsed = static_cast<double>(usedSpace) / static_cast<double>(totalSpace);
 
+    outString += "Reminder: This message uses STRING memory, so elevated STRING levels are normal when reporting end of application memory usage.\n";
     outString += "Overall Memory Usage: \n";
 
     std::ostringstream oss;
@@ -244,7 +245,7 @@ unsigned long FF_Memory::getAllocationCount() {
     return 0;
 }
 
-void * FF_Memory::ff_allocate(const unsigned long size, const MemoryTag tag, unsigned short alignment) {
+void * FF_Memory::ff_allocate_raw(const unsigned long size, const MemoryTag tag, unsigned short alignment) {
     if (tag == UNKNOWN) {
         Logger::logWarn("Allocate called with Unknown tag. Add a tag for this allocation!");
     }

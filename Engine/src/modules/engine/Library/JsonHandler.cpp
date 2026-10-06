@@ -89,7 +89,7 @@ void JsonHandler::parseObject(JsonHeader* header, JsonObject& object) {
     if (header == nullptr) return;
 
     header->type = JSON_OBJECT;
-    object.values.push(FF_Memory::ff_allocate_class<JsonObject>(sizeof(JsonObject), DYNAMIC_ARRAY));
+    object.values.push(FF_Memory::ff_allocate<JsonObject>(DYNAMIC_ARRAY));
     JsonObject& objectObject = *static_cast<JsonObject *>(object.values[object.values.getLength() - 1]);
     objectObject.keys.initialize();
     objectObject.values.initialize();
@@ -101,7 +101,7 @@ void JsonHandler::parseObject(JsonHeader* header, JsonObject& object) {
 
 void JsonHandler::parseArray(JsonHeader& header, JsonObject& object) {
     header.type = JSON_ARRAY;
-    object.values.push(FF_Memory::ff_allocate_class<DynamicArray<JsonObject>>(sizeof(DynamicArray<JsonObject>), DYNAMIC_ARRAY));
+    object.values.push(FF_Memory::ff_allocate<DynamicArray<JsonObject>>(DYNAMIC_ARRAY));
 
     const auto array = static_cast<DynamicArray<JsonObject> *>(object.values[object.values.getLength() - 1]);
     array->initialize(1);
@@ -127,7 +127,7 @@ void JsonHandler::parseArray(JsonHeader& header, JsonObject& object) {
 void JsonHandler::parseValue(JsonHeader& header, JsonObject& object, String& value) {
     switch (value[0]) {
         case '"': {
-            const auto stringValue = FF_Memory::ff_allocate_class<String>(sizeof(String), DYNAMIC_ARRAY);
+            const auto stringValue = FF_Memory::ff_allocate<String>(DYNAMIC_ARRAY);
             *stringValue = value.substringRight(1);
             *stringValue = stringValue->substringLeft(stringValue->getSizeInBytes() - 2);
 
@@ -143,17 +143,17 @@ void JsonHandler::parseValue(JsonHeader& header, JsonObject& object, String& val
 
             if (result) {
                 header.type = JSON_BOOL;
-                const auto boolOut = static_cast<bool *>(FF_Memory::ff_allocate(sizeof(bool), DYNAMIC_ARRAY));
+                const auto boolOut = FF_Memory::ff_allocate<bool>(DYNAMIC_ARRAY);
                 *boolOut = boolValue;
                 object.values.push(boolOut);
             } else if (index == static_cast<unsigned int>(INVALID_ID_U64)) {
                 header.type = JSON_NUMBER;
-                const auto intValue = static_cast<int *>(FF_Memory::ff_allocate(sizeof(int), DYNAMIC_ARRAY));
+                const auto intValue = FF_Memory::ff_allocate<int>(DYNAMIC_ARRAY);
                 StringUtils::stringToInt(value, *intValue);
                 object.values.push(intValue);
             } else {
                 header.type = JSON_FLOAT;
-                const auto floatValue = static_cast<float *>(FF_Memory::ff_allocate(sizeof(float), DYNAMIC_ARRAY));
+                const auto floatValue = FF_Memory::ff_allocate<float>(DYNAMIC_ARRAY);
                 StringUtils::stringToFloat(value, *floatValue);
                 object.values.push(floatValue);
             }
@@ -214,7 +214,7 @@ void JsonHandler::shutdownJsonObject(JsonObject &object) {
     for (const JsonHeader& header : object.keys) {
         if (header.type == JSON_OBJECT) {
             shutdownJsonObject(*static_cast<JsonObject *>(object.values[i]));
-            FF_Memory::ff_free_class<JsonObject>(object.values[i], sizeof(JsonObject), DYNAMIC_ARRAY);
+            FF_Memory::ff_free<JsonObject>(object.values[i], DYNAMIC_ARRAY);
         } else if (header.type == JSON_ARRAY) {
             DynamicArray<JsonObject>& array = *static_cast<DynamicArray<JsonObject>*>(object.values[i]);
             shutdownJsonArray(array);
@@ -233,25 +233,25 @@ void JsonHandler::shutdownJsonArray(DynamicArray<JsonObject> &array) {
         shutdownJsonObject(object);
     }
 
-    FF_Memory::ff_free_class<DynamicArray<JsonObject>>(&array, sizeof(DynamicArray<JsonObject>), DYNAMIC_ARRAY);
+    FF_Memory::ff_free<DynamicArray<JsonObject>>(&array, DYNAMIC_ARRAY);
 }
 
 void JsonHandler::shutdownJsonValue(const JsonHeader &header, void *value) {
     switch (header.type) {
         case JSON_NUMBER: {
-            FF_Memory::ff_free(value, sizeof(int), DYNAMIC_ARRAY);
+            FF_Memory::ff_free<int>(value, DYNAMIC_ARRAY);
             break;
         }
         case JSON_FLOAT: {
-            FF_Memory::ff_free(value, sizeof(float), DYNAMIC_ARRAY);
+            FF_Memory::ff_free<float>(value, DYNAMIC_ARRAY);
             break;
         }
         case JSON_STRING: {
-            FF_Memory::ff_free_class<String>(value, sizeof(String), DYNAMIC_ARRAY);
+            FF_Memory::ff_free<String>(value, DYNAMIC_ARRAY);
             break;
         }
         case JSON_BOOL: {
-            FF_Memory::ff_free(value, sizeof(bool), DYNAMIC_ARRAY);
+            FF_Memory::ff_free<bool>(value, DYNAMIC_ARRAY);
             break;
         }
         default: {

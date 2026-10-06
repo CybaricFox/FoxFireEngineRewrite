@@ -65,7 +65,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     int height = 0;
     int channelCount = 0;
 
-    auto data = static_cast<unsigned char *>(FF_Memory::ff_allocate(fileSize, TEXTURE));
+    auto data = static_cast<unsigned char *>(FF_Memory::ff_allocate_raw(fileSize, TEXTURE));
     if (!data) {
         Logger::logError("Image Resource loader failed to allocate file: " + finalPath);
         file.closeFile();
@@ -92,7 +92,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
         return false;
     }
 
-    const auto resourceData = static_cast<ImageResourceData *>(FF_Memory::ff_allocate(sizeof(ImageResourceData), TEXTURE, alignof(ImageResourceData)));
+    const auto resourceData = FF_Memory::ff_allocate<ImageResourceData>(TEXTURE);
     resourceData->pixels = stbData;
     resourceData->width = width;
     resourceData->height = height;
@@ -100,7 +100,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     outResource.data = resourceData;
     outResource.dataSize = sizeof(ImageResourceData);
 
-    FF_Memory::ff_free(data, fileSize, TEXTURE);
+    FF_Memory::ff_free_raw(data, fileSize, TEXTURE);
 
     return true;
 }

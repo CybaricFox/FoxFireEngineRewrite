@@ -193,7 +193,7 @@ bool VulkanBackend::endRenderpass(Renderpass &renderpass) {
 }
 
 bool VulkanBackend::createShader(Shader &shader, ShaderConfig& config, Renderpass &renderpass, const unsigned char stageCount, DynamicArray<String> &stageFileNames, DynamicArray<ShaderStage> &stages) {
-    shader.setBackendShader(FF_Memory::ff_allocate_class<VulkanBackendShader>(sizeof(VulkanBackendShader), RENDER));
+    shader.setBackendShader(FF_Memory::ff_allocate<VulkanBackendShader>(RENDER));
 
     VkShaderStageFlags vkStages[VULKAN_SHADER_MAX_STAGES]{};
 
@@ -407,7 +407,7 @@ void VulkanBackend::destroyShader(Shader &shader) {
 
     backendShader->shutdown(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
-    FF_Memory::ff_free_class<VulkanBackendShader>(shader.getBackendShader(), sizeof(VulkanBackendShader), RENDER);
+    FF_Memory::ff_free<VulkanBackendShader>(shader.getBackendShader(), RENDER);
     shader.setBackendShader(nullptr);
 }
 
@@ -681,7 +681,7 @@ void VulkanBackend::destroyRenderTarget(RenderTarget &target, const bool freeMem
 }
 
 void VulkanBackend::createRenderpass(Renderpass &outRenderpass, float depth, unsigned stencil, bool hasPreviousPass, bool hasNextPass) {
-    auto pass = FF_Memory::ff_allocate_class<VulkanRenderpass>(sizeof(VulkanRenderpass), RENDER);
+    auto pass = FF_Memory::ff_allocate<VulkanRenderpass>(RENDER);
     pass->setupFramebuffers(vulkanContext.getSwapchain().getImageCount());
 
     outRenderpass.setData(pass);
@@ -796,7 +796,7 @@ void VulkanBackend::destroyRenderpass(Renderpass &renderpass) {
         vkDestroyRenderPass(vulkanContext.getDevice().getLogicalDevice(), pass.getHandle(), vulkanContext.getAllocator());
         pass.shutdown();
 
-        FF_Memory::ff_free_class<VulkanRenderpass>(&pass, sizeof(VulkanRenderpass), RENDER);
+        FF_Memory::ff_free<VulkanRenderpass>(&pass, RENDER);
         renderpass.setData(nullptr);
     }
 }
@@ -869,7 +869,7 @@ bool VulkanBackend::createBuffer(RenderBuffer &buffer) {
         return false;
     }
 
-    buffer.setInternalBuffer(FF_Memory::ff_allocate_class<VulkanBuffer>(sizeof(VulkanBuffer), RENDER_BACKEND_MANUAL));
+    buffer.setInternalBuffer(FF_Memory::ff_allocate<VulkanBuffer>(RENDER_BACKEND_MANUAL));
     *static_cast<VulkanBuffer *>(buffer.getInternalBuffer()) = internalBuffer;
 
     return true;
@@ -895,7 +895,7 @@ void VulkanBackend::destroyBuffer(RenderBuffer &buffer) {
     internalBuffer->usageFlags = 0;
     internalBuffer->bIsLocked = false;
 
-    FF_Memory::ff_free_class<VulkanBuffer>(buffer.getInternalBuffer(), sizeof(VulkanBuffer), RENDER_BACKEND_MANUAL);
+    FF_Memory::ff_free<VulkanBuffer>(buffer.getInternalBuffer(),  RENDER_BACKEND_MANUAL);
 }
 
 bool VulkanBackend::bindBuffer(RenderBuffer &buffer, const ULong offset) {
@@ -1172,10 +1172,10 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     vulkanContext.initializeGeometry();
 
     #if VULKAN_USE_CUSTOM_ALLOCATOR == 1
-    auto callbacks = static_cast<VkAllocationCallbacks *>(FF_Memory::ff_allocate(sizeof(VkAllocationCallbacks), RENDER, alignof(VkAllocationCallbacks)));
+    auto callbacks = FF_Memory::ff_allocate<VkAllocationCallbacks>( RENDER);
     if (!createVulkanAllocator(callbacks)) {
         Logger::logFatal("Failed to create custom Vulkan allocator.");
-        FF_Memory::ff_free(callbacks, sizeof(VkAllocationCallbacks),RENDER, alignof(VkAllocationCallbacks));
+        FF_Memory::ff_free<VkAllocationCallbacks>(callbacks,RENDER);
         vulkanContext.setAllocator(nullptr);
     } else {
         vulkanContext.setAllocator(callbacks);
@@ -1511,7 +1511,7 @@ void VulkanBackend::drawGeometry(const GeometryRenderData &data, Material& defau
 void VulkanBackend::createTexture(const unsigned char *pixels, Texture &texture) {
     texture.generation = INVALID_ID_U32;
 
-    texture.data = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
+    texture.data = FF_Memory::ff_allocate<VulkanImage>( TEXTURE);
     VulkanImage& data = *static_cast<VulkanImage *>(texture.data);
 
     const unsigned int imageSize = texture.width * texture.height * texture.channelCount * (texture.type == TEXTURE_CUBE ? 6 : 1);
@@ -1534,7 +1534,7 @@ void VulkanBackend::destroyTexture(Texture &texture) {
 
         data.destroy(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
-        FF_Memory::ff_free_class<VulkanImage>(texture.data, sizeof(VulkanImage), TEXTURE);
+        FF_Memory::ff_free<VulkanImage>(texture.data, TEXTURE);
     }
 }
 
@@ -1702,7 +1702,7 @@ void VulkanBackend::releaseTextureMapResources(TextureMap &textureMap) {
 }
 
 void VulkanBackend::createWritableTexture(Texture &texture) {
-    texture.data = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
+    texture.data = FF_Memory::ff_allocate<VulkanImage>(TEXTURE);
     VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
 
     VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);

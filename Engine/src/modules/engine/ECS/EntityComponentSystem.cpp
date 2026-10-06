@@ -48,40 +48,40 @@ Entity *EntityComponentSystem::createEntityType(const String &name) {
 void EntityComponentSystem::initialize() {
     templates.initialize(0);
 
-    entities = FF_Memory::ff_allocate_class<DynamicArray<EntityContext>>(sizeof(DynamicArray<EntityContext>), DYNAMIC_ARRAY);
+    entities = FF_Memory::ff_allocate<DynamicArray<EntityContext>>(DYNAMIC_ARRAY);
     entities->initialize(0);
 
     Entity* basic = createEntityType("Basic_Entity");
     basic->components.initialize(0, ECS);
-    const auto transform = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
+    const auto transform = FF_Memory::ff_allocate<Transform>(ECS);
     basic->components.push(transform);
-    const auto mesh = FF_Memory::ff_allocate_class<Mesh>(sizeof(Mesh), ECS);
+    const auto mesh = FF_Memory::ff_allocate<Mesh>(ECS);
     basic->components.push(mesh);
 
     Entity* basicUI = createEntityType("Basic_UI");
     basicUI->components.initialize(0, ECS);
-    const auto transformUI = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
+    const auto transformUI = FF_Memory::ff_allocate<Transform>(ECS);
     basicUI->components.push(transformUI);
-    const auto meshUI = FF_Memory::ff_allocate_class<Mesh>(sizeof(Mesh), ECS);
+    const auto meshUI = FF_Memory::ff_allocate<Mesh>(ECS);
     basicUI->components.push(meshUI);
 
-    instances = FF_Memory::ff_allocate_class<AssetMap<EntityManager, AssetContext>>(sizeof(AssetMap<EntityManager, AssetContext>), ECS);
+    instances = FF_Memory::ff_allocate<AssetMap<EntityManager, AssetContext>>(ECS);
     instances->initialize(1024);
 }
 
 void EntityComponentSystem::shutdown() {
     entities->shutdown();
-    FF_Memory::ff_free_class<DynamicArray<EntityContext>>(entities, sizeof(DynamicArray<EntityContext>), DYNAMIC_ARRAY);
+    FF_Memory::ff_free<DynamicArray<EntityContext>>(entities, DYNAMIC_ARRAY);
 
     for (Entity* entity : templates.getAssetsAsArray()) {
         for (EntityComponent* component : entity->components) {
-            FF_Memory::ff_free_class<EntityComponent>(component, component->getComponentSize(), ECS);
+            FF_Memory::ff_free<EntityComponent>(component, ECS, component->getComponentSize());
         }
         entity->components.shutdown();
     }
     templates.shutdown();
     instances->shutdown();
-    FF_Memory::ff_free_class<AssetMap<EntityManager, AssetContext>>(instances, sizeof(AssetMap<EntityManager, AssetContext>), ECS);
+    FF_Memory::ff_free<AssetMap<EntityManager, AssetContext>>(instances, ECS);
 }
 
 unsigned int EntityComponentSystem::getEntityCount(const String &name) {
@@ -93,7 +93,7 @@ unsigned int EntityComponentSystem::getEntityCount(const String &name) {
 DynamicArray<unsigned int>& EntityComponentSystem::getAllEntitiesOfType(const String &type) {
     EntityManager* manager = instances->getAsset(type);
     const unsigned int count = manager->getEntityCount();
-    auto& result = *FF_Memory::ff_allocate_class<DynamicArray<unsigned int>>(sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
+    auto& result = *FF_Memory::ff_allocate<DynamicArray<unsigned int>>(DYNAMIC_ARRAY);
     result.initialize(count);
 
     for (EntityInstance*& instance : manager->getInstances()) {

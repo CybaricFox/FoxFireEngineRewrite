@@ -30,7 +30,7 @@ bool BinaryLoader::load(const String name, Resource &outResource, const String b
         return false;
     }
 
-    auto resourceData = static_cast<unsigned char *>(FF_Memory::ff_allocate(sizeof(unsigned char) * fileSize, ARRAY));
+    auto resourceData = FF_Memory::ff_allocate_recursive<unsigned char>(ARRAY, fileSize);
     ULong readSize = 0;
     if (!file.readAll(resourceData, readSize)) {
         Logger::logError("Binary Loader failed to read file: " + finalPath);

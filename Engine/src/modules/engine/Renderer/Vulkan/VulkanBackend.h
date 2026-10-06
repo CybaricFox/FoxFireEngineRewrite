@@ -74,7 +74,7 @@ private:
             return nullptr;
         }
 
-        void* result = FF_Memory::ff_allocate(size, RENDER_BACKEND_MANUAL, static_cast<unsigned short>(alignment));
+        void* result = FF_Memory::ff_allocate_raw(size, RENDER_BACKEND_MANUAL, static_cast<unsigned short>(alignment));
 
         #ifdef VULKAN_ALLOCATOR_TRACE
         std::ostringstream oss{};
@@ -109,7 +109,7 @@ private:
         #ifdef VULKAN_ALLOCATOR_TRACE
         Logger::logDebug("Vulkan successfully freed memory block: " + oss.str());
         #endif
-        FF_Memory::ff_free(memory, size, RENDER_BACKEND_MANUAL, alignment);
+        FF_Memory::ff_free_raw(memory, size, RENDER_BACKEND_MANUAL, alignment);
     }
 
     static void* vulkanReallocate(void* data, void* original, const size_t size, const size_t alignment, const VkSystemAllocationScope scope) {
@@ -129,7 +129,7 @@ private:
             return nullptr;
         }
         if (size == 0) {
-            FF_Memory::ff_free(original, allocationSize, RENDER_BACKEND_MANUAL, allocationAlignment);
+            FF_Memory::ff_free_raw(original, allocationSize, RENDER_BACKEND_MANUAL, allocationAlignment);
             return nullptr;
         }
 
@@ -157,7 +157,7 @@ private:
         Logger::logDebug("Now freeing original memory " + oss.str());
         #endif
 
-        FF_Memory::ff_free(original, allocationSize, RENDER_BACKEND_MANUAL, allocationAlignment);
+        FF_Memory::ff_free_raw(original, allocationSize, RENDER_BACKEND_MANUAL, allocationAlignment);
 
         return result;
     }

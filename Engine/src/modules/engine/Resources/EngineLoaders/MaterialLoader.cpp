@@ -24,7 +24,7 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
 
     outResource.path = finalPath;
 
-    const auto resourceData = FF_Memory::ff_allocate_class<MaterialResourceData>(sizeof(MaterialResourceData), MATERIAL);
+    const auto resourceData = FF_Memory::ff_allocate<MaterialResourceData>(MATERIAL);
     resourceData->shaderName = "Fox_Fire_Material_Shader";
     resourceData->bAutoRelease = true;
     resourceData->diffuseColor = oneVector4f();
@@ -107,7 +107,7 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
 
 void MaterialLoader::unload(Resource &resource) {
     if (resource.data) {
-        FF_Memory::ff_free_class<MaterialResourceData>(resource.data, resource.dataSize, memoryTag);
+        FF_Memory::ff_free<MaterialResourceData>(resource.data, memoryTag);
         resource.data = nullptr;
         resource.dataSize = 0;
         resource.loaderId = INVALID_ID_U32;

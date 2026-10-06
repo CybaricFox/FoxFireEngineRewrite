@@ -55,7 +55,7 @@ void Shader::setTextureMap(const unsigned int index, TextureMap *map) {
 
 void Shader::destroyTextureMaps() {
     for (TextureMap* map : globalTextureMaps) {
-        FF_Memory::ff_free(map, sizeof(TextureMap), RENDER);
+        FF_Memory::ff_free<TextureMap>(map, RENDER);
     }
     globalTextureMaps.shutdown();
 }

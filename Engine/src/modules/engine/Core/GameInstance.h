@@ -52,7 +52,7 @@ struct FOXFIRE_API GameInstance {
 
     void shutdown() {
         if (!state) return;
-        FF_Memory::ff_free(state, memoryRequirement, GAME); //Game state does not use destruction, so ff_free is valid.
+        FF_Memory::ff_free<BaseGameState>(state, GAME, memoryRequirement); //Game state does not use destruction, so ff_free is valid.
         state = nullptr;
     }
 };

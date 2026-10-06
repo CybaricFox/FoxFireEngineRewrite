@@ -10,21 +10,18 @@
 
 void VulkanContext::createCommandBuffers() {
     if (!commandBuffers) {
-        commandBuffers = static_cast<VulkanCommandBuffer *>(FF_Memory::ff_allocate(sizeof(VulkanCommandBuffer) * swapchain.getImageCount(), ARRAY, alignof(VulkanCommandBuffer)));
-        for (unsigned int i = 0; i < swapchain.getImageCount(); i++) {
-            FF_Memory::ff_clear(&commandBuffers[i], sizeof(VulkanCommandBuffer));
-        }
+        commandBuffers = FF_Memory::ff_allocate_recursive<VulkanCommandBuffer>(ARRAY, swapchain.getImageCount());
     }
 }
 
 void VulkanContext::destroyCommandBuffers() {
-    FF_Memory::ff_free(commandBuffers, sizeof(VulkanCommandBuffer) * swapchain.getImageCount(), ARRAY);
+    FF_Memory::ff_free_recursive<VulkanCommandBuffer>(commandBuffers, ARRAY, swapchain.getImageCount());
     commandBuffers = nullptr;
 }
 
 void VulkanContext::createSyncObjects() {
-    imageAvailableSemaphores = static_cast<VkSemaphore *>(FF_Memory::ff_allocate(sizeof(VkSemaphore) * swapchain.getMaxFramesInFlight(), ARRAY));
-    queueCompleteSemaphores = static_cast<VkSemaphore *>(FF_Memory::ff_allocate(sizeof(VkSemaphore) * swapchain.getImageCount(), ARRAY));
+    imageAvailableSemaphores = FF_Memory::ff_allocate_recursive<VkSemaphore>(ARRAY, swapchain.getMaxFramesInFlight());
+    queueCompleteSemaphores = FF_Memory::ff_allocate_recursive<VkSemaphore>(ARRAY, swapchain.getImageCount());
 
     imagesInFlight.initialize(swapchain.getImageCount());
 }
@@ -42,7 +39,7 @@ void VulkanContext::destroySyncObjects() {
 
             vkDestroyFence(device.getLogicalDevice(), inFlightFences[i], allocator);
         }
-        FF_Memory::ff_free(imageAvailableSemaphores, sizeof(VkSemaphore) * swapchain.getMaxFramesInFlight(), ARRAY);
+        FF_Memory::ff_free_recursive<VkSemaphore>(imageAvailableSemaphores, ARRAY, swapchain.getMaxFramesInFlight());
         imageAvailableSemaphores = nullptr;
     }
 
@@ -53,7 +50,7 @@ void VulkanContext::destroySyncObjects() {
                 queueCompleteSemaphores[i] = nullptr;
             }
         }
-        FF_Memory::ff_free(queueCompleteSemaphores, sizeof(VkSemaphore) * swapchain.getImageCount(), ARRAY);
+        FF_Memory::ff_free_recursive<VkSemaphore>(queueCompleteSemaphores, ARRAY, swapchain.getImageCount());
         queueCompleteSemaphores = nullptr;
     }
 
@@ -121,13 +118,13 @@ void VulkanContext::destroyContext() {
     device.getTransferQueue() = nullptr;
 
     if (device.getSwapChainSupportInfo().formats) {
-        FF_Memory::ff_free(device.getSwapChainSupportInfo().formats, sizeof(VkSurfaceFormatKHR) * device.getSwapChainSupportInfo().formatCount, RENDER);
+        FF_Memory::ff_free_recursive<VkSurfaceFormatKHR>(device.getSwapChainSupportInfo().formats, RENDER, device.getSwapChainSupportInfo().formatCount);
         device.getSwapChainSupportInfo().formats = nullptr;
         device.getSwapChainSupportInfo().formatCount = 0;
     }
 
     if (device.getSwapChainSupportInfo().presentModes) {
-        FF_Memory::ff_free(device.getSwapChainSupportInfo().presentModes, sizeof(VkPresentModeKHR) * device.getSwapChainSupportInfo().presentCount, RENDER);
+        FF_Memory::ff_free_recursive<VkPresentModeKHR>(device.getSwapChainSupportInfo().presentModes, RENDER, device.getSwapChainSupportInfo().presentCount);
         device.getSwapChainSupportInfo().presentModes = nullptr;
         device.getSwapChainSupportInfo().presentCount = 0;
     }
@@ -156,7 +153,7 @@ void VulkanContext::destroyContext() {
     }
 
     if (allocator) {
-        FF_Memory::ff_free(allocator, sizeof(VkAllocationCallbacks), RENDER, alignof(VkAllocationCallbacks));
+        FF_Memory::ff_free<VkAllocationCallbacks>(allocator,  RENDER);
         allocator = nullptr;
     }
 }
