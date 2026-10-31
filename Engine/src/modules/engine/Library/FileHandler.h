@@ -72,7 +72,7 @@ public:
      * @param outLength The number of bytes read.
      * @return True on success, False on failure.
      */
-    bool readLine(String &line, unsigned long maxLength, unsigned long &outLength) const;
+    bool readLine(String &line, unsigned long maxLength, ULong &outLength) const;
 
     /**
      * @brief Writes a String line to the file
@@ -88,7 +88,7 @@ public:
      * @param outBytesRead OUT bytes read
      * @return True on success, False on failure
      */
-    bool read(unsigned long size, void* outData, unsigned long& outBytesRead) const;
+    bool read(unsigned long size, void *outData, ULong &outBytesRead) const;
 
     /**
      * @brief Reads the entire file (Applicable to binary files)
@@ -112,5 +112,5 @@ public:
      * @param outBytesWritten OUT bytes written
      * @return Returns true on success, False on failure.
      */
-    bool write(unsigned long size, const void* inData, unsigned long& outBytesWritten) const;
+    bool write(unsigned long size, const void* inData, ULong& outBytesWritten) const;
 };

@@ -80,7 +80,7 @@ void FileHandler::closeFile() {
     }
 }
 
-bool FileHandler::readLine(String& line, const unsigned long maxLength, unsigned long& outLength) const {
+bool FileHandler::readLine(String& line, const unsigned long maxLength, ULong& outLength) const {
     if (!handle || maxLength == 0) return false;
 
     char buffer[maxLength];
@@ -109,7 +109,7 @@ bool FileHandler::writeLine(const String &text) const {
     return false;
 }
 
-bool FileHandler::read(const unsigned long size, void *outData, unsigned long &outBytesRead) const {
+bool FileHandler::read(const unsigned long size, void *outData, ULong &outBytesRead) const {
     if (!handle || !outData) return false;
 
     outBytesRead = fread(outData, 1, size, handle);
@@ -139,7 +139,7 @@ bool FileHandler::readAll(String &outText, ULong &outBytesRead) const {
     return outBytesRead == size;
 }
 
-bool FileHandler::write(const unsigned long size, const void *inData, unsigned long &outBytesWritten) const {
+bool FileHandler::write(const unsigned long size, const void *inData, ULong &outBytesWritten) const {
     if (!handle) return false;
 
     outBytesWritten = fwrite(inData, 1, size, handle);

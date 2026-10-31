@@ -115,7 +115,7 @@ void Engine::run() {
                 return;
             }
 
-            MeshPacketData uiMeshData{};
+            UIPacketData uiPacket{};
             DynamicArray<unsigned int> uiMeshes{0};
             DynamicArray<unsigned int>& uiEntities = ECSSystem.getAllEntitiesOfType("Basic_UI");
             for (unsigned int i = 0; i < uiEntities.getLength(); i++) {
@@ -124,9 +124,12 @@ void Engine::run() {
                     uiMeshes.push(uiEntities[i]);
                 }
             }
-            uiMeshData.meshCount = uiMeshes.getLength();
-            uiMeshData.meshes = uiMeshes.getData(); //All of these entities have meshes
-            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiMeshData, packet.views[2])) {
+            uiPacket.meshData.meshCount = uiMeshes.getLength();
+            uiPacket.meshData.meshes = uiMeshes.getData(); //All of these entities have meshes
+            uiPacket.textCount = 1;
+            UIText* texts[1] = {&testText};
+            uiPacket.texts = texts;
+            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiPacket, packet.views[2])) {
                 Logger::logError("Failed to build ui packet");
                 return;
             }
@@ -146,7 +149,7 @@ void Engine::run() {
             basicEntities.shutdown();
             FF_Memory::ff_free<DynamicArray<unsigned int>>(&basicEntities, DYNAMIC_ARRAY);
 
-            uiMeshData.meshes = nullptr;
+            uiPacket.meshData.meshes = nullptr;
             uiEntities.shutdown();
             FF_Memory::ff_free<DynamicArray<unsigned int>>(&uiEntities, DYNAMIC_ARRAY);
 
@@ -349,6 +352,24 @@ void Engine::initialize() {
         return;
     }
 
+    //Start Font System
+    FontSystemConfig fontConfig{};
+    fontConfig.bAutoRelease = false;
+    fontConfig.defaultBitmapFontCount = 1;
+    fontConfig.maxBitmapFonts = 101;
+    fontConfig.maxSystemFonts = 101;
+
+    BitmapFontConfig bitmapFontConfig{};
+    bitmapFontConfig.name = "Ubuntu";
+    bitmapFontConfig.resourceName = "Ubuntu-Regular";
+    bitmapFontConfig.size = 12;
+    fontConfig.bitmapFontConfigs = &bitmapFontConfig;
+
+    if (!masterRenderSystem.initializeFontSystem(fontConfig, &resourceSystem)) {
+        Logger::logFatal("Failed to initialize the font system!");
+        return;
+    }
+
     //Start render views
     RenderViewSystemConfig renderViewConfig{};
     renderViewConfig.maxViewCount = 251;
@@ -442,6 +463,13 @@ void Engine::initialize() {
 
     ui1Mesh->geometries[0] = &masterRenderSystem.acquireGeometry(configUI, true);
     ui1Mesh->generation = 0;
+
+    if (!testText.create(UI_TEXT_TYPE_BITMAP, "Ubuntu", 12, "The following \t3\t lines represent the truth of the world:\nYou\nAre\nGullible")) {
+        Logger::logFatal("Failed to create UIText for testing purposes.");
+        return;
+    }
+    testText.setPosition({50, 100, 0});
+    testText.getTransform().bIsDirty = true;
     //End temp code
 
     startup();
@@ -455,6 +483,8 @@ void Engine::getFramebufferSize(unsigned int& bufferWidth, unsigned int& bufferH
 Engine::~Engine() {
     bIsRunning = false;
     engine = nullptr;
+
+    testText.destroy();
 
     ECSSystem.shutdown();
 

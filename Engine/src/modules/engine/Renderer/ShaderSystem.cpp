@@ -4,7 +4,11 @@
 
 #include "ShaderSystem.h"
 
+ShaderSystem* ShaderSystem::instance = nullptr;
+
 bool ShaderSystem::initialize(const ShaderSystemConfig newConfig, IRendererBackend *backend, ITextureSystem *textureSystem) {
+    instance = this;
+
     backendRef = backend;
     textureSystemRef = textureSystem;
 
@@ -31,6 +35,7 @@ void ShaderSystem::shutdown() {
 
     backendRef = nullptr;
     textureSystemRef = nullptr;
+    instance = nullptr;
 }
 
 unsigned int ShaderSystem::getId(const String &shaderName) {
@@ -45,15 +50,15 @@ unsigned int ShaderSystem::getId(const String &shaderName) {
 }
 
 Shader *ShaderSystem::getShader(const unsigned int shaderId) {
-    if (shaderId >= config.maxShaderCount || assets.getAssetAtIndex(shaderId)->getId() == INVALID_ID_U32) {
+    if (shaderId >= instance->config.maxShaderCount || instance->assets.getAssetAtIndex(shaderId)->getId() == INVALID_ID_U32) {
         return nullptr;
     }
 
-    return assets.getAssetAtIndex(shaderId);
+    return instance->assets.getAssetAtIndex(shaderId);
 }
 
 Shader *ShaderSystem::getShader(const String &shaderName) {
-    const unsigned int shaderId = getId(shaderName);
+    const unsigned int shaderId = instance->getId(shaderName);
     if (shaderId != INVALID_ID_U32) {
         return getShader(shaderId);
     }

@@ -91,19 +91,162 @@ add_custom_target(SandboxShaders ALL
         DEPENDS ${SPIRV_BINARY_FILES}
 )
 
+# ---------------------------------------------------------------------------
+# Assets
+# ---------------------------------------------------------------------------
+
 set(ASSET_SOURCE_DIR "${CMAKE_SOURCE_DIR}/Assets")
 set(ASSET_OUTPUT_DIR "${FOXFIRE_OUTPUT_DIR}/Assets")
 
-add_custom_target(CopyAssets
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-        "${ASSET_OUTPUT_DIR}"
+set(FONT_SOURCE_DIR "${ASSET_SOURCE_DIR}/Textures/Fonts")
+set(FONT_OUTPUT_DIR "${ASSET_OUTPUT_DIR}/Textures/Fonts")
 
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        "${ASSET_SOURCE_DIR}"
-        "${ASSET_OUTPUT_DIR}"
-
-        COMMENT "Updating asset files..."
-        VERBATIM
+file(GLOB_RECURSE ASSET_FILES
+        CONFIGURE_DEPENDS
+        "${ASSET_SOURCE_DIR}/*"
 )
 
-add_dependencies(${SANDBOX_NAME} SandboxShaders CopyAssets)
+set(COPIED_ASSET_FILES "")
+set(COMPILED_FONT_FILES "")
+
+# ---------------------------------------------------------------------------
+# Normal assets
+# ---------------------------------------------------------------------------
+
+foreach(ASSET IN LISTS ASSET_FILES)
+
+    file(RELATIVE_PATH RELATIVE_PATH
+            "${ASSET_SOURCE_DIR}"
+            "${ASSET}"
+    )
+
+    get_filename_component(EXTENSION "${ASSET}" EXT)
+    string(TOLOWER "${EXTENSION}" EXTENSION)
+
+    # Font source files are handled by the font compiler.
+    if(EXTENSION STREQUAL ".ttf" OR
+            EXTENSION STREQUAL ".foxfont")
+        continue()
+    endif()
+
+    set(OUTPUT_FILE
+            "${ASSET_OUTPUT_DIR}/${RELATIVE_PATH}"
+    )
+
+    get_filename_component(
+            OUTPUT_DIRECTORY
+            "${OUTPUT_FILE}"
+            DIRECTORY
+    )
+
+    add_custom_command(
+            OUTPUT "${OUTPUT_FILE}"
+
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${OUTPUT_DIRECTORY}"
+
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${ASSET}"
+            "${OUTPUT_FILE}"
+
+            DEPENDS "${ASSET}"
+
+            COMMENT "Copying asset ${RELATIVE_PATH}"
+
+            VERBATIM
+    )
+
+    list(APPEND COPIED_ASSET_FILES
+            "${OUTPUT_FILE}"
+    )
+
+endforeach()
+
+# ---------------------------------------------------------------------------
+# Compile fonts
+# ---------------------------------------------------------------------------
+
+file(GLOB FONT_CONFIG_FILES
+        CONFIGURE_DEPENDS
+        "${FONT_SOURCE_DIR}/*.FoxFont"
+        "${FONT_SOURCE_DIR}/*.foxfont"
+)
+
+foreach(FONT_CONFIG IN LISTS FONT_CONFIG_FILES)
+
+    # OpenSans.FoxFont -> OpenSans
+    get_filename_component(
+            FONT_NAME
+            "${FONT_CONFIG}"
+            NAME_WE
+    )
+
+    set(FONT_TTF
+            "${FONT_SOURCE_DIR}/${FONT_NAME}.ttf"
+    )
+
+    if(NOT EXISTS "${FONT_TTF}")
+        message(FATAL_ERROR
+                "Font '${FONT_NAME}' has a .FoxFont file but no matching .ttf file."
+        )
+    endif()
+
+    set(FONT_OUTPUT_CONFIG
+            "${FONT_OUTPUT_DIR}/${FONT_NAME}.FoxFont"
+    )
+
+    set(FONT_OUTPUT_PNG
+            "${FONT_OUTPUT_DIR}/${FONT_NAME}.png"
+    )
+
+    add_custom_command(
+            OUTPUT
+            "${FONT_OUTPUT_CONFIG}"
+            "${FONT_OUTPUT_PNG}"
+
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${FONT_OUTPUT_DIR}"
+
+            COMMAND $<TARGET_FILE:FoxFire_Tools>
+            "Compile Font"
+            "${FONT_SOURCE_DIR}/${FONT_NAME}"
+            "${FONT_OUTPUT_DIR}"
+
+            WORKING_DIRECTORY
+            "${FONT_SOURCE_DIR}"
+
+            DEPENDS
+            FoxFire_Tools
+            "${FONT_TTF}"
+            "${FONT_CONFIG}"
+
+            COMMENT
+            "Compiling font ${FONT_NAME}"
+
+            VERBATIM
+    )
+
+    list(APPEND COMPILED_FONT_FILES
+            "${FONT_OUTPUT_CONFIG}"
+            "${FONT_OUTPUT_PNG}"
+    )
+
+endforeach()
+
+# ---------------------------------------------------------------------------
+# Asset build targets
+# ---------------------------------------------------------------------------
+
+add_custom_target(CopyAssets
+        DEPENDS ${COPIED_ASSET_FILES}
+)
+
+add_custom_target(CompileFonts
+        DEPENDS ${COMPILED_FONT_FILES}
+)
+
+add_dependencies(${SANDBOX_NAME}
+        SandboxShaders
+        CopyAssets
+        CompileFonts
+)

@@ -11,12 +11,12 @@
  */
 
 #pragma once
-#include "src/modules/engine/Resources/ResourceLoader.h"
+#include "src/modules/engine/Resources/IResourceLoader.h"
 
 /**
  * @brief Loads txt Files.
  */
-class TextLoader final : public ResourceLoader{
+class TextLoader final : public IResourceLoader{
 public:
     TextLoader();
 

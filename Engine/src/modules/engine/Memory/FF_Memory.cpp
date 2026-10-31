@@ -32,6 +32,8 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 15: return "RENDER_BACKEND_AUTO";
         case 16: return "GPU";
         case 17: return "STRING";
+        case 18: return "BITMAP_FONT";
+        case 19: return "SYSTEM_FONT";
         default: return " ";
     }
 }

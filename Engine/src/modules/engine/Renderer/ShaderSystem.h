@@ -51,6 +51,7 @@ struct ShaderSystemConfig {
 
 class ShaderSystem {
 private:
+    static ShaderSystem* instance;
     /**
      * @brief Config data
      */
@@ -174,14 +175,14 @@ public:
      * @param shaderId Id of the shader
      * @return Pointer to the shader
      */
-    Shader *getShader(unsigned int shaderId);
+    static Shader *getShader(unsigned int shaderId);
 
     /**
      * @brief Gets a shader
      * @param shaderName Name of the shader
      * @return Pointer to the shader
      */
-    Shader *getShader(const String &shaderName);
+    static Shader *getShader(const String &shaderName);
 
     /**
      * @brief Get the index of a uniform

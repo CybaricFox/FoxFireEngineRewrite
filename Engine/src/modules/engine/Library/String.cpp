@@ -158,10 +158,6 @@ unsigned int String::recursiveSplit(const char regex, String* strings) const {
 
     if (strings == nullptr) {
         strings = FF_Memory::ff_allocate_recursive<String>(STRING, substrings);
-
-        for (unsigned int i = 0; i < substrings; i++) {
-            std::construct_at(&strings[i]);
-        }
     }
 
     unsigned int stringCount = 0;
@@ -188,6 +184,61 @@ unsigned int String::recursiveSplit(const char regex, String* strings) const {
 
     Logger::logError("Recursive split reached the end of splitting without returning properly. " + *this + " -> is likely corrupt.");
     return 0;
+}
+
+bool String::getCodepoint(const ULong index, int &outCodepoint, unsigned char &outAdvance) const {
+    unsigned char limit = 1;
+
+    if (index >= byteCount) {
+        Logger::logError("String::getCodepoint: index out of bounds.");
+        return false;
+    }
+
+    //Make sure index does not leave the string
+    while (limit < 4) { //We only support 4 bytes so limit cannot be greater than 4.
+        if (index + limit == byteCount) {
+            break;
+        }
+        limit++;
+    }
+
+    int codepoint = string[index];
+
+    if (codepoint >= 0 && codepoint < 0x7F) {
+        //ascii
+        outAdvance = 1;
+        outCodepoint = codepoint;
+        return true;
+    }
+    if ((codepoint & 0xE0) == 0xC0 && limit >= 2) {
+        //double byte
+        codepoint = ((string[index] & 0b00011111) << 6) +
+                    (string[index + 1] & 0b00111111);
+        outAdvance = 2;
+        outCodepoint = codepoint;
+        return true;
+    }
+    if ((codepoint & 0xF0) == 0xE0 && limit >= 3) {
+        //triple byte
+        codepoint = ((string[index] & 0b00011111) << 12) +
+                    ((string[index + 1] & 0b00111111) << 6) +
+                    (string[index + 2] & 0b00111111);
+        outAdvance = 3;
+        outCodepoint = codepoint;
+        return true;
+    }
+    if ((codepoint & 0xF8) == 0xF0 && limit >= 4) {
+        //quad byte
+        codepoint = ((string[index] & 0b00011111) << 18) +
+                    ((string[index + 1] & 0b00111111) << 12) +
+                        ((string[index + 2] & 0b00111111) << 6) +
+                            (string[index + 3] & 0b00111111);
+        outAdvance = 4;
+        outCodepoint = codepoint;
+        return true;
+    }
+
+    return false;
 }
 
 void String::setString(const char *newString, const ULong bytes) {
@@ -271,6 +322,39 @@ char String::getAt(const ULong index) const {
     }
 
     return string[index];
+}
+
+unsigned int String::getSizeInUTF8() const {
+    unsigned int size = 0;
+
+    for (ULong i = 0; i < INVALID_ID_U64; ++i) {
+        size++;
+        const int c = string[i];
+
+        if (c == 0) break;
+
+        //This is ascii
+        if (c >= 0 && c < 127) {
+            i += 0;
+        }
+        //This is a double byte
+        else if ((c & 0xE0) == 0xC0) {
+            i += 1;
+        }
+        //This is a triple byte
+        else if ((c & 0xF0) == 0xE0) {
+            i += 2;
+        }
+        //This is a quad byte
+        else if ((c & 0xF8) == 0xF0) {
+            i += 3;
+        } else {
+            //5 and 6 byte is currently not supported. Return invalid.
+            return 0;
+        }
+    }
+
+    return size;
 }
 
 void String::setAt(const ULong index, const char value) const {

@@ -33,7 +33,7 @@ bool ShaderLoader::load(const String name, Resource &outResource, const String b
     resourceData->stageFileNames.initialize();
 
     String line{};
-    unsigned long bytesRead = 0;
+    ULong bytesRead = 0;
     unsigned int lineNumber = 0;
 
     while (file.readLine(line, 511, bytesRead)) {
@@ -240,5 +240,5 @@ void ShaderLoader::unload(Resource &resource) {
     data->uniforms.shutdown();
 
     std::destroy_at(data);
-    ResourceLoader::unload(resource);
+    IResourceLoader::unload(resource);
 }

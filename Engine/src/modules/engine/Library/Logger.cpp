@@ -14,7 +14,7 @@ FileHandler* Logger::logFile = nullptr;
 
 void Logger::appendLog(const String &message) {
     const unsigned long length = message.getSizeInBytes();
-    unsigned long written = 0;
+    ULong written = 0;
     if (!logFile) return;
     if (!logFile->write(length, message.getAsCharString(), written)) {
         logError("Failed to write log to file!");

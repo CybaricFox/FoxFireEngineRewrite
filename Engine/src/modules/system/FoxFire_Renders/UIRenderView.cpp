@@ -4,6 +4,8 @@
 
 #include "UIRenderView.h"
 
+#include <algorithm>
+
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
 #include "src/modules/engine/ECS/Engine_Components/Transform.h"
@@ -13,6 +15,10 @@
 bool UIRenderView::initialize(ShaderSystem* shaderSystem, const unsigned long newSize) {
     IRenderView::initialize(shaderSystem, newSize);
     shaderId = shaderSystemRef->getId(!customShaderName.isEmpty() ? customShaderName : "Fox_Fire_UI_Shader");
+    shader = ShaderSystem::getShader(shaderId);
+    diffuseMapLocation = shaderSystemRef->getUniformIndex(*shader, "diffuse_texture");
+    diffuseColorLocation = shaderSystemRef->getUniformIndex(*shader, "diffuse_color");
+    modelLocation = shaderSystemRef->getUniformIndex(*shader, "model");
     nearClip = -100;
     farClip = 100;
     projectionMatrix = orthographic(0, 1280, 720, 0, nearClip, farClip);
@@ -41,17 +47,18 @@ bool UIRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
         Logger::logWarn("UI packet data is null! It cannot be built!");
         return false;
     }
-    const MeshPacketData& meshData = *static_cast<MeshPacketData *>(data);
+    const UIPacketData& packetData = *static_cast<UIPacketData *>(data);
 
     outPacket.geometries.initialize();
     outPacket.renderView = this;
     outPacket.projectionMatrix = projectionMatrix;
     outPacket.viewMatrix = viewMatrix;
+    outPacket.data = data;
 
-    for (unsigned int i = 0; i < meshData.meshCount; i++) {
-        Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(meshData.meshes[i]);
+    for (unsigned int i = 0; i < packetData.meshData.meshCount; i++) {
+        Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(packetData.meshData.meshes[i]);
         for (unsigned int j = 0; j < mesh.geometryCount; j++) {
-            Transform& transform = *EntityComponentSystem::getComponent<Transform>(meshData.meshes[i]);
+            Transform& transform = *EntityComponentSystem::getComponent<Transform>(packetData.meshData.meshes[i]);
             GeometryRenderData& renderData = *outPacket.geometries.emplace();
             renderData.geometry = mesh.geometries[j];
             renderData.model = TransformUtils::getWorldPos(transform);
@@ -100,11 +107,42 @@ bool UIRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumber
 
             //In this case, the default material has the default texture.
             backendRef->drawGeometry(outPacket.geometries[i], materialSystemRef->getDefaultMaterial());
+        }
 
-            if (!backendRef->endRenderpass(*renderpass)) {
-                Logger::logError("Failed to end ui render pass.");
+        //Draw UI Text
+        const UIPacketData& packetData = *static_cast<UIPacketData *>(outPacket.data);
+        for (unsigned int i = 0; i < packetData.textCount; i++) {
+            UIText& text = *packetData.texts[i];
+            shaderSystemRef->bindInstance(text.getInstanceId());
+
+            if (!shaderSystemRef->setUniform(diffuseMapLocation, &text.getTextureAtlas())) {
+                Logger::logError("Failed to set uniform for bitmap font diffuse map.");
                 return false;
             }
+
+            //Font color
+            static Vector4f white{1, 1, 1, 1};
+            if (!shaderSystemRef->setUniform(diffuseColorLocation, &white)) {
+                Logger::logError("Failed to set uniform for bitmap font diffuse color.");
+                return false;
+            }
+
+            const bool needsUpdate = text.getFrameNumber() != frameNumber;
+            shaderSystemRef->applyInstance(needsUpdate);
+            text.setFrameNumber(frameNumber);
+
+            //Apply locals
+            Mat4 model = TransformUtils::getWorldPos(text.getTransform());
+            if (!shaderSystemRef->setUniform(modelLocation, &model)) {
+                Logger::logError("Failed to set uniform for bitmap font model.");
+            }
+
+            text.draw();
+        }
+
+        if (!backendRef->endRenderpass(*renderpass)) {
+            Logger::logError("Failed to end ui render pass.");
+            return false;
         }
     }
 

@@ -5,6 +5,7 @@
 #include "ResourceSystem.h"
 
 #include "EngineLoaders/BinaryLoader.h"
+#include "EngineLoaders/BitmapFontLoader.h"
 #include "EngineLoaders/ImageLoader.h"
 #include "EngineLoaders/MaterialLoader.h"
 #include "EngineLoaders/MeshLoader.h"
@@ -23,22 +24,23 @@ bool ResourceSystem::initialize(const String &path, const unsigned int initialCa
     registerLoader(FF_Memory::ff_allocate<TextLoader>( RESOURCE));
     registerLoader(FF_Memory::ff_allocate<ShaderLoader>(RESOURCE));
     registerLoader(FF_Memory::ff_allocate<MeshLoader>(RESOURCE));
+    registerLoader(FF_Memory::ff_allocate<BitmapFontLoader>(RESOURCE));
 
     Logger::logInfo("Resource system initialized with path: " + assetsPath);
     return true;
 }
 
 void ResourceSystem::shutdown() {
-    for (ResourceLoader* loader : loaders) {
-        FF_Memory::ff_free<ResourceLoader>(loader, RESOURCE, loader->getMemorySize());
+    for (IResourceLoader* loader : loaders) {
+        FF_Memory::ff_free<IResourceLoader>(loader, RESOURCE, loader->getMemorySize());
     }
     loaders.shutdown();
 
     assetsPath.destroy();
 }
 
-bool ResourceSystem::registerLoader(ResourceLoader* loader) {
-    for (const ResourceLoader* l : loaders) {
+bool ResourceSystem::registerLoader(IResourceLoader* loader) {
+    for (const IResourceLoader* l : loaders) {
         if (l->getType() == loader->getType()) {
             Logger::logError("Tried to register a resource loader but an identical resource loader already exists! Type id: " + toString(loader->getType()));
             return false;
@@ -62,7 +64,7 @@ bool ResourceSystem::load(const String &name, const ResourceType type, Resource 
         return false;
     }
 
-    for (ResourceLoader* loader : loaders) {
+    for (IResourceLoader* loader : loaders) {
         if (loader->getId() != INVALID_ID_U32 && loader->getType() == type) {
             outResource.loaderId = loader->getId();
             return loader->load(name, outResource, assetsPath, params);
@@ -80,7 +82,7 @@ bool ResourceSystem::loadCustom(const String &name, const String &type, Resource
         return false;
     }
 
-    for (ResourceLoader* loader : loaders) {
+    for (IResourceLoader* loader : loaders) {
         if (loader->getId() != INVALID_ID_U32 && loader->getType() == RESOURCE_TYPE_CUSTOM && name.equalsIgnoreCase(loader->getCustomType())) {
             outResource.loaderId = loader->getId();
             return loader->load(name, outResource, assetsPath, params);
@@ -94,7 +96,7 @@ bool ResourceSystem::loadCustom(const String &name, const String &type, Resource
 void ResourceSystem::unload(Resource &resource) {
     if (resource.loaderId == INVALID_ID_U32) return;
 
-    ResourceLoader& loader = *loaders[resource.loaderId];
+    IResourceLoader& loader = *loaders[resource.loaderId];
     if (loader.getId() == INVALID_ID_U32) return;
 
     loader.unload(resource);

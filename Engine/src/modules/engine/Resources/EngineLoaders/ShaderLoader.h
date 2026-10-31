@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "src/modules/engine/Resources/ResourceLoader.h"
+#include "src/modules/engine/Resources/IResourceLoader.h"
 
 /**
  *  @file ShaderLoader.h
@@ -17,7 +17,7 @@
  *  @copyright (c) 2026
  */
 
-class ShaderLoader : public ResourceLoader{
+class ShaderLoader : public IResourceLoader{
 public:
     ShaderLoader();
 

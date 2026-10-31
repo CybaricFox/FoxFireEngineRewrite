@@ -31,7 +31,7 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
     resourceData->name = name;
 
     String line{};
-    unsigned long bytesRead = 0;
+    ULong bytesRead = 0;
     unsigned int lineNumber = 0;
     while (file.readLine(line, 511, bytesRead)) {
         lineNumber++;

@@ -111,5 +111,5 @@ void ImageLoader::unload(Resource &resource) {
         stbi_image_free(resourceData->pixels);
     }
 
-    ResourceLoader::unload(resource);
+    IResourceLoader::unload(resource);
 }

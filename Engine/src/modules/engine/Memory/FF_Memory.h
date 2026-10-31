@@ -23,23 +23,25 @@
  */
 enum MemoryTag {
     UNKNOWN,
-    GAME,
-    RENDER,
-    ARRAY,
-    LINEAR_ALLOCATOR,
-    DYNAMIC_ARRAY,
-    RESOURCE,
-    TEXTURE,
-    HASHMAP,
-    REUSABLE_ARRAY,
-    MATERIAL,
-    ECS,
-    RING_QUEUE,
-    JOB,
-    RENDER_BACKEND_MANUAL,
-    RENDER_BACKEND_AUTO,
-    GPU,
-    STRING,
+    GAME, //Allocations tied to Engine and Game
+    RENDER, //Allocations tied to rendering and render systems.
+    ARRAY, //Allocations tied to basic arrays such as char arrays.
+    LINEAR_ALLOCATOR, //Allocations tied to Linear Allocators.
+    DYNAMIC_ARRAY, //Allocations tied to Dynamic Arrays.
+    RESOURCE, //Allocations tied to the resource system.
+    TEXTURE, //Allocations tied to textures and texture maps.
+    HASHMAP, //Allocations tied to Hashmaps.
+    REUSABLE_ARRAY, //Allocations tied to resusable arrays.
+    MATERIAL, //Allocations tied to materials.
+    ECS, //Allocations tied to components and the ECS System.
+    RING_QUEUE, //Allocations tied to Ring Queues.
+    JOB, //Allocations tied to Job Threads and the Multithreading System.
+    RENDER_BACKEND_MANUAL, //Allocations tied to the render backend created by the user.
+    RENDER_BACKEND_AUTO, //Allocations created by the render backend without user input.
+    GPU, //Allocations created by the render backend that are tied to GPU memory.
+    STRING, //Allocations tied to Strings.
+    BITMAP_FONT,
+    SYSTEM_FONT,
     MAX_TAGS
 };
 
@@ -192,6 +194,11 @@ public:
      */
     template<typename T>
     static T* ff_allocate_recursive(const MemoryTag tag, const unsigned int count) {
+        if (count == 0) {
+            Logger::logError("Recursive allocation count cannot be 0!");
+            return nullptr;
+        }
+
         //Allocate the memory block
         void* destination = ff_allocate_raw(sizeof(T) * count, tag, alignof(T));
         if (!destination) return nullptr;

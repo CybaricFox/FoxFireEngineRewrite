@@ -26,8 +26,6 @@ private:
     char* string = nullptr;
     ULong byteCount = 0;
 
-    bool tempCheck = false;
-
     /**
      * @brief Allocates the string with the size but does not set any values yet.
      * @param newSize The size must NOT include \0.
@@ -35,13 +33,12 @@ private:
     void reserve(ULong newSize);
 
 public:
-    String() {tempCheck = true;}
+    String() = default;
     ~String() {destroy();}
-    explicit String(const ULong newSize) {tempCheck = true; reserve(newSize);}
-    String(const char* newString, const ULong newSize) {tempCheck = true; setString(newString, newSize);}
+    explicit String(const ULong newSize) {reserve(newSize);}
+    String(const char* newString, const ULong newSize) {setString(newString, newSize);}
 
     String(const char* newString) {
-        tempCheck = true;
         if (!newString) {
             return;
         }
@@ -51,13 +48,11 @@ public:
 
     template<ULong S>
     String(const char (&newString)[S]) {
-        tempCheck = true;
         setString(newString, S - 1);
     }
 
     //copy constructor
     String(const String& other) {
-        tempCheck = true;
         if (other.string) {
             setString(other.string, other.byteCount);
         }
@@ -81,7 +76,6 @@ public:
     String(String&& other) noexcept
      : string(other.string),
        byteCount(other.byteCount) {
-        tempCheck = true;
         other.string = nullptr;
         other.byteCount = 0;
     }
@@ -142,6 +136,7 @@ public:
     [[nodiscard]] ULong getSizeInBytes() const {return byteCount;}
     [[nodiscard]] const char* getAsCharString() const {return string;}
     [[nodiscard]] char getAt(ULong index) const;
+    [[nodiscard]] unsigned int getSizeInUTF8() const;
 
     /**
      * @brief Sets the internal string and byte count.
@@ -198,6 +193,15 @@ public:
      * @return Number of strings created.
      */
     unsigned int recursiveSplit(char regex, String *strings) const;
+
+    /**
+     * @brief Gets the bytes at a location and converts them to UTF8
+     * @param index starting index of the bytes
+     * @param outCodepoint OUT UTF8 codepoint.
+     * @param outAdvance OUT number of bytes the codepoint uses.
+     * @return False if the bytes are invalid or not UTF8.
+     */
+    bool getCodepoint(ULong index, int &outCodepoint, unsigned char &outAdvance) const;
 
     //For loops
     char* begin() {

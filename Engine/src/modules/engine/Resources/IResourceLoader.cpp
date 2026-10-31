@@ -2,10 +2,10 @@
 // Created by cmorg on 8/3/2026.
 //
 
-#include "ResourceLoader.h"
+#include "IResourceLoader.h"
 
 
-void ResourceLoader::unload(Resource &resource) {
+void IResourceLoader::unload(Resource &resource) {
     if (resource.data) {
         FF_Memory::ff_free_raw(resource.data, resource.dataSize, memoryTag);
         resource.data = nullptr;

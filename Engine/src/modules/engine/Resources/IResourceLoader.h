@@ -18,7 +18,7 @@
 /**
  * @brief Abstract Class used to load various resources.
  */
-class ResourceLoader {
+class IResourceLoader {
 protected:
     /** @brief the id of the loader */
     unsigned int id = INVALID_ID_U32;
@@ -34,7 +34,7 @@ protected:
     unsigned long memorySize = 0;
 
 public:
-    virtual ~ResourceLoader() = default;
+    virtual ~IResourceLoader() = default;
 
     [[nodiscard]] ResourceType getType() const {return type;}
     [[nodiscard]] String getCustomType() const {return customType;}

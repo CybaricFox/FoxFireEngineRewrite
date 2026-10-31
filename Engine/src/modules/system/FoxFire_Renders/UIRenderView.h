@@ -23,10 +23,14 @@
 class UIRenderView final : public IRenderView{
 private:
     unsigned int shaderId = INVALID_ID_U32;
+    Shader* shader = nullptr;
     float nearClip = 0;
     float farClip = 0;
     Mat4 projectionMatrix{};
     Mat4 viewMatrix{};
+    unsigned short diffuseMapLocation = INVALID_ID_U16;
+    unsigned short diffuseColorLocation = INVALID_ID_U16;
+    unsigned short modelLocation = INVALID_ID_U16;
 
 public:
     bool initialize(ShaderSystem *shaderSystem, unsigned long newSize) override;

@@ -11,7 +11,7 @@
  */
 
 #pragma once
-#include "ResourceLoader.h"
+#include "IResourceLoader.h"
 #include "src/defines.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 
@@ -23,9 +23,9 @@ private:
     /** @brief The relative path to the Assets folder */
     String assetsPath;
     /** @brief An array of loaders */
-    DynamicArray<ResourceLoader*> loaders{};
+    DynamicArray<IResourceLoader*> loaders{};
 
-    bool registerLoader(ResourceLoader *loader);
+    bool registerLoader(IResourceLoader *loader);
 
 public:
     bool initialize(const String &path, unsigned int initialCapacity);

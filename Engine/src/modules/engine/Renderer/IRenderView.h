@@ -9,6 +9,7 @@
 #include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 #include "src/modules/engine/Renderer/ShaderSystem.h"
+#include "src/modules/engine/UserInterface/UIText.h"
 
 /**
  *  @file IRenderView.h
@@ -70,6 +71,12 @@ struct RenderViewConfig {
 struct MeshPacketData {
     unsigned int meshCount = 0;
     unsigned int* meshes = nullptr;
+};
+
+struct UIPacketData {
+    MeshPacketData meshData{};
+    unsigned int textCount = 0;
+    UIText** texts = nullptr;
 };
 
 struct SkyboxPacketData {

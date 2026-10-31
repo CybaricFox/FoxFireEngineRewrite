@@ -119,7 +119,7 @@ bool MeshLoader::importGLTF(FileHandler &file, String& fileName, DynamicArray<Ge
 
         buffer.data = static_cast<unsigned char *>(FF_Memory::ff_allocate_raw(buffer.byteSize, RESOURCE));
 
-        unsigned long bytesRead = 0;
+        ULong bytesRead = 0;
         if (!binFile.read(buffer.byteSize, buffer.data, bytesRead)) {
             Logger::logError("Failed to read glTF buffer: " + buffer.fileRef);
             FF_Memory::ff_free_raw(buffer.data, buffer.byteSize, RESOURCE);
@@ -447,7 +447,7 @@ bool MeshLoader::createGLTFMaterials(FileHandler &file, JsonHandler& json, Dynam
 
 bool MeshLoader::loadFoxMesh(FileHandler &file, DynamicArray<GeometryConfig> &outConfigs) {
     //Version
-    unsigned long inBytes = 0;
+    ULong inBytes = 0;
     unsigned short versionA = 0;
     unsigned short versionB = 0;
     unsigned short versionC = 0;
@@ -520,7 +520,7 @@ bool MeshLoader::writeFoxMesh(const String &path, const String &name, const unsi
         return false;
     }
 
-    unsigned long outBytes = 0;
+    ULong outBytes = 0;
 
     //Version
     constexpr unsigned short versionA = 0x0001U;

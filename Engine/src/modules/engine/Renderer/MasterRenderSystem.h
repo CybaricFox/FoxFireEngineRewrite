@@ -21,6 +21,7 @@
 #include "src/defines.h"
 #include "src/modules/engine/Core/Platform.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
+#include "FontSystem.h"
 
 enum RenderViewMode {
     RENDER_VIEW_DEFAULT,
@@ -33,6 +34,7 @@ enum RenderViewMode {
  */
 class FOXFIRE_API MasterRenderSystem {
 private:
+    static MasterRenderSystem* instance;
     /** @brief pointer to the backend in use */
     IRendererBackend* backend = nullptr;
 
@@ -52,6 +54,8 @@ private:
 
     RenderViewSystem renderViewSystem{};
 
+    FontSystem fontSystem{};
+
     Skybox skybox{};
 
     unsigned char renderTargetCount = 0;
@@ -66,10 +70,6 @@ private:
     Texture createBlankTexture();
     void regenerateRenderTargets() const;
 
-    bool createRenderBuffer(RenderBufferType type, ULong size, bool useFreeList, RenderBuffer& outBuffer) const;
-    void destroyRenderBuffer(RenderBuffer& buffer) const;
-    bool resizeRenderBuffer(RenderBuffer& buffer, ULong newSize) const;
-
 public:
     bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, ResourceSystem &resources);
     bool initializeTextureSystem(unsigned int initialCapacity, ITextureSystem *system, ResourceSystem *resourceSystem);
@@ -79,6 +79,7 @@ public:
     bool initializeCameraSystem(const CameraSystemConfig &config, EntityComponentSystem *ecsRef);
     bool initializeRenderViewSystem(const RenderViewSystemConfig &config);
     bool initializeSkybox();
+    bool initializeFontSystem(const FontSystemConfig &config, ResourceSystem *resourceSystemRef);
     void shutdown();
     MasterRenderSystem() = default;
 
@@ -103,6 +104,14 @@ public:
     bool buildPacket(IRenderView *renderView, void *meshData, RenderViewPacket &packet);
     void buildSkybox(const RenderPacket &packet);
     void cleanupSkybox(const RenderPacket& packet);
+    static bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, TextureMap **maps);
+    static bool createRenderBuffer(RenderBufferType type, ULong size, bool useFreeList, RenderBuffer& outBuffer);
+    static bool bindRenderBuffer(RenderBuffer &buffer, ULong offset);
+    static void destroyRenderBuffer(RenderBuffer& buffer);
+    static bool releaseInstanceResources(const Shader &shader, unsigned int instanceId);
+    static bool drawRenderBuffer(RenderBuffer &buffer, ULong offset, unsigned int elementCount, bool bindOnly);
+    static bool resizeRenderBuffer(RenderBuffer& buffer, ULong newSize);
+    static bool loadRenderBufferRange(RenderBuffer &buffer, ULong offset, ULong size, const void *data);
 
     [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
         float xTile, float yTile, const String &name, const String &materialName) const;

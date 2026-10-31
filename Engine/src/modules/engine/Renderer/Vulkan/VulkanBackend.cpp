@@ -876,6 +876,8 @@ bool VulkanBackend::createBuffer(RenderBuffer &buffer) {
 }
 
 void VulkanBackend::destroyBuffer(RenderBuffer &buffer) {
+    vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
+
     const auto internalBuffer = reinterpret_cast<VulkanBuffer *>(buffer.getInternalBuffer());
     if (!internalBuffer) return;
 

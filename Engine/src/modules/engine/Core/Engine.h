@@ -18,8 +18,6 @@
 #include "foxfire_export.h"
 #include "../Input/IInputSystem.h"
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
-#include "src/modules/engine/ECS/Engine_Components/Mesh.h"
-#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Threads/JobSystem.h"
@@ -65,6 +63,8 @@ private:
     unsigned short height = 0;
     /** @brief The amount of time the previous frame took */
     double lastTime = 0;
+
+    UIText testText{};
 
     /**
      * @brief Initializes FF_Memory and the Linear Allocator

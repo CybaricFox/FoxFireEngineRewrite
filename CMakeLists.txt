@@ -6,5 +6,7 @@ set(CMAKE_CXX_STANDARD 26)
 
 set(FOXFIRE_OUTPUT_DIR ${CMAKE_BINARY_DIR}/Instance)
 
+add_subdirectory(Tools)
+
 add_subdirectory(Engine)
 add_subdirectory(Sandbox)

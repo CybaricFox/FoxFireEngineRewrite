@@ -15,6 +15,8 @@
 #include "src/defines.h"
 #include "src/modules/engine/Library/FF_Math.h"
 
+#define FOXFIRE_BINARY_ID 0xf06ef06e
+
 enum ResourceType {
     RESOURCE_TYPE_TEXT,
     RESOURCE_TYPE_BINARY,
@@ -22,6 +24,7 @@ enum ResourceType {
     RESOURCE_TYPE_MATERIAL,
     RESOURCE_TYPE_MESH,
     RESOURCE_TYPE_SHADER,
+    RESOURCE_TYPE_BITMAP_FONT,
     RESOURCE_TYPE_CUSTOM
 };
 
@@ -58,4 +61,12 @@ struct GeometryData {
     unsigned int indexCount = 0;
     ULong indexBufferOffset = 0;
     unsigned int indexElementSize = 0;
+};
+
+struct BinaryHeader {
+    //Indicates the binary file is a foxfire binary
+    unsigned int id = FOXFIRE_BINARY_ID;
+    //The type of resource
+    unsigned char type = 0;
+    unsigned char version = 0;
 };

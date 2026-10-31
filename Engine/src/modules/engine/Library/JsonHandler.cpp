@@ -11,7 +11,7 @@
 
 bool JsonHandler::parse(JsonHeader* header, JsonObject& object) {
     String line{};
-    unsigned long outBytes = 0;
+    ULong outBytes = 0;
 
     file.readLine(line, 511, outBytes);
     if (outBytes == 0) return false;
