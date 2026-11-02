@@ -47,11 +47,11 @@ private:
     /**
      * @brief Asset map of entities.
      */
-    AssetMap<Entity, AssetContext> templates{};
+    AssetMap<Entity> templates{};
     /**
      * @brief Asset map of instances.
      */
-    static AssetMap<EntityManager, AssetContext>* instances;
+    static AssetMap<EntityManager>* instances;
     /**
      * @brief Array of entity/instance associations. Sorted by id.
      */

@@ -8,7 +8,7 @@
 #include "Engine_Components/Mesh.h"
 #include "Engine_Components/Transform.h"
 
-AssetMap<EntityManager, AssetContext>* EntityComponentSystem::instances = nullptr;
+AssetMap<EntityManager>* EntityComponentSystem::instances = nullptr;
 DynamicArray<EntityContext>* EntityComponentSystem::entities = nullptr;
 
 String EntityComponentSystem::getEntityName(const unsigned int id) {
@@ -38,11 +38,7 @@ String EntityComponentSystem::getEntityName(const unsigned int id) {
 }
 
 Entity *EntityComponentSystem::createEntityType(const String &name) {
-    AssetContext context{};
-    Entity* entity = templates.createAsset(name, context);
-    context.bAutoRelease = false;
-
-    return entity;
+    return templates.createAsset(name, false);
 }
 
 void EntityComponentSystem::initialize() {
@@ -65,7 +61,7 @@ void EntityComponentSystem::initialize() {
     const auto meshUI = FF_Memory::ff_allocate<Mesh>(ECS);
     basicUI->components.push(meshUI);
 
-    instances = FF_Memory::ff_allocate<AssetMap<EntityManager, AssetContext>>(ECS);
+    instances = FF_Memory::ff_allocate<AssetMap<EntityManager>>(ECS);
     instances->initialize(1024);
 }
 
@@ -81,7 +77,7 @@ void EntityComponentSystem::shutdown() {
     }
     templates.shutdown();
     instances->shutdown();
-    FF_Memory::ff_free<AssetMap<EntityManager, AssetContext>>(instances, ECS);
+    FF_Memory::ff_free<AssetMap<EntityManager>>(instances, ECS);
 }
 
 unsigned int EntityComponentSystem::getEntityCount(const String &name) {
@@ -108,9 +104,7 @@ unsigned int EntityComponentSystem::createEntity(const String &name) {
     EntityManager* manager = instances->getAsset(name);
 
     if (manager == nullptr) {
-        AssetContext context{};
-        context.bAutoRelease = false;
-        manager = instances->createAsset(name, context);
+        manager = instances->createAsset(name, false);
     }
 
     const unsigned int id = getNewId();

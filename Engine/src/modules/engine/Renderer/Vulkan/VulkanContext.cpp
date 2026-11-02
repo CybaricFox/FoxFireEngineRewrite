@@ -64,15 +64,14 @@ void VulkanContext::clearImagesInFlight() {
 }
 
 Renderpass* VulkanContext::addRenderpass(const RenderpassConfig& config) {
-    if (renderpasses.getContext(config.name).index != INVALID_ID_U32) {
+    if (renderpasses.exists(config.name)) {
         Logger::logError("A renderpass with the name: " + config.name + " already exists!");
         return nullptr;
     }
 
-    AssetContext context{};
-    Renderpass& renderpass = *renderpasses.createAsset(config.name, context);
+    Renderpass& renderpass = *renderpasses.createAsset(config.name, false);
 
-    renderpass.setId(context.index);
+    renderpass.setId(renderpasses.getAssetIndex(config.name));
     renderpass.setClearFlags(config.clearFlags);
     renderpass.setClearColor(config.clearColor);
     renderpass.setRenderArea(config.renderArea);

@@ -31,8 +31,8 @@ bool Shader::initializeShader(const ShaderConfig &config, const unsigned int new
     return true;
 }
 
-ShaderUniform * Shader::createUniform(const String &uniformName, AssetContext& context) {
-    return uniforms.createAsset(uniformName, context);
+ShaderUniform * Shader::createUniform(const String &uniformName, const bool autoRelease) {
+    return uniforms.createAsset(uniformName, autoRelease);
 }
 
 void Shader::setPushConstantRange(const MemoryRange range) {
@@ -42,7 +42,7 @@ void Shader::setPushConstantRange(const MemoryRange range) {
 }
 
 bool Shader::isUniformNameValid(const String &uniformName) {
-    return uniforms.getContext(uniformName).index == INVALID_ID_U32;
+    return uniforms.getAssetIndex(uniformName) == INVALID_ID_U32;
 }
 
 void Shader::clearName() const {

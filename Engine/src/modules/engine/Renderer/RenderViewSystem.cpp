@@ -19,17 +19,15 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
         return false;
     }
 
-    const AssetContext context = assets.getContext(config.name);
-    if (context.index != INVALID_ID_U32) {
+    if (assets.exists(config.name)) {
         Logger::logError("Attempted to create render view " + config.name + " but it already exists.");
         return false;
     }
 
-    AssetContext newContext{};
-    IRenderView** viewPtr = assets.createAsset(config.name, newContext);
+    IRenderView** viewPtr = assets.createAsset(config.name, false);
     IRenderView* view = nullptr;
 
-    if (newContext.index == INVALID_ID_U32) {
+    if (!assets.exists(config.name)) {
         Logger::logError("Failed to create render view " + config.name + ".");
         return false;
     }
@@ -54,7 +52,7 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
     }
     *viewPtr = view;
 
-    view->setId(newContext.index);
+    view->setId(assets.getAssetIndex(config.name));
     view->setType(config.type);
     view->setName(config.name);
     view->setCustomShader(config.customShaderName);

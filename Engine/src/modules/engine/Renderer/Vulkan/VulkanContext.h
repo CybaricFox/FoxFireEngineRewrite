@@ -42,7 +42,7 @@ private:
     RenderBuffer indexBuffer{};
     float deltaTime = 0.0f;
     ReusableArray<GeometryData> geometries{};
-    AssetMap<Renderpass, AssetContext> renderpasses{};
+    AssetMap<Renderpass> renderpasses{};
     RenderTarget worldRenderTargets[3]{};
     bool bIsMultithreaded = false;
 

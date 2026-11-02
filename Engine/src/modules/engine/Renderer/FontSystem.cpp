@@ -19,7 +19,7 @@ struct SystemFontData {
 
 FontSystem* FontSystem::instance = nullptr;
 
-static AssetMap<SystemFontData, AssetContext> systemFonts{};
+static AssetMap<SystemFontData> systemFonts{};
 
 bool FontSystem::loadSystemFont(const SystemFontConfig &newConfig) {
     Resource loadedResource{};
@@ -44,13 +44,12 @@ bool FontSystem::loadSystemFont(const SystemFontConfig &newConfig) {
             return false;
         }
 
-        AssetContext context{};
-        SystemFontData& fontData = *systemFonts.createAsset(font.name, context);
+        SystemFontData& fontData = *systemFonts.createAsset(font.name, false);
 
         fontData.binarySize = resourceData.binarySize[i];
         fontData.binary = resourceData.binaries[i];
         fontData.name = font.name;
-        fontData.index = context.index;
+        fontData.index = static_cast<int>(systemFonts.getAssetIndex(font.name));
         fontData.sizeVariants.initialize();
 
         fontData.offset = 0;//stbtt_GetFontOffsetForIndex(static_cast<const unsigned char *>(fontData.binary), i);
@@ -104,8 +103,7 @@ bool FontSystem::loadBitmapFont(const BitmapFontConfig &newConfig) {
         return false;
     }
 
-    AssetContext context{};
-    BitmapFontData& data = *bitmapFonts.createAsset(newConfig.name, context);
+    BitmapFontData& data = *bitmapFonts.createAsset(newConfig.name, false);
 
     if (!resourceRef->load(newConfig.resourceName, RESOURCE_TYPE_BITMAP_FONT, data.loadedResource, nullptr)) {
         Logger::logError("Failed to load font " + newConfig.name + ".");

@@ -28,7 +28,7 @@ private:
     Texture defaultDiffuseTexture{};
     Texture defaultSpecularTexture{};
     Texture defaultNormalTexture{};
-    AssetMap<Texture, AssetContext> assets{};
+    AssetMap<Texture> assets{};
     static FoxFire_TextureSystem* instance;
 
     Texture& getDefaultByCase(TextureUseCase useCase);

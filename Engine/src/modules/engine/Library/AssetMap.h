@@ -20,24 +20,22 @@
 /**
  * @brief Maps asssets to asset contexts
  * @tparam V The Asset Type
- * @tparam C The Context Type. Must be an AssetContext or a derivative.
  */
-template<typename V, typename C>
-requires std::derived_from<C, AssetContext>
+template<typename V>
 class AssetMap {
 private:
     /** @brief Holds the assets */
     ReusableArray<V> data{};
 
     /** @brief Holds the contexts */
-    HashMap<String, C> map{};
+    HashMap<String, AssetContext> map{};
 
     /**
      * @brief Gets the context of an asset. This version can only be ran inside this class.
      * @param key Name of the asset
      * @return Context for that asset
      */
-    C* getContextInternal(const String &key) {
+    AssetContext* getContextInternal(const String &key) {
         if (!map.keyExists(key)) return nullptr;
         return map.getValue(key);
     }
@@ -72,16 +70,6 @@ public:
     }
 
     /**
-     * @brief Gets the context of an asset
-     * @param key Name of the asset
-     * @return Context for that asset
-     */
-    C getContext(const String &key) {
-        if (!map.keyExists(key)) return C{};
-        return *map.getValue(key);
-    }
-
-    /**
      * @brief Gets an asset. Increments reference count. Should be used externally.
      * @param key Name of the asset
      * @return Pointer to the asset.
@@ -98,15 +86,12 @@ public:
     /**
      * @brief Creates a new Asset, Context pair. Will reuse freed assets/contexts if available.
      * @param name Name of the asset.
-     * @param context OUT created context.
+     * @param autoRelease Whether the asset should auto release
      * @return Pointer to the new asset.
      */
-    V* createAsset(String name, C& context) {
-        ++context.referenceCount;
-
+    V* createAsset(const String &name, const bool autoRelease = true) {
         unsigned int index = data.assign();
-        context.index = index;
-        map.addEntry(name, context);
+        map.addEntry(name, {1, index, autoRelease});
         return data.get(index);
     }
 
@@ -117,7 +102,7 @@ public:
      * @param out OUT pointer to the asset.
      * @return True if the asset was cleaned. False if the asset has remaining references.
      */
-    bool releaseAsset(String name, V*& out) {
+    bool releaseAsset(const String &name, V*& out) {
         AssetContext* context = getContextInternal(name);
         if (!context || context->referenceCount == 0) return false;
 
@@ -187,5 +172,15 @@ public:
         AssetContext* context = getContextInternal(key);
         if (!context) return nullptr;
         return data.get(context->index);
+    }
+
+    unsigned int getAssetIndex(const String &key) {
+        const AssetContext* context = getContextInternal(key);
+        if (context == nullptr) return INVALID_ID_U32;
+        return context->index;
+    }
+
+    bool exists(const String& key) {
+        return getAsset(key) != nullptr;
     }
 };

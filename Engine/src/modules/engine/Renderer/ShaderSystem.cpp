@@ -39,7 +39,7 @@ void ShaderSystem::shutdown() {
 }
 
 unsigned int ShaderSystem::getId(const String &shaderName) {
-    const unsigned int shaderId = assets.getContext(shaderName).index;
+    const unsigned int shaderId = assets.getAssetIndex(shaderName);
 
     if (shaderId == INVALID_ID_U32) {
         Logger::logError("There is no registered shader named " + shaderName);
@@ -82,10 +82,9 @@ unsigned short ShaderSystem::getUniformIndex(Shader &shader, const String &unifo
 }
 
 bool ShaderSystem::createShader(ShaderConfig& shaderConfig) {
-    AssetContext context{};
-    Shader* shader = assets.createAsset(shaderConfig.name, context);
+    Shader* shader = assets.createAsset(shaderConfig.name, false);
 
-    if (!shader->initializeShader(shaderConfig, context.index)) return false;
+    if (!shader->initializeShader(shaderConfig, assets.getAssetIndex(shaderConfig.name))) return false;
 
     Renderpass* renderpass = backendRef->getRenderpass(shaderConfig.renderpassName);
     if (!renderpass) {
@@ -316,14 +315,13 @@ bool ShaderSystem::addUniform(Shader &shader, const String &uniformName, const u
         return false;
     }
 
-    AssetContext context{};
-    ShaderUniform* uniform = shader.createUniform(uniformName, context);
+    ShaderUniform* uniform = shader.createUniform(uniformName, false);
     if (uniform == nullptr) {
         Logger::logError("Failed to create shader uniform " + uniformName);
         return false;
     }
 
-    uniform->index = context.index;
+    uniform->index = shader.getUniformIndex(uniformName);
     uniform->scope = scope;
     uniform->type = type;
     const bool isGlobal = scope == SHADER_SCOPE_GLOBAL;

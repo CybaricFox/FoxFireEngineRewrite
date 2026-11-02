@@ -50,7 +50,7 @@ struct UIShaderUniformLocations {
 class FOXFIRE_API FoxFire_MaterialSystem final : public IMaterialSystem{
 private:
     Material defaultMaterial{};
-    AssetMap<Material, AssetContext> assets{};
+    AssetMap<Material> assets{};
     MaterialShaderUniformLocations materialLocations{};
     unsigned int materialShaderId = INVALID_ID_U32;
     UIShaderUniformLocations uiShaderLocations{};

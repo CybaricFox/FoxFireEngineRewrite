@@ -59,7 +59,7 @@ private:
     /**
      * @brief Asset map of shaders
      */
-    AssetMap<Shader, AssetContext> assets{};
+    AssetMap<Shader> assets{};
     /**
      * @brief Shader currently in use
      */

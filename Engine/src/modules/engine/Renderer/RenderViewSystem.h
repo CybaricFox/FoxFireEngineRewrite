@@ -24,7 +24,7 @@ struct RenderViewSystemConfig {
 
 class FOXFIRE_API RenderViewSystem {
 private:
-    AssetMap<IRenderView*, AssetContext> assets{};
+    AssetMap<IRenderView*> assets{};
     unsigned int maxViewCount = 0;
 
     IRendererBackend* backendRef = nullptr;

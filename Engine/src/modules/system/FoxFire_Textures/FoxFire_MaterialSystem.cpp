@@ -58,10 +58,7 @@ Material & FoxFire_MaterialSystem::acquireMaterial(const MaterialResourceData &c
         return *material;
     }
 
-    AssetContext context{};
-    context.bAutoRelease = config.bAutoRelease;
-
-    Material* material = assets.createAsset(config.name, context);
+    Material* material = assets.createAsset(config.name, config.bAutoRelease);
 
     if (material == nullptr) return defaultMaterial;
 
@@ -99,7 +96,7 @@ Material & FoxFire_MaterialSystem::acquireMaterial(const MaterialResourceData &c
         material->generation++;
     }
 
-    material->id = context.index;
+    material->id = assets.getAssetIndex(config.name);
     Logger::logDebug("Successfully created new material: " + config.name);
 
     return *material;

@@ -45,10 +45,7 @@ Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const bo
         return *texture;
     }
 
-    AssetContext context{};
-    context.bAutoRelease = autoRelease;
-
-    Texture* texture = assets.createAsset(fileName, context);
+    Texture* texture = assets.createAsset(fileName, autoRelease);
     texture->type = TEXTURE_2D;
 
     if (texture == nullptr) return getDefaultByCase(useCase);
@@ -60,7 +57,7 @@ Texture & FoxFire_TextureSystem::acquireTexture(const bool autoRelease, const bo
         }
     }
 
-    texture->id = context.index;
+    texture->id = assets.getAssetIndex(fileName);
     Logger::logDebug("Successfully created new texture: " + fileName);
 
     return *texture;
@@ -103,12 +100,9 @@ Texture & FoxFire_TextureSystem::acquireCubeTexture(String name, bool autoReleas
         return *texture;
     }
 
-    AssetContext context{};
-    context.bAutoRelease = autoRelease;
-
-    Texture* texture = assets.createAsset(name, context);
+    Texture* texture = assets.createAsset(name, autoRelease);
     texture->type = TEXTURE_CUBE;
-    texture->id = context.index;
+    texture->id = assets.getAssetIndex(name);
 
     String textureNames[6]{};
     textureNames[0] = name + "_r";

@@ -89,7 +89,7 @@ private:
     ShaderScope boundScope{};
     unsigned int boundInstanceId = INVALID_ID_U32;
     unsigned int boundOffset = 0;
-    AssetMap<ShaderUniform, AssetContext> uniforms{};
+    AssetMap<ShaderUniform> uniforms{};
     DynamicArray<ShaderAttribute> attributes{};
     ShaderState state{};
     unsigned char pushConstantRangeCount = 0;
@@ -117,7 +117,7 @@ public:
     [[nodiscard]] unsigned int getBoundOffset() const {return boundOffset;}
     [[nodiscard]] unsigned char getInstanceTextureCount() const {return instanceTextureCount;}
     [[nodiscard]] unsigned int getId() const {return id;}
-    unsigned int getUniformIndex(const String &uniformName){return uniforms.getContext(uniformName).index;}
+    unsigned int getUniformIndex(const String &uniformName){return uniforms.getAssetIndex(uniformName);}
     ShaderUniform& getUniform(const unsigned int index){return *uniforms.getAssetAtIndex(index);}
     [[nodiscard]] ShaderScope getBoundScope() const {return boundScope;}
     void increaseAttributeStride(const unsigned short stride) {attributeStride += stride;}
@@ -149,7 +149,7 @@ public:
     void setGlobalStride();
     void setInstanceStride();
     bool initializeShader(const ShaderConfig &config, unsigned int newId);
-    ShaderUniform* createUniform(const String &uniformName, AssetContext &context);
+    ShaderUniform* createUniform(const String &uniformName, bool autoRelease);
     void setPushConstantRange(MemoryRange range);
     bool isUniformNameValid(const String &uniformName);
     void clearName() const;

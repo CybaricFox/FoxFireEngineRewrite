@@ -66,7 +66,7 @@ private:
     IRendererBackend* backendRef = nullptr;
 
     FontSystemConfig config{};
-    AssetMap<BitmapFontData, AssetContext> bitmapFonts{};
+    AssetMap<BitmapFontData> bitmapFonts{};
 
     bool loadSystemFont(const SystemFontConfig& newConfig);
     bool loadBitmapFont(const BitmapFontConfig& newConfig);
