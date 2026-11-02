@@ -50,6 +50,13 @@ struct BitmapFontData {
     BitmapFontResourceData* resourceData = nullptr;
 };
 
+struct SystemFontVariantData {
+    DynamicArray<int> codepoints{};
+    float scale = 0;
+};
+
+struct SystemFontData;
+
 class FontSystem {
 private:
     static FontSystem* instance;
@@ -61,11 +68,13 @@ private:
     FontSystemConfig config{};
     AssetMap<BitmapFontData, AssetContext> bitmapFonts{};
 
-    bool loadSystemFont(SystemFontConfig& newConfig);
+    bool loadSystemFont(const SystemFontConfig& newConfig);
     bool loadBitmapFont(const BitmapFontConfig& newConfig);
-
     bool setupFontData(FontData& font) const;
     void cleanupFontData(FontData& font) const;
+    bool createSystemFontVariant(SystemFontData &font, unsigned short size, const String &fontName, FontData &outVariant);
+    bool rebuildSystemFontVariantAtlas(const SystemFontData& font, FontData& variant);
+    bool verifySystemFontVariantSize(const SystemFontData &font, FontData &variant, const String &text);
 
 public:
     bool initialize(const FontSystemConfig& newConfig, ResourceSystem* resourceSystemRef, ITextureSystem* textureSystemRef, IRendererBackend* backendSystemRef);
@@ -80,5 +89,5 @@ public:
      * @param text The string to check.
      * @return
      */
-    static bool verifyAtlas(const FontData& font, String text);
+    static bool verifyAtlas(FontData &font, const String &text);
 };

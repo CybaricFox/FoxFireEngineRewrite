@@ -17,6 +17,7 @@
 #pragma once
 #include "EngineTextureTypes.h"
 #include "src/modules/engine/Library/String.h"
+#include "src/modules/engine/Memory/DynamicArray.h"
 
 enum FontType {
     FONT_TYPE_BITMAP,
@@ -68,4 +69,31 @@ struct BitmapFontResourceData {
     FontData data{};
     unsigned int pageCount = 0;
     FontPage* pages = nullptr;
+};
+
+struct SystemFont {
+    String name{};
+};
+
+struct SystemFontResourceData {
+    DynamicArray<SystemFont> fonts{};
+    DynamicArray<ULong> binarySize{};
+    DynamicArray<void*> binaries{};
+
+    SystemFontResourceData& operator=(const SystemFontResourceData& other) {
+        if (this == &other) return *this;
+
+        binarySize.initialize(other.fonts.getLength());
+        binaries.initialize(other.fonts.getLength());
+        fonts.initialize(other.fonts.getLength());
+
+        for (unsigned int i = 0; i < other.fonts.getLength(); i++) {
+            fonts.push(other.fonts[i]);
+            fonts[i].name = other.fonts[i].name;
+            binarySize.push(other.binarySize[i]);
+            binaries.push(other.binaries[i]);
+        }
+
+        return *this;
+    }
 };

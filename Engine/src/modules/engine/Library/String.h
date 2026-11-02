@@ -132,7 +132,7 @@ public:
     String& operator+=(const String& other);
     bool operator==(const String& other) const;
 
-    [[nodiscard]] bool isEmpty() const {return string == nullptr;}
+    [[nodiscard]] bool isEmpty() const {return string == nullptr || byteCount == 0;}
     [[nodiscard]] ULong getSizeInBytes() const {return byteCount;}
     [[nodiscard]] const char* getAsCharString() const {return string;}
     [[nodiscard]] char getAt(ULong index) const;

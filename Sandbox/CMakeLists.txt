@@ -124,8 +124,7 @@ foreach(ASSET IN LISTS ASSET_FILES)
     string(TOLOWER "${EXTENSION}" EXTENSION)
 
     # Font source files are handled by the font compiler.
-    if(EXTENSION STREQUAL ".ttf" OR
-            EXTENSION STREQUAL ".foxfont")
+    if(EXTENSION STREQUAL ".foxfont" OR EXTENSION STREQUAL ".FoxFont")
         continue()
     endif()
 
@@ -172,6 +171,11 @@ file(GLOB FONT_CONFIG_FILES
         "${FONT_SOURCE_DIR}/*.foxfont"
 )
 
+file(GLOB_RECURSE FONT_TTF_FILES
+        CONFIGURE_DEPENDS
+        "${FONT_SOURCE_DIR}/*.ttf"
+)
+
 foreach(FONT_CONFIG IN LISTS FONT_CONFIG_FILES)
 
     # OpenSans.FoxFont -> OpenSans
@@ -186,9 +190,20 @@ foreach(FONT_CONFIG IN LISTS FONT_CONFIG_FILES)
     )
 
     if(NOT EXISTS "${FONT_TTF}")
-        message(FATAL_ERROR
-                "Font '${FONT_NAME}' has a .FoxFont file but no matching .ttf file."
-        )
+        foreach(TTF IN LISTS FONT_TTF_FILES)
+            get_filename_component(TTF_NAME "${TTF}" NAME)
+
+            if(TTF_NAME STREQUAL "${FONT_NAME}.ttf")
+                set(FONT_TTF "${TTF}")
+                break()
+            endif()
+        endforeach()
+
+        if(NOT EXISTS "${FONT_TTF}")
+            message(FATAL_ERROR
+                    "Font '${FONT_NAME}' has a .FoxFont file but no matching .ttf file."
+            )
+        endif()
     endif()
 
     set(FONT_OUTPUT_CONFIG
@@ -209,7 +224,8 @@ foreach(FONT_CONFIG IN LISTS FONT_CONFIG_FILES)
 
             COMMAND $<TARGET_FILE:FoxFire_Tools>
             "Compile Font"
-            "${FONT_SOURCE_DIR}/${FONT_NAME}"
+            "${FONT_TTF}"
+            "${FONT_SOURCE_DIR}/${FONT_NAME}.FoxFont"
             "${FONT_OUTPUT_DIR}"
 
             WORKING_DIRECTORY

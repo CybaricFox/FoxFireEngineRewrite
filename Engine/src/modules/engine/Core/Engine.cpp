@@ -126,8 +126,8 @@ void Engine::run() {
             }
             uiPacket.meshData.meshCount = uiMeshes.getLength();
             uiPacket.meshData.meshes = uiMeshes.getData(); //All of these entities have meshes
-            uiPacket.textCount = 1;
-            UIText* texts[1] = {&testText};
+            uiPacket.textCount = 2;
+            UIText* texts[2] = {&testText, &testSystemText};
             uiPacket.texts = texts;
             if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiPacket, packet.views[2])) {
                 Logger::logError("Failed to build ui packet");
@@ -356,14 +356,22 @@ void Engine::initialize() {
     FontSystemConfig fontConfig{};
     fontConfig.bAutoRelease = false;
     fontConfig.defaultBitmapFontCount = 1;
+    fontConfig.defaultSystemFontCount = 1;
     fontConfig.maxBitmapFonts = 101;
     fontConfig.maxSystemFonts = 101;
 
     BitmapFontConfig bitmapFontConfig{};
-    bitmapFontConfig.name = "Ubuntu";
-    bitmapFontConfig.resourceName = "Ubuntu-Regular";
-    bitmapFontConfig.size = 12;
+    bitmapFontConfig.name = "Ubuntu-px48";
+    bitmapFontConfig.resourceName = "Ubuntu-px48";
+    bitmapFontConfig.size = 48;
     fontConfig.bitmapFontConfigs = &bitmapFontConfig;
+
+    SystemFontConfig systemFontConfig{};
+    systemFontConfig.defaultSize = 24;
+    systemFontConfig.name = "Ubuntu";
+    systemFontConfig.resourceName = "Ubuntu";
+    fontConfig.systemFontConfigs = &systemFontConfig;
+
 
     if (!masterRenderSystem.initializeFontSystem(fontConfig, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the font system!");
@@ -464,12 +472,19 @@ void Engine::initialize() {
     ui1Mesh->geometries[0] = &masterRenderSystem.acquireGeometry(configUI, true);
     ui1Mesh->generation = 0;
 
-    if (!testText.create(UI_TEXT_TYPE_BITMAP, "Ubuntu", 12, "The following \t3\t lines represent the truth of the world:\nYou\nAre\nGullible")) {
+    if (!testText.create(UI_TEXT_TYPE_BITMAP, "Ubuntu-px48", 12, "The following \t3\t lines represent the truth of the world:\nYou\nAre\nGullible")) {
         Logger::logFatal("Failed to create UIText for testing purposes.");
         return;
     }
     testText.setPosition({50, 100, 0});
     testText.getTransform().bIsDirty = true;
+
+    if (!testSystemText.create(UI_TEXT_TYPE_SYSTEM, "Ubuntu-Regular", 24, "Do not be fooled by\t[REDACTED]\t\nYou are not gullible!\nYou are just an ばか.")) {
+        Logger::logFatal("Failed to create System UIText for testing purposes.");
+        return;
+    }
+    testSystemText.setPosition({400, 400, 0});
+    testSystemText.getTransform().bIsDirty = true;
     //End temp code
 
     startup();
@@ -485,6 +500,7 @@ Engine::~Engine() {
     engine = nullptr;
 
     testText.destroy();
+    testSystemText.destroy();
 
     ECSSystem.shutdown();
 

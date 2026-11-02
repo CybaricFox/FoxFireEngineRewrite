@@ -44,6 +44,8 @@ public:
      */
     bool getFileSize(ULong &outSize) const;
 
+    String* getAllFiles(const String &filePath, const String &extension, unsigned int& outFileCount);
+
     /**
      * @brief Checks if a file exists
      * @param name path of the file

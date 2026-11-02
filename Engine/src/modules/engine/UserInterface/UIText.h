@@ -42,7 +42,10 @@ public:
     void destroy();
 
     [[nodiscard]] UITextType getType() const {return type;}
-    [[nodiscard]] String getFontName() const {return data->name;}
+    [[nodiscard]] String getFontName() const {
+        if (data == nullptr) return {};
+        return data->name;
+    }
     [[nodiscard]] unsigned int getInstanceId() const {return instanceId;}
     [[nodiscard]] TextureMap& getTextureAtlas() const {return data->atlas;}
     [[nodiscard]] ULong getFrameNumber() const {return frameNumber;}

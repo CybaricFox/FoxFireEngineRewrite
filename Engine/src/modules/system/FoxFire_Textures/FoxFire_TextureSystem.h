@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include "src/defines.h"
 #include <foxfire_export.h>
 
 #include "src/modules/engine/Library/AssetMap.h"
@@ -59,4 +58,5 @@ public:
     void releaseTexture(String name) override;
     Texture & acquireWritableTexture(String name, unsigned width, unsigned height, unsigned char channelCount, bool isTransparent) override;
     Texture & acquireCubeTexture(String name, bool autoRelease) override;
+    bool writeData(Texture &texture, unsigned offset, unsigned size, const unsigned char *data) override;
 };

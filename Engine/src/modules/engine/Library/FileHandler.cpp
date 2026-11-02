@@ -8,6 +8,7 @@
 #include <filesystem>
 
 #include "Logger.h"
+#include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 
 bool FileHandler::getFileSize(ULong &outSize) const {
@@ -17,6 +18,54 @@ bool FileHandler::getFileSize(ULong &outSize) const {
     outSize = ftell(handle);
     rewind(handle);
     return true;
+}
+
+String* FileHandler::getAllFiles(const String &filePath, const String &extension, unsigned int &outFileCount) {
+    DynamicArray<String> files{0};
+
+    if (filePath.isEmpty()) return nullptr;
+
+    std::error_code error;
+    std::filesystem::directory_iterator iterator(
+        filePath.getAsCharString(), error
+    );
+
+    if (error) {
+        Logger::logError("Failed to open directory: " + filePath);
+        return nullptr;
+    }
+
+    const std::filesystem::directory_iterator end{};
+
+    while (iterator != end) {
+        const auto& entry = *iterator;
+
+        const bool isFile = entry.is_regular_file(error);
+        if (error) {
+            Logger::logError("Failed to inspect directory entry.");
+            return nullptr;
+        }
+
+        if (isFile && entry.path().extension().string() == extension.getAsCharString()) {
+            files.push(entry.path().filename().string().c_str());
+        }
+
+        iterator.increment(error);
+        if (error) {
+            Logger::logError("Failed to iterate directory.");
+            return nullptr;
+        }
+    }
+
+    outFileCount = files.getLength();
+    const auto strings = FF_Memory::ff_allocate_recursive<String>(ARRAY, outFileCount);
+    for (unsigned int i = 0; i < outFileCount; i++) {
+        strings[i] = files[i];
+        files[i].destroy();
+    }
+    files.shutdown();
+
+    return strings;
 }
 
 FileHandler::~FileHandler() {

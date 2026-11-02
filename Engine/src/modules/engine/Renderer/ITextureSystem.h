@@ -69,4 +69,6 @@ public:
      * @param name Name of the texture.
      */
     virtual void releaseTexture(String name) = 0;
+
+    virtual bool writeData(Texture &texture, unsigned offset, unsigned size, const unsigned char *data) = 0;
 };

@@ -18,7 +18,7 @@
 #include <stb/stb_image_write.h>
 
 
-void FontCompiler::compileFont(const std::string &filePath, const std::string &outputFolder) {
+void FontCompiler::compileFont(const std::string &filePath, const std::string &foxPath, const std::string &outputFolder) {
     constexpr int FIRST_GLYPH = 32;
     constexpr int LAST_GLYPH = 126;
     constexpr int GLYPH_COUNT = LAST_GLYPH - FIRST_GLYPH + 1;
@@ -28,12 +28,12 @@ void FontCompiler::compileFont(const std::string &filePath, const std::string &o
     FileHandler ttf{};
     FileHandler foxFont{};
 
-    if(!ttf.openFile(filePath + ".ttf", READ, true)) {
+    if(!ttf.openFile(filePath, READ, true)) {
         ttf.closeFile();
         return;
     }
 
-    if(!foxFont.openFile(filePath + ".FoxFont", READ, false)) {
+    if(!foxFont.openFile(foxPath, READ, false)) {
         ttf.closeFile();
         foxFont.closeFile();
         return;
@@ -106,7 +106,7 @@ void FontCompiler::compileFont(const std::string &filePath, const std::string &o
     }
 
     //Write the png
-    const std::string pngPath = outputFolder + "/" + outFont.engineName + ".png";
+    const std::string pngPath = outputFolder + "/" + outFont.fontName + ".png";
 
     if (!stbi_write_png(
         pngPath.c_str(),
@@ -131,8 +131,7 @@ void FontCompiler::compileFont(const std::string &filePath, const std::string &o
     }
 
     //Write header info
-    foxFont.writeLine("Font = " + outFont.fontName);
-    foxFont.writeLine("Name = " + outFont.engineName);
+    foxFont.writeLine("Name = " + outFont.fontName);
     foxFont.writeLine("Size = " + std::to_string(outFont.targetFontSize));
     foxFont.writeLine("Width = " + std::to_string(outFont.targetWidth));
     foxFont.writeLine("Height = " + std::to_string(outFont.targetHeight));
@@ -169,7 +168,7 @@ void FontCompiler::compileFont(const std::string &filePath, const std::string &o
             ", Advance = " + std::to_string(glyph.xadvance)
         );
     }
-    std::cout << "Compiled font: " << outFont.engineName << std::endl;
+    std::cout << "Compiled font: " << outFont.fontName << std::endl;
 
     //Now create the kernings
     stbtt_fontinfo fontInfo{};
@@ -209,12 +208,8 @@ void FontCompiler::readFoxFont(const FileHandler &file, FontData &fontData) {
         StringUtils::trim(variable);
         StringUtils::trim(value);
 
-        if (strcmp(variable.c_str(), "Font") == 0) {
-            fontData.fontName = value;
-            continue;
-        }
         if (strcmp(variable.c_str(), "Name") == 0) {
-            fontData.engineName = value;
+            fontData.fontName = value;
             continue;
         }
         if (strcmp(variable.c_str(), "Size") == 0) {

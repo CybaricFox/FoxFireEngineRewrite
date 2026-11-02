@@ -126,6 +126,11 @@ Texture & FoxFire_TextureSystem::acquireCubeTexture(String name, bool autoReleas
     return *texture;
 }
 
+bool FoxFire_TextureSystem::writeData(Texture &texture, const unsigned offset, const unsigned size, const unsigned char* data) {
+    backendRef->writeTextureData(texture, offset, size, data);
+    return true;
+}
+
 unsigned int FoxFire_TextureSystem::textureLoadSuccess(void *params) {
     auto& textureParams = *static_cast<TextureLoadParams *>(params);
     const auto& resourceData = *static_cast<ImageResourceData *>(textureParams.imageResource.data);

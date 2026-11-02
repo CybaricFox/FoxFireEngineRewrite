@@ -10,6 +10,7 @@
 #include "EngineLoaders/MaterialLoader.h"
 #include "EngineLoaders/MeshLoader.h"
 #include "EngineLoaders/ShaderLoader.h"
+#include "EngineLoaders/SystemFontLoader.h"
 #include "EngineLoaders/TextLoader.h"
 #include "src/modules/engine/Library/StringUtils.h"
 
@@ -25,6 +26,7 @@ bool ResourceSystem::initialize(const String &path, const unsigned int initialCa
     registerLoader(FF_Memory::ff_allocate<ShaderLoader>(RESOURCE));
     registerLoader(FF_Memory::ff_allocate<MeshLoader>(RESOURCE));
     registerLoader(FF_Memory::ff_allocate<BitmapFontLoader>(RESOURCE));
+    registerLoader(FF_Memory::ff_allocate<SystemFontLoader>(RESOURCE));
 
     Logger::logInfo("Resource system initialized with path: " + assetsPath);
     return true;

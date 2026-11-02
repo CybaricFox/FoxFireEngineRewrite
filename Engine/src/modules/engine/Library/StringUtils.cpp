@@ -153,7 +153,7 @@ String StringUtils::getFilenameNoExtensionFromPath(String &path) {
         return "";
     }
 
-    return fileName.substringLeft(index);
+    return fileName.substringLeft(index - 1);
 }
 
 bool StringUtils::stringToLong(const String &string, long &out) {

@@ -43,9 +43,6 @@ bool BitmapFontLoader::importFoxFont(const FileHandler &file, const String &name
                 variable.trim();
                 value.trim();
 
-                if (variable == "Font") {
-                    continue;
-                }
                 if (variable == "Name") {
                     outData.data.name = value;
                     continue;
@@ -56,7 +53,7 @@ bool BitmapFontLoader::importFoxFont(const FileHandler &file, const String &name
                         Logger::logError("Cannot read Font File! Failed to read " + variable + ":" + value + " as a UInt.");
                         return false;
                     }
-                    outData.data.height = outData.data.size;
+                    outData.data.height = static_cast<int>(outData.data.size);
                     continue;
                 }
                 if (variable == "Width") {
