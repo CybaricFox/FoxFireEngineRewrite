@@ -89,7 +89,7 @@ public:
      * @param autoRelease Whether the asset should auto release
      * @return Pointer to the new asset.
      */
-    V* createAsset(const String &name, const bool autoRelease = true) {
+    V* createAsset(const String &name, const bool autoRelease) {
         unsigned int index = data.assign();
         map.addEntry(name, {1, index, autoRelease});
         return data.get(index);

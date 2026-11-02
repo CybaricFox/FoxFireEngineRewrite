@@ -6,8 +6,10 @@
 
 #include "../Library/Logger.h"
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
+#include "src/modules/engine/ECS/Engine_Components/UITextContainer.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/UITextContainerUtils.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
 #include "src/modules/engine/Library/JsonHandler.h"
 #include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
@@ -117,18 +119,27 @@ void Engine::run() {
 
             UIPacketData uiPacket{};
             DynamicArray<unsigned int> uiMeshes{0};
+            DynamicArray<UIText*> uiTexts{0};
             DynamicArray<unsigned int>& uiEntities = ECSSystem.getAllEntitiesOfType("Basic_UI");
             for (unsigned int i = 0; i < uiEntities.getLength(); i++) {
                 const Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(uiEntities[i]);
                 if (mesh.generation != INVALID_ID_U8) {
                     uiMeshes.push(uiEntities[i]);
                 }
+
+                //Check if the ui entity has text components
+                const auto textContainer = EntityComponentSystem::getComponent<UITextContainer>(uiEntities[i]);
+                if (textContainer != nullptr) {
+                    for (UIText* text : textContainer->texts) {
+                        uiTexts.push(text);
+                    }
+                }
+
             }
             uiPacket.meshData.meshCount = uiMeshes.getLength();
             uiPacket.meshData.meshes = uiMeshes.getData(); //All of these entities have meshes
-            uiPacket.textCount = 2;
-            UIText* texts[2] = {&testText, &testSystemText};
-            uiPacket.texts = texts;
+            uiPacket.textCount = uiTexts.getLength();
+            uiPacket.texts = uiTexts.getData();
             if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiPacket, packet.views[2])) {
                 Logger::logError("Failed to build ui packet");
                 return;
@@ -469,22 +480,21 @@ void Engine::initialize() {
         configUI.indices.setIndex(uiIndices[i], i);
     }
 
-    ui1Mesh->geometries[0] = &masterRenderSystem.acquireGeometry(configUI, true);
+    ui1Mesh->geometries.push(&masterRenderSystem.acquireGeometry(configUI, true));
     ui1Mesh->generation = 0;
 
-    if (!testText.create(UI_TEXT_TYPE_BITMAP, "Ubuntu-px48", 12, "The following \t3\t lines represent the truth of the world:\nYou\nAre\nGullible")) {
-        Logger::logFatal("Failed to create UIText for testing purposes.");
-        return;
-    }
-    testText.setPosition({50, 100, 0});
-    testText.getTransform().bIsDirty = true;
+    auto textContainer = EntityComponentSystem::addComponent<UITextContainer>(ui1);
+    UIText* testText = UITextContainerUtils::addText(*textContainer, UI_TEXT_TYPE_BITMAP, "Ubuntu-px48", 12, "The following \t3\t lines represent the truth of the world:\nYou\nAre\nGullible");
+    if (testText == nullptr) return;
 
-    if (!testSystemText.create(UI_TEXT_TYPE_SYSTEM, "Ubuntu-Regular", 24, "Do not be fooled by\t[REDACTED]\t\nYou are not gullible!\nYou are just an ばか.")) {
-        Logger::logFatal("Failed to create System UIText for testing purposes.");
-        return;
-    }
-    testSystemText.setPosition({400, 400, 0});
-    testSystemText.getTransform().bIsDirty = true;
+    testText->setPosition({50, 100, 0});
+    testText->getTransform().bIsDirty = true;
+
+    UIText* testSystemText = UITextContainerUtils::addText(*textContainer, UI_TEXT_TYPE_SYSTEM, "Ubuntu-Regular", 24, "Do not be fooled by\t[REDACTED]\t\nYou are not gullible!\nYou are just an ばか.");
+    if (testSystemText == nullptr) return;
+
+    testSystemText->setPosition({400, 400, 0});
+    testSystemText->getTransform().bIsDirty = true;
     //End temp code
 
     startup();
@@ -498,9 +508,6 @@ void Engine::getFramebufferSize(unsigned int& bufferWidth, unsigned int& bufferH
 Engine::~Engine() {
     bIsRunning = false;
     engine = nullptr;
-
-    testText.destroy();
-    testSystemText.destroy();
 
     ECSSystem.shutdown();
 

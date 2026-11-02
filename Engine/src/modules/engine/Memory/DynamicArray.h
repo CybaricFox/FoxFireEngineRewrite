@@ -510,9 +510,15 @@ private:
 
 public:
     T& operator[](unsigned long index) {
+        if (index >= capacity) {
+            Logger::logFatal("Subscript out of bounds!");
+        }
         return memory[index];
     }
     const T& operator[](unsigned long index) const {
+        if (index >= capacity) {
+            Logger::logFatal("Subscript out of bounds!");
+        }
         return memory[index];
     }
 

@@ -64,9 +64,6 @@ private:
     /** @brief The amount of time the previous frame took */
     double lastTime = 0;
 
-    UIText testText{};
-    UIText testSystemText{};
-
     /**
      * @brief Initializes FF_Memory and the Linear Allocator
      */
