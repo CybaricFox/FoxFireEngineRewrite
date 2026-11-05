@@ -1,6 +1,6 @@
 #pragma once
 #include "src/modules/engine/Core/Engine.h"
-#include "src/modules/system/FoxFire_Input/FoxFire_Events.h"
+#include "../../../../../Engine/src/modules/engine/Input/EventSystem.h"
 
 struct GameState : BaseGameState {
     float deltaTime = 0;

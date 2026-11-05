@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "IMaterialSystem.h"
+#include "MaterialSystem.h"
 #include "Renderpass.h"
 #include "src/defines.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
@@ -117,7 +117,7 @@ public:
 
     virtual void resize(unsigned int newWidth, unsigned int newHeight) = 0;
     virtual bool buildPacket(void* data, RenderViewPacket& outPacket) = 0;
-    virtual bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef, IMaterialSystem* materialSystemRef) = 0;
+    virtual bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef, MaterialSystem* materialSystemRef) = 0;
     virtual void destroyPacket(RenderViewPacket& packet) {}
 };
 

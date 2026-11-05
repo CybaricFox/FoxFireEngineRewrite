@@ -69,7 +69,7 @@ bool UIRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     return true;
 }
 
-bool UIRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef, IMaterialSystem* materialSystemRef) {
+bool UIRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef, MaterialSystem* materialSystemRef) {
     for (Renderpass* renderpass : renderpasses) {
         if (!backendRef->beginRenderpass(*renderpass, renderpass->getRenderTarget(renderTargetIndex))) {
             Logger::logError("Failed to begin ui render pass.");

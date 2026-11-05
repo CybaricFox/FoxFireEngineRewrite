@@ -11,10 +11,6 @@
 #include "src/modules/system/FoxFire_Renders/SkyboxRenderView.h"
 #include "src/modules/system/FoxFire_Renders/UIRenderView.h"
 #include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
-#include "src/modules/system/FoxFire_Textures/FoxFire_GeometrySystem.h"
-#include "src/modules/system/FoxFire_Textures/FoxFire_MaterialSystem.h"
-#include "src/modules/system/FoxFire_Textures/FoxFire_TextureSystem.h"
-#include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 
 void Game::loadModels() {
     if (!bModelsLoaded) {
@@ -31,9 +27,6 @@ Game::Game(const GameInstance& instance)
     :Engine(instance)
 {
     inputSystem = instantiateDerivedSubSystem<FoxFire_InputSystem>();
-    textureSystem = instantiateDerivedSubSystem<FoxFire_TextureSystem>();
-    materialSystem = instantiateDerivedSubSystem<FoxFire_MaterialSystem>();
-    geometrySystem = instantiateDerivedSubSystem<FoxFire_GeometrySystem>();
 }
 
 Game::~Game() {

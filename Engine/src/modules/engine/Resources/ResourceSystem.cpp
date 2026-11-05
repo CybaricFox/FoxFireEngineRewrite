@@ -12,9 +12,12 @@
 #include "EngineLoaders/ShaderLoader.h"
 #include "EngineLoaders/SystemFontLoader.h"
 #include "EngineLoaders/TextLoader.h"
-#include "src/modules/engine/Library/StringUtils.h"
+
+ResourceSystem* ResourceSystem::instance = nullptr;
 
 bool ResourceSystem::initialize(const String &path, const unsigned int initialCapacity) {
+    instance = this;
+
     loaders.initialize(initialCapacity);
     assetsPath = path;
 
@@ -66,10 +69,10 @@ bool ResourceSystem::load(const String &name, const ResourceType type, Resource 
         return false;
     }
 
-    for (IResourceLoader* loader : loaders) {
+    for (IResourceLoader* loader : instance->loaders) {
         if (loader->getId() != INVALID_ID_U32 && loader->getType() == type) {
             outResource.loaderId = loader->getId();
-            return loader->load(name, outResource, assetsPath, params);
+            return loader->load(name, outResource, instance->assetsPath, params);
         }
     }
 
@@ -98,7 +101,7 @@ bool ResourceSystem::loadCustom(const String &name, const String &type, Resource
 void ResourceSystem::unload(Resource &resource) {
     if (resource.loaderId == INVALID_ID_U32) return;
 
-    IResourceLoader& loader = *loaders[resource.loaderId];
+    IResourceLoader& loader = *instance->loaders[resource.loaderId];
     if (loader.getId() == INVALID_ID_U32) return;
 
     loader.unload(resource);

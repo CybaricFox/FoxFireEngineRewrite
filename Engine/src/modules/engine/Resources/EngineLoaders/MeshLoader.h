@@ -4,7 +4,7 @@
 
 #pragma once
 #include "src/modules/engine/Library/JsonHandler.h"
-#include "src/modules/engine/Renderer/IGeometrySystem.h"
+#include "src/modules/engine/Renderer/GeometrySystem.h"
 #include "src/modules/engine/Resources/IResourceLoader.h"
 
 /**

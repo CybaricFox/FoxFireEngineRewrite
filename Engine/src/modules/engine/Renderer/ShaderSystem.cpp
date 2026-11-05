@@ -6,11 +6,10 @@
 
 ShaderSystem* ShaderSystem::instance = nullptr;
 
-bool ShaderSystem::initialize(const ShaderSystemConfig newConfig, IRendererBackend *backend, ITextureSystem *textureSystem) {
+bool ShaderSystem::initialize(const ShaderSystemConfig newConfig, IRendererBackend *backend) {
     instance = this;
 
     backendRef = backend;
-    textureSystemRef = textureSystem;
 
     if (newConfig.maxShaderCount < 512) {
         if (newConfig.maxShaderCount == 0) {
@@ -34,12 +33,11 @@ void ShaderSystem::shutdown() {
     assets.shutdown();
 
     backendRef = nullptr;
-    textureSystemRef = nullptr;
     instance = nullptr;
 }
 
 unsigned int ShaderSystem::getId(const String &shaderName) {
-    const unsigned int shaderId = assets.getAssetIndex(shaderName);
+    const unsigned int shaderId = instance->assets.getAssetIndex(shaderName);
 
     if (shaderId == INVALID_ID_U32) {
         Logger::logError("There is no registered shader named " + shaderName);
@@ -155,23 +153,23 @@ bool ShaderSystem::setUniform(const String &uniformName, void *value) {
 }
 
 bool ShaderSystem::setUniform(const unsigned short index, void *value) {
-    Shader& shader = *assets.getAssetAtIndex(currentShaderId);
+    Shader& shader = *instance->assets.getAssetAtIndex(instance->currentShaderId);
     ShaderUniform& uniform = shader.getUniform(index);
     if (shader.getBoundScope() != uniform.scope) {
         switch (uniform.scope) {
             case SHADER_SCOPE_GLOBAL: {
-                backendRef->bindShaderGlobals(shader);
+                instance->backendRef->bindShaderGlobals(shader);
                 break;
             }
             case SHADER_SCOPE_INSTANCE: {
-                backendRef->bindShaderInstance(shader, shader.getBoundInstanceId());
+                instance->backendRef->bindShaderInstance(shader, shader.getBoundInstanceId());
                 break;
             }
             default: break;
         }
     }
 
-    return backendRef->setUniform(shader, uniform, value);
+    return instance->backendRef->setUniform(shader, uniform, value);
 }
 
 bool ShaderSystem::setSampler(const String &samplerName, Texture &texture) {
@@ -183,17 +181,17 @@ bool ShaderSystem::setSampler(const unsigned short index, Texture &texture) {
 }
 
 bool ShaderSystem::applyGlobal() {
-    return backendRef->applyShaderGlobals(*assets.getAssetAtIndex(currentShaderId));
+    return instance->backendRef->applyShaderGlobals(*instance->assets.getAssetAtIndex(instance->currentShaderId));
 }
 
 bool ShaderSystem::applyInstance(const bool update) {
-    return backendRef->applyShaderInstance(*assets.getAssetAtIndex(currentShaderId), update);
+    return instance->backendRef->applyShaderInstance(*instance->assets.getAssetAtIndex(instance->currentShaderId), update);
 }
 
 bool ShaderSystem::bindInstance(const unsigned int instanceId) {
-    Shader& shader = *assets.getAssetAtIndex(currentShaderId);
+    Shader& shader = *instance->assets.getAssetAtIndex(instance->currentShaderId);
     shader.setBoundInstanceId(instanceId);
-    backendRef->bindShaderInstance(shader, instanceId);
+    instance->backendRef->bindShaderInstance(shader, instanceId);
 
     return true;
 }
@@ -281,7 +279,7 @@ bool ShaderSystem::addSampler(Shader &shader, const ShaderUniformConfig &uniform
         }
         const auto map = FF_Memory::ff_allocate<TextureMap>(RENDER);
         *map = defaultMap;
-        map->texture = &textureSystemRef->getDefaultDiffuseTexture();
+        map->texture = &TextureSystem::getDefaultDiffuseTexture();
         shader.addGlobalTextureMap(map);
 
     } else {

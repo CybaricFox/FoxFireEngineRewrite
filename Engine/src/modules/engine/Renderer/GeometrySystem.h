@@ -1,5 +1,5 @@
 /**
-*   @file IGeometrySystem.h
+*   @file GeometrySystem.h
  *  @layer Engine
  *  @module Renderer
  *  @author CybaricFox
@@ -14,43 +14,56 @@
 
 #include <foxfire_export.h>
 
-#include "IMaterialSystem.h"
+#include "MaterialSystem.h"
 #include "IRendererBackend.h"
-#include "src/modules/engine/Library/FF_Math.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 #define DEFAULT_GEOMETRY_NAME "default"
 
 /**
+ * @brief Contains geometry, a count of its references, and if it should auto release.
+ */
+struct GeometryContext {
+    Geometry geometry{};
+    unsigned int referenceCount = 0;
+    bool bAutoRelease = false;
+};
+
+/**
  * @brief Abstract class that controls geometry.
  */
-class FOXFIRE_API IGeometrySystem {
+class FOXFIRE_API GeometrySystem {
 private:
+    static GeometrySystem* instance;
     unsigned long memorySize = 0;
+    //GeometryConfig config{};
+    Geometry default3DGeometry{};
+    Geometry default2DGeometry{};
+    ReusableArray<GeometryContext> geometries;
 
-protected:
+    Geometry& acquireGeometry(unsigned int id);
+    bool createDefaultGeometries();
+    bool createGeometry(GeometryConfig &config, Geometry &geometry);
+    void destroyGeometry(Geometry& geometry) const;
+
     IRendererBackend* backendRef = nullptr;
-    IMaterialSystem* materialSystemRef = nullptr;
-    ResourceSystem* resourceSystemRef = nullptr;
 
 public:
-    explicit IGeometrySystem(const unsigned long derivedSize) {memorySize = derivedSize;}
-    virtual ~IGeometrySystem();
-
-    virtual bool initialize(unsigned int initialCapacity, IRendererBackend* backend, IMaterialSystem* materialSystem, ResourceSystem* resources);
+    bool initialize(unsigned int initialCapacity, IRendererBackend *backend);
+    void shutdown();
 
     /**
      * @brief Returns the default geometry for 3d.
      * @return
      */
-    virtual Geometry& getDefault3DGeometry() = 0;
+    Geometry& getDefault3DGeometry() {return default3DGeometry;}
 
     /**
      * @brief Returns the default geometry for 2d.
      * @return
      */
-    virtual Geometry& getDefault2DGeometry() = 0;
+    Geometry& getDefault2DGeometry() {return default2DGeometry;}
 
     /**
      * @brief Returns the memory size of this system.
@@ -70,7 +83,7 @@ public:
      * @param materialName
      * @return
      */
-    virtual GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount, float xTile, float yTile, const String &name, const String &materialName) = 0;
+    static GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount, float xTile, float yTile, const String &name, const String &materialName);
 
     /**
      * @brief Generates a cube from the given arguments.
@@ -83,7 +96,7 @@ public:
      * @param materialName
      * @return
      */
-    virtual GeometryConfig generateCubeConfig(float width, float height, float depth, float xTile, float yTile, const String &name, const String &materialName) = 0;
+    static GeometryConfig generateCubeConfig(float width, float height, float depth, float xTile, float yTile, const String &name, const String &materialName);
 
     /**
      * @brief Fetches geometry from where the user stores it, or creates it if it doesn't exist.
@@ -91,6 +104,6 @@ public:
      * @param autoRelease Whether to destroy the geometry when no references remain.
      * @return The acquired geometry, or default if something goes wrong.
      */
-    virtual Geometry& acquireGeometry(GeometryConfig &config, bool autoRelease) = 0;
-    virtual void releaseGeometry(const Geometry& geometry) = 0;
+    static Geometry& acquireGeometry(GeometryConfig &config, bool autoRelease);
+    static void releaseGeometry(const Geometry& geometry);
 };

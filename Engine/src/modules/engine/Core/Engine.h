@@ -18,7 +18,7 @@
 #include "foxfire_export.h"
 #include "../Input/IInputSystem.h"
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
-#include "src/modules/engine/Renderer/ITextureSystem.h"
+#include "src/modules/engine/Renderer/TextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Threads/JobSystem.h"
 
@@ -75,13 +75,6 @@ protected:
     GameInstance gameInstance;
     /** @brief Pointer to the user-defined input system */
     IInputSystem* inputSystem = nullptr;
-
-    /** @brief Reference to the user-defined texture system. WARNING: VOLATILE REFERENCE! */
-    ITextureSystem* textureSystem = nullptr;
-    /** @brief Reference to the user-defined material system. WARNING: VOLATILE REFERENCE! */
-    IMaterialSystem* materialSystem = nullptr;
-    /** @brief Reference to the user-defined geometry system. WARNING: VOLATILE REFERENCE! */
-    IGeometrySystem* geometrySystem = nullptr;
 
     /** @brief fetches the default camera entity id from the render system. */
     [[nodiscard]] unsigned int getDefaultCamera() const {return masterRenderSystem.getDefaultCamera();}

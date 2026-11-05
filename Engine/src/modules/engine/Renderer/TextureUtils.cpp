@@ -5,15 +5,12 @@
 #include "TextureUtils.h"
 
 #include "IRendererBackend.h"
-#include "src/modules/system/FoxFire_Textures/FoxFire_TextureSystem.h"
-
-ITextureSystem* TextureUtils::textureSystemRef = nullptr;
 
 Texture * TextureUtils::wrapTexture(const String &name, const unsigned int width, const unsigned int height, const unsigned int channelCount, const bool isTransparent, const bool isWritable, const bool registerTexture, void *data) {
     Texture* texture = nullptr;
 
     if (registerTexture) {
-        texture = &textureSystemRef->acquireTexture(false, true, name, TEXTURE_USE_MAP_DIFFUSE);
+        texture = &TextureSystem::acquireTexture(false, true, name, TEXTURE_USE_MAP_DIFFUSE);
     } else {
         texture = FF_Memory::ff_allocate<Texture>(TEXTURE);
         texture->id = INVALID_ID_U32;

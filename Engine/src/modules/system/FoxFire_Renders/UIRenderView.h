@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "src/modules/engine/Renderer/IMaterialSystem.h"
+#include "src/modules/engine/Renderer/MaterialSystem.h"
 #include "src/modules/engine/Renderer/IRendererBackend.h"
 #include "src/modules/engine/Renderer/IRenderView.h"
 #include "src/modules/engine/Renderer/ShaderSystem.h"
@@ -38,6 +38,6 @@ public:
 
     void resize(unsigned int newWidth, unsigned int newHeight) override;
     bool buildPacket(void *data, RenderViewPacket &outPacket) override;
-    bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef, IMaterialSystem *materialSystemRef) override;
+    bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef, MaterialSystem *materialSystemRef) override;
     void destroyPacket(RenderViewPacket &packet) override;
 };

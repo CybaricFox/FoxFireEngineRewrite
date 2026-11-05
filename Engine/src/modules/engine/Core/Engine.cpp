@@ -287,7 +287,6 @@ void Engine::initialize() {
         Logger::logFatal("Failed to initialize the resource system!");
         return;
     }
-    MeshUtils::setResourceSystemRef(&resourceSystem);
 
     //Start renderer
     if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance, resourceSystem)) {
@@ -341,7 +340,7 @@ void Engine::initialize() {
     }
 
     //Start texture system
-    if (!masterRenderSystem.initializeTextureSystem(65536, textureSystem, &resourceSystem)) {
+    if (!masterRenderSystem.initializeTextureSystem(65536, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the texture system!");
         return;
     }
@@ -352,13 +351,13 @@ void Engine::initialize() {
     }
 
     //Start material system
-    if (!masterRenderSystem.initializeMaterialSystem(MaterialSystemConfig{4096}, materialSystem, &resourceSystem)) {
+    if (!masterRenderSystem.initializeMaterialSystem(MaterialSystemConfig{4096}, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the texture system!");
         return;
     }
 
     //Start geometry system
-    if (!masterRenderSystem.initializeGeometrySystem(4096, geometrySystem, &resourceSystem)) {
+    if (!masterRenderSystem.initializeGeometrySystem(4096, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the geometry system!");
         return;
     }
@@ -404,9 +403,9 @@ void Engine::initialize() {
     Mesh* cubeMesh = EntityComponentSystem::getComponent<Mesh>(cube1);
     cubeMesh->geometryCount = 1;
     cubeMesh->geometries.initialize(cubeMesh->geometryCount);
-    GeometryConfig cubeConfig = masterRenderSystem.generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
+    GeometryConfig cubeConfig = GeometrySystem::generateCubeConfig(10, 10, 10, 1, 1, "Test_Cube_1", "MaterialTemplate");
 
-    cubeMesh->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig, true));
+    cubeMesh->geometries.push(&GeometrySystem::acquireGeometry(cubeConfig, true));
     cubeMesh->generation = 0;
     GeometryUtils::destroyConfig(&cubeConfig);
 
@@ -414,8 +413,8 @@ void Engine::initialize() {
     Mesh* cubeMesh2 = EntityComponentSystem::getComponent<Mesh>(cube2);
     cubeMesh2->geometryCount = 1;
     cubeMesh2->geometries.initialize(cubeMesh2->geometryCount);
-    GeometryConfig cubeConfig2 = masterRenderSystem.generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
-    cubeMesh2->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig2, true));
+    GeometryConfig cubeConfig2 = GeometrySystem::generateCubeConfig(5, 5, 5, 1, 1, "Test_Cube_2", "MaterialTemplate");
+    cubeMesh2->geometries.push(&GeometrySystem::acquireGeometry(cubeConfig2, true));
     const auto cube2Transform = EntityComponentSystem::getComponent<Transform>(cube2);
     cube2Transform->position = Vector3f{10, 0, 1};
     cube2Transform->parent = cube1;
@@ -427,8 +426,8 @@ void Engine::initialize() {
     Mesh* cubeMesh3 = EntityComponentSystem::getComponent<Mesh>(cube3);
     cubeMesh3->geometryCount = 1;
     cubeMesh3->geometries.initialize(cubeMesh3->geometryCount);
-    GeometryConfig cubeConfig3 = masterRenderSystem.generateCubeConfig(2, 2, 2, 1, 1, "Test_Cube_3", "MaterialTemplate");
-    cubeMesh3->geometries.push(&masterRenderSystem.acquireGeometry(cubeConfig3, true));
+    GeometryConfig cubeConfig3 = GeometrySystem::generateCubeConfig(2, 2, 2, 1, 1, "Test_Cube_3", "MaterialTemplate");
+    cubeMesh3->geometries.push(&GeometrySystem::acquireGeometry(cubeConfig3, true));
     const auto cube3Transform = EntityComponentSystem::getComponent<Transform>(cube3);
     cube3Transform->position = Vector3f{5, 0, 1};
     cube3Transform->parent = cube2;
@@ -480,7 +479,7 @@ void Engine::initialize() {
         configUI.indices.setIndex(uiIndices[i], i);
     }
 
-    ui1Mesh->geometries.push(&masterRenderSystem.acquireGeometry(configUI, true));
+    ui1Mesh->geometries.push(&GeometrySystem::acquireGeometry(configUI, true));
     ui1Mesh->generation = 0;
 
     auto textContainer = EntityComponentSystem::addComponent<UITextContainer>(ui1);
@@ -518,10 +517,6 @@ Engine::~Engine() {
 
     jobSystem.shutdown();
 
-    //Destroy resources in opposite order of creation
-    geometrySystem = nullptr;
-    materialSystem = nullptr;
-    textureSystem = nullptr;
     masterRenderSystem.shutdown();
 
     if (inputSystem) {

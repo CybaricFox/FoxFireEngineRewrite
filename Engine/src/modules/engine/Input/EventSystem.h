@@ -1,7 +1,7 @@
 /**
-*   @file FoxFire_Events.h
- *  @layer System
- *  @module FoxFire_Input
+*   @file EventSystem.h
+ *  @layer Engine
+ *  @module Input
  *  @author CybaricFox
  *  @brief
  *  @version 1.0

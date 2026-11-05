@@ -7,7 +7,7 @@
 #include "src/defines.h"
 #include "src/modules/engine/Library/FF_Math.h"
 #include "src/modules/engine/Resources/EngineTextureTypes.h"
-#include "src/modules/system/FoxFire_Input/FoxFire_Events.h"
+#include "../Input/EventSystem.h"
 
 /**
  *  @file Renderpass.h

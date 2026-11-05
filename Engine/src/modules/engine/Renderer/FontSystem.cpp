@@ -111,7 +111,7 @@ bool FontSystem::loadBitmapFont(const BitmapFontConfig &newConfig) {
     }
 
     data.resourceData = static_cast<BitmapFontResourceData *>(data.loadedResource.data);
-    data.resourceData->data.atlas.texture = &textureRef->acquireTexture(true, false, "Fonts/" + data.resourceData->pages[0].file, TEXTURE_USE_MAP_DIFFUSE);
+    data.resourceData->data.atlas.texture = &TextureSystem::acquireTexture(true, false, "Fonts/" + data.resourceData->pages[0].file, TEXTURE_USE_MAP_DIFFUSE);
 
     return setupFontData(data.resourceData->data);
 }
@@ -175,7 +175,7 @@ void FontSystem::cleanupFontData(FontData &font) const {
     backendRef->releaseTextureMapResources(font.atlas);
 
     if (font.type == FONT_TYPE_BITMAP && font.atlas.texture) {
-        textureRef->releaseTexture(font.atlas.texture->name);
+        TextureSystem::releaseTexture(font.atlas.texture->name);
     }
 
     font.atlas.texture = nullptr;
@@ -209,7 +209,7 @@ bool FontSystem::createSystemFontVariant(SystemFontData &font, const unsigned sh
 
     //Create texture
     const String fontTextureName = "foxfire_system_font_texture_atlas_" + fontName + "_" + toString(font.index) + "_px" + toString(size);
-    outVariant.atlas.texture = &textureRef->acquireWritableTexture(fontTextureName, outVariant.atlasSizeX, outVariant.atlasSizeY, 4, true);
+    outVariant.atlas.texture = &TextureSystem::acquireWritableTexture(fontTextureName, outVariant.atlasSizeX, outVariant.atlasSizeY, 4, true);
 
     data.scale = stbtt_ScaleForPixelHeight(&font.info, size);
     int ascent, descent, lineGap = 0;
@@ -255,7 +255,7 @@ bool FontSystem::rebuildSystemFontVariantAtlas(const SystemFontData &font, FontD
         rgb[(i*4)+3] = pixels[i];
     }
 
-    textureRef->writeData(*variant.atlas.texture, 0, packImageSize * 4, rgb);
+    TextureSystem::writeData(*variant.atlas.texture, 0, packImageSize * 4, rgb);
 
     FF_Memory::ff_free_raw(pixels, packImageSize, ARRAY);
     FF_Memory::ff_free_raw(rgb, packImageSize * 4, ARRAY);
@@ -356,11 +356,10 @@ bool FontSystem::verifySystemFontVariantSize(const SystemFontData &font, FontDat
     return true;
 }
 
-bool FontSystem::initialize(const FontSystemConfig &newConfig, ResourceSystem *resourceSystemRef, ITextureSystem *textureSystemRef, IRendererBackend* backendSystemRef) {
+bool FontSystem::initialize(const FontSystemConfig &newConfig, ResourceSystem *resourceSystemRef, IRendererBackend* backendSystemRef) {
     instance = this;
 
     resourceRef = resourceSystemRef;
-    textureRef = textureSystemRef;
     backendRef = backendSystemRef;
 
     if (newConfig.maxBitmapFonts == 0 || newConfig.maxSystemFonts == 0) {
@@ -423,7 +422,6 @@ void FontSystem::shutdown() {
     systemFonts.shutdown();
 
     resourceRef = nullptr;
-    textureRef = nullptr;
     backendRef = nullptr;
     instance = nullptr;
 }

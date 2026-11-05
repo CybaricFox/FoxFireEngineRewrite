@@ -6,7 +6,6 @@
 
 #include "TextureUtils.h"
 #include "../Library/Logger.h"
-#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 
 MasterRenderSystem* MasterRenderSystem::instance = nullptr;
@@ -82,14 +81,6 @@ bool MasterRenderSystem::loadRenderBufferRange(RenderBuffer & buffer, const ULon
     return instance->backend->loadBufferRange(buffer, offset, size, data);
 }
 
-Material & MasterRenderSystem::acquireMaterial(const String &name) const {
-    return materialSystem->acquireMaterial(name);
-}
-
-void MasterRenderSystem::releaseMaterial(const String &name) const {
-    materialSystem->releaseMaterial(name);
-}
-
 bool MasterRenderSystem::createRenderView(const RenderViewConfig &config) {
     return renderViewSystem.createRenderView(config);
 }
@@ -99,7 +90,7 @@ bool MasterRenderSystem::buildPacket(IRenderView *renderView, void* meshData, Re
 }
 
 void MasterRenderSystem::buildSkybox(const RenderPacket& packet) {
-    auto skyboxData = FF_Memory::ff_allocate<SkyboxPacketData>(RENDER);
+    const auto skyboxData = FF_Memory::ff_allocate<SkyboxPacketData>(RENDER);
     skyboxData->skybox = &skybox;
     if (!buildPacket(getRenderView("Fox_Fire_Skybox_View"), skyboxData, packet.views[0])) {
         Logger::logError("Failed to build skybox packet.");
@@ -198,29 +189,22 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
     return true;
 }
 
-bool MasterRenderSystem::initializeTextureSystem(const unsigned int initialCapacity, ITextureSystem *system, ResourceSystem* resourceSystem) {
-    textureSystem = system;
-    TextureUtils::setTextureSystemRef(textureSystem);
-    const bool result = textureSystem->initialize(initialCapacity, backend, resourceSystem);
-    backend->setDefaultTextureReferences(&getDefaultDiffuseTexture(), &getDefaultSpecularTexture(), &getDefaultNormalTexture());
+bool MasterRenderSystem::initializeTextureSystem(const unsigned int initialCapacity, ResourceSystem* resourceSystem) {
+    const bool result = textureSystem.initialize(initialCapacity, backend);
+    backend->setDefaultTextureReferences(&TextureSystem::getDefaultDiffuseTexture(), &TextureSystem::getDefaultSpecularTexture(), &TextureSystem::getDefaultNormalTexture());
     return result;
 }
 
-bool MasterRenderSystem::initializeMaterialSystem(const MaterialSystemConfig config, IMaterialSystem *system, ResourceSystem* resourceSystem) {
-    materialSystem = system;
-    return materialSystem->initialize(config, textureSystem, backend, resourceSystem, &shaderSystem);
+bool MasterRenderSystem::initializeMaterialSystem(const MaterialSystemConfig config, ResourceSystem* resourceSystem) {
+    return materialSystem.initialize(config, backend);
 }
 
-bool MasterRenderSystem::initializeGeometrySystem(const unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem* resourceSystem) {
-    geometrySystem = system;
-
-    MeshUtils::setGeometrySystemRef(geometrySystem);
-
-    return geometrySystem->initialize(initialCapacity, backend, materialSystem, resourceSystem);
+bool MasterRenderSystem::initializeGeometrySystem(const unsigned int initialCapacity, ResourceSystem* resourceSystem) {
+    return geometrySystem.initialize(initialCapacity, backend);
 }
 
 bool MasterRenderSystem::initializeShaderSystem(const ShaderSystemConfig& config, ResourceSystem& resources) {
-    if (!shaderSystem.initialize(config, backend, textureSystem)) return false;
+    if (!shaderSystem.initialize(config, backend)) return false;
 
     //Shaders
     Resource configResource{};
@@ -275,7 +259,7 @@ bool MasterRenderSystem::initializeCameraSystem(const CameraSystemConfig &config
 }
 
 bool MasterRenderSystem::initializeRenderViewSystem(const RenderViewSystemConfig &config) {
-    return renderViewSystem.initialize(config, backend, &shaderSystem, materialSystem);
+    return renderViewSystem.initialize(config, backend, &shaderSystem, &materialSystem);
 }
 
 bool MasterRenderSystem::initializeSkybox() {
@@ -290,10 +274,10 @@ bool MasterRenderSystem::initializeSkybox() {
         Logger::logFatal("Failed to acquire texture resources for cubemap!");
         return false;
     }
-    cubeMap.texture = &textureSystem->acquireCubeTexture("Maxwell_Skybox", true);
-    GeometryConfig skyboxConfig = generateCubeConfig(10, 10, 10, 1, 1, "Maxwell_Skybox", String{});
+    cubeMap.texture = &TextureSystem::acquireCubeTexture("Maxwell_Skybox", true);
+    GeometryConfig skyboxConfig = GeometrySystem::generateCubeConfig(10, 10, 10, 1, 1, "Maxwell_Skybox", String{});
     skyboxConfig.materialName = String{};
-    skybox.geometry = &acquireGeometry(skyboxConfig, true);
+    skybox.geometry = &GeometrySystem::acquireGeometry(skyboxConfig, true);
     skybox.frameNumber = INVALID_ID_U64;
     const Shader& skyboxShader = *shaderSystem.getShader(DEFAULT_SKYBOX_SHADER_NAME);
     TextureMap* maps[1] = {&skybox.map};
@@ -306,7 +290,7 @@ bool MasterRenderSystem::initializeSkybox() {
 }
 
 bool MasterRenderSystem::initializeFontSystem(const FontSystemConfig &config, ResourceSystem* resourceSystemRef) {
-    return fontSystem.initialize(config, resourceSystemRef, textureSystem, backend);
+    return fontSystem.initialize(config, resourceSystemRef, backend);
 }
 
 void MasterRenderSystem::shutdown() {
@@ -324,14 +308,7 @@ void MasterRenderSystem::shutdown() {
     FF_Memory::ff_free_recursive<RenderTarget>(&uiRenderpass->getRenderTarget(0),  ARRAY, renderTargetCount);
     FF_Memory::ff_free_recursive<RenderTarget>(&skyboxRenderpass->getRenderTarget(0),  ARRAY, renderTargetCount);
 
-    if (geometrySystem) {
-        FF_Memory::ff_free<IGeometrySystem>(geometrySystem, GAME, geometrySystem->getMemorySize());
-        geometrySystem = nullptr;
-    }
-    if (materialSystem) {
-        FF_Memory::ff_free<IMaterialSystem>(materialSystem, GAME, materialSystem->getMemorySize());
-        materialSystem = nullptr;
-    }
+    materialSystem.shutdown();
 
     shaderSystem.shutdown();
 
@@ -339,11 +316,9 @@ void MasterRenderSystem::shutdown() {
 
     fontSystem.shutdown();
 
-    //Destroy texture system
-    if (textureSystem) {
-        FF_Memory::ff_free<ITextureSystem>(textureSystem, GAME, textureSystem->getMemorySize());
-        textureSystem = nullptr;
-    }
+    geometrySystem.shutdown();
+
+    textureSystem.shutdown();
 
     delete backend;
     backend = nullptr;
@@ -401,28 +376,4 @@ void MasterRenderSystem::onResize(const unsigned short width, const unsigned sho
     } else {
         Logger::logWarn("Backend cannot resize because it does not exist.");
     }
-}
-
-Texture & MasterRenderSystem::acquireTexture(const bool autoRelease, const String &fileName, const TextureUseCase useCase) const {
-    return textureSystem->acquireTexture(autoRelease, false, fileName, useCase);
-}
-
-void MasterRenderSystem::releaseTexture(const String &name) const {
-    textureSystem->releaseTexture(name);
-}
-
-//Vertex and index arrays must be freed upon disposal!
-Geometry & MasterRenderSystem::acquireGeometry(GeometryConfig &config, const bool autoRelease) const {
-    return geometrySystem->acquireGeometry(config, autoRelease);
-}
-
-GeometryConfig MasterRenderSystem::generatePlaneConfig(const float width, const float height, const unsigned int xCount,
-                                                       const unsigned int yCount, const float xTile, const float yTile,
-                                                       const String &name, const String &materialName) const {
-
-    return geometrySystem->generatePlaneConfig(width, height, xCount, yCount, xTile, yTile, name, materialName);
-}
-
-GeometryConfig MasterRenderSystem::generateCubeConfig(const float width, const float height, const float depth, const float xTile, const float yTile, const String &name, const String &materialName) const {
-    return geometrySystem->generateCubeConfig(width, height, depth, xTile, yTile, name, materialName);
 }

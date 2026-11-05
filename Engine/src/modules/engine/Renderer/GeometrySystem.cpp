@@ -2,9 +2,11 @@
 // Created by cmorg on 8/2/2026.
 //
 
-#include "FoxFire_GeometrySystem.h"
+#include "GeometrySystem.h"
 
-Geometry & FoxFire_GeometrySystem::acquireGeometry(const unsigned int id) {
+GeometrySystem* GeometrySystem::instance = nullptr;
+
+Geometry & GeometrySystem::acquireGeometry(const unsigned int id) {
     if (id == INVALID_ID_U32 || geometries.get(id)->geometry.id == INVALID_ID_U32) {
         Logger::logError("Geometry system cannot load geometry with an invalid id!");
         return default3DGeometry;
@@ -14,50 +16,109 @@ Geometry & FoxFire_GeometrySystem::acquireGeometry(const unsigned int id) {
     return geometries.get(id)->geometry;
 }
 
-Geometry & FoxFire_GeometrySystem::acquireGeometry(GeometryConfig &config, const bool autoRelease) {
-    Geometry* geometry = nullptr;
+bool GeometrySystem::createDefaultGeometries() {
+    constexpr float f = 10.0f;
 
-    const unsigned int index = geometries.assign();
-    GeometryContext& context = *geometries.get(index);
+    //3d geometry
+    Vertex3d vertices3D[4]{};
 
-    context.bAutoRelease = autoRelease;
-    context.referenceCount = 1;
-    geometry = &context.geometry;
-    geometry->id = index;
+    vertices3D[0].position = {-0.5 * f, -0.5f * f, 0};
+    vertices3D[0].textureCoordinate = {0, 0};
+    vertices3D[1].position = {0.5f * f, 0.5f * f, 0};
+    vertices3D[1].textureCoordinate = {1, 1};
+    vertices3D[2].position = {-0.5 * f, 0.5f * f, 0};
+    vertices3D[2].textureCoordinate = {0, 1};
+    vertices3D[3].position = {0.5 * f, -0.5f * f, 0};
+    vertices3D[3].textureCoordinate = {1, 0};
 
-    if (!createGeometry(config, *geometry)) {
-        Logger::logError("Failed to create geometry!");
-        return default3DGeometry;
+    unsigned int indices3D[6] = {0, 1, 2, 0, 3, 1};
+
+    if (!backendRef->createGeometry(default3DGeometry, sizeof(Vertex3d), 4, vertices3D, sizeof(unsigned int),6 , indices3D)) {
+        Logger::logFatal("Failed to create default 3D geometry!");
+        return false;
     }
 
-    return *geometry;
+    default3DGeometry.material = &MaterialSystem::getDefaultMaterial();
+
+    //2d geometry
+    Vertex3d vertices2D[4];
+    FF_Memory::ff_clear(vertices2D, sizeof(Vertex3d) * 4);
+
+    vertices2D[0].position = {-0.5 * f, -0.5f * f, 0};
+    vertices2D[0].textureCoordinate = {0, 0};
+    vertices2D[1].position = {0.5f * f, 0.5f * f, 0};
+    vertices2D[1].textureCoordinate = {1, 1};
+    vertices2D[2].position = {-0.5 * f, 0.5f * f, 0};
+    vertices2D[2].textureCoordinate = {0, 1};
+    vertices2D[3].position = {0.5 * f, -0.5f * f, 0};
+    vertices2D[3].textureCoordinate = {1, 0};
+
+    unsigned int indices2D[6] = {2, 1, 0, 3, 0, 1};
+
+    if (!backendRef->createGeometry(default2DGeometry, sizeof(Vertex2d), 4, vertices2D, sizeof(unsigned int),6 , indices2D)) {
+        Logger::logFatal("Failed to create default 2D geometry!");
+        return false;
+    }
+
+    default2DGeometry.material = &MaterialSystem::getDefaultMaterial();
+
+    return true;
 }
 
-void FoxFire_GeometrySystem::releaseGeometry(const Geometry &geometry) {
-    if (geometry.id == INVALID_ID_U32) {
-        Logger::logWarn("Cannot release geometry with an invalid id!");
-        return;
+bool GeometrySystem::createGeometry(GeometryConfig &config, Geometry &geometry) {
+    if (!backendRef->createGeometry(geometry, config.vertices.getSize(), config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getSize(), config.indices.getCount(), config.indices.getIndex(0))) {
+        geometries.get(geometry.id)->referenceCount = 0;
+        geometries.get(geometry.id)->bAutoRelease = false;
+        geometry.id = INVALID_ID_U32;
+        geometry.generation = INVALID_ID_U16;
+        geometry.internalId = INVALID_ID_U32;
+
+        return false;
     }
 
-    GeometryContext& context = *geometries.get(geometry.id);
-    const unsigned int id = context.geometry.id;
+    geometry.center = config.center;
+    geometry.extent.min = config.minExtent;
+    geometry.extent.max = config.maxExtent;
 
-    if (context.geometry.id != geometry.id) {
-        Logger::logFatal("Geometry ID mismatch detected!");
-        return;
+    if (!config.materialName.isEmpty()) {
+        geometry.material = &MaterialSystem::acquireMaterial(config.materialName);
     }
 
-    if (context.referenceCount > 0) {
-        context.referenceCount--;
-    }
-
-    if (context.referenceCount == 0 && context.bAutoRelease) {
-        destroyGeometry(context.geometry);
-        context.bAutoRelease = false;
-    }
+    return true;
 }
 
-GeometryConfig FoxFire_GeometrySystem::generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount, float xTile, float yTile, const String &name, const String &materialName) {
+void GeometrySystem::destroyGeometry(Geometry &geometry) const {
+    backendRef->destroyGeometry(geometry);
+
+    if (geometry.material && !geometry.material->name.isEmpty()) {
+        MaterialSystem::releaseMaterial(geometry.material->name);
+    }
+
+    geometry = Geometry{};
+}
+
+bool GeometrySystem::initialize(const unsigned int initialCapacity, IRendererBackend *backend) {
+    instance = this;
+
+    backendRef = backend;
+
+    geometries.initialize(initialCapacity);
+
+    if (!createDefaultGeometries()) {
+        Logger::logFatal("Failed to create default geometry");
+        return false;
+    }
+
+    return true;
+}
+
+void GeometrySystem::shutdown() {
+    backendRef = nullptr;
+
+    geometries.shutdown();
+}
+
+GeometryConfig GeometrySystem::generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount, float xTile, float yTile, const String &name, const String &materialName) {
     if (width == 0) {
         Logger::logWarn("Plane width cannot be 0.");
         width = 1;
@@ -154,88 +215,7 @@ GeometryConfig FoxFire_GeometrySystem::generatePlaneConfig(float width, float he
     return config;
 }
 
-bool FoxFire_GeometrySystem::createDefaultGeometries() {
-    constexpr float f = 10.0f;
-
-    //3d geometry
-    Vertex3d vertices3D[4]{};
-
-    vertices3D[0].position = {-0.5 * f, -0.5f * f, 0};
-    vertices3D[0].textureCoordinate = {0, 0};
-    vertices3D[1].position = {0.5f * f, 0.5f * f, 0};
-    vertices3D[1].textureCoordinate = {1, 1};
-    vertices3D[2].position = {-0.5 * f, 0.5f * f, 0};
-    vertices3D[2].textureCoordinate = {0, 1};
-    vertices3D[3].position = {0.5 * f, -0.5f * f, 0};
-    vertices3D[3].textureCoordinate = {1, 0};
-
-    unsigned int indices3D[6] = {0, 1, 2, 0, 3, 1};
-
-    if (!backendRef->createGeometry(default3DGeometry, sizeof(Vertex3d), 4, vertices3D, sizeof(unsigned int),6 , indices3D)) {
-        Logger::logFatal("Failed to create default 3D geometry!");
-        return false;
-    }
-
-    default3DGeometry.material = &materialSystemRef->getDefaultMaterial();
-
-    //2d geometry
-    Vertex3d vertices2D[4];
-    FF_Memory::ff_clear(vertices2D, sizeof(Vertex3d) * 4);
-
-    vertices2D[0].position = {-0.5 * f, -0.5f * f, 0};
-    vertices2D[0].textureCoordinate = {0, 0};
-    vertices2D[1].position = {0.5f * f, 0.5f * f, 0};
-    vertices2D[1].textureCoordinate = {1, 1};
-    vertices2D[2].position = {-0.5 * f, 0.5f * f, 0};
-    vertices2D[2].textureCoordinate = {0, 1};
-    vertices2D[3].position = {0.5 * f, -0.5f * f, 0};
-    vertices2D[3].textureCoordinate = {1, 0};
-
-    unsigned int indices2D[6] = {2, 1, 0, 3, 0, 1};
-
-    if (!backendRef->createGeometry(default2DGeometry, sizeof(Vertex2d), 4, vertices2D, sizeof(unsigned int),6 , indices2D)) {
-        Logger::logFatal("Failed to create default 2D geometry!");
-        return false;
-    }
-
-    default2DGeometry.material = &materialSystemRef->getDefaultMaterial();
-
-    return true;
-}
-
-bool FoxFire_GeometrySystem::createGeometry(GeometryConfig &config, Geometry &geometry) {
-    if (!backendRef->createGeometry(geometry, config.vertices.getSize(), config.vertices.getCount(), config.vertices.getVertex(0), config.indices.getSize(), config.indices.getCount(), config.indices.getIndex(0))) {
-        geometries.get(geometry.id)->referenceCount = 0;
-        geometries.get(geometry.id)->bAutoRelease = false;
-        geometry.id = INVALID_ID_U32;
-        geometry.generation = INVALID_ID_U16;
-        geometry.internalId = INVALID_ID_U32;
-
-        return false;
-    }
-
-    geometry.center = config.center;
-    geometry.extent.min = config.minExtent;
-    geometry.extent.max = config.maxExtent;
-
-    if (!config.materialName.isEmpty()) {
-        geometry.material = &materialSystemRef->acquireMaterial(config.materialName);
-    }
-
-    return true;
-}
-
-void FoxFire_GeometrySystem::destroyGeometry(Geometry &geometry) {
-    backendRef->destroyGeometry(geometry);
-
-    if (geometry.material && !geometry.material->name.isEmpty()) {
-        materialSystemRef->releaseMaterial(geometry.material->name);
-    }
-
-    geometry = Geometry{};
-}
-
-GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float height, const float depth, float xTile, float yTile, const String &name, const String &materialName) {
+GeometryConfig GeometrySystem::generateCubeConfig(float width, float height, float depth, float xTile, float yTile, const String &name, const String &materialName) {
     if (width == 0) {
         Logger::logWarn("Plane width cannot be 0.");
         width = 1;
@@ -387,23 +367,44 @@ GeometryConfig FoxFire_GeometrySystem::generateCubeConfig(float width, float hei
     return config;
 }
 
-FoxFire_GeometrySystem::FoxFire_GeometrySystem()
-    :IGeometrySystem(sizeof(FoxFire_GeometrySystem))
-{
+Geometry & GeometrySystem::acquireGeometry(GeometryConfig &config, const bool autoRelease) {
+    Geometry* geometry = nullptr;
 
-}
+    const unsigned int index = instance->geometries.assign();
+    GeometryContext& context = *instance->geometries.get(index);
 
-FoxFire_GeometrySystem::~FoxFire_GeometrySystem() = default;
+    context.bAutoRelease = autoRelease;
+    context.referenceCount = 1;
+    geometry = &context.geometry;
+    geometry->id = index;
 
-bool FoxFire_GeometrySystem::initialize(const unsigned initialCapacity, IRendererBackend *backend, IMaterialSystem *materialSystem, ResourceSystem *resources) {
-    IGeometrySystem::initialize(initialCapacity, backend, materialSystem, resources);
-
-    geometries.initialize(initialCapacity);
-
-    if (!createDefaultGeometries()) {
-        Logger::logFatal("Failed to create default geometry");
-        return false;
+    if (!instance->createGeometry(config, *geometry)) {
+        Logger::logError("Failed to create geometry!");
+        return instance->default3DGeometry;
     }
 
-    return true;
+    return *geometry;
+}
+
+void GeometrySystem::releaseGeometry(const Geometry &geometry) {
+    if (geometry.id == INVALID_ID_U32) {
+        Logger::logWarn("Cannot release geometry with an invalid id!");
+        return;
+    }
+
+    GeometryContext& context = *instance->geometries.get(geometry.id);
+
+    if (context.geometry.id != geometry.id) {
+        Logger::logFatal("Geometry ID mismatch detected!");
+        return;
+    }
+
+    if (context.referenceCount > 0) {
+        context.referenceCount--;
+    }
+
+    if (context.referenceCount == 0 && context.bAutoRelease) {
+        instance->destroyGeometry(context.geometry);
+        context.bAutoRelease = false;
+    }
 }

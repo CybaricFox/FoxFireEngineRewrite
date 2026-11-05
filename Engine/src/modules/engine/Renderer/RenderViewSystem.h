@@ -29,10 +29,10 @@ private:
 
     IRendererBackend* backendRef = nullptr;
     ShaderSystem* shaderSystemRef = nullptr;
-    IMaterialSystem* materialSystemRef = nullptr;
+    MaterialSystem* materialSystemRef = nullptr;
 
 public:
-    bool initialize(RenderViewSystemConfig config, IRendererBackend *backend, ShaderSystem *shaderSystem, IMaterialSystem *materialRef);
+    bool initialize(RenderViewSystemConfig config, IRendererBackend *backend, ShaderSystem *shaderSystem, MaterialSystem *materialRef);
     void shutdown();
 
     IRenderView *getRenderView(const String &name);

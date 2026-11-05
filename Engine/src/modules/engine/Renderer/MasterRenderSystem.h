@@ -11,9 +11,9 @@
  */
 
 #pragma once
-#include "IGeometrySystem.h"
-#include "IMaterialSystem.h"
-#include "ITextureSystem.h"
+#include "GeometrySystem.h"
+#include "MaterialSystem.h"
+#include "TextureSystem.h"
 #include "IRendererBackend.h"
 #include "IRenderView.h"
 #include "RenderBuffer.h"
@@ -38,12 +38,11 @@ private:
     /** @brief pointer to the backend in use */
     IRendererBackend* backend = nullptr;
 
-    /** @brief Pointer to the user defined texture system. */
-    ITextureSystem* textureSystem = nullptr;
-    /** @brief Pointer to the user defined material system. */
-    IMaterialSystem* materialSystem = nullptr;
-    /** @brief Pointer to the user defined Geometry system. */
-    IGeometrySystem* geometrySystem = nullptr;
+    TextureSystem textureSystem{};
+
+    MaterialSystem materialSystem{};
+
+    GeometrySystem geometrySystem{};
 
     ShaderSystem shaderSystem{};
     unsigned int materialShaderId = INVALID_ID_U32;
@@ -72,9 +71,9 @@ private:
 
 public:
     bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, ResourceSystem &resources);
-    bool initializeTextureSystem(unsigned int initialCapacity, ITextureSystem *system, ResourceSystem *resourceSystem);
-    bool initializeMaterialSystem(MaterialSystemConfig config, IMaterialSystem *system, ResourceSystem *resourceSystem);
-    bool initializeGeometrySystem(unsigned int initialCapacity, IGeometrySystem *system, ResourceSystem *resourceSystem);
+    bool initializeTextureSystem(unsigned int initialCapacity, ResourceSystem *resourceSystem);
+    bool initializeMaterialSystem(MaterialSystemConfig config, ResourceSystem *resourceSystem);
+    bool initializeGeometrySystem(unsigned int initialCapacity, ResourceSystem *resourceSystem);
     bool initializeShaderSystem(const ShaderSystemConfig &config, ResourceSystem &resources);
     bool initializeCameraSystem(const CameraSystemConfig &config, EntityComponentSystem *ecsRef);
     bool initializeRenderViewSystem(const RenderViewSystemConfig &config);
@@ -83,11 +82,6 @@ public:
     void shutdown();
     MasterRenderSystem() = default;
 
-    //[[nodiscard]] IRendererBackend* getBackend() const {return backend;}
-    [[nodiscard]] Texture& getDefaultDiffuseTexture() const {return textureSystem->getDefaultDiffuseTexture();}
-    [[nodiscard]] Texture& getDefaultSpecularTexture() const {return textureSystem->getDefaultSpecularTexture();}
-    [[nodiscard]] Texture& getDefaultNormalTexture() const {return textureSystem->getDefaultNormalTexture();}
-    [[nodiscard]] Geometry& getDefaultGeometry() const {return geometrySystem->getDefault3DGeometry();}
     [[nodiscard]] Renderpass* getRenderPass(const String &name) const {return backend->getRenderpass(name);}
     IRenderView* getRenderView(const String &name) {return renderViewSystem.getRenderView(name);}
     [[nodiscard]] unsigned int getDefaultCamera() const {return cameraSystem.getDefaultCamera();}
@@ -95,11 +89,6 @@ public:
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);
-    [[nodiscard]] Texture& acquireTexture(bool autoRelease, const String &fileName, TextureUseCase useCase) const;
-    void releaseTexture(const String &name) const;
-    [[nodiscard]] Geometry& acquireGeometry(GeometryConfig &config, bool autoRelease) const;
-    Material& acquireMaterial(const String &name) const;
-    void releaseMaterial(const String &name) const;
     bool createRenderView(const RenderViewConfig &config);
     bool buildPacket(IRenderView *renderView, void *meshData, RenderViewPacket &packet);
     void buildSkybox(const RenderPacket &packet);
@@ -112,8 +101,4 @@ public:
     static bool drawRenderBuffer(RenderBuffer &buffer, ULong offset, unsigned int elementCount, bool bindOnly);
     static bool resizeRenderBuffer(RenderBuffer& buffer, ULong newSize);
     static bool loadRenderBufferRange(RenderBuffer &buffer, ULong offset, ULong size, const void *data);
-
-    [[nodiscard]] GeometryConfig generatePlaneConfig(float width, float height, unsigned int xCount, unsigned int yCount,
-        float xTile, float yTile, const String &name, const String &materialName) const;
-    [[nodiscard]] GeometryConfig generateCubeConfig(float width, float height, float depth, float xTile, float yTile, const String &name, const String &materialName) const;
 };

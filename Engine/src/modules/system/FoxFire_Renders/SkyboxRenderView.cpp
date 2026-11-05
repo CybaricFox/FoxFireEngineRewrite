@@ -39,7 +39,7 @@ bool SkyboxRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     return true;
 }
 
-bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend *backendRef, IMaterialSystem *materialSystemRef) {
+bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend *backendRef, MaterialSystem *materialSystemRef) {
     const SkyboxPacketData& boxData = *static_cast<SkyboxPacketData *>(outPacket.data);
 
     for (Renderpass* renderpass : renderpasses) {

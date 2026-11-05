@@ -90,7 +90,7 @@ bool RenderViewSystem::render(IRenderView &renderView, RenderViewPacket &packet,
     return renderView.render(packet, frameNumber, targetIndex, backendRef, materialSystemRef);
 }
 
-bool RenderViewSystem::initialize(const RenderViewSystemConfig config, IRendererBackend *backend, ShaderSystem* shaderSystem, IMaterialSystem* materialRef) {
+bool RenderViewSystem::initialize(const RenderViewSystemConfig config, IRendererBackend *backend, ShaderSystem* shaderSystem, MaterialSystem* materialRef) {
     backendRef = backend;
     shaderSystemRef = shaderSystem;
     materialSystemRef = materialRef;

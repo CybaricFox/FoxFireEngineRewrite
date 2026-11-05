@@ -157,7 +157,7 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     return true;
 }
 
-bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend* backendRef, IMaterialSystem* materialSystemRef) {
+bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend* backendRef, MaterialSystem* materialSystemRef) {
     for (Renderpass* renderpass : renderpasses) {
         if (!backendRef->beginRenderpass(*renderpass, renderpass->getRenderTarget(renderTargetIndex))) {
             Logger::logError("Failed to begin ui render pass.");

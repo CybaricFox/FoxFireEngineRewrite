@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "ITextureSystem.h"
+#include "TextureSystem.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 #include "src/modules/engine/Renderer/IRendererBackend.h"
 
@@ -20,12 +20,7 @@
  */
 
 class TextureUtils {
-private:
-    static ITextureSystem* textureSystemRef;
-
 public:
     static Texture* wrapTexture(const String &name, unsigned int width, unsigned int height, unsigned int channelCount, bool isTransparent, bool isWritable, bool registerTexture, void* data);
     static bool resizeTexture(Texture &texture, unsigned int width, unsigned int height, bool regenerateData, IRendererBackend* backendRef);
-
-    static void setTextureSystemRef(ITextureSystem* system) {textureSystemRef = system;}
 };

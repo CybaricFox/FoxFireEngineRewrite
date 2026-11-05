@@ -6,7 +6,7 @@
 #include "../UserInterface/UIText.h"
 #include "src/modules/engine/Library/AssetMap.h"
 #include "src/modules/engine/Library/String.h"
-#include "src/modules/engine/Renderer/ITextureSystem.h"
+#include "src/modules/engine/Renderer/TextureSystem.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 #include "src/modules/engine/Resources/FontTypes.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
@@ -62,7 +62,6 @@ private:
     static FontSystem* instance;
 
     ResourceSystem* resourceRef = nullptr;
-    ITextureSystem* textureRef = nullptr;
     IRendererBackend* backendRef = nullptr;
 
     FontSystemConfig config{};
@@ -77,7 +76,7 @@ private:
     bool verifySystemFontVariantSize(const SystemFontData &font, FontData &variant, const String &text);
 
 public:
-    bool initialize(const FontSystemConfig& newConfig, ResourceSystem* resourceSystemRef, ITextureSystem* textureSystemRef, IRendererBackend* backendSystemRef);
+    bool initialize(const FontSystemConfig &newConfig, ResourceSystem *resourceSystemRef, IRendererBackend *backendSystemRef);
     void shutdown();
 
     static bool acquireFont(const String &fontName, unsigned short fontSize, UIText& text);
