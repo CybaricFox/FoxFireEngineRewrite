@@ -5,13 +5,11 @@
 #include "IRenderView.h"
 
 void IRenderView::shutdown() {
-    renderpasses.shutdown();
-
-    shaderSystemRef = nullptr;
+    FF_Memory::ff_free_recursive<Renderpass>(renderpasses, ARRAY, renderpassCount);
+    renderpasses = nullptr;
 }
 
-bool IRenderView::initialize(ShaderSystem *shaderRef, const unsigned long newSize) {
-    shaderSystemRef = shaderRef;
+bool IRenderView::initialize(const unsigned long newSize) {
     size = newSize;
 
     return true;

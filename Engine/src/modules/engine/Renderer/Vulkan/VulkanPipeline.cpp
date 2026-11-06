@@ -5,7 +5,6 @@
 #include "VulkanPipeline.h"
 
 #include "VulkanUtils.h"
-#include "src/modules/engine/Library/FF_Math.h"
 
 void VulkanPipeline::destroyPipeline(VulkanDevice& device, const VkAllocationCallbacks* allocator) {
     if (handle) {
@@ -23,30 +22,25 @@ void VulkanPipeline::bindPipeline(VulkanCommandBuffer &commandBuffer, VkPipeline
     vkCmdBindPipeline(commandBuffer.getHandle(), pipelineBindPoint, handle);
 }
 
-bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int stride,
-                                    unsigned int attributeCount, VkVertexInputAttributeDescription *attributes,
-                                    unsigned int descriptorSetLayoutCount, VkDescriptorSetLayout *descriptorSetLayouts, unsigned int stageCount,
-                                    VkPipelineShaderStageCreateInfo *shaderStages, VkViewport viewport, VkRect2D scissor, bool bIsWireframe, bool
-                                    bDepthTestEnabled, unsigned int pushConstantRangeCount, MemoryRange *pushConstantRanges, CullMode cullMode, VulkanDevice &device,
-                                    VkAllocationCallbacks *allocator) {
+bool VulkanPipeline::createPipeline(VulkanPipelineConfig &config, VulkanDevice &device, VkAllocationCallbacks *allocator) {
 
     VkPipelineViewportStateCreateInfo viewportState{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
     viewportState.viewportCount = 1;
-    viewportState.pViewports = &viewport;
+    viewportState.pViewports = &config.viewport;
     viewportState.scissorCount = 1;
-    viewportState.pScissors = &scissor;
+    viewportState.pScissors = &config.scissor;
 
     VkPipelineRasterizationStateCreateInfo rasterizerInfo{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
     rasterizerInfo.depthClampEnable = false;
     rasterizerInfo.rasterizerDiscardEnable = false;
-    rasterizerInfo.polygonMode = bIsWireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+    rasterizerInfo.polygonMode = config.bIsWireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizerInfo.lineWidth = 1.0f;
     rasterizerInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizerInfo.depthBiasEnable = false;
     rasterizerInfo.depthBiasConstantFactor = 0.0f;
     rasterizerInfo.depthBiasClamp = 0.0f;
     rasterizerInfo.depthBiasSlopeFactor = 0.0f;
-    switch (cullMode) {
+    switch (config.cullMode) {
         case CULL_MODE_NONE: {
             rasterizerInfo.cullMode = VK_CULL_MODE_NONE;
             break;
@@ -75,9 +69,13 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
 
     //Depth and stencil testing
     VkPipelineDepthStencilStateCreateInfo depthStencil{VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
-    if (bDepthTestEnabled) {
+    if (config.shaderFlags & SHADER_FLAG_DEPTH_TEST) {
         depthStencil.depthTestEnable = true;
-        depthStencil.depthWriteEnable = true;
+
+        if (config.shaderFlags & SHADER_FLAG_DEPTH_WRITE) {
+            depthStencil.depthWriteEnable = true;
+        }
+
         depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
         depthStencil.depthBoundsTestEnable = false;
         depthStencil.stencilTestEnable = false;
@@ -111,14 +109,14 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
     //Vertex input
     VkVertexInputBindingDescription bindingDescription;
     bindingDescription.binding = 0; // index
-    bindingDescription.stride = stride;
+    bindingDescription.stride = config.stride;
     bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; //input rate is 1 per vertex
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
     vertexInputInfo.vertexBindingDescriptionCount = 1;
     vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-    vertexInputInfo.vertexAttributeDescriptionCount = attributeCount;
-    vertexInputInfo.pVertexAttributeDescriptions = attributes;
+    vertexInputInfo.vertexAttributeDescriptionCount = config.attributeCount;
+    vertexInputInfo.pVertexAttributeDescriptions = config.attributes;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -126,23 +124,23 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
 
     //Pipeline layout
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    pipelineLayoutCreateInfo.setLayoutCount = descriptorSetLayoutCount;
-    pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayouts;
+    pipelineLayoutCreateInfo.setLayoutCount = config.descriptorSetLayoutCount;
+    pipelineLayoutCreateInfo.pSetLayouts = config.descriptorSetLayouts;
 
     //Push Constants
     VkPushConstantRange ranges[32]{};
-    if (pushConstantRangeCount > 0) {
-        if (pushConstantRangeCount > 32) {
+    if (config.pushConstantRangeCount > 0) {
+        if (config.pushConstantRangeCount > 32) {
             Logger::logError("Vulkans pipeline does not currently support more than 32 push constants.");
             return false;
         }
 
-        for (unsigned int i = 0; i < pushConstantRangeCount; i++) {
+        for (unsigned int i = 0; i < config.pushConstantRangeCount; i++) {
             ranges[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-            ranges[i].offset = pushConstantRanges[i].offset;
-            ranges[i].size = pushConstantRanges[i].size;
+            ranges[i].offset = config.pushConstantRanges[i].offset;
+            ranges[i].size = config.pushConstantRanges[i].size;
         }
-        pipelineLayoutCreateInfo.pushConstantRangeCount = pushConstantRangeCount;
+        pipelineLayoutCreateInfo.pushConstantRangeCount = config.pushConstantRangeCount;
         pipelineLayoutCreateInfo.pPushConstantRanges = ranges;
     } else {
         pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
@@ -153,19 +151,19 @@ bool VulkanPipeline::createPipeline(VulkanRenderpass &renderpass, unsigned int s
     VulkanUtils::vulkanCheck(vkCreatePipelineLayout(device.getLogicalDevice(), &pipelineLayoutCreateInfo, allocator, &pipelineLayout));
 
     VkGraphicsPipelineCreateInfo graphicsPipelineInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
-    graphicsPipelineInfo.stageCount = stageCount;
-    graphicsPipelineInfo.pStages = shaderStages;
+    graphicsPipelineInfo.stageCount = config.stageCount;
+    graphicsPipelineInfo.pStages = config.shaderStages;
     graphicsPipelineInfo.pVertexInputState = &vertexInputInfo;
     graphicsPipelineInfo.pInputAssemblyState = &inputAssembly;
     graphicsPipelineInfo.pViewportState = &viewportState;
     graphicsPipelineInfo.pRasterizationState = &rasterizerInfo;
     graphicsPipelineInfo.pMultisampleState = &multisampleInfo;
-    graphicsPipelineInfo.pDepthStencilState = bDepthTestEnabled ? &depthStencil : nullptr;
+    graphicsPipelineInfo.pDepthStencilState = (config.shaderFlags & SHADER_FLAG_DEPTH_TEST) ? &depthStencil : nullptr;
     graphicsPipelineInfo.pColorBlendState = &colorBlendInfo;
     graphicsPipelineInfo.pDynamicState = &dynamicStateInfo;
     graphicsPipelineInfo.pTessellationState = nullptr;
     graphicsPipelineInfo.layout = pipelineLayout;
-    graphicsPipelineInfo.renderPass = renderpass.getHandle();
+    graphicsPipelineInfo.renderPass = config.renderpass->getHandle();
     graphicsPipelineInfo.subpass = 0;
     graphicsPipelineInfo.basePipelineHandle = nullptr;
     graphicsPipelineInfo.basePipelineIndex = -1;

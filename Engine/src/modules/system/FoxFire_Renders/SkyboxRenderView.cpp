@@ -6,6 +6,7 @@
 
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Camera.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 
 void SkyboxRenderView::resize(const unsigned newWidth, const unsigned newHeight) {
@@ -16,8 +17,8 @@ void SkyboxRenderView::resize(const unsigned newWidth, const unsigned newHeight)
         const float aspect = static_cast<float>(width) / static_cast<float>(height);
         projectionMatrix = perspective(fov, aspect, nearClip, farClip);
 
-        for (Renderpass* renderpass : renderpasses) {
-            renderpass->setRenderArea({0, 0, static_cast<float>(width), static_cast<float>(height)});
+        for (unsigned int i = 0; i < renderpassCount; i++) {
+            renderpasses[i].setRenderArea({0, 0, static_cast<float>(width), static_cast<float>(height)});
         }
     }
 }
@@ -39,15 +40,17 @@ bool SkyboxRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     return true;
 }
 
-bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend *backendRef, MaterialSystem *materialSystemRef) {
+bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend *backendRef) {
     const SkyboxPacketData& boxData = *static_cast<SkyboxPacketData *>(outPacket.data);
+    const unsigned int shaderId = shader->getId();
 
-    for (Renderpass* renderpass : renderpasses) {
-        if (!backendRef->beginRenderpass(*renderpass, renderpass->getRenderTarget(renderTargetIndex))) {
+    for (unsigned int i = 0; i < renderpassCount; i++) {
+        Renderpass& renderpass = renderpasses[i];
+        if (!backendRef->beginRenderpass(renderpass, renderpass.getRenderTarget(renderTargetIndex))) {
             Logger::logError("Failed to begin skybox render pass.");
             return false;
         }
-        if (!shaderSystemRef->use(shaderId)) {
+        if (!ShaderSystem::use(shaderId)) {
             Logger::logError("Failed to use skybox shader.");
             return false;
         }
@@ -58,32 +61,31 @@ bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long f
         view.data[13] = 0;
         view.data[14] = 0;
 
-        Shader& shader = *shaderSystemRef->getShader(shaderId);
-        backendRef->bindShaderGlobals(shader);
-        if (!shaderSystemRef->setUniform(projectionLocation, &projectionMatrix)) {
+        backendRef->bindShaderGlobals(*shader);
+        if (!ShaderSystem::setUniform(projectionLocation, &projectionMatrix)) {
             Logger::logError("Failed to apply skybox projection.");
             return false;
         }
-        if (!shaderSystemRef->setUniform(viewLocation, &view)) {
+        if (!ShaderSystem::setUniform(viewLocation, &view)) {
             Logger::logError("Failed to apply skybox view.");
             return false;
         }
-        shaderSystemRef->applyGlobal();
+        ShaderSystem::applyGlobal();
 
-        shaderSystemRef->bindInstance(boxData.skybox->instanceId);
-        if (!shaderSystemRef->setUniform(cubeMapLocation, &boxData.skybox->map)) {
+        ShaderSystem::bindInstance(boxData.skybox->instanceId);
+        if (!ShaderSystem::setUniform(cubeMapLocation, &boxData.skybox->map)) {
             Logger::logError("Failed to apply skybox cube map.");
             return false;
         }
 
         const bool needsUpdate = boxData.skybox->frameNumber != frameNumber;
-        shaderSystemRef->applyInstance(needsUpdate);
+        ShaderSystem::applyInstance(needsUpdate);
 
         GeometryRenderData renderData{};
         renderData.geometry = boxData.skybox->geometry;
-        backendRef->drawGeometry(renderData,materialSystemRef->getDefaultMaterial());
+        backendRef->drawGeometry(renderData,MaterialSystem::getDefaultMaterial());
 
-        if (!backendRef->endRenderpass(*renderpass)) {
+        if (!backendRef->endRenderpass(renderpass)) {
             Logger::logError("Failed to end skybox render pass.");
             return false;
         }
@@ -92,22 +94,36 @@ bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long f
     return true;
 }
 
-bool SkyboxRenderView::initialize(ShaderSystem *shaderRef, const unsigned long newSize) {
-    Shader& shader = *shaderRef->getShader("Fox_Fire_Skybox_Shader");
-    shaderId = shader.getId();
-    projectionLocation = shader.getUniformIndex("projection");
-    viewLocation = shader.getUniformIndex("view");
-    cubeMapLocation = shader.getUniformIndex("cube_texture");
+bool SkyboxRenderView::initialize(const unsigned long newSize) {
+    const String shaderName = "Fox_Fire_Skybox_Shader";
+    Resource configResource{};
+    if (!ResourceSystem::load(shaderName, RESOURCE_TYPE_SHADER, configResource)) {
+        Logger::logError("Failed to load skybox shader.");
+        return false;
+    }
 
+    ShaderConfig& config = *static_cast<ShaderConfig *>(configResource.data);
+    if (!ShaderSystem::createShader(config, renderpasses[0])) {
+        Logger::logError("Failed to create skybox shader.");
+        return false;
+    }
+
+    ResourceSystem::unload(configResource);
+    shader = ShaderSystem::getShader(!customShaderName.isEmpty() ? customShaderName : shaderName);
+    projectionLocation = ShaderSystem::getUniformIndex(*shader, "projection");
+    viewLocation = ShaderSystem::getUniformIndex(*shader, "view");
+    cubeMapLocation = ShaderSystem::getUniformIndex(*shader, "cube_texture");
     nearClip = 0.1f;
     farClip = 1000.0f;
     fov = degreesToRadians(45.0f);
 
     projectionMatrix = perspective(fov, 1280 / 720.0f, nearClip, farClip);
+    worldCamera = CameraSystem::getDefaultCamera();
 
-    return IRenderView::initialize(shaderRef, newSize);
+    return IRenderView::initialize(newSize);
 }
 
 void SkyboxRenderView::shutdown() {
+    EngineEvents::unsubscribe(REFRESH_RENDER_TARGETS, "Render_View_System_Refresh_" + name);
     IRenderView::shutdown();
 }

@@ -51,10 +51,6 @@ struct RenderPacket {
     RenderViewPacket* views = nullptr;
 };
 
-struct RenderViewRenderpassConfig {
-    String renderpassName{};
-};
-
 struct RenderViewConfig {
     String name{};
     /** @brief Only used for custom shaders. */
@@ -65,7 +61,7 @@ struct RenderViewConfig {
     RenderViewMatrixSource viewSource{};
     RenderViewProjectionMatrixSource projectionSource{};
     unsigned char renderpassCount = 0;
-    RenderViewRenderpassConfig* renderpasses = nullptr;
+    RenderpassConfig* renderpasses = nullptr;
 };
 
 struct MeshPacketData {
@@ -86,7 +82,6 @@ struct SkyboxPacketData {
 class IRenderView {
 private:
     unsigned short id = 0;
-    String name{};
     RenderViewType type{};
 
 protected:
@@ -94,31 +89,33 @@ protected:
     unsigned short width = 0;
     unsigned short height = 0;
     unsigned char renderpassCount = 0;
-    DynamicArray<Renderpass*> renderpasses{};
+    Renderpass* renderpasses = nullptr;
     unsigned long size = 0;
-
-    ShaderSystem* shaderSystemRef = nullptr;
+    String name{};
 
 public:
     virtual ~IRenderView() = default;
 
-    virtual bool initialize(ShaderSystem* shaderRef, unsigned long newSize);
+    virtual bool initialize(unsigned long newSize);
     virtual void shutdown();
 
     [[nodiscard]] unsigned long getSize() const {return size;}
+    Renderpass& getRenderpass(const unsigned short index) const {return renderpasses[index];}
+    unsigned char getRenderpassCount() const {return renderpassCount;}
+    String getName() const {return name;}
 
     void setId(const unsigned short newId) {id = newId;}
     void setType(const RenderViewType newType) {type = newType;}
     void setCustomShader(const String &shaderName) {customShaderName = shaderName;}
     void setRenderpassCount(const unsigned short newCount) {renderpassCount = newCount;}
-    void initializeRenderpasses() {renderpasses.initialize(renderpassCount);}
-    void addRenderpass(Renderpass* renderpass) {renderpasses.push(renderpass);}
-    void setName(const String newName) {name = newName;} //Do not make it a ref!
+    void initializeRenderpasses() {renderpasses = FF_Memory::ff_allocate_recursive<Renderpass>(ARRAY, renderpassCount);}
+    void setName(const String &newName) {name = newName;}
 
     virtual void resize(unsigned int newWidth, unsigned int newHeight) = 0;
     virtual bool buildPacket(void* data, RenderViewPacket& outPacket) = 0;
-    virtual bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef, MaterialSystem* materialSystemRef) = 0;
-    virtual void destroyPacket(RenderViewPacket& packet) {}
+    virtual bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef) = 0;
+    virtual void destroyPacket(RenderViewPacket& packet) = 0;
+    virtual bool regenerateAttachmentTarget(unsigned int passIndex, RenderTargetAttachment& attachment) = 0;
 };
 
 struct RenderViewPacket {

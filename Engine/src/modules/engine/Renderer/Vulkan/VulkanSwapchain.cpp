@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "VulkanBackend.h"
+#include "VulkanImage.h"
 #include "VulkanUtils.h"
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/engine/Renderer/TextureUtils.h"
@@ -92,25 +93,22 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
     imageCount = 0;
     if (!VulkanUtils::vulkanCheck(vkGetSwapchainImagesKHR(device.getLogicalDevice(), handle, &imageCount, nullptr))) return false;
 
-    if (textures.isEmpty()) {
-        textures.initialize(imageCount);
+    if (!textures) {
+        textures = FF_Memory::ff_allocate_recursive<Texture>(TEXTURE, imageCount);
 
         for (unsigned int i = 0; i < imageCount; i++) {
-            textures.emplace();
-
             void* data = FF_Memory::ff_allocate<VulkanImage>( TEXTURE);
             String textureName = "Vulkan_Swapchain_Image_0" + toString(i);
 
-            textures[i] = TextureUtils::wrapTexture(textureName, swapchainExtent.width, swapchainExtent.height, 4, false, true, false, data);
-
-            if (!textures[i]) {
-                Logger::logFatal("Failed to generate a new swapchain image because texture is null!");
+            TextureSystem::wrapTexture(textureName, swapchainExtent.width, swapchainExtent.height, 4, false, true, false, data, textures[i]);
+            if (!textures[i].data) {
+                Logger::logFatal("Failed to generate swapchain image textures!");
                 return false;
             }
         }
     } else {
         for (unsigned int i = 0; i < imageCount; i++) {
-            TextureUtils::resizeTexture(*textures[i], swapchainExtent.width, swapchainExtent.height, false, backendRef);
+            TextureUtils::resizeTexture(textures[i], swapchainExtent.width, swapchainExtent.height, false, backendRef);
         }
     }
 
@@ -118,14 +116,14 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
     if (!VulkanUtils::vulkanCheck(vkGetSwapchainImagesKHR(device.getLogicalDevice(), handle, &imageCount, images))) return false;
 
     for (unsigned int i = 0; i < imageCount; i++) {
-        VulkanImage& image = *static_cast<VulkanImage *>(textures[i]->data);
+        VulkanImage& image = *static_cast<VulkanImage *>(textures[i].data);
         image.setImage(images[i]);
         image.setWidth(swapchainExtent.width);
         image.setHeight(swapchainExtent.height);
     }
 
     for (unsigned int i = 0; i < imageCount; i++) {
-        VulkanImage& image = *static_cast<VulkanImage *>(textures[i]->data);
+        VulkanImage& image = *static_cast<VulkanImage *>(textures[i].data);
         VkImageViewCreateInfo viewCreateInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
         viewCreateInfo.image = image.getImage();
         viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -145,20 +143,26 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
         return false;
     }
 
-    auto image = FF_Memory::ff_allocate<VulkanImage>(TEXTURE);
-    image->createImage(TEXTURE_2D,
-                       swapchainExtent.width,
-                       swapchainExtent.height,
-                       device.getDepthFormat(),
-                       VK_IMAGE_TILING_OPTIMAL,
-                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                       true,
-                       VK_IMAGE_ASPECT_DEPTH_BIT,
-                       device, allocator
-    );
+    if (!depthTextures) {
+        depthTextures = FF_Memory::ff_allocate_recursive<Texture>(TEXTURE, imageCount);
 
-    depthTexture = TextureUtils::wrapTexture("Fox_Fire_Default_Depth_Texture", swapchainExtent.width, swapchainExtent.height, device.getChannelCount(), false, true, false, image);
+        for (unsigned int i = 0; i < imageCount; i++) {
+            auto image = FF_Memory::ff_allocate<VulkanImage>(TEXTURE);
+            image->createImage(TEXTURE_2D,
+                               swapchainExtent.width,
+                               swapchainExtent.height,
+                               device.getDepthFormat(),
+                               VK_IMAGE_TILING_OPTIMAL,
+                               VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                               true,
+                               VK_IMAGE_ASPECT_DEPTH_BIT,
+                               device, allocator
+            );
+
+            TextureSystem::wrapTexture("Fox_Fire_Default_Depth_Texture", swapchainExtent.width, swapchainExtent.height, device.getChannelCount(), false, true, false, image, depthTextures[i]);
+        }
+    }
 
     Logger::logInfo("Successfully created swapchain!");
     return true;
@@ -193,16 +197,15 @@ bool VulkanSwapchain::detectDepthFormat(VulkanDevice& device) {
 void VulkanSwapchain::destroySwapchain(VulkanDevice& device, const VkAllocationCallbacks* allocator) {
     vkDeviceWaitIdle(device.getLogicalDevice());
 
-    const auto depthImage = static_cast<VulkanImage *>(depthTexture->data);
-    depthImage->destroy(device, allocator);
-    FF_Memory::ff_free<VulkanImage>(depthImage,  TEXTURE);
-    depthTexture->data = nullptr;
-    FF_Memory::ff_free<Texture>(depthTexture,  TEXTURE);
-    depthTexture = nullptr;
-
     for (unsigned int i = 0; i < imageCount; i++) {
-        VulkanImage& image = *static_cast<VulkanImage *>(textures[i]->data);
+        static_cast<VulkanImage *>(depthTextures[i].data)->destroy(device, allocator);
+        FF_Memory::ff_free<VulkanImage>(depthTextures[i].data,  TEXTURE);
+        depthTextures[i].data = nullptr;
+
+        VulkanImage& image = *static_cast<VulkanImage *>(textures[i].data);
         vkDestroyImageView(device.getLogicalDevice(), image.getImageView(), allocator);
+        FF_Memory::ff_free<VulkanImage>(textures[i].data, TEXTURE);
+        textures[i].data = nullptr;
     }
 
     if (handle) {
@@ -210,11 +213,10 @@ void VulkanSwapchain::destroySwapchain(VulkanDevice& device, const VkAllocationC
         handle = nullptr;
     }
 
-    for (unsigned int i = 0; i < imageCount; i++) {
-        FF_Memory::ff_free<VulkanImage>(textures[i]->data,  TEXTURE);
-        FF_Memory::ff_free<Texture>(textures[i],  TEXTURE);
-    }
-    textures.shutdown();
+    FF_Memory::ff_free_recursive<Texture>(textures, TEXTURE, imageCount);
+    FF_Memory::ff_free_recursive<Texture>(depthTextures, TEXTURE, imageCount);
+    textures = nullptr;
+    depthTextures = nullptr;
 
     imageCount = 0;
 }

@@ -4,6 +4,8 @@
 
 #include "ShaderSystem.h"
 
+#include "TextureSystem.h"
+
 ShaderSystem* ShaderSystem::instance = nullptr;
 
 bool ShaderSystem::initialize(const ShaderSystemConfig newConfig, IRendererBackend *backend) {
@@ -79,37 +81,42 @@ unsigned short ShaderSystem::getUniformIndex(Shader &shader, const String &unifo
     return index;
 }
 
-bool ShaderSystem::createShader(ShaderConfig& shaderConfig) {
-    Shader* shader = assets.createAsset(shaderConfig.name, false);
+bool ShaderSystem::createShader(ShaderConfig &shaderConfig, Renderpass &renderpass) {
+    Shader* shader = instance->assets.createAsset(shaderConfig.name, false);
 
-    if (!shader->initializeShader(shaderConfig, assets.getAssetIndex(shaderConfig.name))) return false;
-
-    Renderpass* renderpass = backendRef->getRenderpass(shaderConfig.renderpassName);
-    if (!renderpass) {
-        Logger::logError("Failed to find renderpass: " + shaderConfig.renderpassName);
-        return false;
-    }
+    if (!shader->initializeShader(shaderConfig, instance->assets.getAssetIndex(shaderConfig.name))) return false;
 
     shader->setState(SHADER_STATE_NOT_INITIALIZED);
 
     for (unsigned int i = 0; i < shaderConfig.attributeCount; i++) {
-        addAttribute(*shader, shaderConfig.attributes[i]);
+        instance->addAttribute(*shader, shaderConfig.attributes[i]);
     }
 
     for (unsigned int i = 0; i < shaderConfig.uniformCount; i++) {
         if (shaderConfig.uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER) {
-            addSampler(*shader, shaderConfig.uniforms[i]);
+            instance->addSampler(*shader, shaderConfig.uniforms[i]);
         } else {
-            addUniform(*shader, shaderConfig.uniforms[i]);
+            instance->addUniform(*shader, shaderConfig.uniforms[i]);
         }
     }
-    if (!backendRef->createShader(*shader, shaderConfig, *renderpass, shaderConfig.stageCount, shaderConfig.stageFileNames, shaderConfig.stages)) {
+
+    int flags = 0;
+    if (shaderConfig.bDepthTest) {
+        flags |= SHADER_FLAG_DEPTH_TEST;
+    }
+    if (shaderConfig.bDepthWrite) {
+        flags |= SHADER_FLAG_DEPTH_WRITE;
+    }
+    shader->setFlags(flags);
+
+
+    if (!instance->backendRef->createShader(*shader, shaderConfig, renderpass, shaderConfig.stageCount, shaderConfig.stageFileNames, shaderConfig.stages)) {
         Logger::logError("Failed to create shader.");
         return false;
     }
     shader->ensureAttributeAlignment();
 
-    if (!backendRef->initializeShader(*shader)) {
+    if (!instance->backendRef->initializeShader(*shader)) {
         Logger::logError("Failed to initialize shader: " + shaderConfig.name);
         return false;
     }
@@ -125,15 +132,15 @@ bool ShaderSystem::use(const String &name) {
 }
 
 bool ShaderSystem::use(const unsigned int shaderId) {
-    if (currentShaderId != shaderId) {
+    if (instance->currentShaderId != shaderId) {
         Shader* nextShader = getShader(shaderId);
         if (nextShader == nullptr) return false;
-        currentShaderId = shaderId;
-        if (!backendRef->useShader(*nextShader)) {
+        instance->currentShaderId = shaderId;
+        if (!instance->backendRef->useShader(*nextShader)) {
             Logger::logError("Failed to use shader " + nextShader->getName());
             return false;
         }
-        if (!backendRef->bindShaderGlobals(*nextShader)) {
+        if (!instance->backendRef->bindShaderGlobals(*nextShader)) {
             Logger::logError("Failed to bind globals for shader " + nextShader->getName());
             return false;
         }

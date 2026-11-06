@@ -12,13 +12,27 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Renderer/ShaderSystem.h"
 
-bool UIRenderView::initialize(ShaderSystem* shaderSystem, const unsigned long newSize) {
-    IRenderView::initialize(shaderSystem, newSize);
-    shaderId = shaderSystemRef->getId(!customShaderName.isEmpty() ? customShaderName : "Fox_Fire_UI_Shader");
-    shader = ShaderSystem::getShader(shaderId);
-    diffuseMapLocation = shaderSystemRef->getUniformIndex(*shader, "diffuse_texture");
-    diffuseColorLocation = shaderSystemRef->getUniformIndex(*shader, "diffuse_color");
-    modelLocation = shaderSystemRef->getUniformIndex(*shader, "model");
+bool UIRenderView::initialize(const unsigned long newSize) {
+    IRenderView::initialize(newSize);
+    const String shaderName = "Fox_Fire_UI_Shader";
+    Resource configResource{};
+    if (!ResourceSystem::load(shaderName, RESOURCE_TYPE_SHADER, configResource)) {
+        Logger::logError("Failed to load ui shader.");
+        return false;
+    }
+
+    ShaderConfig& config = *static_cast<ShaderConfig *>(configResource.data);
+    if (!ShaderSystem::createShader(config, renderpasses[0])) {
+        Logger::logError("Failed to create ui shader.");
+        return false;
+    }
+
+    ResourceSystem::unload(configResource);
+
+    shader = ShaderSystem::getShader(!customShaderName.isEmpty() ? customShaderName : shaderName);
+    diffuseMapLocation = ShaderSystem::getUniformIndex(*shader, "diffuse_texture");
+    diffuseColorLocation = ShaderSystem::getUniformIndex(*shader, "diffuse_color");
+    modelLocation = ShaderSystem::getUniformIndex(*shader, "model");
     nearClip = -100;
     farClip = 100;
     projectionMatrix = orthographic(0, 1280, 720, 0, nearClip, farClip);
@@ -27,6 +41,7 @@ bool UIRenderView::initialize(ShaderSystem* shaderSystem, const unsigned long ne
 }
 
 void UIRenderView::shutdown() {
+    EngineEvents::unsubscribe(REFRESH_RENDER_TARGETS, "Render_View_System_Refresh_" + name);
     IRenderView::shutdown();
 }
 
@@ -37,7 +52,7 @@ void UIRenderView::resize(const unsigned int newWidth, const unsigned int newHei
         projectionMatrix = orthographic(0, width, height, 0, nearClip, farClip);
 
         for (unsigned int i = 0; i < renderpassCount; i++) {
-            renderpasses[i]->setRenderArea({0, 0, static_cast<float>(width), static_cast<float>(height)});
+            renderpasses[i].setRenderArea({0, 0, static_cast<float>(width), static_cast<float>(height)});
         }
     }
 }
@@ -69,17 +84,20 @@ bool UIRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     return true;
 }
 
-bool UIRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef, MaterialSystem* materialSystemRef) {
-    for (Renderpass* renderpass : renderpasses) {
-        if (!backendRef->beginRenderpass(*renderpass, renderpass->getRenderTarget(renderTargetIndex))) {
+bool UIRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend *backendRef) {
+    const unsigned int shaderId = shader->getId();
+
+    for (unsigned int i = 0; i < renderpassCount; i++) {
+        Renderpass& renderpass = renderpasses[i];
+        if (!backendRef->beginRenderpass(renderpass, renderpass.getRenderTarget(renderTargetIndex))) {
             Logger::logError("Failed to begin ui render pass.");
             return false;
         }
-        if (!shaderSystemRef->use(shaderId)) {
+        if (!ShaderSystem::use(shaderId)) {
             Logger::logError("Failed to use material shader.");
             return false;
         }
-        if (!materialSystemRef->applyGlobal(shaderId, frameNumber, &outPacket.projectionMatrix, &outPacket.viewMatrix, nullptr, nullptr, 0)) {
+        if (!MaterialSystem::applyGlobal(shaderId, frameNumber, &outPacket.projectionMatrix, &outPacket.viewMatrix, nullptr, nullptr, 0)) {
             Logger::logError("Failed to apply globals for material shader.");
             return false;
         }
@@ -91,56 +109,56 @@ bool UIRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumber
             if (outPacket.geometries[i].geometry->material) {
                 material = outPacket.geometries[i].geometry->material;
             } else {
-                material = &materialSystemRef->getDefaultMaterial();
+                material = &MaterialSystem::getDefaultMaterial();
             }
 
             const bool needsUpdate = material->frameNumber != frameNumber;
 
-            if (!materialSystemRef->applyInstance(*material, needsUpdate)) {
+            if (!MaterialSystem::applyInstance(*material, needsUpdate)) {
                 Logger::logWarn("Failed to apply material " + material->name + " to ui apply instance.");
                 continue;
             }
 
             material->frameNumber = frameNumber;
 
-            materialSystemRef->applyLocal(*material, &outPacket.geometries[i].model);
+            MaterialSystem::applyLocal(*material, &outPacket.geometries[i].model);
 
             //In this case, the default material has the default texture.
-            backendRef->drawGeometry(outPacket.geometries[i], materialSystemRef->getDefaultMaterial());
+            backendRef->drawGeometry(outPacket.geometries[i], MaterialSystem::getDefaultMaterial());
         }
 
         //Draw UI Text
         const UIPacketData& packetData = *static_cast<UIPacketData *>(outPacket.data);
-        for (unsigned int i = 0; i < packetData.textCount; i++) {
-            UIText& text = *packetData.texts[i];
-            shaderSystemRef->bindInstance(text.getInstanceId());
+        for (unsigned int j = 0; j < packetData.textCount; j++) {
+            UIText& text = *packetData.texts[j];
+            ShaderSystem::bindInstance(text.getInstanceId());
 
-            if (!shaderSystemRef->setUniform(diffuseMapLocation, &text.getTextureAtlas())) {
+            if (!ShaderSystem::setUniform(diffuseMapLocation, &text.getTextureAtlas())) {
                 Logger::logError("Failed to set uniform for bitmap font diffuse map.");
                 return false;
             }
 
             //Font color
             static Vector4f white{1, 1, 1, 1};
-            if (!shaderSystemRef->setUniform(diffuseColorLocation, &white)) {
+            if (!ShaderSystem::setUniform(diffuseColorLocation, &white)) {
                 Logger::logError("Failed to set uniform for bitmap font diffuse color.");
                 return false;
             }
 
             const bool needsUpdate = text.getFrameNumber() != frameNumber;
-            shaderSystemRef->applyInstance(needsUpdate);
+            ShaderSystem::applyInstance(needsUpdate);
             text.setFrameNumber(frameNumber);
 
             //Apply locals
             Mat4 model = TransformUtils::getWorldPos(text.getTransform());
-            if (!shaderSystemRef->setUniform(modelLocation, &model)) {
+            if (!ShaderSystem::setUniform(modelLocation, &model)) {
                 Logger::logError("Failed to set uniform for bitmap font model.");
             }
 
             text.draw();
         }
 
-        if (!backendRef->endRenderpass(*renderpass)) {
+        if (!backendRef->endRenderpass(renderpass)) {
             Logger::logError("Failed to end ui render pass.");
             return false;
         }

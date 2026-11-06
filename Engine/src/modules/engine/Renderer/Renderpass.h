@@ -6,8 +6,8 @@
 #include "IRenderpass.h"
 #include "src/defines.h"
 #include "src/modules/engine/Library/FF_Math.h"
-#include "src/modules/engine/Resources/EngineTextureTypes.h"
 #include "../Input/EventSystem.h"
+#include "src/modules/engine/Resources/EngineRenderTargetTypes.h"
 
 /**
  *  @file Renderpass.h
@@ -30,18 +30,13 @@ enum RenderpassClearFlag {
 
 struct RenderpassConfig {
     String name{};
-    String prevName{};
-    String nextName{};
     Vector4f renderArea{};
     Vector4f clearColor{};
     unsigned char clearFlags = 0;
-};
-
-struct RenderTarget {
-    bool bUpdateOnResize = false;
-    unsigned char attachmentCount = 0;
-    DynamicArray<Texture*> attachments{};
-    void* framebuffer = nullptr;
+    float depth = 0;
+    unsigned int stencil = 0;
+    unsigned char renderTargetCount = 0;
+    RenderTargetConfig targetConfig{};
 };
 
 class Renderpass {
@@ -55,12 +50,15 @@ private:
     IRenderpass* data = nullptr;
 
 public:
+    void shutdown();
+
     [[nodiscard]] IRenderpass* getData() const {return data;}
     Vector4f& getRenderArea() {return renderArea;}
     [[nodiscard]] bool hasFlag(const unsigned char flag) const {return clearFlags & flag;}
     Vector4f& getClearColor() {return clearColor;}
     [[nodiscard]] unsigned short getId() const {return id;}
     [[nodiscard]] RenderTarget& getRenderTarget(const unsigned char index) const {return targets[index];}
+    unsigned char getRenderTargetCount() const {return renderTargetCount;}
 
     void setId(const unsigned short newId) {id = newId;}
     void setClearFlags(const unsigned char newFlags) {clearFlags = newFlags;}

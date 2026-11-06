@@ -18,11 +18,11 @@
 #include "foxfire_export.h"
 #include "../Input/IInputSystem.h"
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
-#include "src/modules/engine/Renderer/TextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Threads/JobSystem.h"
 
 #define MAX_THREAD_COUNT 15
+#define AVERAGE_COUNT 30 //How many frames should pass before taking the average frames per ms?
 
 /**
  * @brief The core of the engine.
@@ -57,12 +57,10 @@ private:
     bool bIsPaused = false;
     /** @brief Whether the engine has finished initialization. */
     bool bIsInitialized = false;
-    /** @brief Width of the screen. */
-    unsigned short width = 0;
-    /** @brief height of the screen. */
-    unsigned short height = 0;
     /** @brief The amount of time the previous frame took */
     double lastTime = 0;
+
+    unsigned int hoveredObjectId = INVALID_ID_U32;
 
     /**
      * @brief Initializes FF_Memory and the Linear Allocator
@@ -70,6 +68,11 @@ private:
     bool initializeMemory();
 
 protected:
+    /** @brief Width of the screen. */
+    unsigned short width = 0;
+    /** @brief height of the screen. */
+    unsigned short height = 0;
+
     //Holds config data
     /** @brief Holds Game-specific config data */
     GameInstance gameInstance;
@@ -117,7 +120,7 @@ protected:
      */
     bool render(float deltaTime);
 
-    void createRenderView(const RenderViewConfig &config);
+    bool createRenderView(const RenderViewConfig &config);
 
     /**
      * @brief Creates the derived GameState, Must be called after gameInstance is set by the Engine.
@@ -143,6 +146,8 @@ protected:
     }
 
     bool bModelsLoaded = false;
+
+    unsigned int getWindowAttachmentCount() const;
 
 public:
     explicit Engine(const GameInstance& instance);

@@ -16,27 +16,6 @@ Texture MasterRenderSystem::createBlankTexture() {
     return texture;
 }
 
-void MasterRenderSystem::regenerateRenderTargets() const {
-    for (unsigned char i = 0; i < renderTargetCount; i++) {
-        backend->destroyRenderTarget(worldRenderpass->getRenderTarget(i), false);
-        backend->destroyRenderTarget(uiRenderpass->getRenderTarget(i), false);
-        backend->destroyRenderTarget(skyboxRenderpass->getRenderTarget(i), false);
-
-        Texture* windowTexture = backend->getWindowAttachment(i);
-        Texture* depthTexture = backend->getDepthAttachment();
-
-        DynamicArray<Texture*> attachments{2};
-        attachments.push(windowTexture);
-        attachments.push(depthTexture);
-
-        backend->createRenderTarget(1, attachments, *skyboxRenderpass, framebufferWidth, framebufferHeight, skyboxRenderpass->getRenderTarget(i));
-        backend->createRenderTarget(2, attachments, *worldRenderpass, framebufferWidth, framebufferHeight, worldRenderpass->getRenderTarget(i));
-        backend->createRenderTarget(1, attachments, *uiRenderpass, framebufferWidth, framebufferHeight, uiRenderpass->getRenderTarget(i));
-
-        attachments.shutdown();
-    }
-}
-
 bool MasterRenderSystem::createRenderBuffer(const RenderBufferType type, const ULong size, const bool useFreeList, RenderBuffer &outBuffer) {
     outBuffer.initialize(type, size, useFreeList);
     if (!instance->backend->createBuffer(outBuffer)) {
@@ -123,68 +102,11 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
 
     RendererBackendConfig config{};
     config.appName = appName;
-    config.func = [this]() {regenerateRenderTargets();};
 
-    config.renderpassCount = 3;
-    const String worldName = "Fox_Fire_World_Renderpass";
-    const String uiName = "Fox_Fire_UI_Renderpass";
-    const String skyboxName = "Fox_Fire_Skybox_Renderpass";
-    RenderpassConfig configs[3]{};
-
-    configs[0].name = skyboxName;
-    configs[0].nextName = worldName;
-    configs[0].renderArea = createVector4f(0, 0, 1280, 720);
-    configs[0].clearColor = createVector4f(0.0f, 0.0f, 0.2f, 1.0f);
-    configs[0].clearFlags = RENDERPASS_CLEAR_COLOR;
-
-    configs[1].name = worldName;
-    configs[1].prevName = skyboxName;
-    configs[1].nextName = uiName;
-    configs[1].renderArea = createVector4f(0, 0, 1280, 720);
-    configs[1].clearColor = createVector4f(0.0f, 0.0f, 0.2f, 1.0f);
-    configs[1].clearFlags = RENDERPASS_CLEAR_DEPTH | RENDERPASS_CLEAR_STENCIL;
-
-    configs[2].name = uiName;
-    configs[2].prevName = worldName;
-    configs[2].renderArea = createVector4f(0, 0, 1280, 720);
-    configs[2].clearColor = createVector4f(0.0f, 0.0f, 0.2f, 1.0f);
-    configs[2].clearFlags = RENDERPASS_CLEAR_NONE;
-
-    config.configs = configs;
-
-    if (!backend->initialize(platform, config, renderTargetCount, &resources)) {
+    if (!backend->initialize(platform, config, renderTargetCount)) {
         Logger::logFatal("Renderer Backend failed to initialize!");
         return false;
     }
-    void* worldTargets = FF_Memory::ff_allocate_recursive<RenderTarget>(ARRAY, renderTargetCount);
-    void* uiTargets = FF_Memory::ff_allocate_recursive<RenderTarget>(ARRAY, renderTargetCount);
-    void* skyboxTargets = FF_Memory::ff_allocate_recursive<RenderTarget>(ARRAY, renderTargetCount);
-    for (unsigned int i = 0; i < renderTargetCount; i++) {
-        const auto worldTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(worldTargets) + (sizeof(RenderTarget) * i));
-        std::construct_at(worldTarget);
-        const auto uiTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(uiTargets) + (sizeof(RenderTarget) * i));
-        std::construct_at(uiTarget);
-        const auto skyboxTarget = reinterpret_cast<RenderTarget *>(static_cast<unsigned char *>(skyboxTargets) + (sizeof(RenderTarget) * i));
-        std::construct_at(skyboxTarget);
-    }
-
-    worldRenderpass = backend->getRenderpass(worldName);
-    worldRenderpass->setRenderTargetCount(renderTargetCount);
-    worldRenderpass->setTargets(static_cast<RenderTarget *>(worldTargets));
-
-    uiRenderpass = backend->getRenderpass(uiName);
-    uiRenderpass->setRenderTargetCount(renderTargetCount);
-    uiRenderpass->setTargets(static_cast<RenderTarget *>(uiTargets));
-
-    skyboxRenderpass = backend->getRenderpass(skyboxName);
-    skyboxRenderpass->setRenderTargetCount(renderTargetCount);
-    skyboxRenderpass->setTargets(static_cast<RenderTarget *>(skyboxTargets));
-
-    regenerateRenderTargets();
-
-    worldRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
-    uiRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
-    skyboxRenderpass->setRenderArea(createVector4f(0, 0, static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight)));
 
     return true;
 }
@@ -204,49 +126,7 @@ bool MasterRenderSystem::initializeGeometrySystem(const unsigned int initialCapa
 }
 
 bool MasterRenderSystem::initializeShaderSystem(const ShaderSystemConfig& config, ResourceSystem& resources) {
-    if (!shaderSystem.initialize(config, backend)) return false;
-
-    //Shaders
-    Resource configResource{};
-    ShaderConfig* shaderConfig = nullptr;
-
-    if (!resources.load(DEFAULT_SKYBOX_SHADER_NAME, RESOURCE_TYPE_SHADER, configResource)) {
-        Logger::logFatal("Failed to load skybox shader!");
-        return false;
-    }
-    shaderConfig = static_cast<ShaderConfig *>(configResource.data);
-    if (!shaderSystem.createShader(*shaderConfig)) {
-        Logger::logFatal("Failed to create shader from config!");
-        return false;
-    }
-    resources.unload(configResource);
-    skyboxShaderId = shaderSystem.getId(DEFAULT_SKYBOX_SHADER_NAME);
-
-    if (!resources.load(DEFAULT_MATERIAL_SHADER_NAME, RESOURCE_TYPE_SHADER, configResource)) {
-        Logger::logFatal("Failed to load material shader!");
-        return false;
-    }
-    shaderConfig = static_cast<ShaderConfig *>(configResource.data);
-    if (!shaderSystem.createShader(*shaderConfig)) {
-        Logger::logFatal("Failed to create shader from config!");
-        return false;
-    }
-    resources.unload(configResource);
-    materialShaderId = shaderSystem.getId(DEFAULT_MATERIAL_SHADER_NAME);
-
-    if (!resources.load(DEFAULT_UI_SHADER_NAME, RESOURCE_TYPE_SHADER, configResource)) {
-        Logger::logFatal("Failed to load ui shader!");
-        return false;
-    }
-    shaderConfig = static_cast<ShaderConfig *>(configResource.data);
-    if (!shaderSystem.createShader(*shaderConfig)) {
-        Logger::logFatal("Failed to create shader from config!");
-        return false;
-    }
-    resources.unload(configResource);
-    uiShaderId = shaderSystem.getId(DEFAULT_UI_SHADER_NAME);
-
-    return true;
+    return shaderSystem.initialize(config, backend);
 }
 
 bool MasterRenderSystem::initializeCameraSystem(const CameraSystemConfig &config, EntityComponentSystem* ecsRef) {
@@ -259,7 +139,7 @@ bool MasterRenderSystem::initializeCameraSystem(const CameraSystemConfig &config
 }
 
 bool MasterRenderSystem::initializeRenderViewSystem(const RenderViewSystemConfig &config) {
-    return renderViewSystem.initialize(config, backend, &shaderSystem, &materialSystem);
+    return renderViewSystem.initialize(config, backend);
 }
 
 bool MasterRenderSystem::initializeSkybox() {
@@ -279,7 +159,7 @@ bool MasterRenderSystem::initializeSkybox() {
     skyboxConfig.materialName = String{};
     skybox.geometry = &GeometrySystem::acquireGeometry(skyboxConfig, true);
     skybox.frameNumber = INVALID_ID_U64;
-    const Shader& skyboxShader = *shaderSystem.getShader(DEFAULT_SKYBOX_SHADER_NAME);
+    const Shader& skyboxShader = *shaderSystem.getShader("Fox_Fire_Skybox_Shader");
     TextureMap* maps[1] = {&skybox.map};
     if (!backend->acquireInstanceResources(skyboxShader, skybox.instanceId, &maps[0])) {
         Logger::logFatal("Failed to acquire instance resources for skybox!");
@@ -297,16 +177,6 @@ void MasterRenderSystem::shutdown() {
     cameraSystem.shutdown();
 
     renderViewSystem.shutdown();
-
-    for (unsigned char i = 0; i < renderTargetCount; i++) {
-        backend->destroyRenderTarget(worldRenderpass->getRenderTarget(i), true);
-        backend->destroyRenderTarget(uiRenderpass->getRenderTarget(i), true);
-        backend->destroyRenderTarget(skyboxRenderpass->getRenderTarget(i), true);
-    }
-
-    FF_Memory::ff_free_recursive<RenderTarget>(&worldRenderpass->getRenderTarget(0),  ARRAY, renderTargetCount);
-    FF_Memory::ff_free_recursive<RenderTarget>(&uiRenderpass->getRenderTarget(0),  ARRAY, renderTargetCount);
-    FF_Memory::ff_free_recursive<RenderTarget>(&skyboxRenderpass->getRenderTarget(0),  ARRAY, renderTargetCount);
 
     materialSystem.shutdown();
 
@@ -326,6 +196,10 @@ void MasterRenderSystem::shutdown() {
     instance = nullptr;
 }
 
+unsigned int MasterRenderSystem::getWindowAttachmentCount() const {
+    return backend->getWindowAttachmentCount();
+}
+
 bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
     backend->incrementFrameNumber();
 
@@ -337,6 +211,9 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
             const auto height = static_cast<float>(framebufferHeight);
             renderViewSystem.resize(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
             backend->resize(static_cast<unsigned short>(width), static_cast<unsigned short>(height));
+
+            renderViewSystem.resize(width, height);
+
             framesSinceResizeRequested = 0;
             bIsCurrentlyResizing = false;
         } else {

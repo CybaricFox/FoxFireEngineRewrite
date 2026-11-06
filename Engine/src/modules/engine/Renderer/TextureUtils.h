@@ -21,6 +21,5 @@
 
 class TextureUtils {
 public:
-    static Texture* wrapTexture(const String &name, unsigned int width, unsigned int height, unsigned int channelCount, bool isTransparent, bool isWritable, bool registerTexture, void* data);
     static bool resizeTexture(Texture &texture, unsigned int width, unsigned int height, bool regenerateData, IRendererBackend* backendRef);
 };

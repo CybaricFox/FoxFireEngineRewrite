@@ -86,7 +86,7 @@ public:
      * @param type Name of the entity.
      * @return Array of all associated instances.
      */
-    DynamicArray<unsigned int> &getAllEntitiesOfType(const String &type);
+    static DynamicArray<unsigned int> &getAllEntitiesOfType(const String &type);
 
     /**
      * @brief Creates an instance of an entity.

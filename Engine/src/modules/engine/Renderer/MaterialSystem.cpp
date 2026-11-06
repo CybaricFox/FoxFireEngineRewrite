@@ -18,7 +18,7 @@ bool MaterialSystem::createDefaultMaterial() {
     defaultMaterial.normalMap.texture = &TextureSystem::getDefaultNormalTexture();
 
     TextureMap* maps[3]{&defaultMaterial.diffuseMap, &defaultMaterial.specularMap, &defaultMaterial.normalMap};
-    const Shader* shader = ShaderSystem::getShader(DEFAULT_MATERIAL_SHADER_NAME);
+    const Shader* shader = ShaderSystem::getShader("Fox_Fire_Material_Shader");
     if (!backendRef->acquireInstanceResources(*shader, defaultMaterial.internalId, maps)) {
         Logger::logFatal("Failed to acquire resources for the default material.");
         return false;
@@ -220,7 +220,7 @@ Material & MaterialSystem::acquireMaterial(const MaterialResourceData &newConfig
     }
 
     Shader* shader = ShaderSystem::getShader(material->shaderId);
-    if (materialShaderId == INVALID_ID_U32 && newConfig.shaderName == DEFAULT_MATERIAL_SHADER_NAME) {
+    if (materialShaderId == INVALID_ID_U32 && newConfig.shaderName == "Fox_Fire_Material_Shader") {
         materialShaderId = shader->getId();
         materialLocations.projection = ShaderSystem::getUniformIndex(*shader, "projection");
         materialLocations.view = ShaderSystem::getUniformIndex(*shader, "view");
@@ -233,7 +233,7 @@ Material & MaterialSystem::acquireMaterial(const MaterialResourceData &newConfig
         materialLocations.shine = ShaderSystem::getUniformIndex(*shader, "shine");
         materialLocations.model = ShaderSystem::getUniformIndex(*shader, "model");
         materialLocations.renderMode = ShaderSystem::getUniformIndex(*shader, "mode");
-    } else if (uiShaderId == INVALID_ID_U32 && newConfig.shaderName == DEFAULT_UI_SHADER_NAME){
+    } else if (uiShaderId == INVALID_ID_U32 && newConfig.shaderName == "Fox_Fire_UI_Shader"){
         uiShaderId = shader->getId();
         uiShaderLocations.projection = ShaderSystem::getUniformIndex(*shader, "projection");
         uiShaderLocations.view = ShaderSystem::getUniformIndex(*shader, "view");
@@ -266,38 +266,38 @@ void MaterialSystem::releaseMaterial(const String &name) {
     }
 }
 
-bool MaterialSystem::applyGlobal(const unsigned int shaderId, const unsigned long frameNumber, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f *viewPosition, unsigned int renderMode) const {
+bool MaterialSystem::applyGlobal(const unsigned int shaderId, const unsigned long frameNumber, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f *viewPosition, unsigned int renderMode) {
     Shader* shader = ShaderSystem::getShader(shaderId);
     if (!shader) return false;
     if (shader->getFrameNumber() == frameNumber) return true;
 
-    if (shaderId == materialShaderId) {
-        if (!ShaderSystem::setUniform(materialLocations.projection, projection)) {
+    if (shaderId == instance->materialShaderId) {
+        if (!ShaderSystem::setUniform(instance->materialLocations.projection, projection)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }
-        if (!ShaderSystem::setUniform(materialLocations.view, view)) {
+        if (!ShaderSystem::setUniform(instance->materialLocations.view, view)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }
-        if (!ShaderSystem::setUniform(materialLocations.ambientColor, ambientColor)) {
+        if (!ShaderSystem::setUniform(instance->materialLocations.ambientColor, ambientColor)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }
-        if (!ShaderSystem::setUniform(materialLocations.viewPosition, &viewPosition)) {
+        if (!ShaderSystem::setUniform(instance->materialLocations.viewPosition, &viewPosition)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }
-        if (!ShaderSystem::setUniform(materialLocations.renderMode, &renderMode)) {
+        if (!ShaderSystem::setUniform(instance->materialLocations.renderMode, &renderMode)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }
-    } else if (shaderId == uiShaderId) {
-        if (!ShaderSystem::setUniform(uiShaderLocations.projection, projection)) {
+    } else if (shaderId == instance->uiShaderId) {
+        if (!ShaderSystem::setUniform(instance->uiShaderLocations.projection, projection)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }
-        if (!ShaderSystem::setUniform(uiShaderLocations.view, view)) {
+        if (!ShaderSystem::setUniform(instance->uiShaderLocations.view, view)) {
             Logger::logError("Failed to apply global material.");
             return false;
         }
@@ -306,48 +306,51 @@ bool MaterialSystem::applyGlobal(const unsigned int shaderId, const unsigned lon
         return false;
     }
 
-    ShaderSystem::applyGlobal();
+    if (!ShaderSystem::applyGlobal()) {
+        Logger::logWarn("Failed to apply global material.");
+        return false;
+    }
 
     shader->setFrameNumber(frameNumber);
 
     return true;
 }
 
-bool MaterialSystem::applyInstance(Material &material, const bool update) const {
+bool MaterialSystem::applyInstance(Material &material, const bool update) {
     if (!ShaderSystem::bindInstance(material.internalId)) {
         Logger::logError("Failed to bind material.");
         return false;
     }
 
     if (update) {
-        if (material.shaderId == materialShaderId) {
-            if (!ShaderSystem::setUniform(materialLocations.diffuseColor, &material.diffuseColor)) {
+        if (material.shaderId == instance->materialShaderId) {
+            if (!ShaderSystem::setUniform(instance->materialLocations.diffuseColor, &material.diffuseColor)) {
                 Logger::logError("Failed to apply instance material.");
                 return false;
             }
-            if (!ShaderSystem::setUniform(materialLocations.diffuseTexture, &material.diffuseMap)) {
+            if (!ShaderSystem::setUniform(instance->materialLocations.diffuseTexture, &material.diffuseMap)) {
                 Logger::logError("Failed to apply instance material.");
                 return false;
             }
-            if (!ShaderSystem::setUniform(materialLocations.specularTexture, &material.specularMap)) {
+            if (!ShaderSystem::setUniform(instance->materialLocations.specularTexture, &material.specularMap)) {
                 Logger::logError("Failed to apply instance material.");
                 return false;
             }
-            if (!ShaderSystem::setUniform(materialLocations.normalTexture, &material.normalMap)) {
+            if (!ShaderSystem::setUniform(instance->materialLocations.normalTexture, &material.normalMap)) {
                 Logger::logError("Failed to apply instance material.");
                 return false;
             }
-            if (!ShaderSystem::setUniform(materialLocations.shine, &material.shine)) {
+            if (!ShaderSystem::setUniform(instance->materialLocations.shine, &material.shine)) {
                 Logger::logError("Failed to apply instance material.");
                 return false;
             }
 
-        } else if (material.shaderId == uiShaderId) {
-            if (!ShaderSystem::setUniform(uiShaderLocations.diffuseColor, &material.diffuseColor)) {
+        } else if (material.shaderId == instance->uiShaderId) {
+            if (!ShaderSystem::setUniform(instance->uiShaderLocations.diffuseColor, &material.diffuseColor)) {
                 Logger::logError("Failed to apply instance material.");
                 return false;
             }
-            if (!ShaderSystem::setUniform(uiShaderLocations.diffuseTexture, &material.diffuseMap)) {
+            if (!ShaderSystem::setUniform(instance->uiShaderLocations.diffuseTexture, &material.diffuseMap)) {
                 Logger::logError("Failed to apply instance material.");
                 return false;
             }
@@ -357,16 +360,19 @@ bool MaterialSystem::applyInstance(Material &material, const bool update) const 
         }
     }
 
-    ShaderSystem::applyInstance(update);
+    if (!ShaderSystem::applyInstance(update)) {
+        Logger::logWarn("Failed to apply shader instance!");
+        return false;
+    }
     return true;
 }
 
-bool MaterialSystem::applyLocal(const Material &material, Mat4 *model) const {
-    if (material.shaderId == materialShaderId) {
-        return ShaderSystem::setUniform(materialLocations.model, model);
+bool MaterialSystem::applyLocal(const Material &material, Mat4 *model) {
+    if (material.shaderId == instance->materialShaderId) {
+        return ShaderSystem::setUniform(instance->materialLocations.model, model);
     }
-    if (material.shaderId == uiShaderId) {
-        return ShaderSystem::setUniform(uiShaderLocations.model, model);
+    if (material.shaderId == instance->uiShaderId) {
+        return ShaderSystem::setUniform(instance->uiShaderLocations.model, model);
     }
 
     Logger::logError("Invalid shader id: " + toString(material.shaderId));

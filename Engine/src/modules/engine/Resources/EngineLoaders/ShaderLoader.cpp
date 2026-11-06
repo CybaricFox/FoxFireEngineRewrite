@@ -59,10 +59,7 @@ bool ShaderLoader::load(const String name, Resource &outResource, const String b
 
         } else if (variable.equalsIgnoreCase( "name")) {
             resourceData->name = value;
-        } else if (variable.equalsIgnoreCase( "renderpass")) {
-            resourceData->renderpassName = value;
-        }
-        else if (variable.equalsIgnoreCase( "stages")) {
+        } else if (variable.equalsIgnoreCase( "stages")) {
             const unsigned int count = StringUtils::recursiveSplit(value, ',', resourceData->stageNames);
             if (resourceData->stageCount == 0) {
                 resourceData->stageCount = count;
@@ -98,6 +95,10 @@ bool ShaderLoader::load(const String name, Resource &outResource, const String b
             } else if (value == "none") {
                 resourceData->cullMode = CULL_MODE_NONE;
             }
+        } else if (variable.equalsIgnoreCase( "depth_test")) {
+            StringUtils::stringToBool(value, resourceData->bDepthTest);
+        } else if (variable.equalsIgnoreCase( "depth_write")) {
+            StringUtils::stringToBool(value, resourceData->bDepthWrite);
         } else if (variable.equalsIgnoreCase( "attribute")) {
             DynamicArray<String> fields{};
             unsigned int count = StringUtils::recursiveSplit(value, ',', fields);

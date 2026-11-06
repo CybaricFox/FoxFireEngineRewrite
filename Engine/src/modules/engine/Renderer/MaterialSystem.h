@@ -108,7 +108,7 @@ public:
      * @param renderMode (Editor Only) Mode to render
      * @return false on failure
      */
-     bool applyGlobal(unsigned int shaderId, unsigned long frameNumber, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f *viewPosition, unsigned int renderMode) const;
+     static bool applyGlobal(unsigned int shaderId, unsigned long frameNumber, Mat4 *projection, Mat4 *view, Vector4f *ambientColor, Vector3f *viewPosition, unsigned int renderMode);
 
     /**
      * @brief Apply Instance UBO to material
@@ -116,7 +116,7 @@ public:
      * @param update Whether the instance UBO should be updated (Once per frame)
      * @return false on failure
      */
-     bool applyInstance(Material& material, bool update) const;
+     static bool applyInstance(Material& material, bool update);
 
     /**
      * @brief Apply local UBO to material
@@ -124,5 +124,5 @@ public:
      * @param model Model of the object
      * @return false on failure
      */
-     bool applyLocal(const Material &material, Mat4 *model) const;
+     static bool applyLocal(const Material &material, Mat4 *model);
 };

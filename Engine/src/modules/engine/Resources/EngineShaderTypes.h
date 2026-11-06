@@ -54,3 +54,9 @@ enum ShaderScope {
     SHADER_SCOPE_INSTANCE,
     SHADER_SCOPE_LOCAL
 };
+
+enum ShaderFlags {
+    SHADER_FLAG_NONE = 0x0,
+    SHADER_FLAG_DEPTH_TEST = 0x1,
+    SHADER_FLAG_DEPTH_WRITE = 0x2
+};

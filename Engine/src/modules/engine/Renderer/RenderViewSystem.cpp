@@ -59,16 +59,15 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
     view->setRenderpassCount(config.renderpassCount);
     view->initializeRenderpasses();
 
+    //Create renderpasses based on the config
     for (unsigned int i = 0; i < config.renderpassCount; i++) {
-        Renderpass* renderpass = backendRef->getRenderpass(config.renderpasses[i].renderpassName);
-        if (renderpass == nullptr) {
-            Logger::logFatal("Failed to create render view because the renderpass: " + config.renderpasses->renderpassName + " could not be found.");
+        if (!createRenderpass(config.renderpasses[i], view->getRenderpass(i))) {
+            Logger::logError("Failed to create render pass " + config.renderpasses[i].name + ".");
             return false;
         }
-        view->addRenderpass(renderpass);
     }
 
-    if (!view->initialize(shaderSystemRef, size)) {
+    if (!view->initialize(size)) {
         Logger::logError("Failed to creat render view.");
         view->shutdown();
         FF_Memory::ff_free<IRenderView>(view, RENDER, size);
@@ -76,7 +75,42 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
         return false;
     }
 
+    //Register Events
+    EngineEvents::subscribe(REFRESH_RENDER_TARGETS, [this, view](EngineInputContext) {regenerateRenderTargets(*view);}, "Render_View_System_Refresh_" + view->getName());
+
     return true;
+}
+
+bool RenderViewSystem::createRenderpass(const RenderpassConfig& config, Renderpass& outRenderpass) const {
+    if (config.renderTargetCount == 0) {
+        Logger::logError("A renderpass cannot be created with 0 render targets.");
+        return false;
+    }
+
+    outRenderpass.setRenderTargetCount(config.renderTargetCount);
+    outRenderpass.setTargets(FF_Memory::ff_allocate_recursive<RenderTarget>(ARRAY, config.renderTargetCount));
+    outRenderpass.setClearFlags(config.clearFlags);
+    outRenderpass.setClearColor(config.clearColor);
+    outRenderpass.setRenderArea(config.renderArea);
+
+    for (unsigned int i = 0; i < config.renderTargetCount; i++) {
+        RenderTarget& target = outRenderpass.getRenderTarget(i);
+        target.attachmentCount = config.targetConfig.attachmentCount;
+        target.attachments = FF_Memory::ff_allocate_recursive<RenderTargetAttachment>(ARRAY, config.targetConfig.attachmentCount);
+
+        for (unsigned int j = 0; j < config.targetConfig.attachmentCount; j++) {
+            RenderTargetAttachment& attachment = target.attachments[j];
+            const RenderTargetAttachmentConfig& attachmentConfig = config.targetConfig.attachments[j];
+
+            attachment.source = attachmentConfig.source;
+            attachment.type = attachmentConfig.type;
+            attachment.loadOperation = attachmentConfig.loadOperation;
+            attachment.storeOperation = attachmentConfig.storeOperation;
+            attachment.texture = nullptr;
+        }
+    }
+
+    return backendRef->createRenderpass(config, outRenderpass);
 }
 
 void RenderViewSystem::resize(const unsigned int width, const unsigned int height) {
@@ -87,13 +121,48 @@ void RenderViewSystem::resize(const unsigned int width, const unsigned int heigh
 }
 
 bool RenderViewSystem::render(IRenderView &renderView, RenderViewPacket &packet, const unsigned long frameNumber, const unsigned long targetIndex) const {
-    return renderView.render(packet, frameNumber, targetIndex, backendRef, materialSystemRef);
+    return renderView.render(packet, frameNumber, targetIndex, backendRef);
 }
 
-bool RenderViewSystem::initialize(const RenderViewSystemConfig config, IRendererBackend *backend, ShaderSystem* shaderSystem, MaterialSystem* materialRef) {
+void RenderViewSystem::regenerateRenderTargets(IRenderView &view) const {
+    for (ULong i = 0; i < view.getRenderpassCount(); i++) {
+        Renderpass& renderpass = view.getRenderpass(i);
+
+        for (unsigned char j = 0; j < renderpass.getRenderTargetCount(); j++) {
+            RenderTarget& target = renderpass.getRenderTarget(j);
+            backendRef->destroyRenderTarget(target, false);
+
+            for (unsigned int a = 0; a < target.attachmentCount; a++) {
+                RenderTargetAttachment& attachment = target.attachments[a];
+
+                if (attachment.source == RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
+                    if (attachment.type == RENDER_TARGET_ATTACHMENT_TYPE_COLOR) {
+                        attachment.texture = backendRef->getWindowAttachment(j);
+                    } else if (attachment.type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
+                        attachment.texture = backendRef->getDepthAttachment(j);
+                    } else {
+                        Logger::logFatal("Unsupported attachment type: " + toString(attachment.type));
+                    }
+                } else if (attachment.source == RENDER_TARGET_ATTACHMENT_SOURCE_VIEW) {
+                    if (!view.regenerateAttachmentTarget(i, attachment)) {
+                        Logger::logError("Failed to regenerate render view attachment: " + toString(attachment.type));
+                    }
+                }
+            }
+
+            backendRef->createRenderTarget(
+                target.attachmentCount,
+                target.attachments,
+                renderpass,
+                target.attachments[0].texture->width,
+                target.attachments[0].texture->height,
+                renderpass.getRenderTarget(j));
+        }
+    }
+}
+
+bool RenderViewSystem::initialize(const RenderViewSystemConfig config, IRendererBackend *backend) {
     backendRef = backend;
-    shaderSystemRef = shaderSystem;
-    materialSystemRef = materialRef;
 
     if (config.maxViewCount == 0) {
         Logger::logFatal("Render view system config must have a max view count higher than 0!");
@@ -109,15 +178,27 @@ bool RenderViewSystem::initialize(const RenderViewSystemConfig config, IRenderer
 void RenderViewSystem::shutdown() {
     for (IRenderView** viewPtr : assets.getAssetsAsArray()) {
         IRenderView* view = *viewPtr;
+
+        for (unsigned int i = 0; i < view->getRenderpassCount(); i++) {
+            Renderpass& renderpass = view->getRenderpass(i);
+
+            for (unsigned int j = 0; j < renderpass.getRenderTargetCount(); j++) {
+                backendRef->destroyRenderTarget(renderpass.getRenderTarget(j), true);
+            }
+
+            backendRef->destroyRenderpass(renderpass);
+            renderpass.shutdown();
+        }
+
         view->shutdown();
         FF_Memory::ff_free<IRenderView>(view,  RENDER, view->getSize());
     }
 
     assets.shutdown();
 
+    UIText::shutdown();
+
     backendRef = nullptr;
-    shaderSystemRef = nullptr;
-    materialSystemRef = nullptr;
 }
 
 IRenderView* RenderViewSystem::getRenderView(const String &name) {

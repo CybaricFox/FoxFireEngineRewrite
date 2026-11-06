@@ -315,3 +315,25 @@ bool TextureSystem::writeData(Texture &texture, const unsigned offset, const uns
     instance->backendRef->writeTextureData(texture, offset, size, data);
     return true;
 }
+
+void TextureSystem::wrapTexture(const String &name, const unsigned int width, const unsigned int height, const unsigned int channelCount, const bool isTransparent, const bool isWritable, const bool registerTexture, void *data, Texture& outTexture) {
+    Texture* texture = nullptr;
+
+    if (registerTexture) {
+        texture = &acquireTexture(false, true, name, TEXTURE_USE_MAP_DIFFUSE);
+    } else {
+        texture = &outTexture;
+        texture->id = INVALID_ID_U32;
+    }
+
+    texture->name = name;
+    texture->width = width;
+    texture->height = height;
+    texture->channelCount = channelCount;
+    texture->generation = INVALID_ID_U32;
+    texture->flags |= isTransparent ? TEXTURE_BIT_TRANSPARENT : 0;
+    texture->flags |= isWritable ? TEXTURE_BIT_WRITABLE : 0;
+    texture->flags |= TEXTURE_BIT_WRAPPED;
+    texture->data = data;
+    texture->type = TEXTURE_2D;
+}

@@ -4,9 +4,9 @@ name = Fox_Fire_Skybox_Shader
 renderpass = Fox_Fire_Skybox_Renderpass
 stages = vertex, fragment
 stagefiles = ../Shaders/Engine_Skybox_Shader.vert.spv, ../Shaders/Engine_Skybox_Shader.frag.spv
-use_instance = true
-use_local = false
 cull_mode = front
+depth_test = false
+depth_write = false
 
 #Attributes: Type,Name
 attribute = Vector3, in_position

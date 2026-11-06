@@ -7,6 +7,7 @@
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 struct Mesh final : EntityComponentWrapper<Mesh> {
+    unsigned int id = INVALID_ID_U32;
     unsigned short geometryCount = 0;
     DynamicArray<Geometry*> geometries{};
     unsigned char generation = INVALID_ID_U8;

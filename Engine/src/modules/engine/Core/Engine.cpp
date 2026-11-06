@@ -7,11 +7,13 @@
 #include "../Library/Logger.h"
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
 #include "src/modules/engine/ECS/Engine_Components/UITextContainer.h"
+#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/UITextContainerUtils.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
 #include "src/modules/engine/Library/JsonHandler.h"
+#include "src/modules/engine/Library/UUID.h"
 #include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
 
 void Engine::startup()
@@ -28,6 +30,7 @@ void Engine::startup()
     //Setup builtin engine events
     inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
     inputSystem->subscribeToEngineEvent(RESIZED, [this](const EngineInputContext context) {resize(context.mouseX, context.mouseY);}, "Static.resize");
+    //Setup hover event here when ready
 
     bIsInitialized = true;
     bIsRunning = true;
@@ -42,12 +45,15 @@ void Engine::run() {
     clock.start();
     clock.update();
     lastTime = clock.getElapsedTime();
-    double runTime = 0;
     unsigned char frameCount = 0;
     constexpr double targetTime = 1.0f / 60;
-
-    int fps = 0;
-    float deltaCount = 0;
+    double elapsedTime = 0;
+    unsigned char averageCount = 0;
+    double msTimes[AVERAGE_COUNT]{};
+    double msAverage = 0;
+    int frames = 0;
+    double accumulatedFrames = 0;
+    double fps = 0;
 
     //Debug gets memory usage before starting the run loop
     //note that memory usage only shows tracked memory, not full memory.
@@ -146,6 +152,57 @@ void Engine::run() {
             }
             //end temp code
 
+            //Update ui text
+            Camera& worldCamera = *ECSSystem.getComponent<Camera>(getDefaultCamera());
+            Vector3f position = CameraUtils::getPosition(worldCamera);
+            Vector3f rotation = CameraUtils::getRotation(worldCamera);
+
+            //Get Mouse State
+            bool leftDown = inputSystem->isButtonDown(BUTTON_LEFT);
+            bool rightDown = inputSystem->isButtonDown(BUTTON_RIGHT);
+            int mouseX = 0;
+            int mouseY = 0;
+            inputSystem->getMousePosition(mouseX, mouseY);
+
+            //Convert to NDC
+            float ndcMouseX = convertFloatRange(mouseX, 0, width, -1, 1);
+            float ndcMouseY = convertFloatRange(mouseY, 0, height, -1, 1);
+
+            //Calculate frame average
+            double frameMS = elapsedTime * 1000;
+            msTimes[averageCount] = frameMS;
+            if (averageCount == AVERAGE_COUNT - 1) {
+                for (unsigned char i = 0; i < AVERAGE_COUNT; i++) {
+                    msAverage += msTimes[i];
+                }
+
+                msAverage /= AVERAGE_COUNT;
+            }
+
+            averageCount++;
+            averageCount %= AVERAGE_COUNT;
+
+            //Calculate fps
+            accumulatedFrames += frameMS;
+            if (accumulatedFrames > 1000) {
+                fps = frames;
+                accumulatedFrames -= 1000;
+                frames = 0;
+            }
+
+            //Display frame data on UI Text.
+            String display = "-----Frame Data-----\nFPS: " + toString(fps, 1) + "(" + toString(msAverage, 1) + "ms)\n" +
+                    "POS: [" + vector3fToString(position, 3) + "]\n" +
+                        "ROT: [" + vector3fToString(rotation, 3) + "]\n" +
+                            "Mouse: X=" + toString(mouseX, 0) + " Y=" + toString(mouseY, 0) + " L=" + toString(leftDown) + " R=" + toString(rightDown) + "\n" +
+            "NDC: X=" + toString(ndcMouseX, 6) + " Y=" + toString(ndcMouseY, 6) + "\n" +
+                "Hovered: ";
+            display += hoveredObjectId == INVALID_ID_U32 ? "None" : toString(hoveredObjectId) + "\n";
+
+            UITextContainer* container = ECSSystem.getComponent<UITextContainer>(uiEntities[0]);
+            UIText* text = container->texts[0];
+            text->setText(display);
+
             if (!masterRenderSystem.drawFrame(packet)) {
                 Logger::logFatal("Failed to draw frame!");
                 bIsRunning = false;
@@ -168,12 +225,11 @@ void Engine::run() {
 
             //How long did the frame take
             const double endTime = Platform::getAbsoluteTime();
-            const double elapsedTime = endTime - frameStartTime;
-            runTime += elapsedTime;
+            elapsedTime = endTime - frameStartTime;
             const double remainingTime = targetTime - elapsedTime;
             //Time left is given back to the OS
             if (remainingTime > 0) {
-                const auto remainingMS = static_cast<unsigned long>(remainingTime * 1000);
+                const auto remainingMS = static_cast<ULong>(remainingTime * 1000);
                 constexpr bool limitFrames = false;
                 if (remainingMS > 0 && limitFrames) {
                     platform.ff_sleep(remainingMS - 1);
@@ -181,6 +237,9 @@ void Engine::run() {
 
                 frameCount++;
             }
+
+            frames++;
+
             //Handle input at the end
             //Must be update -> processInputs or key state wont be tracked correctly
             inputSystem->update(deltaTime);
@@ -188,14 +247,6 @@ void Engine::run() {
 
             //Update last time
             lastTime = currentTime;
-            if (deltaCount >= 1) {
-                Logger::logInfo("FPS: " + toString(fps));
-                fps = 0;
-                deltaCount = 0;
-            } else {
-                fps++;
-                deltaCount += static_cast<float>(deltaTime);
-            }
         }
     }
 
@@ -206,6 +257,8 @@ void Engine::resize(const unsigned short newWidth, const unsigned short newHeigh
     if (width != newWidth || height != newHeight) {
         width = newWidth;
         height = newHeight;
+
+        Logger::logDebug("Resized window: " + toString(width) + "x" + toString(height));
 
         if (width == 0 || height == 0) {
             Logger::logInfo("window minimize, Suspending application.");
@@ -218,6 +271,14 @@ void Engine::resize(const unsigned short newWidth, const unsigned short newHeigh
 
             masterRenderSystem.onResize(width, height);
         }
+
+        auto& uiEntites = ECSSystem.getAllEntitiesOfType("Basic_UI");
+        UITextContainer* container = ECSSystem.getComponent<UITextContainer>(uiEntites[0]);
+        //Move the debug ui text to the bottom of the screen.
+        container->texts[0]->setPosition({20, height - 150.0f, 0});
+
+        uiEntites.shutdown();
+        FF_Memory::ff_free<DynamicArray<unsigned int>>(&uiEntites, DYNAMIC_ARRAY);
     }
 }
 
@@ -229,10 +290,17 @@ bool Engine::render(float deltaTime) {
     return true;
 }
 
-void Engine::createRenderView(const RenderViewConfig &config) {
+bool Engine::createRenderView(const RenderViewConfig &config) {
     if (!masterRenderSystem.createRenderView(config)) {
         Logger::logFatal("Failed to create world render view.");
+        return false;
     }
+
+    return true;
+}
+
+unsigned int Engine::getWindowAttachmentCount() const {
+    return masterRenderSystem.getWindowAttachmentCount();
 }
 
 Engine::Engine(const GameInstance& instance)
@@ -269,6 +337,9 @@ void Engine::initialize() {
     }
 
     Logger::logInfo("Initializing Game");
+
+    //Initialize UUID seed
+    UUIDUtils::setSeed(101);
 
     //Initialize event and input systems
     engineEventsSystem.initialize();
@@ -350,6 +421,97 @@ void Engine::initialize() {
         Logger::logFatal("Failed to initialize the shader system!");
     }
 
+    //Start render views
+    RenderViewSystemConfig renderViewConfig{};
+    renderViewConfig.maxViewCount = 251;
+    if (!masterRenderSystem.initializeRenderViewSystem(renderViewConfig)) {
+        Logger::logFatal("Failed to initialize the render view system!");
+        return;
+    }
+
+    RenderViewConfig worldConfig{};
+    worldConfig.type = RENDER_VIEW_WORLD;
+    worldConfig.width = 0;
+    worldConfig.height = 0;
+    worldConfig.name = "Fox_Fire_World_View";
+    worldConfig.renderpassCount = 1;
+    RenderpassConfig passConfigs[1]{};
+    passConfigs[0].name = "Fox_Fire_World_Renderpass";
+    passConfigs[0].renderArea = {0, 0, 1280, 720};
+    passConfigs[0].clearColor = {0, 0, 0.2f, 1};
+    passConfigs[0].clearFlags = RENDERPASS_CLEAR_DEPTH | RENDERPASS_CLEAR_STENCIL;
+    passConfigs[0].depth = 1;
+    passConfigs[0].stencil = 0;
+    RenderTargetAttachmentConfig targetAttachments[2]{};
+    targetAttachments[0].type = RENDER_TARGET_ATTACHMENT_TYPE_COLOR;
+    targetAttachments[0].source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+    targetAttachments[0].loadOperation = RENDER_TARGET_ATTACHMENT_LOAD_OP_LOAD;
+    targetAttachments[0].storeOperation = RENDER_TARGET_ATTACHMENT_STORE_OP_STORE;
+    targetAttachments[0].bPresentAfter = false;
+    targetAttachments[1].type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
+    targetAttachments[1].source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+    targetAttachments[1].loadOperation = RENDER_TARGET_ATTACHMENT_LOAD_OP_DONT_CARE;
+    targetAttachments[1].storeOperation = RENDER_TARGET_ATTACHMENT_STORE_OP_STORE;
+    targetAttachments[1].bPresentAfter = false;
+    passConfigs[0].targetConfig.attachmentCount = 2;
+    passConfigs[0].targetConfig.attachments = targetAttachments;
+    passConfigs[0].renderTargetCount = getWindowAttachmentCount();
+    worldConfig.renderpasses = passConfigs;
+    worldConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
+    if (!createRenderView(worldConfig)) return;
+
+    RenderViewConfig uiConfig{};
+    uiConfig.type = RENDER_VIEW_UI;
+    uiConfig.width = 0;
+    uiConfig.height = 0;
+    uiConfig.name = "Fox_Fire_UI_View";
+    uiConfig.renderpassCount = 1;
+    RenderpassConfig passConfigsUI[1]{};
+    passConfigsUI[0].name = "Fox_Fire_UI_Renderpass";
+    passConfigsUI[0].renderArea = {0, 0, 1280, 720};
+    passConfigsUI[0].clearColor = {0, 0, 0.2f, 1};
+    passConfigsUI[0].clearFlags = RENDERPASS_CLEAR_NONE;
+    passConfigsUI[0].depth = 1;
+    passConfigsUI[0].stencil = 0;
+    RenderTargetAttachmentConfig targetAttachmentUI{};
+    targetAttachmentUI.type = RENDER_TARGET_ATTACHMENT_TYPE_COLOR;
+    targetAttachmentUI.source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+    targetAttachmentUI.loadOperation = RENDER_TARGET_ATTACHMENT_LOAD_OP_LOAD;
+    targetAttachmentUI.storeOperation = RENDER_TARGET_ATTACHMENT_STORE_OP_STORE;
+    targetAttachmentUI.bPresentAfter = true;
+    passConfigsUI[0].targetConfig.attachmentCount = 1;
+    passConfigsUI[0].targetConfig.attachments = &targetAttachmentUI;
+    passConfigsUI[0].renderTargetCount = getWindowAttachmentCount();
+    uiConfig.renderpasses = passConfigsUI;
+    uiConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
+    if (!createRenderView(uiConfig)) return;
+
+    RenderViewConfig skyboxConfig{};
+    skyboxConfig.type = RENDER_VIEW_SKYBOX;
+    skyboxConfig.width = 0;
+    skyboxConfig.height = 0;
+    skyboxConfig.name = "Fox_Fire_Skybox_View";
+    skyboxConfig.renderpassCount = 1;
+    RenderpassConfig passConfigsSkybox[1]{};
+    passConfigsSkybox[0].name = "Fox_Fire_Skybox_Renderpass";
+    passConfigsSkybox[0].renderArea = {0, 0, 1280, 720};
+    passConfigsSkybox[0].clearColor = {0, 0, 0.2f, 1};
+    passConfigsSkybox[0].clearFlags = RENDERPASS_CLEAR_COLOR;
+    passConfigsSkybox[0].depth = 1;
+    passConfigsSkybox[0].stencil = 0;
+    RenderTargetAttachmentConfig skyboxTargetAttachment{};
+    skyboxTargetAttachment.type = RENDER_TARGET_ATTACHMENT_TYPE_COLOR;
+    skyboxTargetAttachment.source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+    skyboxTargetAttachment.loadOperation = RENDER_TARGET_ATTACHMENT_LOAD_OP_DONT_CARE;
+    skyboxTargetAttachment.storeOperation = RENDER_TARGET_ATTACHMENT_STORE_OP_STORE;
+    skyboxTargetAttachment.bPresentAfter = false;
+    passConfigsSkybox[0].targetConfig.attachmentCount = 1;
+    passConfigsSkybox[0].targetConfig.attachments = &skyboxTargetAttachment;
+    passConfigsSkybox[0].renderTargetCount = getWindowAttachmentCount();
+    skyboxConfig.renderpasses = passConfigsSkybox;
+    skyboxConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
+    if (!createRenderView(skyboxConfig)) return;
+
     //Start material system
     if (!masterRenderSystem.initializeMaterialSystem(MaterialSystemConfig{4096}, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the texture system!");
@@ -371,8 +533,8 @@ void Engine::initialize() {
     fontConfig.maxSystemFonts = 101;
 
     BitmapFontConfig bitmapFontConfig{};
-    bitmapFontConfig.name = "Ubuntu-px48";
-    bitmapFontConfig.resourceName = "Ubuntu-px48";
+    bitmapFontConfig.name = "Ubuntu-px24";
+    bitmapFontConfig.resourceName = "Ubuntu-px24";
     bitmapFontConfig.size = 48;
     fontConfig.bitmapFontConfigs = &bitmapFontConfig;
 
@@ -385,14 +547,6 @@ void Engine::initialize() {
 
     if (!masterRenderSystem.initializeFontSystem(fontConfig, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the font system!");
-        return;
-    }
-
-    //Start render views
-    RenderViewSystemConfig renderViewConfig{};
-    renderViewConfig.maxViewCount = 251;
-    if (!masterRenderSystem.initializeRenderViewSystem(renderViewConfig)) {
-        Logger::logFatal("Failed to initialize the render view system!");
         return;
     }
 
@@ -483,17 +637,12 @@ void Engine::initialize() {
     ui1Mesh->generation = 0;
 
     auto textContainer = EntityComponentSystem::addComponent<UITextContainer>(ui1);
-    UIText* testText = UITextContainerUtils::addText(*textContainer, UI_TEXT_TYPE_BITMAP, "Ubuntu-px48", 12, "The following \t3\t lines represent the truth of the world:\nYou\nAre\nGullible");
+    UIText* testText = UITextContainerUtils::addText(*textContainer, UI_TEXT_TYPE_BITMAP, "Ubuntu-px24", 12, "The following \t3\t lines represent the truth of the world:\nYou\nAre\nGullible");
     if (testText == nullptr) return;
-
-    testText->setPosition({50, 100, 0});
-    testText->getTransform().bIsDirty = true;
 
     UIText* testSystemText = UITextContainerUtils::addText(*textContainer, UI_TEXT_TYPE_SYSTEM, "Ubuntu-Regular", 24, "Do not be fooled by\t[REDACTED]\t\nYou are not gullible!\nYou are just an ばか.");
     if (testSystemText == nullptr) return;
 
-    testSystemText->setPosition({400, 400, 0});
-    testSystemText->getTransform().bIsDirty = true;
     //End temp code
 
     startup();
@@ -510,14 +659,13 @@ Engine::~Engine() {
 
     ECSSystem.shutdown();
 
-    //Static destruction
-    engineEventsSystem.shutdown();
-
     gameInstance.shutdown();
 
     jobSystem.shutdown();
 
     masterRenderSystem.shutdown();
+
+    engineEventsSystem.shutdown();
 
     if (inputSystem) {
         FF_Memory::ff_free<IInputSystem>(inputSystem, GAME, inputSystem->getMemorySize());

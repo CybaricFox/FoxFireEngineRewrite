@@ -251,7 +251,7 @@ String toString(const T value) {
 }
 template<typename T>
 requires (std::same_as<std::remove_cv_t<T>, bool>)
-String toString(const bool value) {
+String toString(const T value) {
     String result{};
     if (value) {
         result = "True";
@@ -260,6 +260,18 @@ String toString(const bool value) {
     }
 
     return result;
+}
+inline String toString(const double value, unsigned char decimal) {
+    String result = toString(value);
+    result.trim();
+
+    const ULong index = result.find('.');
+    if (index == INVALID_ID_U64) return result;
+
+    const ULong rightCount = result.substringRight(index + 1).getSizeInBytes();
+    if (decimal > rightCount) decimal = rightCount;
+
+    return result.substringLeft(index + decimal);
 }
 
 inline String toString(const char value) {

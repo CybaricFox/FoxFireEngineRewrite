@@ -16,6 +16,10 @@ bool DynamicAllocator::getSizeAndAlignment(void *memory, ULong &outSize, unsigne
     return true;
 }
 
+ULong DynamicAllocator::getHeaderSize() {
+    return sizeof(AllocationHeader) + sizeof(unsigned int);
+}
+
 void DynamicAllocator::initialize(const unsigned long size, void *memory) {
     if (!memory) return;
 
@@ -50,7 +54,7 @@ void * DynamicAllocator::allocate(const unsigned long size, const unsigned short
         return nullptr;
     }
 
-    const ULong requiredSize = alignment + sizeof(AllocationHeader) + sizeof(unsigned int) + size;
+    const ULong requiredSize = alignment + getHeaderSize() + size;
 
     if (requiredSize > 4294967295U) {
         Logger::logFatal("Dynamic allocator allocation called with a size greater than 4GB. What in the actual fuck are you doing??? Not doing that, fuck you and your application.");

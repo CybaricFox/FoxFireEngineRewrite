@@ -83,4 +83,6 @@ public:
     static void releaseTexture(const String &name);
 
     static bool writeData(Texture &texture, unsigned offset, unsigned size, const unsigned char *data);
+    static void wrapTexture(const String &name, unsigned int width, unsigned int height, unsigned int channelCount, bool isTransparent, bool
+                            isWritable, bool registerTexture, void *data, Texture &outTexture);
 };

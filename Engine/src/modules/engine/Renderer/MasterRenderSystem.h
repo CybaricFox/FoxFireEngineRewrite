@@ -45,9 +45,6 @@ private:
     GeometrySystem geometrySystem{};
 
     ShaderSystem shaderSystem{};
-    unsigned int materialShaderId = INVALID_ID_U32;
-    unsigned int uiShaderId = INVALID_ID_U32;
-    unsigned int skyboxShaderId = INVALID_ID_U32;
 
     CameraSystem cameraSystem{};
 
@@ -60,14 +57,10 @@ private:
     unsigned char renderTargetCount = 0;
     unsigned int framebufferWidth = 0;
     unsigned int framebufferHeight = 0;
-    Renderpass* worldRenderpass = nullptr;
-    Renderpass* uiRenderpass = nullptr;
-    Renderpass* skyboxRenderpass = nullptr;
     bool bIsCurrentlyResizing = false;
     unsigned char framesSinceResizeRequested = 0;
 
     Texture createBlankTexture();
-    void regenerateRenderTargets() const;
 
 public:
     bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, ResourceSystem &resources);
@@ -82,10 +75,10 @@ public:
     void shutdown();
     MasterRenderSystem() = default;
 
-    [[nodiscard]] Renderpass* getRenderPass(const String &name) const {return backend->getRenderpass(name);}
     IRenderView* getRenderView(const String &name) {return renderViewSystem.getRenderView(name);}
     [[nodiscard]] unsigned int getDefaultCamera() const {return cameraSystem.getDefaultCamera();}
     [[nodiscard]] bool isRenderSystemMultithreaded() const {return backend->isMultithreaded();}
+    unsigned int getWindowAttachmentCount() const;
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);

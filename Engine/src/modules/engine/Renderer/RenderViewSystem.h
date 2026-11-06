@@ -28,16 +28,17 @@ private:
     unsigned int maxViewCount = 0;
 
     IRendererBackend* backendRef = nullptr;
-    ShaderSystem* shaderSystemRef = nullptr;
-    MaterialSystem* materialSystemRef = nullptr;
+
+    void regenerateRenderTargets(IRenderView& view) const;
 
 public:
-    bool initialize(RenderViewSystemConfig config, IRendererBackend *backend, ShaderSystem *shaderSystem, MaterialSystem *materialRef);
+    bool initialize(RenderViewSystemConfig config, IRendererBackend *backend);
     void shutdown();
 
     IRenderView *getRenderView(const String &name);
 
     bool createRenderView(const RenderViewConfig &config);
+    bool createRenderpass(const RenderpassConfig &config, Renderpass &outRenderpass) const;
     void resize(unsigned int width, unsigned int height);
 
     bool render(IRenderView &renderView, RenderViewPacket &packet, unsigned long frameNumber, unsigned long targetIndex) const;

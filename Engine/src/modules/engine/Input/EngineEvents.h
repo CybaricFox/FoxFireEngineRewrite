@@ -31,6 +31,8 @@ enum EngineEventCode {
     MOUSE_MOVED,
     MOUSE_WHEEL,
     RESIZED,
+    MOUSE_HOVER,
+    REFRESH_RENDER_TARGETS,
     MAX_EVENT
 };
 
@@ -226,6 +228,8 @@ public:
      */
     static void resizeApplication(EngineInputContext context);
 
+    static void callRenderTargetRefresh() {instance->callEvent(REFRESH_RENDER_TARGETS, {});}
+
     /**
      * @brief Subscribes a listener to a specific event code.
      * @param code The event code
@@ -233,14 +237,14 @@ public:
      * @param id Id of the listener
      * @param key The key to listen for (If Applicable)
      */
-    void subscribe(EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String& id, Keys key = MAX_KEYS);
+    static void subscribe(EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String& id, Keys key = MAX_KEYS);
 
     /**
      * @brief Removes a listener from an event code.
      * @param code Code to check
      * @param id Id of the Listener to remove
      */
-    void unsubscribe(EngineEventCode code, const String& id) ;
+    static void unsubscribe(EngineEventCode code, const String& id) ;
 
     /**
      * @brief Call all listeners for this event code. Checks the required key for each listener before calling.

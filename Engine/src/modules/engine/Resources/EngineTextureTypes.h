@@ -37,7 +37,8 @@ enum TextureFilter {
 enum TextureFlag {
     TEXTURE_BIT_TRANSPARENT = 0x1,
     TEXTURE_BIT_WRITABLE = 0x2,
-    TEXTURE_BIT_WRAPPED = 0x4
+    TEXTURE_BIT_WRAPPED = 0x4,
+    TEXTURE_BIT_DEPTH = 0x8
 };
 typedef unsigned char TextureFlagBits;
 

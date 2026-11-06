@@ -787,6 +787,22 @@ inline bool stringToVector3f(const String &string, Vector3f& out) {
 }
 
 /**
+ * @brief Converts a vector4 to a string.
+ * @param vector
+ * @param decimal
+ */
+inline String vector3fToString(const Vector3f vector, const unsigned char decimal) {
+    String result{};
+    result = toString(vector.x, decimal);
+    result += " ";
+    result += toString(vector.y, decimal);
+    result+=(" ");
+    result += toString(vector.z, decimal);
+
+    return result;
+}
+
+/**
  * @brief Converts a string to a vector2.
  * @param string
  * @param out
@@ -1492,4 +1508,28 @@ inline float degreesToRadians(const float degrees) {
  */
 inline float RadiansToDegrees(const float radians) {
     return radians * FF_RADIAN_TO_DEGREE_MULTIPLIER;
+}
+
+inline float convertFloatRange(const float value, const float oldMin, const float oldMax, const float newMin, const float newMax) {
+    return (((value - oldMin) * (newMax - newMin)) / (oldMax - oldMin)) + newMin;
+}
+
+inline unsigned int rgbToUInt(const unsigned int r, const unsigned int g, const unsigned int b) {
+    return (((r & 0x0FF) << 16) | ((g & 0x0FF) << 8) | (b & 0x0FF));
+}
+
+inline void uIntToRGB(const unsigned int rgb, unsigned int& outR, unsigned int& outG, unsigned int& outB) {
+    outR = (rgb >> 16) & 0x0FF;
+    outG = (rgb >> 8) & 0x0FF;
+    outB = rgb & 0x0FF;
+}
+
+inline Vector3f rgbToVector3(const unsigned int r, const unsigned int g, const unsigned int b) {
+    return {static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f, static_cast<float>(b) / 255.0f};
+}
+
+inline void vector3ToRGB(const Vector3f vector, unsigned int& outR, unsigned int& outG, unsigned int& outB) {
+    outR = static_cast<unsigned int>(vector.r * 255);
+    outG = static_cast<unsigned int>(vector.g * 255);
+    outB = static_cast<unsigned int>(vector.b * 255);
 }

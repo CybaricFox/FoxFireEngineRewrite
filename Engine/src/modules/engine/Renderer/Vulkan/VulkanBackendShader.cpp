@@ -164,30 +164,6 @@ void VulkanBackendShader::finalizeDescriptorSets(const unsigned int imagecount, 
     VulkanUtils::vulkanCheck(vkAllocateDescriptorSets(device.getLogicalDevice(), &allocInfo, descriptorSets.getData()));
 }
 
-bool VulkanBackendShader::createPipeline(const unsigned int stride, const unsigned int attributeCount,
-                                         VkPipelineShaderStageCreateInfo* shaderStageCreateInfos, VkViewport viewport, VkRect2D scissor,
-                                         const unsigned int pushConstantRangeCount, MemoryRange* memoryRanges, VulkanDevice& device, VkAllocationCallbacks* allocator) {
-
-    if (!renderpass) {
-        Logger::logFatal("Attempted to create pipeline for a shader but renderpass is null!");
-        return false;
-    }
-
-    return pipeline.createPipeline(
-        *renderpass,
-        stride,
-        attributeCount,
-        config.attributes,
-        config.descriptorSetCount,
-        descriptorSetLayouts,
-        config.stageCount,
-        shaderStageCreateInfos,
-        viewport,
-        scissor,
-        false,
-        true,
-        pushConstantRangeCount,
-        memoryRanges,
-        config.cullMode,
-        device, allocator);
+bool VulkanBackendShader::createPipeline(VulkanPipelineConfig& newConfig, VulkanDevice& device, VkAllocationCallbacks* allocator) {
+    return pipeline.createPipeline(newConfig, device, allocator);
 }

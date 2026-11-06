@@ -63,35 +63,8 @@ void VulkanContext::clearImagesInFlight() {
     }
 }
 
-Renderpass* VulkanContext::addRenderpass(const RenderpassConfig& config) {
-    if (renderpasses.exists(config.name)) {
-        Logger::logError("A renderpass with the name: " + config.name + " already exists!");
-        return nullptr;
-    }
-
-    Renderpass& renderpass = *renderpasses.createAsset(config.name, false);
-
-    renderpass.setId(renderpasses.getAssetIndex(config.name));
-    renderpass.setClearFlags(config.clearFlags);
-    renderpass.setClearColor(config.clearColor);
-    renderpass.setRenderArea(config.renderArea);
-
-    return &renderpass;
-}
-
-Renderpass *VulkanContext::getRenderpass(const unsigned char id) {
-    return renderpasses.getAssetAtIndex(id);
-}
-
-Renderpass * VulkanContext::getRenderpass(const String &renderName) {
-    return renderpasses.getAsset(renderName);
-}
-
 void VulkanContext::destroyContext() {
     geometries.shutdown();
-    renderpasses.shutdown();
-
-    resizeRenderTargetsEvent.destroyEvent();
 
     FF_Memory::ff_clear(&device.getSwapChainSupportInfo().capabilities, sizeof(device.getSwapChainSupportInfo().capabilities));
 

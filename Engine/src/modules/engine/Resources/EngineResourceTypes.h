@@ -51,6 +51,7 @@ struct MaterialResourceData {
 struct GeometryRenderData {
     Mat4 model;
     Geometry* geometry;
+    unsigned int id = INVALID_ID_U32;
 };
 
 struct GeometryData {

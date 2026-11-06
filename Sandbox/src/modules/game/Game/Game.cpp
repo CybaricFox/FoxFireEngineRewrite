@@ -4,6 +4,7 @@
 
 #include "Game.h"
 
+#include "src/modules/engine/ECS/Engine_Components/UITextContainer.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 #include "src/modules/engine/Library/Logger.h"
@@ -38,46 +39,15 @@ void Game::startup() {
     reinterpret_cast<GameState *>(gameInstance.state)->worldCamera = getDefaultCamera();
 
     //Create RenderViews
-    RenderViewConfig worldConfig{};
-    worldConfig.type = RENDER_VIEW_WORLD;
-    worldConfig.width = 0;
-    worldConfig.height = 0;
-    worldConfig.name = "Fox_Fire_World_View";
-    worldConfig.renderpassCount = 1;
-    RenderViewRenderpassConfig passConfigs[1]{};
-    passConfigs[0].renderpassName = "Fox_Fire_World_Renderpass";
-    worldConfig.renderpasses = passConfigs;
-    worldConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
-    createRenderView(worldConfig);
+    //These had to be moved to Engine for the time being.
     WorldRenderView& worldRenderView = *reinterpret_cast<WorldRenderView *>(getRenderView("Fox_Fire_World_View"));
-    worldRenderView.setCamera(getDefaultCamera());
     worldRenderView.subToEvent(swapTextureEvent);
-
-    RenderViewConfig uiConfig{};
-    uiConfig.type = RENDER_VIEW_UI;
-    uiConfig.width = 0;
-    uiConfig.height = 0;
-    uiConfig.name = "Fox_Fire_UI_View";
-    uiConfig.renderpassCount = 1;
-    RenderViewRenderpassConfig passConfigsUI[1]{};
-    passConfigsUI[0].renderpassName = "Fox_Fire_UI_Renderpass";
-    uiConfig.renderpasses = passConfigsUI;
-    uiConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
-    createRenderView(uiConfig);
-
-    RenderViewConfig skyboxConfig{};
-    skyboxConfig.type = RENDER_VIEW_SKYBOX;
-    skyboxConfig.width = 0;
-    skyboxConfig.height = 0;
-    skyboxConfig.name = "Fox_Fire_Skybox_View";
-    skyboxConfig.renderpassCount = 1;
-    RenderViewRenderpassConfig passConfigsSkybox[1]{};
-    passConfigsSkybox[0].renderpassName = "Fox_Fire_Skybox_Renderpass";
-    skyboxConfig.renderpasses = passConfigsSkybox;
-    skyboxConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
-    createRenderView(skyboxConfig);
-    SkyboxRenderView& skyboxRenderView = *reinterpret_cast<SkyboxRenderView *>(getRenderView("Fox_Fire_Skybox_View"));
-    skyboxRenderView.setCamera(getDefaultCamera());
+    DynamicArray<unsigned int>& uiEntities = EntityComponentSystem::getAllEntitiesOfType("Basic_UI");
+    UITextContainer* container = EntityComponentSystem::getComponent<UITextContainer>(uiEntities[0]);
+    container->texts[0]->setPosition({20, height - 75.0f, 0});
+    container->texts[1]->setPosition({50, 250, 0});
+    uiEntities.shutdown();
+    FF_Memory::ff_free<DynamicArray<unsigned int>>(&uiEntities, DYNAMIC_ARRAY);
 
     inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Engine.quit", KEY_ESCAPE);
     inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {swapTextureEvent.call();}, "Game.swapTexture", KEY_1);

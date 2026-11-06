@@ -200,11 +200,10 @@ public:
 
     static VulkanContext vulkanContext;
 
-    bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount, ResourceSystem *resources) override;
+    bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount) override;
 
-    Renderpass* getRenderpass(String name) override;
     Texture* getWindowAttachment(unsigned char index) override;
-    Texture* getDepthAttachment() override;
+    Texture* getDepthAttachment(unsigned char index) override;
     unsigned char getWindowAttachmentIndex() override;
     bool isMultithreaded() override {return vulkanContext.isMultithreaded();}
 
@@ -236,9 +235,10 @@ public:
     void createWritableTexture(Texture& texture) override;
     void resizeTexture(Texture& texture, unsigned int width, unsigned int height) override;
     void writeTextureData(Texture& texture, unsigned int offset, unsigned int size, const unsigned char* pixels) override;
-    void createRenderTarget(unsigned char attachmentCount, DynamicArray<Texture *> &attachments, Renderpass &renderpass, unsigned width, unsigned height, RenderTarget& outTarget) override;
+
+    void createRenderTarget(unsigned char attachmentCount, RenderTargetAttachment *attachments, Renderpass &renderpass, unsigned width, unsigned height, RenderTarget &outTarget) override;
     void destroyRenderTarget(RenderTarget &target, bool freeMemory) override;
-    void createRenderpass(Renderpass &outRenderpass, float depth, unsigned stencil, bool hasPreviousPass, bool hasNextPass) override;
+    bool createRenderpass(const RenderpassConfig& config, Renderpass& outRenderpass) override;
     void destroyRenderpass(Renderpass &renderpass) override;
 
     bool createBuffer(RenderBuffer &buffer) override;
@@ -253,4 +253,18 @@ public:
     bool loadBufferRange(RenderBuffer &buffer, ULong offset, ULong size, const void *data) override;
     bool copyBufferRange(RenderBuffer &source, ULong sourceOffset, RenderBuffer &destination, ULong destOffset, ULong size) override;
     bool drawBuffer(RenderBuffer &buffer, ULong offset, unsigned elementCount, bool bindOnly) override;
+
+    unsigned char getWindowAttachmentCount() override;
+
+    void setViewport(Vector4f rectangle) override;
+
+    void resetViewport() override;
+
+    void setScissor(Vector4f rectangle) override;
+
+    void resetScissor() override;
+
+    void readTextureData(Texture &texture, unsigned offset, unsigned size, void **outMemory) override;
+
+    void readPixel(Texture &texture, unsigned int x, unsigned int y, unsigned char **outData) override;
 };

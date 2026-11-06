@@ -4,9 +4,9 @@ name = Fox_Fire_Material_Shader
 renderpass = Fox_Fire_World_Renderpass
 stages = vertex, fragment
 stagefiles = ../Shaders/Engine_World_Shader.vert.spv, ../Shaders/Engine_World_Shader.frag.spv
-use_instance = true
-use_local = true
 cull_mode = back
+depth_test = true
+depth_write = true
 
 #Attributes: Type,Name
 attribute = Vector3, in_position

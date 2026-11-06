@@ -4,6 +4,7 @@
 
 #pragma once
 #include "src/modules/engine/ECS/Engine_Components/Transform.h"
+#include "src/modules/engine/Library/InstanceTracker.h"
 #include "src/modules/engine/Renderer/RenderBuffer.h"
 #include "src/modules/engine/Resources/FontTypes.h"
 
@@ -34,12 +35,17 @@ private:
     Transform transform{};
     unsigned int instanceId = INVALID_ID_U32;
     ULong frameNumber = INVALID_ID_U64;
+    unsigned int id = INVALID_ID_U32;
+
+    static InstanceTracker<UIText> idGenerator;
 
     void regenerate();
 
 public:
     bool create(UITextType newType, const String &fontName, unsigned short fontSize, const String &content);
     void destroy();
+    /** @breif Called by the Render View System */
+    static void shutdown();
 
     [[nodiscard]] UITextType getType() const {return type;}
     [[nodiscard]] String getFontName() const {
@@ -51,7 +57,10 @@ public:
     [[nodiscard]] ULong getFrameNumber() const {return frameNumber;}
     Transform& getTransform() {return transform;}
 
-    void setPosition(const Vector3f position) {transform.position = position;}
+    void setPosition(const Vector3f position) {
+        transform.position = position;
+        transform.bIsDirty = true;
+    }
     void setText(const String &newText);
     void setFont(FontData* fontData) {data = fontData;}
     void setFrameNumber(const ULong newFrameNumber) {frameNumber = newFrameNumber;}

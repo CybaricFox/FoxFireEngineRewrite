@@ -27,8 +27,10 @@ struct CameraSystemConfig {
 /**
  * @brief Creates and destroys cameras.
  */
-class CameraSystem {
+class FOXFIRE_API CameraSystem {
 private:
+    static CameraSystem* instance;
+
     CameraSystemConfig config{};
     unsigned int defaultId = INVALID_ID_U32;
     EntityComponentSystem* ecsRef = nullptr;
@@ -37,7 +39,7 @@ public:
     bool initialize(CameraSystemConfig systemConfig, EntityComponentSystem* ecs);
     void shutdown();
 
-    [[nodiscard]] unsigned int getDefaultCamera() const {return defaultId;}
+    static unsigned int getDefaultCamera() {return instance->defaultId;}
 
     /**
      * @brief Gets a camera from an entity or adds one if it doesn't have it. Also increments number of references to the camera.

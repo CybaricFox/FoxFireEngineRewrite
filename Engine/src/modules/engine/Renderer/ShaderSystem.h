@@ -3,13 +3,10 @@
 //
 
 #pragma once
-#include "TextureSystem.h"
 #include "Shader.h"
 #include "src/modules/engine/Renderer/IRendererBackend.h"
 #include "src/defines.h"
 #include "src/modules/engine/Library/AssetMap.h"
-#include "src/modules/engine/Memory/DynamicArray.h"
-#include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 /**
  *  @file Shader.h
@@ -22,10 +19,6 @@
  *
  *  @copyright (c) 2026
  */
-
-#define DEFAULT_MATERIAL_SHADER_NAME "Fox_Fire_Material_Shader"
-#define DEFAULT_UI_SHADER_NAME "Fox_Fire_UI_Shader"
-#define DEFAULT_SKYBOX_SHADER_NAME "Fox_Fire_Skybox_Shader"
 
 /**
  * @brief Contains config data used by the shader system
@@ -226,14 +219,15 @@ public:
     /**
      * @brief Creates a shader
      * @param shaderConfig Config data of the shader
+     * @param renderpass
      * @return false on failure
      */
-    bool createShader(ShaderConfig &shaderConfig);
+    static bool createShader(ShaderConfig &shaderConfig, Renderpass& renderpass);
 
     /**
      * @brief Sets a shader to be used
      * @param shaderId Id of the shader
      * @return false on failure
      */
-    bool use(unsigned int shaderId);
+    static bool use(unsigned int shaderId);
 };

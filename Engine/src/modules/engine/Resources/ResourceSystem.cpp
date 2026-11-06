@@ -58,7 +58,6 @@ bool ResourceSystem::registerLoader(IResourceLoader* loader) {
 
     loader->setId(loaders.getLength());
     loaders.push(loader);
-    Logger::logDebug("Loader registered successfully at: " + toString(loader->getId()));
     return true;
 }
 

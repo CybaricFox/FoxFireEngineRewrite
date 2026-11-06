@@ -8,6 +8,8 @@
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Renderer/ShaderSystem.h"
 
+InstanceTracker<UIText> UIText::idGenerator{};
+
 void UIText::regenerate() {
     const unsigned int utfLength = text.getSizeInUTF8();
     const unsigned int charLength = text.getSizeInBytes();
@@ -38,12 +40,12 @@ void UIText::regenerate() {
 
     unsigned int utfCharCount = 0;
     for (unsigned int c = 0; c < charLength; c++) {
-        int codepoint = text[c];
+        int codepoint = static_cast<unsigned char>(text[c]);
 
         switch (codepoint) {
             case '\n': {
                 x = 0;
-                y += data->height;
+                y += static_cast<float>(data->height);
                 utfCharCount++;
                 continue;
             }
@@ -86,14 +88,14 @@ void UIText::regenerate() {
             continue;
         }
 
-        const float minX = x + glyph->xOffset;
-        const float minY = y + glyph->yOffset;
-        const float maxX = minX + glyph->width;
-        const float maxY = minY + glyph->height;
-        const float tMinX = static_cast<float>(glyph->x) / data->atlasSizeX;
-        const float tMaxX = static_cast<float>(glyph->x + glyph->width) / data->atlasSizeX;
-        float tMinY = static_cast<float>(glyph->y) / data->atlasSizeY;
-        float tMaxY = static_cast<float>(glyph->y + glyph->height) / data->atlasSizeY;
+        const float minX = x + static_cast<float>(glyph->xOffset);
+        const float minY = y + static_cast<float>(glyph->yOffset);
+        const float maxX = minX + static_cast<float>(glyph->width);
+        const float maxY = minY + static_cast<float>(glyph->height);
+        const float tMinX = static_cast<float>(glyph->x) / static_cast<float>(data->atlasSizeX);
+        const float tMaxX = static_cast<float>(glyph->x + glyph->width) / static_cast<float>(data->atlasSizeX);
+        float tMinY = static_cast<float>(glyph->y) / static_cast<float>(data->atlasSizeY);
+        float tMaxY = static_cast<float>(glyph->y + glyph->height) / static_cast<float>(data->atlasSizeY);
 
         //Flip the y axis for system fonts
         if (type == UI_TEXT_TYPE_SYSTEM) {
@@ -191,7 +193,7 @@ bool UIText::create(const UITextType newType, const String &fontName, const unsi
     }
 
     //Setup shader resources
-    const Shader& uiShader = *ShaderSystem::getShader(DEFAULT_UI_SHADER_NAME);
+    const Shader& uiShader = *ShaderSystem::getShader("Fox_Fire_UI_Shader");
     TextureMap* fontMaps[1] = {&data->atlas};
 
     if (!MasterRenderSystem::acquireInstanceResources(uiShader, instanceId, fontMaps)) {
@@ -228,19 +230,27 @@ bool UIText::create(const UITextType newType, const String &fontName, const unsi
 
     regenerate();
 
+    id = idGenerator.acquireId(this);
+
     return true;
 }
 
 void UIText::destroy() {
+    idGenerator.freeId(id);
+
     MasterRenderSystem::destroyRenderBuffer(vertexBuffer);
     MasterRenderSystem::destroyRenderBuffer(indexBuffer);
 
-    const Shader& uiShader = *ShaderSystem::getShader(DEFAULT_UI_SHADER_NAME);
+    const Shader& uiShader = *ShaderSystem::getShader("Fox_Fire_UI_Shader");
     if (!MasterRenderSystem::releaseInstanceResources(uiShader, instanceId)) {
         Logger::logFatal("Failed to release shader resource for UIText.");
     }
 
     text.destroy();
+}
+
+void UIText::shutdown() {
+    idGenerator.shutdown();
 }
 
 void UIText::setText(const String &newText) {
