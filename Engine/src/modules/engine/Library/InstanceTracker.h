@@ -30,6 +30,12 @@ public:
     void shutdown() {
         instances.shutdown();
     }
+    void shutdownAndFree(const MemoryTag tag) {
+        for (unsigned int i = 0; i < instances.getData().getLength(); i++) {
+            FF_Memory::ff_free<T>(instances.getData()[i], tag);
+        }
+        shutdown();
+    }
 
     unsigned int acquireId(T* instance) {
         if (instances.getData().getCapacity() == 0) {
@@ -56,5 +62,13 @@ public:
         }
 
         instances.release(id);
+    }
+
+    T* getInstance(unsigned int id) {
+        return *instances.get(id);
+    }
+
+    unsigned int getInstanceCount() {
+       return instances.getCount();
     }
 };

@@ -9,7 +9,6 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
-#include "src/modules/system/FoxFire_Renders/SkyboxRenderView.h"
 #include "src/modules/system/FoxFire_Renders/UIRenderView.h"
 #include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
 
@@ -18,7 +17,7 @@ void Game::loadModels() {
         Logger::logDebug("Loading models");
         bModelsLoaded = true;
 
-        if (!MeshUtils::loadMeshFromResource("Maxwell", 4)) {
+        if (!MeshUtils::loadMeshFromResource("Maxwell", 5)) {
             Logger::logError("Failed to load Maxwell.");
         }
     }

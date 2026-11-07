@@ -109,7 +109,7 @@ void Engine::run() {
 
             MeshPacketData worldMeshData{};
             DynamicArray<unsigned int> worldMeshes{0};
-            DynamicArray<unsigned int>& basicEntities = ECSSystem.getAllEntitiesOfType("Basic_Entity");
+            DynamicArray<unsigned int>& basicEntities = EntityComponentSystem::getAllEntitiesOfType("Basic_Entity");
             for (unsigned int i = 0; i < meshCount; i++) {
                 const Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(basicEntities[i]);
                 if (mesh.generation != INVALID_ID_U8) {
@@ -126,7 +126,7 @@ void Engine::run() {
             UIPacketData uiPacket{};
             DynamicArray<unsigned int> uiMeshes{0};
             DynamicArray<UIText*> uiTexts{0};
-            DynamicArray<unsigned int>& uiEntities = ECSSystem.getAllEntitiesOfType("Basic_UI");
+            DynamicArray<unsigned int>& uiEntities = EntityComponentSystem::getAllEntitiesOfType("Basic_UI");
             for (unsigned int i = 0; i < uiEntities.getLength(); i++) {
                 const Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(uiEntities[i]);
                 if (mesh.generation != INVALID_ID_U8) {
@@ -153,7 +153,7 @@ void Engine::run() {
             //end temp code
 
             //Update ui text
-            Camera& worldCamera = *ECSSystem.getComponent<Camera>(getDefaultCamera());
+            Camera& worldCamera = *EntityComponentSystem::getComponent<Camera>(getDefaultCamera());
             Vector3f position = CameraUtils::getPosition(worldCamera);
             Vector3f rotation = CameraUtils::getRotation(worldCamera);
 
@@ -165,15 +165,15 @@ void Engine::run() {
             inputSystem->getMousePosition(mouseX, mouseY);
 
             //Convert to NDC
-            float ndcMouseX = convertFloatRange(mouseX, 0, width, -1, 1);
-            float ndcMouseY = convertFloatRange(mouseY, 0, height, -1, 1);
+            float ndcMouseX = convertFloatRange(static_cast<float>(mouseX), 0, width, -1, 1);
+            float ndcMouseY = convertFloatRange(static_cast<float>(mouseY), 0, height, -1, 1);
 
             //Calculate frame average
             double frameMS = elapsedTime * 1000;
             msTimes[averageCount] = frameMS;
             if (averageCount == AVERAGE_COUNT - 1) {
-                for (unsigned char i = 0; i < AVERAGE_COUNT; i++) {
-                    msAverage += msTimes[i];
+                for (double msTime : msTimes) {
+                    msAverage += msTime;
                 }
 
                 msAverage /= AVERAGE_COUNT;
@@ -191,7 +191,7 @@ void Engine::run() {
             }
 
             //Display frame data on UI Text.
-            String display = "-----Frame Data-----\nFPS: " + toString(fps, 1) + "(" + toString(msAverage, 1) + "ms)\n" +
+            String display = "-----Debug Data-----\nFPS: " + toString(fps, 1) + "(" + toString(msAverage, 1) + "ms)\n" +
                     "POS: [" + vector3fToString(position, 3) + "]\n" +
                         "ROT: [" + vector3fToString(rotation, 3) + "]\n" +
                             "Mouse: X=" + toString(mouseX, 0) + " Y=" + toString(mouseY, 0) + " L=" + toString(leftDown) + " R=" + toString(rightDown) + "\n" +
@@ -199,7 +199,7 @@ void Engine::run() {
                 "Hovered: ";
             display += hoveredObjectId == INVALID_ID_U32 ? "None" : toString(hoveredObjectId) + "\n";
 
-            UITextContainer* container = ECSSystem.getComponent<UITextContainer>(uiEntities[0]);
+            UITextContainer* container = EntityComponentSystem::getComponent<UITextContainer>(uiEntities[0]);
             UIText* text = container->texts[0];
             text->setText(display);
 

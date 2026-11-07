@@ -83,6 +83,10 @@ public:
      */
     DynamicArray<T>& getData() {return data;}
 
+    unsigned int getCount() {
+        return data.getLength() - freeIndexes.getLength();
+    }
+
     void clear() {
         data.clear();
         freeIndexes.clear();
