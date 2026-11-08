@@ -399,6 +399,12 @@ void Engine::initialize() {
         return;
     }
 
+    //Register components
+    ComponentRegister<Transform>::registerComponent();
+    ComponentRegister<Mesh>::registerComponent();
+    ComponentRegister<Camera>::registerComponent();
+    ComponentRegister<UITextContainer>::registerComponent();
+
     //Start ECS system
     ECSSystem.initialize();
 

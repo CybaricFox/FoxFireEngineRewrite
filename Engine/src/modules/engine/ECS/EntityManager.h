@@ -89,9 +89,8 @@ public:
                 //Check every component
                 while (componentCount <= instance->componentCount) {
                     //Check if the component is of the correct type
-                    T* result = dynamic_cast<T*>(component);
-                    if (result != nullptr) {
-                        return result;
+                    if (component->componentId == ComponentRegister<T>::getComponentId()) {
+                        return static_cast<T*>(component);
                     }
 
                     component = reinterpret_cast<EntityComponent *>(reinterpret_cast<unsigned char *>(component) + component->getComponentSize());
@@ -124,10 +123,9 @@ public:
                 //Check that the component does not already exist
                 while (componentCount <= instance->componentCount) {
                     //Check if the component is of the correct type
-                    T* result = dynamic_cast<T*>(component);
-                    if (result != nullptr) {
+                    if (component->componentId == ComponentRegister<T>::getComponentId()) {
                         Logger::logWarn("Attempted to add a component to " + toString(id) + " but that component already exists!");
-                        return result;
+                        return static_cast<T*>(component);
                     }
 
                     component = reinterpret_cast<EntityComponent *>(reinterpret_cast<unsigned char *>(component) + component->getComponentSize());
@@ -204,8 +202,7 @@ public:
                 bool found = false;
                 while (componentCount <= instance->componentCount) {
                     //Check if the component is of the correct type
-                    T* result = dynamic_cast<T*>(component);
-                    if (result != nullptr) {
+                    if (component->componentId == ComponentRegister<T>::getComponentId()) {
                         found = true;
                         break;
                     }
