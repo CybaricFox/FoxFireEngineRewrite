@@ -35,22 +35,22 @@ Game::~Game() {
 
 void Game::startup() {
     //Assign the camera
-    reinterpret_cast<GameState *>(gameInstance.state)->worldCamera = getDefaultCamera();
+    reinterpret_cast<GameState *>(gameInstance.state)->worldCamera = CameraSystem::getDefaultCamera();
 
     //Create RenderViews
     //These had to be moved to Engine for the time being.
     WorldRenderView& worldRenderView = *reinterpret_cast<WorldRenderView *>(getRenderView("Fox_Fire_World_View"));
     worldRenderView.subToEvent(swapTextureEvent);
     DynamicArray<unsigned int>& uiEntities = EntityComponentSystem::getAllEntitiesOfType("Basic_UI");
-    UITextContainer* container = EntityComponentSystem::getComponent<UITextContainer>(uiEntities[0]);
-    container->texts[0]->setPosition({20, height - 75.0f, 0});
+    const auto container = EntityComponentSystem::getComponent<UITextContainer>(uiEntities[0]);
+    container->texts[0]->setPosition({20, static_cast<float>(height) - 75.0f, 0});
     container->texts[1]->setPosition({50, 250, 0});
     uiEntities.shutdown();
     FF_Memory::ff_free<DynamicArray<unsigned int>>(&uiEntities, DYNAMIC_ARRAY);
 
-    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Engine.quit", KEY_ESCAPE);
-    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {swapTextureEvent.call();}, "Game.swapTexture", KEY_1);
-    inputSystem->subscribeToEngineEvent(KEY_PRESSED, [this](const EngineInputContext context) {loadModelsEvent.call();}, "Game.loadModels", KEY_2);
+    EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Engine.quit", KEY_ESCAPE);
+    EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {swapTextureEvent.call();}, "Game.swapTexture", KEY_1);
+    EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {loadModelsEvent.call();}, "Game.loadModels", KEY_2);
 
     loadModelsEvent.subscribe([this](){loadModels();});
 

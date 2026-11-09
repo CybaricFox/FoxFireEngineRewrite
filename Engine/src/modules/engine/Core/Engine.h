@@ -79,8 +79,6 @@ protected:
     /** @brief Pointer to the user-defined input system */
     IInputSystem* inputSystem = nullptr;
 
-    /** @brief fetches the default camera entity id from the render system. */
-    [[nodiscard]] unsigned int getDefaultCamera() const {return masterRenderSystem.getDefaultCamera();}
     /** @brief Gets a render view from the render system. */
     IRenderView* getRenderView(const String &name) {return masterRenderSystem.getRenderView(name);}
 

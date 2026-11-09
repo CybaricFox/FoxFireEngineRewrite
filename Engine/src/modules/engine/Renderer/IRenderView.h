@@ -3,7 +3,6 @@
 //
 
 #pragma once
-#include "MaterialSystem.h"
 #include "Renderpass.h"
 #include "src/defines.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
@@ -26,7 +25,8 @@
 enum RenderViewType {
     RENDER_VIEW_WORLD = 0x01,
     RENDER_VIEW_UI = 0x02,
-    RENDER_VIEW_SKYBOX = 0x03
+    RENDER_VIEW_SKYBOX = 0x03,
+    RENDER_VIEW_PICK = 0x04
 };
 
 enum RenderViewMatrixSource {
@@ -77,6 +77,15 @@ struct UIPacketData {
 
 struct SkyboxPacketData {
     Skybox* skybox = nullptr;
+};
+
+struct PickPacketData {
+    MeshPacketData worldMeshData{};
+    unsigned int worldGeometryCount = 0;
+    MeshPacketData uiMeshData{};
+    unsigned int uiGeometryCount = 0;
+    unsigned int textCount = 0;
+    UIText** texts = nullptr;
 };
 
 class IRenderView {

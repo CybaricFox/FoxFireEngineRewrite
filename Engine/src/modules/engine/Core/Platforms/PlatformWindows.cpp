@@ -30,8 +30,8 @@ LRESULT CALLBACK win32ProcessMessage(HWND hwnd, unsigned int msg, WPARAM wParam,
         case WM_SIZE: {
             RECT rect;
             GetClientRect(hwnd, &rect);
-            const unsigned short width = rect.right - rect.left;
-            const unsigned short height = rect.bottom - rect.top;
+            const auto width = static_cast<short>(rect.right - rect.left);
+            const auto height = static_cast<short>(rect.bottom - rect.top);
             EngineEvents::resizeApplication(EngineInputContext{width, height});
             break;
         }
@@ -298,7 +298,7 @@ int PlatformWindows::getProcessorCount() {
     SYSTEM_INFO sysInfo{};
     GetSystemInfo(&sysInfo);
     Logger::logInfo(toString(sysInfo.dwNumberOfProcessors) + " cores were found.");
-    return sysInfo.dwNumberOfProcessors;
+    return static_cast<int>(sysInfo.dwNumberOfProcessors);
 }
 
 bool PlatformWindows::createThread(const ThreadFunction threadFunction, void *params, const bool autoDetach, Thread &outThread) {

@@ -5,6 +5,7 @@
 #include "IRenderView.h"
 
 void IRenderView::shutdown() {
+    EngineEvents::unsubscribe(REFRESH_RENDER_TARGETS, "Render_View_System_Refresh_" + name);
     FF_Memory::ff_free_recursive<Renderpass>(renderpasses, ARRAY, renderpassCount);
     renderpasses = nullptr;
 }

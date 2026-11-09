@@ -8,6 +8,7 @@
 #include "src/modules/engine/ECS/Engine_Components/Camera.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
+#include "src/modules/engine/Renderer/MaterialSystem.h"
 
 void SkyboxRenderView::resize(const unsigned newWidth, const unsigned newHeight) {
     if (width != newWidth || height != newHeight) {
@@ -124,6 +125,5 @@ bool SkyboxRenderView::initialize(const unsigned long newSize) {
 }
 
 void SkyboxRenderView::shutdown() {
-    EngineEvents::unsubscribe(REFRESH_RENDER_TARGETS, "Render_View_System_Refresh_" + name);
     IRenderView::shutdown();
 }

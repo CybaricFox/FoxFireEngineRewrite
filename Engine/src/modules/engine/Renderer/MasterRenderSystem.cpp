@@ -60,6 +60,14 @@ bool MasterRenderSystem::loadRenderBufferRange(RenderBuffer & buffer, const ULon
     return instance->backend->loadBufferRange(buffer, offset, size, data);
 }
 
+void MasterRenderSystem::destroyTexture(Texture &texture) {
+    instance->backend->destroyTexture(texture);
+}
+
+void MasterRenderSystem::createWritableTexture(Texture &texture) {
+    return instance->backend->createWritableTexture(texture);
+}
+
 bool MasterRenderSystem::createRenderView(const RenderViewConfig &config) {
     return renderViewSystem.createRenderView(config);
 }

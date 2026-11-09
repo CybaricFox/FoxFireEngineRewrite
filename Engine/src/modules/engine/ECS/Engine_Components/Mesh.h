@@ -12,22 +12,10 @@ struct Mesh final : EntityComponentWrapper<Mesh> {
     DynamicArray<Geometry*> geometries{};
     unsigned char generation = INVALID_ID_U8;
 
-    Mesh() = default;
-    ~Mesh() override {
-        geometries.shutdown();
-    }
+    Mesh();
+    ~Mesh() override;
 
-    Mesh(const Mesh& other)
-        : geometryCount(other.geometryCount), generation(other.generation) {
-
-        if (!other.geometries.isEmpty()) {
-            geometries.initialize(other.geometries.getLength());
-
-            for (Geometry* geometry : other.geometries) {
-                geometries.push(geometry);
-            }
-        }
-    }
+    Mesh(const Mesh& other);
 
     Mesh& operator=(const Mesh&) = delete;
 

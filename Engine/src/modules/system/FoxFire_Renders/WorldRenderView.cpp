@@ -100,7 +100,6 @@ bool WorldRenderView::initialize(const unsigned long newSize) {
 }
 
 void WorldRenderView::shutdown() {
-    EngineEvents::unsubscribe(REFRESH_RENDER_TARGETS, "Render_View_System_Refresh_" + name);
     IRenderView::shutdown();
 }
 

@@ -7,6 +7,8 @@
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
 
+InstanceTracker<Mesh> MeshUtils::meshIdGenerator{};
+
 unsigned int MeshUtils::loadMeshSuccess(void *params) {
     MeshParams& meshParams = *static_cast<MeshParams *>(params);
     const auto geometryConfigs = static_cast<DynamicArray<GeometryConfig>*>(meshParams.meshResource.data);
@@ -45,6 +47,10 @@ bool MeshUtils::loadMeshStart(void *params, void *result) {
     return loadResult;
 }
 
+void MeshUtils::shutdownIdTracker() {
+    meshIdGenerator.shutdown();
+}
+
 bool MeshUtils::loadMeshFromResource(const String &name, const unsigned int meshEntity) {
     Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(meshEntity);
     mesh.generation = INVALID_ID_U8;
@@ -70,4 +76,18 @@ void MeshUtils::unloadMesh(const unsigned int meshEntity) {
 
     mesh->geometries.shutdown();
     mesh->generation = INVALID_ID_U8;
+}
+
+unsigned int MeshUtils::generateMeshId(Mesh *mesh) {
+    return meshIdGenerator.acquireId(mesh);
+}
+
+void MeshUtils::moveMeshLocation(const unsigned int id, Mesh *mesh) {
+    meshIdGenerator.overrideInstance(id, mesh);
+}
+
+void MeshUtils::freeMesh(const unsigned int id, const Mesh* mesh) {
+    if (mesh == nullptr || mesh != meshIdGenerator.getInstance(id)) return;
+
+    meshIdGenerator.freeId(id);
 }

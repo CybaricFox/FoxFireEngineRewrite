@@ -1281,6 +1281,7 @@ void VulkanBackend::readPixel(Texture &texture, const unsigned int x, const unsi
 
     RenderBuffer staging{};
     staging.initialize(RENDERBUFFER_TYPE_READ, sizeof(unsigned char) * 4, false);
+    createBuffer(staging);
     bindBuffer(staging, 0);
 
     VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
@@ -1985,9 +1986,10 @@ bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int 
     const unsigned char samplerBindingIndex = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].samplerBindingIndex;
     const unsigned int instanceTextureCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[samplerBindingIndex].descriptorCount;
 
+    instanceState.descriptorSetState.descriptorSets.initialize(vulkanContext.getSwapchain().getImageCount());
+
     if (shader.getInstanceTextureCount() > 0) {
         instanceState.instanceTextureMaps.initialize(shader.getInstanceTextureCount());
-        instanceState.descriptorSetState.descriptorSets.initialize(vulkanContext.getSwapchain().getImageCount());
 
         for (unsigned int i = 0; i < instanceTextureCount; i++) {
             TextureMap*& map = *instanceState.instanceTextureMaps.emplace();

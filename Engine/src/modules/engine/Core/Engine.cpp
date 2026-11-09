@@ -28,8 +28,8 @@ void Engine::startup()
     resize(gameInstance.config.startingWidth, gameInstance.config.startingHeight);
 
     //Setup builtin engine events
-    inputSystem->subscribeToEngineEvent(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
-    inputSystem->subscribeToEngineEvent(RESIZED, [this](const EngineInputContext context) {resize(context.mouseX, context.mouseY);}, "Static.resize");
+    EngineEvents::subscribe(QUIT, [this](const EngineInputContext context) {quit();}, "Static.quit");
+    EngineEvents::subscribe(RESIZED, [this](const EngineInputContext context) {resize(context.mouseX, context.mouseY);}, "Static.resize");
     //Setup hover event here when ready
 
     bIsInitialized = true;
@@ -101,8 +101,8 @@ void Engine::run() {
 
             RenderPacket packet{};
             packet.deltaTime = static_cast<float>(deltaTime);
-            packet.viewCount = 3;
-            RenderViewPacket views[3]{};
+            packet.viewCount = 4;
+            RenderViewPacket views[4]{};
             packet.views = views;
 
             masterRenderSystem.buildSkybox(packet);
@@ -153,7 +153,7 @@ void Engine::run() {
             //end temp code
 
             //Update ui text
-            Camera& worldCamera = *EntityComponentSystem::getComponent<Camera>(getDefaultCamera());
+            Camera& worldCamera = *EntityComponentSystem::getComponent<Camera>(CameraSystem::getDefaultCamera());
             Vector3f position = CameraUtils::getPosition(worldCamera);
             Vector3f rotation = CameraUtils::getRotation(worldCamera);
 
@@ -199,9 +199,20 @@ void Engine::run() {
                 "Hovered: ";
             display += hoveredObjectId == INVALID_ID_U32 ? "None" : toString(hoveredObjectId) + "\n";
 
-            UITextContainer* container = EntityComponentSystem::getComponent<UITextContainer>(uiEntities[0]);
+            auto container = EntityComponentSystem::getComponent<UITextContainer>(uiEntities[0]);
             UIText* text = container->texts[0];
             text->setText(display);
+
+            PickPacketData pickPacket{};
+            pickPacket.uiMeshData = uiPacket.meshData;
+            pickPacket.worldMeshData = worldMeshData;
+            pickPacket.texts = uiPacket.texts;
+            pickPacket.textCount = uiPacket.textCount;
+
+            if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_Pick_View"), &pickPacket, packet.views[3])) {
+                Logger::logError("Failed to build pick packet");
+                return;
+            }
 
             if (!masterRenderSystem.drawFrame(packet)) {
                 Logger::logFatal("Failed to draw frame!");
@@ -232,7 +243,7 @@ void Engine::run() {
                 const auto remainingMS = static_cast<ULong>(remainingTime * 1000);
                 constexpr bool limitFrames = false;
                 if (remainingMS > 0 && limitFrames) {
-                    platform.ff_sleep(remainingMS - 1);
+                    Platform::ff_sleep(remainingMS - 1);
                 }
 
                 frameCount++;
@@ -272,10 +283,10 @@ void Engine::resize(const unsigned short newWidth, const unsigned short newHeigh
             masterRenderSystem.onResize(width, height);
         }
 
-        auto& uiEntites = ECSSystem.getAllEntitiesOfType("Basic_UI");
-        UITextContainer* container = ECSSystem.getComponent<UITextContainer>(uiEntites[0]);
+        auto& uiEntites = EntityComponentSystem::getAllEntitiesOfType("Basic_UI");
+        const auto container = EntityComponentSystem::getComponent<UITextContainer>(uiEntites[0]);
         //Move the debug ui text to the bottom of the screen.
-        container->texts[0]->setPosition({20, height - 150.0f, 0});
+        container->texts[0]->setPosition({20, static_cast<float>(height) - 150.0f, 0});
 
         uiEntites.shutdown();
         FF_Memory::ff_free<DynamicArray<unsigned int>>(&uiEntites, DYNAMIC_ARRAY);
@@ -518,6 +529,56 @@ void Engine::initialize() {
     skyboxConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
     if (!createRenderView(skyboxConfig)) return;
 
+    RenderViewConfig pickConfig{};
+    pickConfig.type = RENDER_VIEW_PICK;
+    pickConfig.width = 0;
+    pickConfig.height = 0;
+    pickConfig.name = "Fox_Fire_Pick_View";
+    pickConfig.renderpassCount = 2;
+    pickConfig.viewSource = RENDER_VIEW_MATRIX_SOURCE_SCENE;
+    RenderpassConfig passConfigsPick[2]{};
+    passConfigsPick[0].name = "Fox_Fire_World_Pick_Renderpass";
+    passConfigsPick[0].renderArea = {0, 0, 1280, 720};
+    passConfigsPick[0].clearColor = {1, 1, 1, 1};
+    passConfigsPick[0].clearFlags = RENDERPASS_CLEAR_COLOR | RENDERPASS_CLEAR_DEPTH;
+    passConfigsPick[0].depth = 1;
+    passConfigsPick[0].stencil = 0;
+    RenderTargetAttachmentConfig worldPickTargetAttachments[2]{};
+    worldPickTargetAttachments[0].type = RENDER_TARGET_ATTACHMENT_TYPE_COLOR;
+    worldPickTargetAttachments[0].source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;
+    worldPickTargetAttachments[0].loadOperation = RENDER_TARGET_ATTACHMENT_LOAD_OP_DONT_CARE;
+    worldPickTargetAttachments[0].storeOperation = RENDER_TARGET_ATTACHMENT_STORE_OP_STORE;
+    worldPickTargetAttachments[0].bPresentAfter = false;
+    worldPickTargetAttachments[1].type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
+    worldPickTargetAttachments[1].source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;
+    worldPickTargetAttachments[1].loadOperation = RENDER_TARGET_ATTACHMENT_LOAD_OP_DONT_CARE;
+    worldPickTargetAttachments[1].storeOperation = RENDER_TARGET_ATTACHMENT_STORE_OP_STORE;
+    worldPickTargetAttachments[1].bPresentAfter = false;
+    passConfigsPick[0].targetConfig.attachmentCount = 2;
+    passConfigsPick[0].targetConfig.attachments = worldPickTargetAttachments;
+    passConfigsPick[0].renderTargetCount = 1;
+
+    passConfigsPick[1].name = "Fox_Fire_UI_Pick_Renderpass";
+    passConfigsPick[1].renderArea = {0, 0, 1280, 720};
+    passConfigsPick[1].clearColor = {1, 1, 1, 1};
+    passConfigsPick[1].clearFlags = RENDERPASS_CLEAR_NONE;
+    passConfigsPick[1].depth = 1;
+    passConfigsPick[1].stencil = 0;
+    RenderTargetAttachmentConfig uiPickTargetAttachments[1]{};
+    uiPickTargetAttachments[0].type = RENDER_TARGET_ATTACHMENT_TYPE_COLOR;
+    uiPickTargetAttachments[0].source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;
+    uiPickTargetAttachments[0].loadOperation = RENDER_TARGET_ATTACHMENT_LOAD_OP_LOAD;
+    uiPickTargetAttachments[0].storeOperation = RENDER_TARGET_ATTACHMENT_STORE_OP_STORE;
+    uiPickTargetAttachments[0].bPresentAfter = false;
+    passConfigsPick[1].targetConfig.attachmentCount = 1;
+    passConfigsPick[1].targetConfig.attachments = uiPickTargetAttachments;
+    passConfigsPick[1].renderTargetCount = 1;
+    pickConfig.renderpasses = passConfigsPick;
+    if (!createRenderView(pickConfig)) {
+        Logger::logFatal("Failed to creat pick view.");
+        return;
+    }
+
     //Start material system
     if (!masterRenderSystem.initializeMaterialSystem(MaterialSystemConfig{4096}, &resourceSystem)) {
         Logger::logFatal("Failed to initialize the texture system!");
@@ -639,6 +700,10 @@ void Engine::initialize() {
         configUI.indices.setIndex(uiIndices[i], i);
     }
 
+    //Rotate the ui for testing purposes
+    Quat rotation = getQuatFromAxisAngle({0,0, 1}, degreesToRadians(-45), false);
+    TransformUtils::addTranslationAndRotation(*EntityComponentSystem::getComponent<Transform>(ui1), {5, 5, 0}, rotation);
+
     ui1Mesh->geometries.push(&GeometrySystem::acquireGeometry(configUI, true));
     ui1Mesh->generation = 0;
 
@@ -679,6 +744,8 @@ Engine::~Engine() {
     }
 
     resourceSystem.shutdown();
+
+    MeshUtils::shutdownIdTracker();
 
     platform.shutdown();
 

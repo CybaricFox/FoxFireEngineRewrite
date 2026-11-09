@@ -76,9 +76,8 @@ public:
     MasterRenderSystem() = default;
 
     IRenderView* getRenderView(const String &name) {return renderViewSystem.getRenderView(name);}
-    [[nodiscard]] unsigned int getDefaultCamera() const {return cameraSystem.getDefaultCamera();}
     [[nodiscard]] bool isRenderSystemMultithreaded() const {return backend->isMultithreaded();}
-    unsigned int getWindowAttachmentCount() const;
+    [[nodiscard]] unsigned int getWindowAttachmentCount() const;
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);
@@ -86,6 +85,7 @@ public:
     bool buildPacket(IRenderView *renderView, void *meshData, RenderViewPacket &packet);
     void buildSkybox(const RenderPacket &packet);
     void cleanupSkybox(const RenderPacket& packet);
+
     static bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, TextureMap **maps);
     static bool createRenderBuffer(RenderBufferType type, ULong size, bool useFreeList, RenderBuffer& outBuffer);
     static bool bindRenderBuffer(RenderBuffer &buffer, ULong offset);
@@ -94,4 +94,6 @@ public:
     static bool drawRenderBuffer(RenderBuffer &buffer, ULong offset, unsigned int elementCount, bool bindOnly);
     static bool resizeRenderBuffer(RenderBuffer& buffer, ULong newSize);
     static bool loadRenderBufferRange(RenderBuffer &buffer, ULong offset, ULong size, const void *data);
+    static void destroyTexture(Texture& texture);
+    static void createWritableTexture(Texture& texture);
 };

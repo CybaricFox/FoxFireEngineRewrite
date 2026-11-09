@@ -56,6 +56,7 @@ public:
     [[nodiscard]] TextureMap& getTextureAtlas() const {return data->atlas;}
     [[nodiscard]] ULong getFrameNumber() const {return frameNumber;}
     Transform& getTransform() {return transform;}
+    [[nodiscard]] unsigned int getId() const {return id;}
 
     void setPosition(const Vector3f position) {
         transform.position = position;

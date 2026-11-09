@@ -4,7 +4,6 @@
 
 #pragma once
 #include "EngineTextureTypes.h"
-#include "src/modules/engine/Memory/DynamicArray.h"
 
 enum RenderTargetAttachmentType {
     RENDER_TARGET_ATTACHMENT_TYPE_COLOR = 0x1,

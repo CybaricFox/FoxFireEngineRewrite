@@ -157,13 +157,4 @@ public:
      * @return True if the button is up.
      */
     [[nodiscard]] bool isButtonUp(Buttons button) const;
-
-    /**
-     * @brief Subscribes a listener to an engine vent
-     * @param code Engine event code to subscribe to
-     * @param function Function to be called
-     * @param id Unqiue Id of this listener
-     * @param key Key to listen for (If Applicable)
-     */
-    void subscribeToEngineEvent(EngineEventCode code, const std::function<void(EngineInputContext)> &function, const String &id, Keys key = MAX_KEYS) const;
 };

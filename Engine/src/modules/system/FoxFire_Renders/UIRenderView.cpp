@@ -41,7 +41,6 @@ bool UIRenderView::initialize(const unsigned long newSize) {
 }
 
 void UIRenderView::shutdown() {
-    EngineEvents::unsubscribe(REFRESH_RENDER_TARGETS, "Render_View_System_Refresh_" + name);
     IRenderView::shutdown();
 }
 

@@ -13,7 +13,6 @@
 #pragma once
 #include <functional>
 
-#include "src/defines.h"
 #include "foxfire_export.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 
@@ -184,9 +183,9 @@ enum Keys {
  */
 struct FOXFIRE_API EngineInputContext {
     /** @brief Mouse x position */
-    unsigned short mouseX;
+    short mouseX;
     /** @brief Mouse y position */
-    unsigned short mouseY;
+    short mouseY;
     /** @brief Scrollwheel value */
     char mouseZ;
     /** @brief Key Pressed/Released */
@@ -205,7 +204,7 @@ struct EngineEventCallback {
     Keys expectedKey = MAX_KEYS;
 };
 
-class EngineEvents {
+class FOXFIRE_API EngineEvents {
 private:
     /** @brief Array of Listeners. There is one array per event code. */
     DynamicArray<DynamicArray<EngineEventCallback>> subscribers{};
@@ -227,8 +226,8 @@ public:
      * @param context Contains input data
      */
     static void resizeApplication(EngineInputContext context);
-
     static void callRenderTargetRefresh() {instance->callEvent(REFRESH_RENDER_TARGETS, {});}
+    static void callMouseHover(const short id) {instance->callEvent(MOUSE_HOVER, {id});}
 
     /**
      * @brief Subscribes a listener to a specific event code.

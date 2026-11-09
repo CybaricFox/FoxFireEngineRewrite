@@ -71,4 +71,13 @@ public:
     unsigned int getInstanceCount() {
        return instances.getCount();
     }
+
+    void overrideInstance(unsigned int id, T* newInstance) {
+        if (id >= getInstanceCount()) {
+            Logger::logError("Cannot override instance in instance tracker. Id is greater than the instance count.");
+            return;
+        }
+
+        instances.getData()[id] = newInstance;
+    }
 };
