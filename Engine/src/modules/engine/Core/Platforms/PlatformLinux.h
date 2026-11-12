@@ -60,15 +60,15 @@ private:
     Keys translateKeycode(unsigned int keyCode);
 
 public:
-    void printConsoleMessage(const String &message, unsigned char color) override;
-    void printConsoleError(const String &message, unsigned char color) override;
+    void printConsoleMessage(const char* message, unsigned char color) override;
+    void printConsoleError(const char* message, unsigned char color) override;
     bool createSurface() override;
     double getAbsoluteTime() override;
     bool processMessages() override;
     void getRequiredExtensions(DynamicArray<const char *> &extensions) override;
     void ff_sleep(unsigned long ms) override;
 
-    bool initialize(const String &applicationName, const int x, const int y, const int width, const int height) override;
+    bool initialize(const String &applicationName, int x, int y, int width, int height) override;
 
     void shutdown() override;
     void * allocate(const unsigned long size, bool align) override;

@@ -271,25 +271,25 @@ Keys PlatformLinux::translateKeycode(const unsigned int keyCode) {
     }
 }
 
-void PlatformLinux::printConsoleMessage(const String &message, unsigned char color) {
-    String output;
+void PlatformLinux::printConsoleMessage(const char *message, const unsigned char color) {
+    std::string output;
 
     if (!(color > 4 || color < 0)) {
         const char* colors[] = {"0;41", "1;31", "1;33", "1;32", "1;34"};
-        output = "\033[" + String(colors[color]) + "m" + message + "\033[0m";
+        output = "\033[" + std::string(colors[color]) + "m" + message + "\033[0m";
     } else {
         output = message;
     }
 
-    cout << output << endl;
+    cout << message << endl;
 }
 
-void PlatformLinux::printConsoleError(const String &message, unsigned char color) {
-    String output;
+void PlatformLinux::printConsoleError(const char *message, const unsigned char color) {
+    std::string output;
 
     if (!(color > 4 || color < 0)) {
         const char* colors[] = {"0;41", "1;31", "1;33", "1;32", "1;34"};
-        output = "\033[" + String(colors[color]) + "m" + message + "\033[0m";
+        output = "\033[" + std::string(colors[color]) + "m" + message + "\033[0m";
     } else {
         output = message;
     }
@@ -383,7 +383,7 @@ bool PlatformLinux::processMessages() {
                 const auto *configureEvent = reinterpret_cast<xcb_configure_notify_event_t *>(event);
                 const unsigned short x = configureEvent->width;
                 const unsigned short y = configureEvent->height;
-                EngineEvents::resizeApplication(EngineInputContext{x, y});
+                EngineEvents::resizeApplication(EngineInputContext{static_cast<short>(x), static_cast<short>(y)});
                 break;
             }
             case XCB_CLIENT_MESSAGE: {
@@ -490,8 +490,8 @@ bool PlatformLinux::initialize(const String &applicationName, const int x, const
         XCB_ATOM_WM_NAME,
         XCB_ATOM_STRING,
         8,
-        applicationName.length(),
-        applicationName.c_str()
+        applicationName.getSizeInBytes(),
+        applicationName.getAsCharString()
     );
 
     const xcb_intern_atom_cookie_t deleteCookie = xcb_intern_atom(connection, 0, 16, "WM_DELETE_WINDOW");
@@ -516,7 +516,8 @@ bool PlatformLinux::initialize(const String &applicationName, const int x, const
     xcb_map_window(connection, window);
 
     if (const int streamResult = xcb_flush(connection); streamResult <= 0) {
-        printConsoleError("Failed to flush XCB connection" + std::to_string(streamResult), 0);
+        String string = "Failed to flush XCB connection" + toString(streamResult);
+        printConsoleError(string.getAsCharString(), 0);
         return false;
     }
 
@@ -546,7 +547,7 @@ void PlatformLinux::clear(void *memory, const unsigned long size) {
 int PlatformLinux::getProcessorCount() {
     const int processorCount = get_nprocs_conf();
     const int processorsAvailable = get_nprocs();
-    Logger::logInfo(std::to_string(processorCount) + " processors found. " + std::to_string(processorsAvailable) + " are available.");
+    Logger::logInfo(toString(processorCount) + " processors found. " + toString(processorsAvailable) + " are available.");
     return processorsAvailable;
 }
 
@@ -565,13 +566,13 @@ bool PlatformLinux::createThread(const ThreadFunction threadFunction, void *para
                 return false;
             }
             default: {
-                Logger::logError("Failed to create thread. Unknown error: " + std::to_string(result));
+                Logger::logError("Failed to create thread. Unknown error: " + toString(result));
                 return false;
             }
         }
     }
 
-    Logger::logDebug("Thread created with id " + std::to_string(outThread.id) + ".");
+    Logger::logDebug("Thread created with id " + toString(outThread.id) + ".");
 
     if (!autoDetach) {
         outThread.data = allocate(sizeof(ULong), false);
@@ -589,7 +590,7 @@ bool PlatformLinux::createThread(const ThreadFunction threadFunction, void *para
                     return false;
                 }
                 default: {
-                    Logger::logError("Failed to detach thread. Unknown error: " + std::to_string(result));
+                    Logger::logError("Failed to detach thread. Unknown error: " + toString(result));
                     return false;
                 }
             }
@@ -610,11 +611,11 @@ void PlatformLinux::cancelThread(Thread &thread) {
     if (result != 0) {
         switch (result) {
             case ESRCH: {
-                Logger::logError("Failed to cancel thread: " + std::to_string(thread.id) + ". Thread not found.");
+                Logger::logError("Failed to cancel thread: " + toString(thread.id) + ". Thread not found.");
                 break;
             }
             default: {
-                Logger::logError("Failed to cancel thread. Unknown error: " + std::to_string(result));
+                Logger::logError("Failed to cancel thread. Unknown error: " + toString(result));
                 break;
             }
         }
@@ -640,7 +641,7 @@ void PlatformLinux::detachThread(Thread &thread) {
                 break;
             }
             default: {
-                Logger::logError("Failed to detach thread. Unknown error: " + std::to_string(result));
+                Logger::logError("Failed to detach thread. Unknown error: " + toString(result));
                 break;
             }
         }
@@ -663,16 +664,18 @@ ULong PlatformLinux::getCurrentThreadId() {
 }
 
 bool PlatformLinux::createMutex(Mutex &outMutex) {
-    pthread_mutex_t mutex{};
-    const int result = pthread_mutex_init(&mutex, nullptr);
+    auto* mutex = static_cast<pthread_mutex_t*>(
+        allocate(sizeof(pthread_mutex_t), false));
+
+    const int result = pthread_mutex_init(mutex, nullptr);
     if (result != 0) {
+        freeMemory(mutex, false);
+        outMutex.data = nullptr;
         Logger::logError("Failed to create mutex.");
         return false;
     }
 
-    outMutex.data = allocate(sizeof(pthread_mutex_t), false);
-    *static_cast<pthread_mutex_t *>(outMutex.data) = mutex;
-
+    outMutex.data = mutex;
     return true;
 }
 
@@ -689,7 +692,7 @@ void PlatformLinux::destroyMutex(Mutex &mutex) {
             break;
         }
         default: {
-            Logger::logError("Failed to destroy mutex. Unknown error: " + std::to_string(result));
+            Logger::logError("Failed to destroy mutex. Unknown error: " + toString(result));
             break;
         }
     }
@@ -719,7 +722,7 @@ bool PlatformLinux::lockMutex(Mutex &mutex) {
             return false;
         }
         default: {
-            Logger::logError("Failed to lock mutex. Unknown error: " + std::to_string(result));
+            Logger::logError("Failed to lock mutex. Unknown error: " + toString(result));
             return false;
         }
     }
@@ -740,7 +743,7 @@ bool PlatformLinux::unlockMutex(Mutex &mutex) {
             return false;
         }
         default: {
-            Logger::logError("Failed to unlock mutex. Unknown error: " + std::to_string(result));
+            Logger::logError("Failed to unlock mutex. Unknown error: " + toString(result));
             return false;
         }
     }

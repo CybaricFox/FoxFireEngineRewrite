@@ -22,7 +22,7 @@
 template<typename T>
 requires std::copy_constructible<T>
 class FOXFIRE_API RingQueue {
-    static_assert(alignof(T) <= alignof(std::max_align_t),
+    static_assert(alignof(T) <= alignof(max_align_t),
     "DynamicArray does not support over-aligned types with the current allocator.");
 
 private:
