@@ -5,7 +5,8 @@
 #pragma once
 #include "foxfire_export.h"
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
-#include "src/modules/engine/Renderer/IGeometrySystem.h"
+#include "src/modules/engine/Library/InstanceTracker.h"
+#include "src/modules/engine/Renderer/GeometrySystem.h"
 
 /**
  *  @file MeshUtils.h
@@ -27,16 +28,19 @@ struct MeshParams final : ThreadParam<MeshParams> {
 
 class FOXFIRE_API MeshUtils {
 private:
-    static IGeometrySystem* geometrySystemRef;
-    static ResourceSystem* resourceSystemRef;
-
     static unsigned int loadMeshSuccess(void* params);
     static unsigned int loadMeshFailed(void* params);
     static bool loadMeshStart(void* params, void* result);
+
+    static InstanceTracker<Mesh> meshIdGenerator;
+
 public:
-    static void setGeometrySystemRef(IGeometrySystem* ref) {geometrySystemRef = ref;}
-    static void setResourceSystemRef(ResourceSystem* ref) {resourceSystemRef = ref;}
+    static void shutdownIdTracker();
 
     static bool loadMeshFromResource(const String &name, unsigned int meshEntity);
     static void unloadMesh(unsigned int meshEntity);
+
+    static unsigned int generateMeshId(Mesh* mesh);
+    static void moveMeshLocation(unsigned int id, Mesh* mesh);
+    static void freeMesh(unsigned int id, const Mesh *mesh);
 };

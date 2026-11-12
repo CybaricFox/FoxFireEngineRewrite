@@ -89,9 +89,8 @@ public:
                 //Check every component
                 while (componentCount <= instance->componentCount) {
                     //Check if the component is of the correct type
-                    T* result = dynamic_cast<T*>(component);
-                    if (result != nullptr) {
-                        return result;
+                    if (component->componentId == ComponentRegister<T>::getComponentId()) {
+                        return static_cast<T*>(component);
                     }
 
                     component = reinterpret_cast<EntityComponent *>(reinterpret_cast<unsigned char *>(component) + component->getComponentSize());
@@ -103,7 +102,7 @@ public:
             }
         }
 
-        Logger::logWarn("getComponent reached the end of allocation without finding the entity: " + std::to_string(id) + ". This message should never appear.");
+        Logger::logWarn("getComponent reached the end of allocation without finding the entity: " + toString(id) + ". This message should never appear.");
         return nullptr;
     }
 
@@ -124,10 +123,9 @@ public:
                 //Check that the component does not already exist
                 while (componentCount <= instance->componentCount) {
                     //Check if the component is of the correct type
-                    T* result = dynamic_cast<T*>(component);
-                    if (result != nullptr) {
-                        Logger::logWarn("Attempted to add a component to " + std::to_string(id) + " but that component already exists!");
-                        return result;
+                    if (component->componentId == ComponentRegister<T>::getComponentId()) {
+                        Logger::logWarn("Attempted to add a component to " + toString(id) + " but that component already exists!");
+                        return static_cast<T*>(component);
                     }
 
                     component = reinterpret_cast<EntityComponent *>(reinterpret_cast<unsigned char *>(component) + component->getComponentSize());
@@ -182,7 +180,7 @@ public:
             }
         }
 
-        Logger::logWarn("addComponent reached the end of allocation without finding the entity: " + std::to_string(id) + ". This message should never appear.");
+        Logger::logWarn("addComponent reached the end of allocation without finding the entity: " + toString(id) + ". This message should never appear.");
         return nullptr;
     }
 
@@ -204,8 +202,7 @@ public:
                 bool found = false;
                 while (componentCount <= instance->componentCount) {
                     //Check if the component is of the correct type
-                    T* result = dynamic_cast<T*>(component);
-                    if (result != nullptr) {
+                    if (component->componentId == ComponentRegister<T>::getComponentId()) {
                         found = true;
                         break;
                     }
@@ -215,7 +212,7 @@ public:
                 }
 
                 if (!found) {
-                    Logger::logWarn("Cannot remove a component from " + std::to_string(id) + " because the component could not be found!");
+                    Logger::logWarn("Cannot remove a component from " + toString(id) + " because the component could not be found!");
                     return;
                 }
 

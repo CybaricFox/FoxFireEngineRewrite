@@ -14,7 +14,6 @@
 
 #include "foxfire_export.h"
 #include "Logger.h"
-#include "StringUtils.h"
 #include "src/defines.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 
@@ -754,7 +753,7 @@ inline Vector4f toVector4f(const Vector3f& vector3, const float w) {
  */
 inline bool stringToVector4f(const String &string, Vector4f& out) {
     FF_Memory::ff_clear(&out, sizeof(Vector4f));
-    const int result = sscanf(string.c_str(), "%f %f %f %f", &out.x, &out.y, &out.z, &out.w);
+    const int result = sscanf(string.getAsCharString(), "%f %f %f %f", &out.x, &out.y, &out.z, &out.w);
     return result != -1;
 }
 
@@ -764,14 +763,14 @@ inline bool stringToVector4f(const String &string, Vector4f& out) {
  * @param vector
  */
 inline void vector4fToString(String& outString, const Vector4f vector) {
-    outString.clear();
-    outString.append(std::to_string(vector.x));
-    outString.append(" ");
-    outString.append(std::to_string(vector.y));
-    outString.append(" ");
-    outString.append(std::to_string(vector.z));
-    outString.append(" ");
-    outString.append(std::to_string(vector.w));
+    outString.destroy();
+    outString += toString(vector.x);
+    outString += " ";
+    outString += toString(vector.y);
+    outString+=(" ");
+    outString +=toString(vector.z);
+    outString+=(" ");
+    outString += toString(vector.w);
 }
 
 /**
@@ -782,8 +781,24 @@ inline void vector4fToString(String& outString, const Vector4f vector) {
  */
 inline bool stringToVector3f(const String &string, Vector3f& out) {
     FF_Memory::ff_clear(&out, sizeof(Vector3f));
-    const int result = sscanf(string.c_str(), "%f %f %f", &out.x, &out.y, &out.z);
+    const int result = sscanf(string.getAsCharString(), "%f %f %f", &out.x, &out.y, &out.z);
     return result != -1;
+}
+
+/**
+ * @brief Converts a vector4 to a string.
+ * @param vector
+ * @param decimal
+ */
+inline String vector3fToString(const Vector3f vector, const unsigned char decimal) {
+    String result{};
+    result = toString(vector.x, decimal);
+    result += " ";
+    result += toString(vector.y, decimal);
+    result+=(" ");
+    result += toString(vector.z, decimal);
+
+    return result;
 }
 
 /**
@@ -794,7 +809,7 @@ inline bool stringToVector3f(const String &string, Vector3f& out) {
  */
 inline bool stringToVector2f(const String &string, Vector2f& out) {
     FF_Memory::ff_clear(&out, sizeof(Vector2f));
-    const int result = sscanf(string.c_str(), "%f %f", &out.x, &out.y);
+    const int result = sscanf(string.getAsCharString(), "%f %f", &out.x, &out.y);
     return result != -1;
 }
 
@@ -1492,4 +1507,28 @@ inline float degreesToRadians(const float degrees) {
  */
 inline float RadiansToDegrees(const float radians) {
     return radians * FF_RADIAN_TO_DEGREE_MULTIPLIER;
+}
+
+inline float convertFloatRange(const float value, const float oldMin, const float oldMax, const float newMin, const float newMax) {
+    return (((value - oldMin) * (newMax - newMin)) / (oldMax - oldMin)) + newMin;
+}
+
+inline unsigned int rgbToUInt(const unsigned int r, const unsigned int g, const unsigned int b) {
+    return (((r & 0x0FF) << 16) | ((g & 0x0FF) << 8) | (b & 0x0FF));
+}
+
+inline void uIntToRGB(const unsigned int rgb, unsigned int& outR, unsigned int& outG, unsigned int& outB) {
+    outR = (rgb >> 16) & 0x0FF;
+    outG = (rgb >> 8) & 0x0FF;
+    outB = rgb & 0x0FF;
+}
+
+inline Vector3f rgbToVector3(const unsigned int r, const unsigned int g, const unsigned int b) {
+    return {static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f, static_cast<float>(b) / 255.0f};
+}
+
+inline void vector3ToRGB(const Vector3f vector, unsigned int& outR, unsigned int& outG, unsigned int& outB) {
+    outR = static_cast<unsigned int>(vector.r * 255);
+    outG = static_cast<unsigned int>(vector.g * 255);
+    outB = static_cast<unsigned int>(vector.b * 255);
 }

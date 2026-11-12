@@ -38,18 +38,18 @@ void EngineEvents::resizeApplication(const EngineInputContext context) {
 
 void EngineEvents::subscribe(const EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String& id, Keys key) {
     if (key == MAX_KEYS) {
-        subscribers[code].emplace(id, function);
+        instance->subscribers[code].emplace(id, function);
     } else {
-        subscribers[code].emplace(id, function, key);
+        instance->subscribers[code].emplace(id, function, key);
     }
 }
 
 void EngineEvents::unsubscribe(const EngineEventCode code, const String& id) {
-    DynamicArray<EngineEventCallback>& event = subscribers[code];
+    DynamicArray<EngineEventCallback>& event = instance->subscribers[code];
 
     unsigned long index = -1;
     for (unsigned long i = 0; i < event.getLength(); ++i) {
-        if (strcmp(event[i].id.c_str(), id.c_str()) == 0) {
+        if (strcmp(event[i].id.getAsCharString(), id.getAsCharString()) == 0) {
             index = i;
             break;
         }
@@ -60,7 +60,7 @@ void EngineEvents::unsubscribe(const EngineEventCode code, const String& id) {
 }
 
 void EngineEvents::callEvent(const EngineEventCode code, const EngineInputContext context) {
-    for (const auto& event = subscribers[code]; const EngineEventCallback& callback : event) {
+    for (const auto& event = instance->subscribers[code]; const EngineEventCallback& callback : event) {
         if (callback.expectedKey == MAX_KEYS || callback.expectedKey == context.key) {
             callback.function(context);
         }

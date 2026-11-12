@@ -13,7 +13,6 @@
 #pragma once
 #include <functional>
 
-#include "src/defines.h"
 #include "foxfire_export.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 
@@ -31,6 +30,8 @@ enum EngineEventCode {
     MOUSE_MOVED,
     MOUSE_WHEEL,
     RESIZED,
+    MOUSE_HOVER,
+    REFRESH_RENDER_TARGETS,
     MAX_EVENT
 };
 
@@ -182,9 +183,9 @@ enum Keys {
  */
 struct FOXFIRE_API EngineInputContext {
     /** @brief Mouse x position */
-    unsigned short mouseX;
+    short mouseX;
     /** @brief Mouse y position */
-    unsigned short mouseY;
+    short mouseY;
     /** @brief Scrollwheel value */
     char mouseZ;
     /** @brief Key Pressed/Released */
@@ -203,7 +204,7 @@ struct EngineEventCallback {
     Keys expectedKey = MAX_KEYS;
 };
 
-class EngineEvents {
+class FOXFIRE_API EngineEvents {
 private:
     /** @brief Array of Listeners. There is one array per event code. */
     DynamicArray<DynamicArray<EngineEventCallback>> subscribers{};
@@ -225,6 +226,8 @@ public:
      * @param context Contains input data
      */
     static void resizeApplication(EngineInputContext context);
+    static void callRenderTargetRefresh() {instance->callEvent(REFRESH_RENDER_TARGETS, {});}
+    static void callMouseHover(const short id) {instance->callEvent(MOUSE_HOVER, {id});}
 
     /**
      * @brief Subscribes a listener to a specific event code.
@@ -233,14 +236,14 @@ public:
      * @param id Id of the listener
      * @param key The key to listen for (If Applicable)
      */
-    void subscribe(EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String& id, Keys key = MAX_KEYS);
+    static void subscribe(EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String& id, Keys key = MAX_KEYS);
 
     /**
      * @brief Removes a listener from an event code.
      * @param code Code to check
      * @param id Id of the Listener to remove
      */
-    void unsubscribe(EngineEventCode code, const String& id) ;
+    static void unsubscribe(EngineEventCode code, const String& id) ;
 
     /**
      * @brief Call all listeners for this event code. Checks the required key for each listener before calling.

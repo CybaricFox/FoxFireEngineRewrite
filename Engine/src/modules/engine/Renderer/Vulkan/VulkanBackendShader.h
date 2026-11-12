@@ -129,6 +129,8 @@ public:
      */
     [[nodiscard]] unsigned char getLocalUniformCount() const {return localUniformCount;}
 
+    VulkanRenderpass& getRenderpass() const {return *renderpass;}
+
     /**
      * @brief Set the renderpass this shader will use.
      * @param newRenderpass
@@ -228,18 +230,11 @@ public:
 
     /**
      * @brief Creates the pipeline for this shader.
-     * @param stride
-     * @param attributeCount
-     * @param shaderStageCreateInfos
-     * @param viewport
-     * @param scissor
-     * @param pushConstantRangeCount
-     * @param memoryRanges
+     * @param newConfig
      * @param device
      * @param allocator
      * @return
      */
-    bool createPipeline(unsigned int stride, unsigned int attributeCount,
-                        VkPipelineShaderStageCreateInfo *shaderStageCreateInfos, VkViewport viewport, VkRect2D scissor,
-                        unsigned int pushConstantRangeCount, MemoryRange *memoryRanges, VulkanDevice &device, VkAllocationCallbacks *allocator);
+    bool createPipeline(
+        VulkanPipelineConfig &newConfig, VulkanDevice &device, VkAllocationCallbacks *allocator);
 };

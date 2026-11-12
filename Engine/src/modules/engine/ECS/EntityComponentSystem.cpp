@@ -8,96 +8,74 @@
 #include "Engine_Components/Mesh.h"
 #include "Engine_Components/Transform.h"
 
-AssetMap<EntityManager, AssetContext>* EntityComponentSystem::instances = nullptr;
-DynamicArray<EntityContext>* EntityComponentSystem::entities = nullptr;
+EntityComponentSystem* EntityComponentSystem::instance = nullptr;
 
 String EntityComponentSystem::getEntityName(const unsigned int id) {
-    if (entities->isEmpty()) return "";
-    unsigned int minIndex = 0;
-    unsigned int maxIndex = entities->getLength() - 1;
-
-    while (minIndex < maxIndex) {
-        const unsigned int targetIndex = minIndex + ((maxIndex - minIndex) / 2);
-        const unsigned int targetId = (*entities)[targetIndex].id;
-        if (targetId == id) {
-            return (*entities)[targetIndex].entityName;
-        }
-
-        if (targetId < id) {
-            minIndex = targetIndex + 1;
-        } else {
-            maxIndex = targetIndex;
-        }
+    const EntityContext* context = instance->entities.getInstance(id);
+    if (!context) {
+        Logger::logWarn("Failed to retrieve name for entity: " + toString(id) + " Entity does not exist!");
+        return {};
     }
 
-    //If min and max are the same, check them before throwing.
-    if ((*entities)[minIndex].id == id) return (*entities)[minIndex].entityName;
-
-    Logger::logWarn("Failed to retrieve name for entity: " + std::to_string(id) + " Entity does not exist!");
-    return "";
+    return context->entityName;
 }
 
 Entity *EntityComponentSystem::createEntityType(const String &name) {
-    AssetContext context{};
-    Entity* entity = templates.createAsset(name, context);
-    context.bAutoRelease = false;
-
-    return entity;
+    return templates.createAsset(name, false);
 }
 
 void EntityComponentSystem::initialize() {
-    templates.initialize(0);
+    instance = this;
 
-    entities = FF_Memory::ff_allocate_class<DynamicArray<EntityContext>>(sizeof(DynamicArray<EntityContext>), DYNAMIC_ARRAY);
-    entities->initialize(0);
+    templates.initialize(0);
 
     Entity* basic = createEntityType("Basic_Entity");
     basic->components.initialize(0, ECS);
-    const auto transform = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
+    const auto transform = FF_Memory::ff_allocate<Transform>(ECS);
     basic->components.push(transform);
-    const auto mesh = FF_Memory::ff_allocate_class<Mesh>(sizeof(Mesh), ECS);
+    const auto mesh = FF_Memory::ff_allocate<Mesh>(ECS);
     basic->components.push(mesh);
 
     Entity* basicUI = createEntityType("Basic_UI");
     basicUI->components.initialize(0, ECS);
-    const auto transformUI = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
+    const auto transformUI = FF_Memory::ff_allocate<Transform>(ECS);
     basicUI->components.push(transformUI);
-    const auto meshUI = FF_Memory::ff_allocate_class<Mesh>(sizeof(Mesh), ECS);
+    const auto meshUI = FF_Memory::ff_allocate<Mesh>(ECS);
     basicUI->components.push(meshUI);
 
-    instances = FF_Memory::ff_allocate_class<AssetMap<EntityManager, AssetContext>>(sizeof(AssetMap<EntityManager, AssetContext>), ECS);
-    instances->initialize(1024);
+    instances.initialize(1024);
 }
 
 void EntityComponentSystem::shutdown() {
-    entities->shutdown();
-    FF_Memory::ff_free_class<DynamicArray<EntityContext>>(entities, sizeof(DynamicArray<EntityContext>), DYNAMIC_ARRAY);
+    entities.shutdownAndFree(ECS);
 
     for (Entity* entity : templates.getAssetsAsArray()) {
         for (EntityComponent* component : entity->components) {
-            FF_Memory::ff_free_class<EntityComponent>(component, component->getComponentSize(), ECS);
+            FF_Memory::ff_free<EntityComponent>(component, ECS, component->getComponentSize());
         }
         entity->components.shutdown();
     }
+
     templates.shutdown();
-    instances->shutdown();
-    FF_Memory::ff_free_class<AssetMap<EntityManager, AssetContext>>(instances, sizeof(AssetMap<EntityManager, AssetContext>), ECS);
+    instances.shutdown();
+
+    instance = nullptr;
 }
 
 unsigned int EntityComponentSystem::getEntityCount(const String &name) {
-    const EntityManager* manager = instances->getAsset(name);
+    const EntityManager* manager = instances.getAsset(name);
 
     return manager->getEntityCount();
 }
 
 DynamicArray<unsigned int>& EntityComponentSystem::getAllEntitiesOfType(const String &type) {
-    EntityManager* manager = instances->getAsset(type);
+    EntityManager* manager = instance->instances.getAsset(type);
     const unsigned int count = manager->getEntityCount();
-    auto& result = *FF_Memory::ff_allocate_class<DynamicArray<unsigned int>>(sizeof(DynamicArray<unsigned int>), DYNAMIC_ARRAY);
+    auto& result = *FF_Memory::ff_allocate<DynamicArray<unsigned int>>(DYNAMIC_ARRAY);
     result.initialize(count);
 
-    for (EntityInstance*& instance : manager->getInstances()) {
-        result.push(instance->id);
+    for (EntityInstance*& entity : manager->getInstances()) {
+        result.push(entity->id);
     }
 
     return result;
@@ -105,17 +83,17 @@ DynamicArray<unsigned int>& EntityComponentSystem::getAllEntitiesOfType(const St
 
 unsigned int EntityComponentSystem::createEntity(const String &name) {
     Entity* entity = templates.getAsset(name);
-    EntityManager* manager = instances->getAsset(name);
+    EntityManager* manager = instances.getAsset(name);
 
     if (manager == nullptr) {
-        AssetContext context{};
-        context.bAutoRelease = false;
-        manager = instances->createAsset(name, context);
+        manager = instances.createAsset(name, false);
     }
 
-    const unsigned int id = getNewId();
+    EntityContext& context = *FF_Memory::ff_allocate<EntityContext>(ECS);
+    const unsigned int id = getNewId(context);
+    context.id = id;
+    context.entityName = name;
     manager->copyFromTemplate(*entity, id);
-    entities->push({id, name});
 
     return id;
 }

@@ -12,10 +12,10 @@
 
 #pragma once
 
-#include <string>
-#include "../../../defines.h"
 #include "foxfire_export.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
+#include "src/modules/engine/Renderer/FontSystem.h"
+#include "src/modules/engine/Renderer/IRenderView.h"
 
 struct BaseGameState {};
 
@@ -24,19 +24,42 @@ struct BaseGameState {};
  */
 struct GameConfig {
     /** @brief Name of the application */
-    String appName;
+    const char* appName{};
     /** @brief Starting x screen position of the window */
-    short startingX;
+    short startingX = 0;
     /** @brief Starting y height position of the window */
-    short startingY;
+    short startingY = 0;
     /** @brief Starting width of the window */
-    short startingWidth;
+    short startingWidth = 0;
     /** @brief Starting height of the window */
-    short startingHeight;
+    short startingHeight = 0;
 
-    int gameVersionMajor;
-    int gameVersionMinor;
-    int gameVersionPatch;
+    int gameVersionMajor = 0;
+    int gameVersionMinor = 0;
+    int gameVersionPatch = 0;
+
+    FontSystemConfig fontConfig{};
+    DynamicArray<RenderViewConfig> renderViews{};
+
+    GameConfig& operator= (const GameConfig& other) {
+        if (this == &other) return *this;
+
+        appName = other.appName;
+        startingX = other.startingX;
+        startingY = other.startingY;
+        startingWidth = other.startingWidth;
+        startingHeight = other.startingHeight;
+        gameVersionMajor = other.gameVersionMajor;
+        gameVersionMinor = other.gameVersionMinor;
+        gameVersionPatch = other.gameVersionPatch;
+        fontConfig = other.fontConfig;
+
+        return *this;
+    }
+
+    void shutdown() {
+        renderViews.shutdown();
+    }
 };
 
 /**
@@ -52,8 +75,9 @@ struct FOXFIRE_API GameInstance {
 
     void shutdown() {
         if (!state) return;
-        FF_Memory::ff_free(state, memoryRequirement, GAME); //Game state does not use destruction, so ff_free is valid.
+        FF_Memory::ff_free<BaseGameState>(state, GAME, memoryRequirement); //Game state does not use destruction, so ff_free is valid.
         state = nullptr;
+        config.shutdown();
     }
 };
 

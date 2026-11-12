@@ -153,7 +153,7 @@ public:
     float getFloat(const String &name, JsonObject* object = nullptr) {
         if (object == nullptr) object = &root;
 
-        if (name.empty() && object->values[0]) {
+        if (name.isEmpty() && object->values[0]) {
             return *static_cast<float*>(object->values[0]);
         }
 

@@ -4,7 +4,6 @@
 
 #pragma once
 #include "IRenderView.h"
-#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 
 /**
  *  @file RenderViewSystem.h
@@ -24,20 +23,21 @@ struct RenderViewSystemConfig {
 
 class FOXFIRE_API RenderViewSystem {
 private:
-    AssetMap<IRenderView*, AssetContext> assets{};
+    AssetMap<IRenderView*> assets{};
     unsigned int maxViewCount = 0;
 
     IRendererBackend* backendRef = nullptr;
-    ShaderSystem* shaderSystemRef = nullptr;
-    IMaterialSystem* materialSystemRef = nullptr;
+
+    void regenerateRenderTargets(IRenderView& view) const;
 
 public:
-    bool initialize(RenderViewSystemConfig config, IRendererBackend *backend, ShaderSystem *shaderSystem, IMaterialSystem *materialRef);
+    bool initialize(RenderViewSystemConfig config, IRendererBackend *backend);
     void shutdown();
 
     IRenderView *getRenderView(const String &name);
 
-    bool createRenderView(const RenderViewConfig &config);
+    bool createRenderView(RenderViewConfig &config);
+    bool createRenderpass(RenderpassConfig &config, Renderpass &outRenderpass) const;
     void resize(unsigned int width, unsigned int height);
 
     bool render(IRenderView &renderView, RenderViewPacket &packet, unsigned long frameNumber, unsigned long targetIndex) const;

@@ -49,7 +49,7 @@ private:
             Logger::logFatal("Dynamic Arrays cannot be created prior to FF_Memory!");
             return nullptr;
         }
-        return static_cast<T*>(FF_Memory::ff_allocate(sizeof(T) * size, tag, alignof(T)));
+        return static_cast<T*>(FF_Memory::ff_allocate_storage(sizeof(T) * size, tag, alignof(T)));
     }
 
     void destroy() {
@@ -60,9 +60,13 @@ private:
     }
 
     void free() {
+        if (length > 0) {
+            destroy();
+        }
         if (memory) {
-            FF_Memory::ff_free(memory, sizeof(T) * capacity, tag);
+            FF_Memory::ff_free_storage(memory, sizeof(T) * capacity, tag, alignof(T));
             memory = nullptr;
+            capacity = 0;
         }
     }
 
@@ -87,9 +91,9 @@ public:
         if (!memory) {
             Logger::logFatal(
                 "Dynamic Array failed to allocate memory! Size: " +
-                std::to_string(sizeof(T)) +
+                toString(sizeof(T)) +
                 "B, Capacity: " +
-                std::to_string(finalCapacity)
+                toString(finalCapacity)
             );
             shutdown();
             return;
@@ -129,12 +133,7 @@ public:
     }
 
     void shutdown() {
-        if (memory) {
-            destroy();
-            free();
-        }
-
-        capacity = 0;
+        free();
     }
 
     /** @brief Returns the number of elements the array can currently support. */
@@ -239,7 +238,7 @@ public:
      */
     void pop(const unsigned long index) {
         if (index >= length) {
-            Logger::logError("Index out of bounds! Length: " + std::to_string(length) + ", Index: " + std::to_string(index));
+            Logger::logError("Index out of bounds! Length: " + toString(length) + ", Index: " + toString(index));
             return;
         }
 
@@ -258,7 +257,7 @@ public:
      */
     void unorderedPop(const unsigned long index) {
         if (index >= length) {
-            Logger::logError("Index out of bounds! Length: " + std::to_string(length) + ", Index: " + std::to_string(index));
+            Logger::logError("Index out of bounds! Length: " + toString(length) + ", Index: " + toString(index));
             return;
         }
 
@@ -317,8 +316,8 @@ public:
 
         if (index > length) {
             Logger::logError(
-                "Index out of bounds! Length: " + std::to_string(length) +
-                ", Index: " + std::to_string(index)
+                "Index out of bounds! Length: " + toString(length) +
+                ", Index: " + toString(index)
             );
             return false;
         }
@@ -367,8 +366,8 @@ public:
 
         if (index > length) {
             Logger::logError(
-                "Index out of bounds! Length: " + std::to_string(length) +
-                ", Index: " + std::to_string(index)
+                "Index out of bounds! Length: " + toString(length) +
+                ", Index: " + toString(index)
             );
             return false;
         }
@@ -412,10 +411,12 @@ public:
         }
     }
 
+
     /**
      * @brief Creates a copy of an element.
      * @return Returns the copy.
      */
+    /*
     T* duplicate() {
         Logger::logWarn("Duplicate is not fully setup and may cause unintended behavior!");
 
@@ -448,6 +449,7 @@ public:
 
         return copy;
     }
+    */
 
     T* getData() {
         return memory;
@@ -480,7 +482,7 @@ private:
                 return false;
             }
 
-            unsigned long i = 0;
+            ULong i = 0;
             try {
                 for (; i < length; ++i) {
                     std::construct_at(&temp[i], std::move_if_noexcept(memory[i]));
@@ -490,7 +492,7 @@ private:
                     std::destroy_at(&temp[j - 1]);
                 }
 
-                FF_Memory::ff_free(temp, sizeof(T) * requiredSize, tag);
+                FF_Memory::ff_free_storage(temp, sizeof(T) * requiredSize, tag, alignof(T));
                 Logger::logFatal("Dynamic Array reallocate failed while moving elements!");
                 return false;
             }
@@ -508,9 +510,15 @@ private:
 
 public:
     T& operator[](unsigned long index) {
+        if (index >= capacity) {
+            Logger::logFatal("Subscript out of bounds! Index: " + toString(index) + " Capacity: " + toString(capacity));
+        }
         return memory[index];
     }
     const T& operator[](unsigned long index) const {
+        if (index >= capacity) {
+            Logger::logFatal("Subscript out of bounds! Index: " + toString(index)+ " Capacity: " + toString(capacity));
+        }
         return memory[index];
     }
 

@@ -65,11 +65,12 @@ struct ShaderConfig {
     DynamicArray<ShaderAttributeConfig> attributes{};
     unsigned char uniformCount = 0;
     DynamicArray<ShaderUniformConfig> uniforms{};
-    String renderpassName{};
     unsigned char stageCount = 0;
     DynamicArray<ShaderStage> stages{};
     DynamicArray<String> stageNames{};
     DynamicArray<String> stageFileNames{};
+    bool bDepthTest = false;
+    bool bDepthWrite = false;
 };
 
 class Shader {
@@ -89,13 +90,14 @@ private:
     ShaderScope boundScope{};
     unsigned int boundInstanceId = INVALID_ID_U32;
     unsigned int boundOffset = 0;
-    AssetMap<ShaderUniform, AssetContext> uniforms{};
+    AssetMap<ShaderUniform> uniforms{};
     DynamicArray<ShaderAttribute> attributes{};
     ShaderState state{};
     unsigned char pushConstantRangeCount = 0;
     MemoryRange pushConstantRanges[32]{};
     unsigned short attributeStride = 0;
     ULong frameNumber = INVALID_ID_U64;
+    int flags{};
 
     IBackendShader* backendShader = nullptr;
 
@@ -117,7 +119,7 @@ public:
     [[nodiscard]] unsigned int getBoundOffset() const {return boundOffset;}
     [[nodiscard]] unsigned char getInstanceTextureCount() const {return instanceTextureCount;}
     [[nodiscard]] unsigned int getId() const {return id;}
-    unsigned int getUniformIndex(const String &uniformName){return uniforms.getContext(uniformName).index;}
+    unsigned int getUniformIndex(const String &uniformName){return uniforms.getAssetIndex(uniformName);}
     ShaderUniform& getUniform(const unsigned int index){return *uniforms.getAssetAtIndex(index);}
     [[nodiscard]] ShaderScope getBoundScope() const {return boundScope;}
     void increaseAttributeStride(const unsigned short stride) {attributeStride += stride;}
@@ -128,6 +130,7 @@ public:
     [[nodiscard]] unsigned long getPushConstantSize() const {return pushConstantSize;}
     [[nodiscard]] ShaderState getState() const {return state;}
     [[nodiscard]] unsigned long getFrameNumber() const {return frameNumber;}
+    int getFlags() const {return flags;}
 
     template<typename T>
     requires std::derived_from<T, IBackendShader>
@@ -145,14 +148,15 @@ public:
     void increaseGlobalSize(const unsigned int size) {globalSize += size;}
     void increaseInstanceSize(const unsigned int size) {instanceSize += size;}
     void setFrameNumber(const unsigned long value) {frameNumber = value;}
+    void setFlags(const int newFlags) {flags = newFlags;}
 
     void setGlobalStride();
     void setInstanceStride();
     bool initializeShader(const ShaderConfig &config, unsigned int newId);
-    ShaderUniform* createUniform(const String &uniformName, AssetContext &context);
+    ShaderUniform* createUniform(const String &uniformName, bool autoRelease);
     void setPushConstantRange(MemoryRange range);
     bool isUniformNameValid(const String &uniformName);
-    void clearName();
+    void clearName() const;
     void setTextureMap(unsigned int index, TextureMap* map);
     void destroyTextureMaps();
     void ensureAttributeAlignment();

@@ -3,7 +3,6 @@
 //
 
 #pragma once
-#include "src/defines.h"
 #include "foxfire_export.h"
 #include "../Library/Logger.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
@@ -48,7 +47,7 @@ public:
         }
 
         capacity = initialCapacity;
-        memory = static_cast<T *>(FF_Memory::ff_allocate(sizeof(T) * capacity, RING_QUEUE, alignof(T)));
+        memory = static_cast<T *>(FF_Memory::ff_allocate_storage(sizeof(T) * capacity, RING_QUEUE, alignof(T)));
     }
     void shutdown() {
         if (!memory) return;
@@ -59,7 +58,7 @@ public:
             dequeue(temp);
         }
 
-        FF_Memory::ff_free(memory, sizeof(T) * capacity, RING_QUEUE);
+        FF_Memory::ff_free_storage(memory, sizeof(T) * capacity, RING_QUEUE, alignof(T));
         capacity = 0;
         length = 0;
         memory = nullptr;

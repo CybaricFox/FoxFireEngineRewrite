@@ -4,8 +4,8 @@
 
 #pragma once
 #include "src/modules/engine/Library/JsonHandler.h"
-#include "src/modules/engine/Renderer/IGeometrySystem.h"
-#include "src/modules/engine/Resources/ResourceLoader.h"
+#include "src/modules/engine/Renderer/GeometrySystem.h"
+#include "src/modules/engine/Resources/IResourceLoader.h"
 
 /**
  *  @file MeshLoader.h
@@ -118,9 +118,9 @@ struct GLTFMeshMaterial {
     String alphaMode{};
 };
 
-class MeshLoader final : public ResourceLoader{
+class MeshLoader final : public IResourceLoader{
 private:
-    bool importGLTF(FileHandler &file, const String& fileName, DynamicArray<GeometryConfig>& resourceData);
+    bool importGLTF(FileHandler &file, String &fileName, DynamicArray<GeometryConfig> &resourceData);
 
     GLTFMeshDataContext processGLTFObject(const GLTFMeshAccessorData &accessorData, const GLTFMeshBufferView &bufferView, const GLTFMeshBuffer &buffer);
     void processExtents(GeometryConfig &config, const GLTFMeshAccessorData &positionData);

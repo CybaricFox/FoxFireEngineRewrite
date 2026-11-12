@@ -29,6 +29,8 @@ private:
     unsigned long totalSize = 0;
     FreeList freeList{};
 
+    ULong getHeaderSize();
+
 public:
     DynamicAllocator() = default;
     DynamicAllocator(const unsigned long size, void *memory) {initialize(size, memory);}

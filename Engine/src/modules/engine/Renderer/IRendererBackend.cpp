@@ -7,12 +7,12 @@
 #include "Vulkan/VulkanBackend.h"
 #include "../Library/Logger.h"
 
-IRendererBackend* IRendererBackend::create(const RendererBackendType type, IPlatformState& newPlatformState, const GameInstance& gameInstance) {
+IRendererBackend* IRendererBackend::create(RendererBackendType type, IPlatformState &newPlatformState, const int majorV, const int minorV, const int patchV) {
     IRendererBackend* backend;
 
     if (type == VULKAN) {
         auto* vulkanBackend = new VulkanBackend();
-        vulkanBackend->setVersion(gameInstance);
+        vulkanBackend->setVersion(majorV, minorV, patchV);
         backend = vulkanBackend;
     } else if (type == DIRECTX) {
         return nullptr;

@@ -6,6 +6,7 @@
 #include "ECSTypes.h"
 #include "EntityManager.h"
 #include "src/modules/engine/Library/AssetMap.h"
+#include "src/modules/engine/Library/InstanceTracker.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 
 /**
@@ -39,23 +40,20 @@ struct EntityContext {
  */
 class FOXFIRE_API EntityComponentSystem {
 private:
-    /**
-     * @brief The next id that will be assigned
-     */
-    unsigned int currentId = -1;
+    static EntityComponentSystem* instance;
 
     /**
      * @brief Asset map of entities.
      */
-    AssetMap<Entity, AssetContext> templates{};
+    AssetMap<Entity> templates{};
     /**
      * @brief Asset map of instances.
      */
-    static AssetMap<EntityManager, AssetContext>* instances;
+    AssetMap<EntityManager> instances{};
     /**
      * @brief Array of entity/instance associations. Sorted by id.
      */
-    static DynamicArray<EntityContext>* entities;
+    InstanceTracker<EntityContext> entities{};
 
     /**
      * @brief
@@ -68,7 +66,7 @@ private:
      * @brief Gets an unused id and increments it.
      * @return Free id for assignment.
      */
-    unsigned int getNewId() {return ++currentId;}
+    static unsigned int getNewId(EntityContext& context) {return instance->entities.acquireId(&context);}
 
 public:
     void initialize();
@@ -86,7 +84,7 @@ public:
      * @param type Name of the entity.
      * @return Array of all associated instances.
      */
-    DynamicArray<unsigned int> &getAllEntitiesOfType(const String &type);
+    static DynamicArray<unsigned int> &getAllEntitiesOfType(const String &type);
 
     /**
      * @brief Creates an instance of an entity.
@@ -112,9 +110,9 @@ public:
     requires std::derived_from<T, EntityComponent>
     static T* getComponent(const unsigned int id) {
         const String entityName = getEntityName(id);
-        if (entityName.empty()) return nullptr;
+        if (entityName.isEmpty()) return nullptr;
 
-        EntityManager* manager = instances->getAsset(entityName);
+        EntityManager* manager = instance->instances.getAsset(entityName);
 
         return manager->getComponent<T>(id);
     }
@@ -129,9 +127,9 @@ public:
     requires std::derived_from<T, EntityComponent>
     static T* addComponent(const unsigned int id) {
         const String entityName = getEntityName(id);
-        if (entityName.empty()) return nullptr;
+        if (entityName.isEmpty()) return nullptr;
 
-        EntityManager* manager = instances->getAsset(entityName);
+        EntityManager* manager = instance->instances.getAsset(entityName);
         return manager->addComponent<T>(id);
     }
 
@@ -144,9 +142,9 @@ public:
     requires std::derived_from<T, EntityComponent>
     static void removeComponent(const unsigned int id) {
         const String entityName = getEntityName(id);
-        if (entityName.empty()) return;
+        if (entityName.isEmpty()) return;
 
-        EntityManager* manager = instances->getAsset(entityName);
+        EntityManager* manager = instance->instances.getAsset(entityName);
         return manager->removeComponent<T>(id);
     }
 

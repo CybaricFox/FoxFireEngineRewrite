@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "src/modules/engine/Renderer/IMaterialSystem.h"
+#include "src/modules/engine/Renderer/MaterialSystem.h"
 #include "src/modules/engine/Renderer/IRenderView.h"
 
 /**
@@ -25,7 +25,7 @@ struct GeometryDistance {
 
 class FOXFIRE_API WorldRenderView final : public IRenderView {
 private:
-    unsigned int shaderId = 0;
+    Shader* shader = nullptr;
     float fov = 0;
     float nearClip = 0;
     float farClip = 0;
@@ -39,7 +39,7 @@ private:
     int partition(GeometryDistance* array, int low, int high, bool ascending);
 
 public:
-    bool initialize(ShaderSystem* shaderRef, unsigned long newSize) override;
+    bool initialize(unsigned long newSize) override;
     void shutdown() override;
 
     void setCamera(const unsigned int camera) {worldCamera = camera;}
@@ -48,7 +48,9 @@ public:
     void onDebugEvent();
 
     void resize(unsigned newWidth, unsigned newHeight) override;
-    bool buildPacket(void *data, RenderViewPacket &outPacket) override;
-    bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend* backendRef, IMaterialSystem* materialSystemRef) override;
+    bool buildPacket(void *data, RenderViewPacket &outPacket, LinearAllocator& allocator) override;
+    bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex) override;
     void destroyPacket(RenderViewPacket &packet) override;
+
+    bool regenerateAttachmentTarget(unsigned passIndex, RenderTargetAttachment &attachment) override {return true;}
 };

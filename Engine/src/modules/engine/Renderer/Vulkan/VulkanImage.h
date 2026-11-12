@@ -43,8 +43,7 @@ public:
     void setHeight(const unsigned int newHeight) {height = newHeight;}
 
 
-    void transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, TextureType type, VulkanDevice
-                               &device) const;
+    void transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, TextureType type, VulkanDevice& device) const;
     void copyFromBuffer(VkBuffer buffer, VulkanCommandBuffer &commandBuffer, TextureType type) const;
 
     void createImage(
@@ -52,4 +51,7 @@ public:
         VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags, bool createView,
         VkImageAspectFlags aspect, VulkanDevice &device, const VkAllocationCallbacks *allocator
     );
+
+    void copyToBuffer(TextureType type, VkBuffer to, VulkanCommandBuffer &commandBuffer);
+    void copyPixelToBuffer(TextureType type, VkBuffer to, unsigned int x, unsigned int y, VulkanCommandBuffer &commandBuffer);
 };

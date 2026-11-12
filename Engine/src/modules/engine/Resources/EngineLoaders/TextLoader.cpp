@@ -11,7 +11,7 @@ TextLoader::TextLoader() {
 }
 
 bool TextLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters *params) {
-    if (name.empty()) return false;
+    if (name.isEmpty()) return false;
 
     const String finalPath = basePath + path + "/" + name;
 
@@ -32,7 +32,7 @@ bool TextLoader::load(const String name, Resource &outResource, const String bas
 
     String string{};
     ULong readSize = 0;
-    const auto resourceData = static_cast<char *>(FF_Memory::ff_allocate(sizeof(char) * fileSize, ARRAY));
+    const auto resourceData = FF_Memory::ff_allocate_recursive<char>(ARRAY, fileSize);
     if (!file.readAll(string, readSize)) {
         Logger::logError("Text Loader failed to read file: " + finalPath);
         file.closeFile();
@@ -41,7 +41,7 @@ bool TextLoader::load(const String name, Resource &outResource, const String bas
 
     file.closeFile();
 
-    string.copy(resourceData, readSize);
+    string.setString(resourceData, readSize);
 
     outResource.data = resourceData;
     outResource.dataSize = readSize;

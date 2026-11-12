@@ -16,6 +16,10 @@ bool DynamicAllocator::getSizeAndAlignment(void *memory, ULong &outSize, unsigne
     return true;
 }
 
+ULong DynamicAllocator::getHeaderSize() {
+    return sizeof(AllocationHeader) + sizeof(unsigned int);
+}
+
 void DynamicAllocator::initialize(const unsigned long size, void *memory) {
     if (!memory) return;
 
@@ -50,7 +54,7 @@ void * DynamicAllocator::allocate(const unsigned long size, const unsigned short
         return nullptr;
     }
 
-    const ULong requiredSize = alignment + sizeof(AllocationHeader) + sizeof(unsigned int) + size;
+    const ULong requiredSize = alignment + getHeaderSize() + size;
 
     if (requiredSize > 4294967295U) {
         Logger::logFatal("Dynamic allocator allocation called with a size greater than 4GB. What in the actual fuck are you doing??? Not doing that, fuck you and your application.");
@@ -77,7 +81,7 @@ void * DynamicAllocator::allocate(const unsigned long size, const unsigned short
 
     Logger::logError("Dynamic Allocator cannot find a memory block large enough to allocate from.");
     const unsigned long available = freeList.getFreeSpace();
-    Logger::logError("Requested size: " + std::to_string(size) + " Available: " + std::to_string(available));
+    Logger::logError("Requested size: " + toString(size) + " Available: " + toString(available));
     return nullptr;
 }
 
@@ -90,9 +94,9 @@ bool DynamicAllocator::free(void *memory) {
     if (memory < memoryBlock || memory > static_cast<unsigned char *>(memoryBlock) + totalSize) {
         void* endOfBlock = static_cast<unsigned char *>(memoryBlock) + totalSize;
         Logger::logError("Dynamic Allocator tryed to free memory block: " +
-            std::to_string(reinterpret_cast<ULong>(memory)) + " outside of range: " +
-            std::to_string(reinterpret_cast<ULong>(memoryBlock)) + " - " +
-            std::to_string(reinterpret_cast<ULong>(endOfBlock)));
+            toString(reinterpret_cast<ULong>(memory)) + " outside of range: " +
+            toString(reinterpret_cast<ULong>(memoryBlock)) + " - " +
+            toString(reinterpret_cast<ULong>(endOfBlock)));
         return false;
     }
 

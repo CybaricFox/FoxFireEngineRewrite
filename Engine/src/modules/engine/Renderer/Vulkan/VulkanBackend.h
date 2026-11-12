@@ -74,7 +74,7 @@ private:
             return nullptr;
         }
 
-        void* result = FF_Memory::ff_allocate(size, RENDER_BACKEND_MANUAL, static_cast<unsigned short>(alignment));
+        void* result = FF_Memory::ff_allocate_raw(size, RENDER_BACKEND_MANUAL, static_cast<unsigned short>(alignment));
 
         #ifdef VULKAN_ALLOCATOR_TRACE
         std::ostringstream oss{};
@@ -98,16 +98,18 @@ private:
         const bool result = FF_Memory::getSizeAndAlignment(memory, size, alignment);
         std::ostringstream oss{};
         oss << memory;
+        String string{};
+        string.setString(oss.str().c_str(), oss.str().length());
 
         if (!result) {
-            Logger::logError("Vulkan failed to free memory block: " + oss.str());
+            Logger::logError("Vulkan failed to free memory block: " + string);
             return;
         }
 
         #ifdef VULKAN_ALLOCATOR_TRACE
         Logger::logDebug("Vulkan successfully freed memory block: " + oss.str());
         #endif
-        FF_Memory::ff_free(memory, size, RENDER_BACKEND_MANUAL, alignment);
+        FF_Memory::ff_free_raw(memory, size, RENDER_BACKEND_MANUAL, alignment);
     }
 
     static void* vulkanReallocate(void* data, void* original, const size_t size, const size_t alignment, const VkSystemAllocationScope scope) {
@@ -121,16 +123,18 @@ private:
         ULong allocationSize = 0;
         unsigned short allocationAlignment = 1;
         if (!FF_Memory::getSizeAndAlignment(original, allocationSize, allocationAlignment)) {
-            Logger::logError("Vulkan cannot realign memory block: " + oss.str());
+            String string{};
+            string.setString(oss.str().c_str(), oss.str().length());
+            Logger::logError("Vulkan cannot realign memory block: " + string);
             return nullptr;
         }
         if (size == 0) {
-            FF_Memory::ff_free(original, allocationSize, RENDER_BACKEND_MANUAL, allocationAlignment);
+            FF_Memory::ff_free_raw(original, allocationSize, RENDER_BACKEND_MANUAL, allocationAlignment);
             return nullptr;
         }
 
         if (allocationAlignment != alignment) {
-            Logger::logError("Vulkan reallocation is using a different alignment than the original! Original: " + std::to_string(allocationAlignment) + " Passed: " + std::to_string(alignment));
+            Logger::logError("Vulkan reallocation is using a different alignment than the original! Original: " + toString(allocationAlignment) + " Passed: " + toString(alignment));
             return nullptr;
         }
 
@@ -153,7 +157,7 @@ private:
         Logger::logDebug("Now freeing original memory " + oss.str());
         #endif
 
-        FF_Memory::ff_free(original, allocationSize, RENDER_BACKEND_MANUAL, allocationAlignment);
+        FF_Memory::ff_free_raw(original, allocationSize, RENDER_BACKEND_MANUAL, allocationAlignment);
 
         return result;
     }
@@ -196,20 +200,19 @@ public:
 
     static VulkanContext vulkanContext;
 
-    bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount, ResourceSystem *resources) override;
+    bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount) override;
 
-    Renderpass* getRenderpass(String name) override;
     Texture* getWindowAttachment(unsigned char index) override;
-    Texture* getDepthAttachment() override;
+    Texture* getDepthAttachment(unsigned char index) override;
     unsigned char getWindowAttachmentIndex() override;
     bool isMultithreaded() override {return vulkanContext.isMultithreaded();}
 
-    void setVersion(const GameInstance& gameInstance);
+    void setVersion(int majorV, int minorV, int patchV);
 
     void resize(unsigned short width, unsigned short height) override;
     bool beginFrame(float deltaTime) override;
     bool endFrame(float deltaTime) override;
-    void drawGeometry(const GeometryRenderData &data, Material &defaultMaterial) override;
+    void drawGeometry(const GeometryRenderData &data) override;
     void createTexture(const unsigned char *pixels, Texture &texture) override;
     void destroyTexture(Texture &texture) override;
     bool createGeometry(Geometry &geometry, unsigned int vertexSize, unsigned int vertexCount, Vertex* vertices, unsigned int indexSize, unsigned int indexCount, void *indices) override;
@@ -232,9 +235,10 @@ public:
     void createWritableTexture(Texture& texture) override;
     void resizeTexture(Texture& texture, unsigned int width, unsigned int height) override;
     void writeTextureData(Texture& texture, unsigned int offset, unsigned int size, const unsigned char* pixels) override;
-    void createRenderTarget(unsigned char attachmentCount, DynamicArray<Texture *> &attachments, Renderpass &renderpass, unsigned width, unsigned height, RenderTarget& outTarget) override;
+
+    void createRenderTarget(unsigned char attachmentCount, RenderTargetAttachment *attachments, Renderpass &renderpass, unsigned width, unsigned height, RenderTarget &outTarget) override;
     void destroyRenderTarget(RenderTarget &target, bool freeMemory) override;
-    void createRenderpass(Renderpass &outRenderpass, float depth, unsigned stencil, bool hasPreviousPass, bool hasNextPass) override;
+    bool createRenderpass(RenderpassConfig &config, Renderpass &outRenderpass) override;
     void destroyRenderpass(Renderpass &renderpass) override;
 
     bool createBuffer(RenderBuffer &buffer) override;
@@ -249,4 +253,18 @@ public:
     bool loadBufferRange(RenderBuffer &buffer, ULong offset, ULong size, const void *data) override;
     bool copyBufferRange(RenderBuffer &source, ULong sourceOffset, RenderBuffer &destination, ULong destOffset, ULong size) override;
     bool drawBuffer(RenderBuffer &buffer, ULong offset, unsigned elementCount, bool bindOnly) override;
+
+    unsigned char getWindowAttachmentCount() override;
+
+    void setViewport(Vector4f rectangle) override;
+
+    void resetViewport() override;
+
+    void setScissor(Vector4f rectangle) override;
+
+    void resetScissor() override;
+
+    void readTextureData(Texture &texture, unsigned offset, unsigned size, void **outMemory) override;
+
+    void readPixel(Texture &texture, unsigned int x, unsigned int y, unsigned char **outData) override;
 };

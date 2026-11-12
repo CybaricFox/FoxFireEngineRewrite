@@ -9,6 +9,7 @@
 #include <iomanip>
 
 #include "VulkanBackendShader.h"
+#include "VulkanImage.h"
 #include "../../Library/Logger.h"
 #include "src/modules/engine/Library/FF_Math.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
@@ -79,9 +80,7 @@ bool VulkanBackend::recreateSwapchain() {
 
     vulkanContext.getSwapchain().finishResize();
 
-    if (vulkanContext.resizeRenderTargetsEvent.hasListeners()) {
-        vulkanContext.resizeRenderTargetsEvent.call();
-    }
+    EngineEvents::callRenderTargetRefresh();
 
     for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
         vulkanContext.getCommandBuffer(i).allocateCommandBuffer(true, vulkanContext.getDevice());
@@ -145,7 +144,7 @@ bool VulkanBackend::beginRenderpass(Renderpass &renderpass, RenderTarget &target
     VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
     const auto vulkanRenderpass = reinterpret_cast<VulkanRenderpass *>(renderpass.getData());
     if (!vulkanRenderpass) {
-        Logger::logFatal("Failed to cast Vulkan Renderpass in Renderpass: " + std::to_string(renderpass.getId()));
+        Logger::logFatal("Failed to cast Vulkan Renderpass in Renderpass: " + toString(renderpass.getId()));
         return false;
     }
 
@@ -173,6 +172,12 @@ bool VulkanBackend::beginRenderpass(Renderpass &renderpass, RenderTarget &target
         const bool doClearStencil = renderpass.hasFlag(RENDERPASS_CLEAR_STENCIL);
         clearValues[beginInfo.clearValueCount].depthStencil.stencil = doClearStencil ? vulkanRenderpass->getStencil() : 0;
         beginInfo.clearValueCount++;
+    } else {
+        for (unsigned int i = 0; i < target.attachmentCount; i++) {
+            if (target.attachments[i].type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
+                beginInfo.clearValueCount++;
+            }
+        }
     }
 
     beginInfo.pClearValues = beginInfo.clearValueCount > 0 ? clearValues : nullptr;
@@ -193,7 +198,7 @@ bool VulkanBackend::endRenderpass(Renderpass &renderpass) {
 }
 
 bool VulkanBackend::createShader(Shader &shader, ShaderConfig& config, Renderpass &renderpass, const unsigned char stageCount, DynamicArray<String> &stageFileNames, DynamicArray<ShaderStage> &stages) {
-    shader.setBackendShader(FF_Memory::ff_allocate_class<VulkanBackendShader>(sizeof(VulkanBackendShader), RENDER));
+    shader.setBackendShader(FF_Memory::ff_allocate<VulkanBackendShader>(RENDER));
 
     VkShaderStageFlags vkStages[VULKAN_SHADER_MAX_STAGES]{};
 
@@ -364,9 +369,24 @@ bool VulkanBackend::initializeShader(Shader &shader) {
         shaderStageCreateInfo[i] = backendShader->getStage(i).shaderStageCreateInfo;
     }
 
-    const bool result = backendShader->createPipeline(shader.getAttributeStride(), shader.getAttributeCount(),
-                                                      shaderStageCreateInfo, viewport, scissor, shader.getPushConstantRangeCount(), shader.getPushConstantRanges(),
-                                                      vulkanContext.getDevice(), vulkanContext.getAllocator());
+    VulkanPipelineConfig pipelineConfig{};
+    pipelineConfig.renderpass = &backendShader->getRenderpass();
+    pipelineConfig.stride = shader.getAttributeStride();
+    pipelineConfig.attributeCount = shader.getAttributeCount();
+    pipelineConfig.attributes = backendShader->getConfig().attributes;
+    pipelineConfig.descriptorSetLayoutCount = backendShader->getConfig().descriptorSetCount;
+    pipelineConfig.descriptorSetLayouts = &backendShader->getDescriptorSetLayout(0);
+    pipelineConfig.stageCount = backendShader->getConfig().stageCount;
+    pipelineConfig.shaderStages = shaderStageCreateInfo;
+    pipelineConfig.viewport = viewport;
+    pipelineConfig.scissor = scissor;
+    pipelineConfig.cullMode = backendShader->getConfig().cullMode;
+    pipelineConfig.bIsWireframe = false;
+    pipelineConfig.shaderFlags = shader.getFlags();
+    pipelineConfig.pushConstantRangeCount = shader.getPushConstantRangeCount();
+    pipelineConfig.pushConstantRanges = shader.getPushConstantRanges();
+
+    const bool result = backendShader->createPipeline(pipelineConfig, vulkanContext.getDevice(),vulkanContext.getAllocator());
 
     if (!result) {
         Logger::logError("Failed to load pipeline for shader.");
@@ -407,7 +427,7 @@ void VulkanBackend::destroyShader(Shader &shader) {
 
     backendShader->shutdown(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
-    FF_Memory::ff_free_class<VulkanBackendShader>(shader.getBackendShader(), sizeof(VulkanBackendShader), RENDER);
+    FF_Memory::ff_free<VulkanBackendShader>(shader.getBackendShader(), RENDER);
     shader.setBackendShader(nullptr);
 }
 
@@ -437,6 +457,10 @@ bool VulkanBackend::setUniform(Shader &shader, ShaderUniform &uniform, void *val
         if (uniform.scope == SHADER_SCOPE_GLOBAL) {
             shader.setTextureMap(uniform.location, static_cast<TextureMap*>(value));
         } else {
+            if (backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextureMaps.getLength() == 0) {
+                Logger::logFatal("Backend Shader instance texture maps is empty!");
+                return false;
+            }
             backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextureMaps[uniform.location] = static_cast<TextureMap*>(value);
         }
     } else {
@@ -561,7 +585,7 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
                             break;
                         }
                         default: {
-                            Logger::logWarn("Undefined texture use case: " + std::to_string(map->use));
+                            Logger::logWarn("Undefined texture use case: " + toString(map->use));
                             texture = defaultDiffuseTexture;
                             break;
                         }
@@ -594,64 +618,37 @@ bool VulkanBackend::applyShaderInstance(Shader &shader, const bool update) {
     return true;
 }
 
-Renderpass * VulkanBackend::getRenderpass(const String name) {
-    if (name.empty()) {
-        Logger::logError("Get Renderpass requires a name!");
-        return nullptr;
-    }
-
-    Renderpass* renderpass = vulkanContext.getRenderpass(name);
-    if (!renderpass) {
-        Logger::logWarn("No renderpass by the name: " + name + " could be found!");
-        return nullptr;
-    }
-
-    return renderpass;
-}
-
-Texture * VulkanBackend::getWindowAttachment(unsigned char index) {
+Texture * VulkanBackend::getWindowAttachment(const unsigned char index) {
     if (index >= vulkanContext.getSwapchain().getImageCount()) {
-        Logger::logFatal("Cannot obtain attachment index that is out of range. Got " + std::to_string(index) + " but the size is " + std::to_string(vulkanContext.getSwapchain().getImageCount()));
+        Logger::logFatal("Cannot obtain color attachment index that is out of range. Got " + toString(index) + " but the size is " + toString(vulkanContext.getSwapchain().getImageCount()));
         return nullptr;
     }
 
-    return vulkanContext.getSwapchain().getTexture(index);
+    return &vulkanContext.getSwapchain().getTexture(index);
 }
 
-Texture * VulkanBackend::getDepthAttachment() {
-    return vulkanContext.getSwapchain().getDepthTexture();
+Texture * VulkanBackend::getDepthAttachment(const unsigned char index) {
+    if (index >= vulkanContext.getSwapchain().getImageCount()) {
+        Logger::logFatal("Cannot obtain depth attachment index that is out of range. Got " + toString(index) + " but the size is " + toString(vulkanContext.getSwapchain().getImageCount()));
+        return nullptr;
+    }
+
+    return &vulkanContext.getSwapchain().getDepthTexture(index);
 }
 
 unsigned char VulkanBackend::getWindowAttachmentIndex() {
     return static_cast<unsigned char>(vulkanContext.getImageIndex());
 }
 
-void VulkanBackend::createRenderTarget(const unsigned char attachmentCount, DynamicArray<Texture *>& attachments, Renderpass &renderpass, const unsigned width, const unsigned height, RenderTarget &outTarget) {
-    const auto pass = reinterpret_cast<VulkanRenderpass *>(renderpass.getData());
-    if (!pass) {
-        Logger::logFatal("Failed to cast to Vulkan Render Pass while creating a render target for renderpass: " + std::to_string(renderpass.getId()));
-        return;
-    }
-
+void VulkanBackend::createRenderTarget(const unsigned char attachmentCount, RenderTargetAttachment *attachments, Renderpass &renderpass, const unsigned width, const unsigned height, RenderTarget &outTarget) {
     VkImageView attachmentViews[32]{};
-
-    outTarget.attachmentCount = attachmentCount;
-    if (outTarget.attachments.getCapacity() == 0) {
-        outTarget.attachments.initialize(attachmentCount);
-
-        for (unsigned int i = 0; i < attachmentCount; i++) {
-            attachmentViews[i] = static_cast<VulkanImage *>(attachments[i]->data)->getImageView();
-            outTarget.attachments.push(attachments[i]);
-        }
-    } else {
-        for (unsigned int i = 0; i < attachmentCount; i++) {
-            attachmentViews[i] = static_cast<VulkanImage *>(attachments[i]->data)->getImageView();
-            outTarget.attachments[i] = attachments[i];
-        }
+    for (unsigned int i = 0; i < attachmentCount; i++) {
+        attachmentViews[i] = static_cast<VulkanImage *>(attachments[i].texture->data)->getImageView();
+        outTarget.attachments[i] = attachments[i];
     }
 
     VkFramebufferCreateInfo framebufferCreateInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    framebufferCreateInfo.renderPass = pass->getHandle();
+    framebufferCreateInfo.renderPass = static_cast<VulkanRenderpass *>(renderpass.getData())->getHandle();
     framebufferCreateInfo.attachmentCount = attachmentCount;
     framebufferCreateInfo.pAttachments = attachmentViews;
     framebufferCreateInfo.width = width;
@@ -670,84 +667,177 @@ void VulkanBackend::destroyRenderTarget(RenderTarget &target, const bool freeMem
     }
 
     if (freeMemory) {
-        //for (Texture* texture : target.attachments) {
-        //    if (texture->data) {
-        //        FF_Memory::ff_free(texture, sizeof(Texture), TEXTURE);
-        //   }
-        //}
-        target.attachments.shutdown();
+        FF_Memory::ff_free_recursive<RenderTargetAttachment>(target.attachments, ARRAY, target.attachmentCount);
+        target.attachments = nullptr;
         target.attachmentCount = 0;
     }
 }
 
-void VulkanBackend::createRenderpass(Renderpass &outRenderpass, float depth, unsigned stencil, bool hasPreviousPass, bool hasNextPass) {
-    auto pass = FF_Memory::ff_allocate_class<VulkanRenderpass>(sizeof(VulkanRenderpass), RENDER);
+bool VulkanBackend::createRenderpass(RenderpassConfig &config, Renderpass &outRenderpass) {
+    auto pass = FF_Memory::ff_allocate<VulkanRenderpass>(RENDER);
     pass->setupFramebuffers(vulkanContext.getSwapchain().getImageCount());
-
     outRenderpass.setData(pass);
-    pass->setPreviousPass(hasPreviousPass);
-    pass->setNextPass(hasNextPass);
-    pass->setDepth(depth);
-    pass->setStencil(stencil);
+
+    pass->setDepth(config.depth);
+    pass->setStencil(config.stencil);
 
     //Subpass
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
     //Attachments
-    unsigned int attachmentCount = 0;
-    VkAttachmentDescription attachmentDescriptions[2]{};
+    DynamicArray<VkAttachmentDescription> attachmentDescriptions{config.targetConfig.attachments.getLength()};
+    DynamicArray<VkAttachmentDescription> colorAttachmentDescriptions{config.targetConfig.attachments.getLength()};
+    DynamicArray<VkAttachmentDescription> depthAttachmentDescriptions{config.targetConfig.attachments.getLength()};
 
-    //Color attachment
-    bool doClearColor = outRenderpass.hasFlag(RENDERPASS_CLEAR_COLOR);
-    VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = vulkanContext.getSwapchain().getImageFormat().format;
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = doClearColor ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = hasPreviousPass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = hasNextPass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    colorAttachment.flags = 0;
+    for (unsigned int i = 0; i < config.targetConfig.attachments.getLength(); i++) {
+        RenderTargetAttachmentConfig& attachmentConfig = config.targetConfig.attachments[i];
+        VkAttachmentDescription attachmentDescription{};
+        switch (attachmentConfig.type) {
+            case RENDER_TARGET_ATTACHMENT_TYPE_COLOR: {
+                bool doClearColor = outRenderpass.hasFlag(RENDERPASS_CLEAR_COLOR);
 
-    attachmentDescriptions[attachmentCount] = colorAttachment;
-    attachmentCount++;
+                //Source
+                if (attachmentConfig.source == RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
+                    attachmentDescription.format = vulkanContext.getSwapchain().getImageFormat().format;
+                } else {
+                    attachmentDescription.format = VK_FORMAT_R8G8B8A8_UNORM;
+                }
 
-    VkAttachmentReference colorAttachmentReference;
-    colorAttachmentReference.attachment = 0;
-    colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                attachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
 
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentReference;
+                //Load ops
+                if (attachmentConfig.loadOperation == RENDER_TARGET_ATTACHMENT_LOAD_OP_DONT_CARE) {
+                    attachmentDescription.loadOp = doClearColor ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                } else {
+                    if (attachmentConfig.loadOperation == RENDER_TARGET_ATTACHMENT_LOAD_OP_LOAD) {
+                        if (doClearColor) {
+                            Logger::logWarn("Color attachment load op set to load but also set to clear. This is not allowed.");
+                            attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                        } else {
+                            attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+                        }
+                    } else {
+                        Logger::logFatal("Invalid combination of load operations and clear flags for color attachments.");
+                        return false;
+                    }
+                }
 
-    //Depth attachment
-    VkAttachmentReference depthAttachmentReference{};
-    bool doClearDepth = outRenderpass.hasFlag(RENDERPASS_CLEAR_DEPTH);
-    if (doClearDepth) {
-        VkAttachmentDescription depthAttachment{};
-        depthAttachment.format = vulkanContext.getDevice().getDepthFormat();
-        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        if (hasPreviousPass) {
-            depthAttachment.loadOp = doClearDepth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-        } else {
-            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                //Store ops
+                if (attachmentConfig.storeOperation == RENDER_TARGET_ATTACHMENT_STORE_OP_DONT_CARE) {
+                    attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                } else if (attachmentConfig.storeOperation == RENDER_TARGET_ATTACHMENT_STORE_OP_STORE) {
+                    attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                } else {
+                    Logger::logFatal("Invalid store operation set for color attachment.");
+                    return false;
+                }
+
+                //Stencils are not used by color attachments
+                attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+                //Layouts
+                attachmentDescription.initialLayout = attachmentConfig.loadOperation == RENDER_TARGET_ATTACHMENT_LOAD_OP_LOAD ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
+                attachmentDescription.finalLayout = attachmentConfig.bPresentAfter ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                attachmentDescription.flags = 0;
+
+                colorAttachmentDescriptions.push(attachmentDescription);
+                break;
+            }
+            case RENDER_TARGET_ATTACHMENT_TYPE_DEPTH: {
+                bool doClearColor = outRenderpass.hasFlag(RENDERPASS_CLEAR_DEPTH);
+
+                //Source
+                if (attachmentConfig.source == RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
+                    attachmentDescription.format = vulkanContext.getDevice().getDepthFormat();
+                } else {
+                    attachmentDescription.format = vulkanContext.getDevice().getDepthFormat();
+                }
+
+                attachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+
+                //Load ops
+                if (attachmentConfig.loadOperation == RENDER_TARGET_ATTACHMENT_LOAD_OP_DONT_CARE) {
+                    attachmentDescription.loadOp = doClearColor ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                } else {
+                    if (attachmentConfig.loadOperation == RENDER_TARGET_ATTACHMENT_LOAD_OP_LOAD) {
+                        if (doClearColor) {
+                            Logger::logWarn("depth attachment load op set to load but also set to clear. This is not allowed.");
+                            attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                        } else {
+                            attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+                        }
+                    } else {
+                        Logger::logFatal("Invalid combination of load operations and clear flags for depth attachments.");
+                        return false;
+                    }
+                }
+
+                //Store ops
+                if (attachmentConfig.storeOperation == RENDER_TARGET_ATTACHMENT_STORE_OP_DONT_CARE) {
+                    attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                } else if (attachmentConfig.storeOperation == RENDER_TARGET_ATTACHMENT_STORE_OP_STORE) {
+                    attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                } else {
+                    Logger::logFatal("Invalid store operation set for depth attachment.");
+                    return false;
+                }
+
+                //Stencils
+                attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+                //Layouts
+                attachmentDescription.initialLayout = attachmentConfig.loadOperation == RENDER_TARGET_ATTACHMENT_LOAD_OP_LOAD ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
+                attachmentDescription.finalLayout = attachmentConfig.bPresentAfter ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                attachmentDescription.flags = 0;
+
+                depthAttachmentDescriptions.push(attachmentDescription);
+                break;
+            }
+            default: {
+                break;
+            }
         }
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-        attachmentDescriptions[attachmentCount] = depthAttachment;
-        attachmentCount++;
+        attachmentDescriptions.push(attachmentDescription);
+    }
 
-        depthAttachmentReference.attachment = 1;
-        depthAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    unsigned int attachmentsAdded = 0;
 
-        subpass.pDepthStencilAttachment = &depthAttachmentReference;
+    //Color attachments
+    VkAttachmentReference* colorAttachmentReferences = nullptr;
+    unsigned int colorAttachmentCount = colorAttachmentDescriptions.getLength();
+    if (colorAttachmentCount > 0) {
+        colorAttachmentReferences = FF_Memory::ff_allocate_recursive<VkAttachmentReference>(ARRAY, colorAttachmentCount);
+        for (unsigned int i = 0; i < colorAttachmentCount; i++) {
+            colorAttachmentReferences[i].attachment = attachmentsAdded;
+            colorAttachmentReferences[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            attachmentsAdded++;
+        }
+
+        subpass.colorAttachmentCount = colorAttachmentCount;
+        subpass.pColorAttachments = colorAttachmentReferences;
     } else {
-        //Cannot zero out [1] here because Vulkan will complain.
+        subpass.colorAttachmentCount = 0;
+        subpass.pColorAttachments = nullptr;
+    }
+
+    //Depth Attachments
+    VkAttachmentReference* depthAttachmentReferences = nullptr;
+    unsigned int depthAttachmentCount = depthAttachmentDescriptions.getLength();
+    if (depthAttachmentCount > 0) {
+        assert(depthAttachmentCount == 1 && "Depth attachment count cannot be greater than 1.");
+        depthAttachmentReferences = FF_Memory::ff_allocate_recursive<VkAttachmentReference>(ARRAY, depthAttachmentCount);
+        for (unsigned int i = 0; i < depthAttachmentCount; i++) {
+            depthAttachmentReferences[i].attachment = attachmentsAdded;
+            depthAttachmentReferences[i].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            attachmentsAdded++;
+        }
+
+        subpass.pDepthStencilAttachment = depthAttachmentReferences;
+    } else {
         subpass.pDepthStencilAttachment = nullptr;
     }
 
@@ -774,8 +864,8 @@ void VulkanBackend::createRenderpass(Renderpass &outRenderpass, float depth, uns
 
     //Create render pass
     VkRenderPassCreateInfo renderPassCreateInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    renderPassCreateInfo.attachmentCount = attachmentCount;
-    renderPassCreateInfo.pAttachments = attachmentDescriptions;
+    renderPassCreateInfo.attachmentCount = attachmentsAdded;
+    renderPassCreateInfo.pAttachments = attachmentDescriptions.getData();
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpass;
     renderPassCreateInfo.dependencyCount = 1;
@@ -784,6 +874,16 @@ void VulkanBackend::createRenderpass(Renderpass &outRenderpass, float depth, uns
     renderPassCreateInfo.flags = 0;
 
     VulkanUtils::vulkanCheck(vkCreateRenderPass(vulkanContext.getDevice().getLogicalDevice(), &renderPassCreateInfo, vulkanContext.getAllocator(), &pass->getHandle()));
+
+    //Cleanup
+    FF_Memory::ff_free_recursive<VkAttachmentReference>(colorAttachmentReferences, ARRAY, colorAttachmentCount);
+    FF_Memory::ff_free_recursive<VkAttachmentReference>(depthAttachmentReferences, ARRAY, depthAttachmentCount);
+
+    colorAttachmentDescriptions.shutdown();
+    depthAttachmentDescriptions.shutdown();
+    attachmentDescriptions.shutdown();
+
+    return true;
 }
 
 void VulkanBackend::destroyRenderpass(Renderpass &renderpass) {
@@ -796,7 +896,7 @@ void VulkanBackend::destroyRenderpass(Renderpass &renderpass) {
         vkDestroyRenderPass(vulkanContext.getDevice().getLogicalDevice(), pass.getHandle(), vulkanContext.getAllocator());
         pass.shutdown();
 
-        FF_Memory::ff_free_class<VulkanRenderpass>(&pass, sizeof(VulkanRenderpass), RENDER);
+        FF_Memory::ff_free<VulkanRenderpass>(&pass, RENDER);
         renderpass.setData(nullptr);
     }
 }
@@ -836,7 +936,7 @@ bool VulkanBackend::createBuffer(RenderBuffer &buffer) {
             return false;
         }
         default: {
-            Logger::logError("Unknown buffer type: " + std::to_string(buffer.getType()));
+            Logger::logError("Unknown buffer type: " + toString(buffer.getType()));
             return false;
         }
     }
@@ -865,17 +965,19 @@ bool VulkanBackend::createBuffer(RenderBuffer &buffer) {
     FF_Memory::reportAllocation(internalBuffer.memoryRequirements.size, isDeviceMemory ? GPU : RENDER_BACKEND_MANUAL);
 
     if (result != VK_SUCCESS) {
-        Logger::logError("Failed to allocate vulkan buffer memory: " + std::to_string(result));
+        Logger::logError("Failed to allocate vulkan buffer memory: " + toString(result));
         return false;
     }
 
-    buffer.setInternalBuffer(FF_Memory::ff_allocate_class<VulkanBuffer>(sizeof(VulkanBuffer), RENDER_BACKEND_MANUAL));
+    buffer.setInternalBuffer(FF_Memory::ff_allocate<VulkanBuffer>(RENDER_BACKEND_MANUAL));
     *static_cast<VulkanBuffer *>(buffer.getInternalBuffer()) = internalBuffer;
 
     return true;
 }
 
 void VulkanBackend::destroyBuffer(RenderBuffer &buffer) {
+    vkDeviceWaitIdle(vulkanContext.getDevice().getLogicalDevice());
+
     const auto internalBuffer = reinterpret_cast<VulkanBuffer *>(buffer.getInternalBuffer());
     if (!internalBuffer) return;
 
@@ -895,7 +997,7 @@ void VulkanBackend::destroyBuffer(RenderBuffer &buffer) {
     internalBuffer->usageFlags = 0;
     internalBuffer->bIsLocked = false;
 
-    FF_Memory::ff_free_class<VulkanBuffer>(buffer.getInternalBuffer(), sizeof(VulkanBuffer), RENDER_BACKEND_MANUAL);
+    FF_Memory::ff_free<VulkanBuffer>(buffer.getInternalBuffer(),  RENDER_BACKEND_MANUAL);
 }
 
 bool VulkanBackend::bindBuffer(RenderBuffer &buffer, const ULong offset) {
@@ -1111,8 +1213,95 @@ bool VulkanBackend::drawBuffer(RenderBuffer &buffer, const ULong offset, const u
         return true;
     }
 
-    Logger::logError("Cannot draw buffer of type " + std::to_string(buffer.getType()));
+    Logger::logError("Cannot draw buffer of type " + toString(buffer.getType()));
     return false;
+}
+
+unsigned char VulkanBackend::getWindowAttachmentCount() {
+    return static_cast<unsigned char>(vulkanContext.getSwapchain().getImageCount());
+}
+
+void VulkanBackend::setViewport(const Vector4f rectangle) {
+    VkViewport viewport{};
+    viewport.x = rectangle.x;
+    viewport.y = rectangle.y;
+    viewport.width = rectangle.z;
+    viewport.height = rectangle.w;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
+    vkCmdSetViewport(commandBuffer.getHandle(), 0, 1, &viewport);
+}
+
+void VulkanBackend::resetViewport() {
+    setViewport(vulkanContext.getViewportRect());
+}
+
+void VulkanBackend::setScissor(Vector4f rectangle) {
+    VkRect2D scissor{};
+    scissor.offset.x = rectangle.x;
+    scissor.offset.y = rectangle.y;
+    scissor.extent.width = rectangle.z;
+    scissor.extent.height = rectangle.w;
+
+    VulkanCommandBuffer& commandBuffer = vulkanContext.getCurrentCommandBuffer();
+    vkCmdSetScissor(commandBuffer.getHandle(), 0, 1, &scissor);
+}
+
+void VulkanBackend::resetScissor() {
+    setScissor(vulkanContext.getScissorRect());
+}
+
+void VulkanBackend::readTextureData(Texture &texture, const unsigned offset, const unsigned size, void **outMemory) {
+    VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
+
+    VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
+
+    RenderBuffer staging{};
+    staging.initialize(RENDERBUFFER_TYPE_READ, size, false);
+    bindBuffer(staging, 0);
+
+    VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
+    VulkanCommandBuffer commandBuffer = VulkanCommandBuffer::allocateAndBeginSingleUseCommandBuffer(vulkanContext.getDevice());
+
+    image.transitionImageLayout(commandBuffer, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, texture.type, vulkanContext.getDevice());
+    image.copyToBuffer(texture.type, static_cast<VulkanBuffer *>(staging.getInternalBuffer())->handle, commandBuffer);
+    image.transitionImageLayout(commandBuffer, imageFormat, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.type, vulkanContext.getDevice());
+    commandBuffer.endSingleUseCommandBuffer(queue, vulkanContext.getDevice());
+
+    if (!readBuffer(staging, offset, size, *outMemory)) {
+        Logger::logError("Failed to read Vulkan buffer.");
+    }
+
+    unbindBuffer(staging);
+    destroyBuffer(staging);
+}
+
+void VulkanBackend::readPixel(Texture &texture, const unsigned int x, const unsigned int y, unsigned char **outData) {
+    VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
+
+    VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
+
+    RenderBuffer staging{};
+    staging.initialize(RENDERBUFFER_TYPE_READ, sizeof(unsigned char) * 4, false);
+    createBuffer(staging);
+    bindBuffer(staging, 0);
+
+    VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
+    VulkanCommandBuffer commandBuffer = VulkanCommandBuffer::allocateAndBeginSingleUseCommandBuffer(vulkanContext.getDevice());
+
+    image.transitionImageLayout(commandBuffer, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, texture.type, vulkanContext.getDevice());
+    image.copyPixelToBuffer(texture.type, static_cast<VulkanBuffer *>(staging.getInternalBuffer())->handle, x, y,commandBuffer);
+    image.transitionImageLayout(commandBuffer, imageFormat, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture.type, vulkanContext.getDevice());
+    commandBuffer.endSingleUseCommandBuffer(queue, vulkanContext.getDevice());
+
+    if (!readBuffer(staging, 0, sizeof(unsigned char) * 4, reinterpret_cast<void *&>(*outData))) {
+        Logger::logError("Failed to read Vulkan buffer.");
+    }
+
+    unbindBuffer(staging);
+    destroyBuffer(staging);
 }
 
 void VulkanBackend::resize(const unsigned short width, const unsigned short height) {
@@ -1120,7 +1309,7 @@ void VulkanBackend::resize(const unsigned short width, const unsigned short heig
     vulkanContext.setHeight(height);
     vulkanContext.getSwapchain().resize();
 
-    Logger::logInfo("Vulkan backend resized to  " + std::to_string(width) + "x" + std::to_string(height));
+    Logger::logInfo("Vulkan backend resized to  " + toString(width) + "x" + toString(height));
 }
 
 VulkanBackend::~VulkanBackend() {
@@ -1147,35 +1336,20 @@ VulkanBackend::~VulkanBackend() {
     }
     vulkanContext.destroyCommandBuffers();
 
-    //Destroy Render Targets
-    //for (unsigned int i = 0; i < vulkanContext.getSwapchain().getImageCount(); i++) {
-    //    destroyRenderTarget(vulkanContext.getRenderTarget(i), true);
-    //    destroyRenderTarget(vulkanContext.getSwapchain().getRenderTarget(i), true);
-    //}
-
-    //Destroy Renderpasses
-    Logger::logDebug("Destroying Renderpasses and Framebuffers.");
-    for (unsigned int i = 0; i < VULKAN_MAX_RENDERPASSES; i++) {
-        Renderpass* renderpass = vulkanContext.getRenderpass(i);
-        if (renderpass) destroyRenderpass(*renderpass);
-    }
-
     //Destroy swap chain
     Logger::logDebug("Destroying Swapchain.");
     vulkanContext.getSwapchain().destroySwapchain(vulkanContext.getDevice(), vulkanContext.getAllocator());
     vulkanContext.destroyContext();
 }
 
-bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& config, unsigned char& outRenderTargetCount, ResourceSystem* resources) {
-    resourceSystemRef = resources;
-    vulkanContext.initializeEvents();
+bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& config, unsigned char& outRenderTargetCount) {
     vulkanContext.initializeGeometry();
 
     #if VULKAN_USE_CUSTOM_ALLOCATOR == 1
-    auto callbacks = static_cast<VkAllocationCallbacks *>(FF_Memory::ff_allocate(sizeof(VkAllocationCallbacks), RENDER, alignof(VkAllocationCallbacks)));
+    auto callbacks = FF_Memory::ff_allocate<VkAllocationCallbacks>( RENDER);
     if (!createVulkanAllocator(callbacks)) {
         Logger::logFatal("Failed to create custom Vulkan allocator.");
-        FF_Memory::ff_free(callbacks, sizeof(VkAllocationCallbacks),RENDER, alignof(VkAllocationCallbacks));
+        FF_Memory::ff_free<VkAllocationCallbacks>(callbacks,RENDER);
         vulkanContext.setAllocator(nullptr);
     } else {
         vulkanContext.setAllocator(callbacks);
@@ -1184,15 +1358,12 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     vulkanContext.setAllocator(nullptr);
     #endif
 
-    //Connect refresh function here
-    vulkanContext.resizeRenderTargetsEvent.subscribe(config.func);
-
     vulkanContext.setWidth(800);
     vulkanContext.setHeight(600);
 
     VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     appInfo.apiVersion = VK_API_VERSION_1_2;
-    appInfo.pApplicationName = config.appName.c_str();
+    appInfo.pApplicationName = config.appName.getAsCharString();
     appInfo.applicationVersion = VK_MAKE_VERSION(majorVersion, minorVersion, patchVersion);
     appInfo.pEngineName = "FoxFire Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
@@ -1329,15 +1500,6 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
 
     outRenderTargetCount = vulkanContext.getSwapchain().getImageCount();
 
-    vulkanContext.initializeRenderpasses();
-
-    for (unsigned int i = 0; i < config.renderpassCount; i++) {
-        Renderpass* renderpass = vulkanContext.addRenderpass(config.configs[i]);
-        if (!renderpass) continue;
-
-        createRenderpass(*renderpass, 1.0f, 0, !config.configs[i].prevName.empty(), !config.configs[i].nextName.empty());
-    }
-
     Logger::logInfo("Creating and allocating command buffers");
     allocateCommandBuffers();
 
@@ -1383,10 +1545,10 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     return true;
 }
 
-void VulkanBackend::setVersion(const GameInstance& gameInstance) {
-    majorVersion = gameInstance.config.gameVersionMajor;
-    minorVersion = gameInstance.config.gameVersionMinor;
-    patchVersion = gameInstance.config.gameVersionPatch;
+void VulkanBackend::setVersion(const int majorV, const int minorV, const int patchV) {
+    majorVersion = majorV;
+    minorVersion = minorV;
+    patchVersion = patchV;
 }
 
 bool VulkanBackend::beginFrame(const float deltaTime) {
@@ -1429,22 +1591,11 @@ bool VulkanBackend::beginFrame(const float deltaTime) {
     vulkanContext.getCurrentCommandBuffer().resetCommandBuffer();
     vulkanContext.getCurrentCommandBuffer().beginCommandBuffer(false, false, false);
 
-    VkViewport viewport;
-    viewport.x = 0;
-    viewport.y = static_cast<float>(vulkanContext.getFrameBufferHeight());
-    viewport.width = static_cast<float>(vulkanContext.getFrameBufferWidth());
-    viewport.height = -static_cast<float>(vulkanContext.getFrameBufferHeight());
-    viewport.minDepth = 0;
-    viewport.maxDepth = 1;
+    vulkanContext.setViewportRect({0, static_cast<float>(vulkanContext.getFrameBufferHeight()), static_cast<float>(vulkanContext.getFrameBufferWidth()), -static_cast<float>(vulkanContext.getFrameBufferHeight())});
+    setViewport(vulkanContext.getViewportRect());
 
-    VkRect2D scissor;
-    scissor.offset.x = 0;
-    scissor.offset.y = 0;
-    scissor.extent.width = vulkanContext.getFrameBufferWidth();
-    scissor.extent.height = vulkanContext.getFrameBufferHeight();
-
-    vkCmdSetViewport(vulkanContext.getCurrentCommandBuffer().getHandle(), 0, 1, &viewport);
-    vkCmdSetScissor(vulkanContext.getCurrentCommandBuffer().getHandle(), 0, 1, &scissor);
+    vulkanContext.setScissorRect({0, 0, static_cast<float>(vulkanContext.getFrameBufferWidth()), static_cast<float>(vulkanContext.getFrameBufferHeight())});
+    setScissor(vulkanContext.getScissorRect());
 
     return true;
 }
@@ -1487,7 +1638,7 @@ bool VulkanBackend::endFrame(const float deltaTime) {
     return true;
 }
 
-void VulkanBackend::drawGeometry(const GeometryRenderData &data, Material& defaultMaterial) {
+void VulkanBackend::drawGeometry(const GeometryRenderData &data) {
     //Geometry must be valid
     if (!data.geometry || data.geometry->internalId == INVALID_ID_U32) {
         return;
@@ -1511,7 +1662,7 @@ void VulkanBackend::drawGeometry(const GeometryRenderData &data, Material& defau
 void VulkanBackend::createTexture(const unsigned char *pixels, Texture &texture) {
     texture.generation = INVALID_ID_U32;
 
-    texture.data = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
+    texture.data = FF_Memory::ff_allocate<VulkanImage>( TEXTURE);
     VulkanImage& data = *static_cast<VulkanImage *>(texture.data);
 
     const unsigned int imageSize = texture.width * texture.height * texture.channelCount * (texture.type == TEXTURE_CUBE ? 6 : 1);
@@ -1534,13 +1685,13 @@ void VulkanBackend::destroyTexture(Texture &texture) {
 
         data.destroy(vulkanContext.getDevice(), vulkanContext.getAllocator());
 
-        FF_Memory::ff_free_class<VulkanImage>(texture.data, sizeof(VulkanImage), TEXTURE);
+        FF_Memory::ff_free<VulkanImage>(texture.data, TEXTURE);
     }
 }
 
 bool VulkanBackend::createGeometry(Geometry &geometry, const unsigned int vertexSize, const unsigned int vertexCount, Vertex* vertices, const unsigned int indexSize, const unsigned int indexCount, void *indices) {
     if (vertexCount == 0) {
-        Logger::logError("No Vertex data was supplied for geometry creation! Vertex Count: " + std::to_string(vertexCount));
+        Logger::logError("No Vertex data was supplied for geometry creation! Vertex Count: " + toString(vertexCount));
         return false;
     }
 
@@ -1642,7 +1793,7 @@ void VulkanBackend::destroyGeometry(Geometry &geometry) {
 bool VulkanBackend::createModule(const VulkanShaderStageConfig &config, VulkanShaderStage &stage) const {
     Resource binaryResource{};
 
-    if (!resourceSystemRef->load(config.fileName, RESOURCE_TYPE_BINARY, binaryResource)) {
+    if (!ResourceSystem::load(config.fileName, RESOURCE_TYPE_BINARY, binaryResource)) {
         Logger::logError("Failed to read shader file " + config.fileName);
         return false;
     }
@@ -1653,7 +1804,7 @@ bool VulkanBackend::createModule(const VulkanShaderStageConfig &config, VulkanSh
 
     VulkanUtils::vulkanCheck(vkCreateShaderModule(vulkanContext.getDevice().getLogicalDevice(), &stage.createInfo, vulkanContext.getAllocator(), &stage.handle));
 
-    resourceSystemRef->unload(binaryResource);
+    ResourceSystem::unload(binaryResource);
 
     stage.shaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stage.shaderStageCreateInfo.stage = config.stage;
@@ -1702,13 +1853,24 @@ void VulkanBackend::releaseTextureMapResources(TextureMap &textureMap) {
 }
 
 void VulkanBackend::createWritableTexture(Texture &texture) {
-    texture.data = FF_Memory::ff_allocate_class<VulkanImage>(sizeof(VulkanImage), TEXTURE);
+    texture.data = FF_Memory::ff_allocate<VulkanImage>(TEXTURE);
     VulkanImage& image = *static_cast<VulkanImage *>(texture.data);
 
-    VkFormat imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
-    image.createImage(texture.type, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL,
-                      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT, vulkanContext.getDevice(), vulkanContext.getAllocator());
+    VkFormat imageFormat{};
+    VkImageUsageFlags usage{};
+    VkImageAspectFlagBits aspect{};
+
+    if (texture.flags & TEXTURE_BIT_DEPTH) {
+        usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+        imageFormat = vulkanContext.getDevice().getDepthFormat();
+    } else {
+        usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageFormat = convertChannelCountToFormat(texture.channelCount, VK_FORMAT_R8G8B8A8_UNORM);
+    }
+
+    image.createImage(texture.type, texture.width, texture.height, imageFormat, VK_IMAGE_TILING_OPTIMAL, usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, aspect, vulkanContext.getDevice(), vulkanContext.getAllocator());
 
     texture.generation++;
 }
@@ -1742,7 +1904,6 @@ void VulkanBackend::writeTextureData(Texture &texture, unsigned int offset, unsi
     loadBufferRange(stagingBuffer, 0, size, pixels);
 
     VulkanCommandBuffer tempBuffer = VulkanCommandBuffer::allocateAndBeginSingleUseCommandBuffer(vulkanContext.getDevice());
-    VkCommandPool pool = vulkanContext.getDevice().getCommandPool();
     VkQueue queue = vulkanContext.getDevice().getGraphicsQueue();
 
     image.transitionImageLayout(tempBuffer, imageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture.type, vulkanContext.getDevice());
@@ -1764,7 +1925,7 @@ VkSamplerAddressMode VulkanBackend::convertTextureRepeatToVulkan(const String &a
         case TEXTURE_CLAMP_TO_EDGE: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         case TEXTURE_CLAMP_TO_BORDER: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
         default: {
-            Logger::logWarn("Axis " + axis + " cannot be converted to repeat: " + std::to_string(repeat));
+            Logger::logWarn("Axis " + axis + " cannot be converted to repeat: " + toString(repeat));
             return VK_SAMPLER_ADDRESS_MODE_REPEAT;
         }
     }
@@ -1775,7 +1936,7 @@ VkFilter VulkanBackend::convertTextureFilterToVulkan(const String &op, const Tex
         case TEXTURE_FILTER_NEAREST: return VK_FILTER_NEAREST;
         case TEXTURE_FILTER_BILINEAR: return VK_FILTER_LINEAR;
         default: {
-            Logger::logWarn(op + " cannot convert filter to: " + std::to_string(filter));
+            Logger::logWarn(op + " cannot convert filter to: " + toString(filter));
             return VK_FILTER_LINEAR;
         }
     }
@@ -1828,14 +1989,18 @@ bool VulkanBackend::acquireInstanceResources(const Shader &shader, unsigned int 
     VulkanShaderInstanceState& instanceState = backendShader->getInstanceState(outInstanceId);
     const unsigned char samplerBindingIndex = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].samplerBindingIndex;
     const unsigned int instanceTextureCount = backendShader->getConfig().descriptorSets[INSTANCE_DESCRIPTOR_SET_INDEX].bindings[samplerBindingIndex].descriptorCount;
-    instanceState.instanceTextureMaps.initialize(shader.getInstanceTextureCount());
+
     instanceState.descriptorSetState.descriptorSets.initialize(vulkanContext.getSwapchain().getImageCount());
 
-    for (unsigned int i = 0; i < instanceTextureCount; i++) {
-        TextureMap*& map = *instanceState.instanceTextureMaps.emplace();
-        map = maps[i];
-        if (!maps[i]->texture) {
-            instanceState.instanceTextureMaps[i]->texture = defaultDiffuseTexture;
+    if (shader.getInstanceTextureCount() > 0) {
+        instanceState.instanceTextureMaps.initialize(shader.getInstanceTextureCount());
+
+        for (unsigned int i = 0; i < instanceTextureCount; i++) {
+            TextureMap*& map = *instanceState.instanceTextureMaps.emplace();
+            map = maps[i];
+            if (!maps[i]->texture) {
+                instanceState.instanceTextureMaps[i]->texture = defaultDiffuseTexture;
+            }
         }
     }
 

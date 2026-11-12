@@ -40,7 +40,7 @@ void IndexGeometryData::setIndex(const unsigned long value, const unsigned int i
             break;
         }
         default: {
-            Logger::logError("Index size does not match a recognized size: " + std::to_string(indexSize));
+            Logger::logError("Index size does not match a recognized size: " + toString(indexSize));
             break;
         }
     }
@@ -138,7 +138,7 @@ void GeometryUtils::filterVertices(const unsigned int vertexCount, Vertex* verti
 
     outVertexCount = outVertices.getLength();
     const unsigned int removedCount = vertexCount - outVertexCount;
-    Logger::logDebug("Filter removed " + std::to_string(removedCount) + " vertices. From " + std::to_string(vertexCount) + " to " + std::to_string(outVertexCount));
+    Logger::logDebug("Filter removed " + toString(removedCount) + " vertices. From " + toString(vertexCount) + " to " + toString(outVertexCount));
 }
 
 void GeometryUtils::destroyConfig(GeometryConfig *config) {

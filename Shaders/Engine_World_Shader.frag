@@ -8,7 +8,7 @@ struct directional_light {
 struct point_light {
     vec3 position;
     vec4 color;
-    float constant;
+    float pointConstant;
     float linear;
     float quadratic;
 };
@@ -108,7 +108,7 @@ vec4 Calculate_Point_Light(point_light light, vec3 normal, vec3 frag_position, v
     vec3 reflect_direction = reflect(-light_direction, normal);
     float spec = pow(max(dot(view_direction, reflect_direction), 0.0), object_ubo.shine);
     float distance = length(light.position - frag_position);
-    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+    float attenuation = 1.0 / (light.pointConstant + light.linear * distance + light.quadratic * (distance * distance));
     vec4 ambient = in_dto.ambient;
     vec4 diffuse = light.color * diff;
     vec4 specular = light.color * spec;

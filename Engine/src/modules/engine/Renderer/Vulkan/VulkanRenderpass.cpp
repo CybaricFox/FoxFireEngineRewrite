@@ -5,8 +5,6 @@
 #include "VulkanRenderpass.h"
 
 #include "VulkanBackend.h"
-#include "VulkanUtils.h"
-
 
 void VulkanRenderpass::shutdown() {
     handle = nullptr;

@@ -16,15 +16,14 @@
 #include "Platform.h"
 #include "GameInstance.h"
 #include "foxfire_export.h"
+#include "Metrics.h"
 #include "../Input/IInputSystem.h"
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
-#include "src/modules/engine/ECS/Engine_Components/Mesh.h"
-#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
-#include "src/modules/engine/Renderer/ITextureSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Threads/JobSystem.h"
 
 #define MAX_THREAD_COUNT 15
+#define AVERAGE_COUNT 30 //How many frames should pass before taking the average frames per ms?
 
 /**
  * @brief The core of the engine.
@@ -41,10 +40,6 @@ private:
     ResourceSystem resourceSystem{};
     /** @brief Handles user input handling. Input systems interface with this */
     EngineEvents engineEventsSystem{};
-    /** @brief Handles the Component system */
-    EntityComponentSystem ECSSystem{};
-    /** @brief Controls All Rendering. Do not give access to Game!*/
-    MasterRenderSystem masterRenderSystem{};
     /**
      * @brief Controls multithreading.
      */
@@ -59,10 +54,6 @@ private:
     bool bIsPaused = false;
     /** @brief Whether the engine has finished initialization. */
     bool bIsInitialized = false;
-    /** @brief Width of the screen. */
-    unsigned short width = 0;
-    /** @brief height of the screen. */
-    unsigned short height = 0;
     /** @brief The amount of time the previous frame took */
     double lastTime = 0;
 
@@ -72,23 +63,21 @@ private:
     bool initializeMemory();
 
 protected:
+    //Protected Systems
+    /** @brief Handles the Component system */
+    EntityComponentSystem ECSSystem{};
+    /** @brief Controls All Rendering.*/
+    MasterRenderSystem masterRenderSystem{};
+
     //Holds config data
     /** @brief Holds Game-specific config data */
-    GameInstance gameInstance;
+    GameInstance gameInstance{};
     /** @brief Pointer to the user-defined input system */
     IInputSystem* inputSystem = nullptr;
 
-    /** @brief Reference to the user-defined texture system. WARNING: VOLATILE REFERENCE! */
-    ITextureSystem* textureSystem = nullptr;
-    /** @brief Reference to the user-defined material system. WARNING: VOLATILE REFERENCE! */
-    IMaterialSystem* materialSystem = nullptr;
-    /** @brief Reference to the user-defined geometry system. WARNING: VOLATILE REFERENCE! */
-    IGeometrySystem* geometrySystem = nullptr;
+    LinearAllocator frameAllocator{};
 
-    /** @brief fetches the default camera entity id from the render system. */
-    [[nodiscard]] unsigned int getDefaultCamera() const {return masterRenderSystem.getDefaultCamera();}
-    /** @brief Gets a render view from the render system. */
-    IRenderView* getRenderView(const String &name) {return masterRenderSystem.getRenderView(name);}
+    Metrics engineMetrics{};
 
     /**
      * @brief Quits the application when called.
@@ -110,7 +99,7 @@ protected:
      * @param newWidth The new width of the window.
      * @param newHeight The new height of the window.
      */
-    void resize(unsigned short newWidth, unsigned short newHeight);
+    virtual void resize(unsigned short newWidth, unsigned short newHeight);
 
     /**
      * @brief Called once per frame.
@@ -122,36 +111,27 @@ protected:
     /**
      * @brief Tells the render system to render. Called once per frame.
      * @param deltaTime Time this frame took.
+     * @param renderPacket
      * @return False if something went wrong.
      */
-    bool render(float deltaTime);
-
-    void createRenderView(const RenderViewConfig &config);
-
-    /**
-     * @brief Creates the derived GameState, Must be called after gameInstance is set by the Engine.
-     * @tparam T Derived struct of BaseGameState set by the user.
-     * @return Pointer to the constructed GameState.
-     */
-    template<typename T>
-    requires std::derived_from<T, BaseGameState>
-    T* createGameState() {
-        T* derivedState = reinterpret_cast<T*>(gameInstance.state);
-        std::construct_at(derivedState);
-        return derivedState;
-    }
-
-    /**
-     * @brief Interface to memory allocation. Allocates memory and constructs a class.
-     * @tparam T Class to construct
-     * @return Pointer to the new object.
-     */
-    template<typename T>
-    T* instantiateDerivedSubSystem() {
-        return FF_Memory::ff_allocate_class<T>(sizeof(T), GAME);
-    }
+    virtual bool render(float deltaTime, RenderPacket &renderPacket) = 0;
 
     bool bModelsLoaded = false;
+
+    [[nodiscard]] unsigned int getWindowAttachmentCount() const;
+
+    /**
+     * @brief Sets up configs needed to initialize systems. Runs after memory initialization but before initialize();
+     * @return
+     */
+    virtual bool boot() {
+        if (engine == this) {
+            Logger::logFatal("Engine set to itself! Engine should be set to a derived class!");
+            return false;
+        }
+
+        return engine->boot();
+    }
 
 public:
     explicit Engine(const GameInstance& instance);
@@ -167,11 +147,4 @@ public:
      * @brief Initializes systems.
      */
     virtual void initialize();
-
-    /**
-     * @brief Returns the window size.
-     * @param bufferWidth OUT width of the window.
-     * @param bufferHeight OUT height of the window.
-     */
-    void getFramebufferSize(unsigned int& bufferWidth, unsigned int& bufferHeight) const;
 };

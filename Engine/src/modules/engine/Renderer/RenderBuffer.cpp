@@ -12,7 +12,7 @@ void RenderBuffer::initialize(const RenderBufferType newType, const ULong newSiz
 
     if (useFreeList) {
         freeListMemoryRequirement = FreeList::calculateMemoryRequirement(newSize);
-        memory = FF_Memory::ff_allocate(freeListMemoryRequirement, RENDER);
+        memory = FF_Memory::ff_allocate_storage(freeListMemoryRequirement, RENDER);
         bufferFreeList.initialize(newSize, freeListMemoryRequirement, memory);
     }
 }
@@ -20,7 +20,7 @@ void RenderBuffer::initialize(const RenderBufferType newType, const ULong newSiz
 void RenderBuffer::shutdown() {
     if (freeListMemoryRequirement > 0) {
         bufferFreeList.shutdown();
-        FF_Memory::ff_free(memory, freeListMemoryRequirement, RENDER);
+        FF_Memory::ff_free_storage(memory, freeListMemoryRequirement, RENDER);
         freeListMemoryRequirement = 0;
     }
 
@@ -48,21 +48,21 @@ bool RenderBuffer::freeBuffer(const ULong size, const ULong offset) {
 
 bool RenderBuffer::resizeBuffer(const ULong newSize) {
     if (newSize <= totalSize) {
-        Logger::logError("Render buffer resize cannot resize because the new size " + std::to_string(newSize) + " is less than or equal to the buffer size " + std::to_string(totalSize));
+        Logger::logError("Render buffer resize cannot resize because the new size " + toString(newSize) + " is less than or equal to the buffer size " + toString(totalSize));
         return false;
     }
 
     if (freeListMemoryRequirement > 0) {
         const ULong newMemoryRequirement = FreeList::calculateMemoryRequirement(newSize);
-        void* newBlock = FF_Memory::ff_allocate(newMemoryRequirement, RENDER);
+        void* newBlock = FF_Memory::ff_allocate_storage(newMemoryRequirement, RENDER);
         void* oldBlock = nullptr;
         if (!bufferFreeList.resize(newBlock, newSize, oldBlock)) {
             Logger::logError("Failed to resize render buffer");
-            FF_Memory::ff_free(newBlock, newMemoryRequirement, RENDER);
+            FF_Memory::ff_free_storage(newBlock, newMemoryRequirement, RENDER);
             return false;
         }
 
-        FF_Memory::ff_free(oldBlock, freeListMemoryRequirement, RENDER);
+        FF_Memory::ff_free_storage(oldBlock, freeListMemoryRequirement, RENDER);
         freeListMemoryRequirement = newMemoryRequirement;
         memory = newBlock;
     }

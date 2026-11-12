@@ -72,14 +72,30 @@ int WorldRenderView::partition(GeometryDistance* array, const int low, const int
     return i + 1;
 }
 
-bool WorldRenderView::initialize(ShaderSystem *shaderRef, const unsigned long newSize) {
-    IRenderView::initialize(shaderRef, newSize);
-    shaderId = shaderRef->getId(!customShaderName.empty() ? customShaderName : "Fox_Fire_Material_Shader");
+bool WorldRenderView::initialize(const unsigned long newSize) {
+    IRenderView::initialize(newSize);
+    String shaderName = "Fox_Fire_Material_Shader";
+    Resource configResource{};
+    if (!ResourceSystem::load(shaderName, RESOURCE_TYPE_SHADER, configResource)) {
+        Logger::logError("Failed to load material shader.");
+        return false;
+    }
+
+    ShaderConfig& config = *static_cast<ShaderConfig *>(configResource.data);
+    if (!ShaderSystem::createShader(config, renderpasses[0])) {
+        Logger::logError("Failed to create material shader.");
+        return false;
+    }
+
+    ResourceSystem::unload(configResource);
+
+    shader = ShaderSystem::getShader(!customShaderName.isEmpty() ? customShaderName : shaderName);
     nearClip = 0.1f;
     farClip = 1000;
     fov = degreesToRadians(45.0f);
     projectionMatrix = perspective(fov, 1280.0f / 720.0f, nearClip, farClip);
     ambientColor = {0.25f, 0.25f, 0.25f, 1};
+    worldCamera = CameraSystem::getDefaultCamera();
     return true;
 }
 
@@ -95,13 +111,13 @@ void WorldRenderView::resize(const unsigned int newWidth, const unsigned int new
         const float aspect = static_cast<float>(width) / static_cast<float>(height);
         projectionMatrix = perspective(fov, aspect, nearClip, farClip);
 
-        for (Renderpass* renderpass : renderpasses) {
-            renderpass->setRenderArea({0, 0, static_cast<float>(width), static_cast<float>(height)});
+        for (unsigned int i = 0; i < renderpassCount; i++) {
+            renderpasses[i].setRenderArea({0, 0, static_cast<float>(width), static_cast<float>(height)});
         }
     }
 }
 
-bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
+bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket, LinearAllocator &allocator) {
     if (!data) {
         Logger::logWarn("World packet data is null! It cannot be built!");
         return false;
@@ -117,7 +133,6 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     outPacket.ambientColor = ambientColor;
 
     DynamicArray<GeometryDistance> geometryDistances{0};
-
 
     for (unsigned int i = 0; i < meshData.meshCount; i++) {
         Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(meshData.meshes[i]);
@@ -157,17 +172,20 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     return true;
 }
 
-bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend* backendRef, IMaterialSystem* materialSystemRef) {
-    for (Renderpass* renderpass : renderpasses) {
-        if (!backendRef->beginRenderpass(*renderpass, renderpass->getRenderTarget(renderTargetIndex))) {
-            Logger::logError("Failed to begin ui render pass.");
+bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex) {
+    const unsigned int shaderId = shader->getId();
+
+    for (unsigned int j = 0; j < renderpassCount; j++) {
+        Renderpass& renderpass = renderpasses[j];
+        if (!MasterRenderSystem::beginRenderpass(renderpass, renderpass.getRenderTarget(renderTargetIndex))) {
+            Logger::logError("Failed to begin material render pass.");
             return false;
         }
-        if (!shaderSystemRef->use(shaderId)) {
+        if (!ShaderSystem::use(shaderId)) {
             Logger::logError("Failed to use material shader.");
             return false;
         }
-        if (!materialSystemRef->applyGlobal(shaderId, frameNumber, &outPacket.projectionMatrix, &outPacket.viewMatrix, &outPacket.ambientColor, &outPacket.viewPosition, renderMode)) {
+        if (!MaterialSystem::applyGlobal(shaderId, frameNumber, &outPacket.projectionMatrix, &outPacket.viewMatrix, &outPacket.ambientColor, &outPacket.viewPosition, renderMode)) {
             Logger::logError("Failed to apply globals for material shader.");
             return false;
         }
@@ -179,26 +197,29 @@ bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long fr
             if (outPacket.geometries[i].geometry->material) {
                 material = outPacket.geometries[i].geometry->material;
             } else {
-                material = &materialSystemRef->getDefaultMaterial();
+                material = &MaterialSystem::getDefaultMaterial();
             }
 
             bool needsUpdate = material->frameNumber != frameNumber;
 
-            if (!materialSystemRef->applyInstance(*material, needsUpdate)) {
-                Logger::logWarn("Failed to apply material " + material->name + " to ui apply instance.");
+            if (!MaterialSystem::applyInstance(*material, needsUpdate)) {
+                Logger::logWarn("Failed to apply material " + material->name + " to material apply instance.");
                 continue;
             }
 
             material->frameNumber = frameNumber;
 
-            materialSystemRef->applyLocal(*material, &outPacket.geometries[i].model);
+            if (!MaterialSystem::applyLocal(*material, &outPacket.geometries[i].model)) {
+                Logger::logWarn("Failed to apply material " + material->name + " to material apply local.");
+                continue;
+            }
 
             //In this case, the default material has the default texture.
-            backendRef->drawGeometry(outPacket.geometries[i], materialSystemRef->getDefaultMaterial());
+            MasterRenderSystem::drawGeometry(outPacket.geometries[i]);
         }
 
-        if (!backendRef->endRenderpass(*renderpass)) {
-            Logger::logError("Failed to end ui render pass.");
+        if (!MasterRenderSystem::endRenderpass(renderpass)) {
+            Logger::logError("Failed to end material render pass.");
             return false;
         }
     }

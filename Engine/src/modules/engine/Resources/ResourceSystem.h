@@ -11,8 +11,7 @@
  */
 
 #pragma once
-#include "ResourceLoader.h"
-#include "src/defines.h"
+#include "IResourceLoader.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 
 /**
@@ -20,12 +19,14 @@
  */
 class ResourceSystem {
 private:
+    static ResourceSystem* instance;
+
     /** @brief The relative path to the Assets folder */
     String assetsPath;
     /** @brief An array of loaders */
-    DynamicArray<ResourceLoader*> loaders{};
+    DynamicArray<IResourceLoader*> loaders{};
 
-    bool registerLoader(ResourceLoader *loader);
+    bool registerLoader(IResourceLoader *loader);
 
 public:
     bool initialize(const String &path, unsigned int initialCapacity);
@@ -33,7 +34,7 @@ public:
 
     String getAssetPath() {return assetsPath;}
 
-    bool load(const String &name, ResourceType type, Resource &outResource, ILoaderParameters *params = nullptr);
+    static bool load(const String &name, ResourceType type, Resource &outResource, ILoaderParameters *params = nullptr);
     bool loadCustom(const String &name, const String &type, Resource &outResource, ILoaderParameters *params = nullptr);
-    void unload(Resource& resource);
+    static void unload(Resource& resource);
 };

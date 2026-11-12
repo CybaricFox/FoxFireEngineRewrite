@@ -7,7 +7,11 @@
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/ECS/Engine_Components/Transform.h"
 
+CameraSystem* CameraSystem::instance = nullptr;
+
 bool CameraSystem::initialize(const CameraSystemConfig systemConfig, EntityComponentSystem *ecs) {
+    instance = this;
+
     if (systemConfig.maxCameraCount == 0) {
         Logger::logFatal("Camera system config contains a max camera count of 0!");
         return false;
@@ -19,9 +23,9 @@ bool CameraSystem::initialize(const CameraSystemConfig systemConfig, EntityCompo
     Entity* cameraEntity = ecs->createEntityType("Camera_Entity");
 
     cameraEntity->components.initialize(0, ECS);
-    const auto cameraTransform = FF_Memory::ff_allocate_class<Transform>(sizeof(Transform), ECS);
+    const auto cameraTransform = FF_Memory::ff_allocate<Transform>(ECS);
     cameraEntity->components.push(cameraTransform);
-    const auto cameraComponent = FF_Memory::ff_allocate_class<Camera>(sizeof(Camera), ECS);
+    const auto cameraComponent = FF_Memory::ff_allocate<Camera>(ECS);
     cameraComponent->bIsDirty = true;
     cameraEntity->components.push(cameraComponent);
 
@@ -33,6 +37,7 @@ bool CameraSystem::initialize(const CameraSystemConfig systemConfig, EntityCompo
 }
 
 void CameraSystem::shutdown() {
+    instance = nullptr;
     ecsRef = nullptr;
 }
 

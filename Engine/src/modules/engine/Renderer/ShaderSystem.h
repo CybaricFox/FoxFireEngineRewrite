@@ -3,13 +3,11 @@
 //
 
 #pragma once
-#include "ITextureSystem.h"
 #include "Shader.h"
 #include "src/modules/engine/Renderer/IRendererBackend.h"
 #include "src/defines.h"
 #include "src/modules/engine/Library/AssetMap.h"
-#include "src/modules/engine/Memory/DynamicArray.h"
-#include "src/modules/engine/Resources/EngineResourceTypes.h"
+#include "foxfire_export.h"
 
 /**
  *  @file Shader.h
@@ -22,10 +20,6 @@
  *
  *  @copyright (c) 2026
  */
-
-#define DEFAULT_MATERIAL_SHADER_NAME "Fox_Fire_Material_Shader"
-#define DEFAULT_UI_SHADER_NAME "Fox_Fire_UI_Shader"
-#define DEFAULT_SKYBOX_SHADER_NAME "Fox_Fire_Skybox_Shader"
 
 /**
  * @brief Contains config data used by the shader system
@@ -49,8 +43,9 @@ struct ShaderSystemConfig {
     unsigned char maxInstanceTextures = 0;
 };
 
-class ShaderSystem {
+class FOXFIRE_API ShaderSystem {
 private:
+    static ShaderSystem* instance;
     /**
      * @brief Config data
      */
@@ -58,7 +53,7 @@ private:
     /**
      * @brief Asset map of shaders
      */
-    AssetMap<Shader, AssetContext> assets{};
+    AssetMap<Shader> assets{};
     /**
      * @brief Shader currently in use
      */
@@ -67,10 +62,6 @@ private:
      * @brief Pointer to the backend for reference
      */
     IRendererBackend* backendRef = nullptr;
-    /**
-     * @brief Pointer to the texture system for reference
-     */
-    ITextureSystem* textureSystemRef = nullptr;
 
     /**
      * @brief Sets the current shader in use
@@ -166,7 +157,7 @@ private:
     void destroyShader(const String &name);
 
 public:
-    bool initialize(ShaderSystemConfig newConfig, IRendererBackend* backend, ITextureSystem* textureSystem);
+    bool initialize(ShaderSystemConfig newConfig, IRendererBackend *backend);
     void shutdown();
 
     /**
@@ -174,14 +165,14 @@ public:
      * @param shaderId Id of the shader
      * @return Pointer to the shader
      */
-    Shader *getShader(unsigned int shaderId);
+    static Shader *getShader(unsigned int shaderId);
 
     /**
      * @brief Gets a shader
      * @param shaderName Name of the shader
      * @return Pointer to the shader
      */
-    Shader *getShader(const String &shaderName);
+    static Shader *getShader(const String &shaderName);
 
     /**
      * @brief Get the index of a uniform
@@ -189,7 +180,7 @@ public:
      * @param uniformName Name of the uniform
      * @return Index of the uniform or INVALID_ID16 if not found
      */
-    unsigned short getUniformIndex(Shader& shader, const String &uniformName);
+    static unsigned short getUniformIndex(Shader& shader, const String &uniformName);
 
     /**
      * @brief Sets a uniform in the current shader
@@ -197,46 +188,47 @@ public:
      * @param value Value to set to
      * @return false on failure
      */
-    bool setUniform(unsigned short index, void* value);
+    static bool setUniform(unsigned short index, void* value);
 
     /**
      * @brief Apply global UBO
      * @return false on failure
      */
-    bool applyGlobal();
+    static bool applyGlobal();
 
     /**
      * @brief Apply instance UBO
      * @param update Whether to update the instance data (Only once per frame)
      * @return false on failure
      */
-    bool applyInstance(bool update);
+    static bool applyInstance(bool update);
 
     /**
      * @brief
      * @param instanceId Id of the instance
      * @return false on failure
      */
-    bool bindInstance(unsigned int instanceId);
+    static bool bindInstance(unsigned int instanceId);
 
     /**
      * @brief Gets a shaders id
      * @param shaderName Name of the shader
      * @return Id of the shader or INVALID_ID32 if shader not found
      */
-    unsigned int getId(const String &shaderName);
+    static unsigned int getId(const String &shaderName);
 
     /**
      * @brief Creates a shader
      * @param shaderConfig Config data of the shader
+     * @param renderpass
      * @return false on failure
      */
-    bool createShader(ShaderConfig &shaderConfig);
+    static bool createShader(ShaderConfig &shaderConfig, Renderpass& renderpass);
 
     /**
      * @brief Sets a shader to be used
      * @param shaderId Id of the shader
      * @return false on failure
      */
-    bool use(unsigned int shaderId);
+    static bool use(unsigned int shaderId);
 };

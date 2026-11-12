@@ -31,8 +31,8 @@ bool Shader::initializeShader(const ShaderConfig &config, const unsigned int new
     return true;
 }
 
-ShaderUniform * Shader::createUniform(const String &uniformName, AssetContext& context) {
-    return uniforms.createAsset(uniformName, context);
+ShaderUniform * Shader::createUniform(const String &uniformName, const bool autoRelease) {
+    return uniforms.createAsset(uniformName, autoRelease);
 }
 
 void Shader::setPushConstantRange(const MemoryRange range) {
@@ -42,11 +42,11 @@ void Shader::setPushConstantRange(const MemoryRange range) {
 }
 
 bool Shader::isUniformNameValid(const String &uniformName) {
-    return uniforms.getContext(uniformName).index == INVALID_ID_U32;
+    return uniforms.getAssetIndex(uniformName) == INVALID_ID_U32;
 }
 
-void Shader::clearName() {
-    if (!name.empty()) name.clear();
+void Shader::clearName() const {
+    if (!name.isEmpty()) name.clear();
 }
 
 void Shader::setTextureMap(const unsigned int index, TextureMap *map) {
@@ -55,7 +55,7 @@ void Shader::setTextureMap(const unsigned int index, TextureMap *map) {
 
 void Shader::destroyTextureMaps() {
     for (TextureMap* map : globalTextureMaps) {
-        FF_Memory::ff_free(map, sizeof(TextureMap), RENDER);
+        FF_Memory::ff_free<TextureMap>(map, RENDER);
     }
     globalTextureMaps.shutdown();
 }
@@ -68,9 +68,9 @@ void Shader::ensureAttributeAlignment() {
         while (stride > 16) {
             stride -= 16;
         }
-        Logger::logWarn("Old alignment: " + std::to_string(attributeStride));
+        Logger::logWarn("Old alignment: " + toString(attributeStride));
         attributeStride += (16 - stride);
-        Logger::logWarn("New alignment: " + std::to_string(attributeStride));
+        Logger::logWarn("New alignment: " + toString(attributeStride));
     }
 }
 

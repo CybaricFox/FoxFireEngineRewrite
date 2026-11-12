@@ -78,11 +78,11 @@ bool Platform::unlockMutex(Mutex &mutex) {
     return platformState->unlockMutex(mutex);
 }
 
-void Platform::printConsoleMessage(const String& message, const unsigned char color) {
+void Platform::printConsoleMessage(const char* message, const unsigned char color) {
     platformState->printConsoleMessage(message, color);
 }
 
-void Platform::printConsoleError(const String& message, const unsigned char color) {
+void Platform::printConsoleError(const char* message, const unsigned char color) {
     platformState->printConsoleError(message, color);
 }
 

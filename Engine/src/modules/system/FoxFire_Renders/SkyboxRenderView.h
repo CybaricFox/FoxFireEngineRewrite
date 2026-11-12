@@ -19,7 +19,7 @@
 
 class SkyboxRenderView final : public IRenderView{
 private:
-    unsigned int shaderId = INVALID_ID_U32;
+    Shader* shader = nullptr;
     float fov = 0;
     float nearClip = 0;
     float farClip = 0;
@@ -30,12 +30,14 @@ private:
     unsigned short cubeMapLocation = 0;
 
 public:
-    bool initialize(ShaderSystem *shaderRef, unsigned long newSize) override;
+    bool initialize(unsigned long newSize) override;
     void shutdown() override;
 
     void setCamera(const unsigned int camera) {worldCamera = camera;}
 
     void resize(unsigned newWidth, unsigned newHeight) override;
-    bool buildPacket(void *data, RenderViewPacket &outPacket) override;
-    bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef, IMaterialSystem *materialSystemRef) override;
+    bool buildPacket(void *data, RenderViewPacket &outPacket, LinearAllocator& allocator) override;
+    bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex) override;
+    void destroyPacket(RenderViewPacket &packet) override {}
+    bool regenerateAttachmentTarget(unsigned passIndex, RenderTargetAttachment &attachment) override {return true;}
 };

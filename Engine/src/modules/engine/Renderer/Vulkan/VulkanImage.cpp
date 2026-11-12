@@ -62,6 +62,40 @@ void VulkanImage::createImage(const TextureType imageType, const unsigned int ne
     }
 }
 
+void VulkanImage::copyToBuffer(const TextureType type, const VkBuffer to, VulkanCommandBuffer &commandBuffer) {
+    VkBufferImageCopy copyRegion{};
+    copyRegion.bufferOffset = 0;
+    copyRegion.bufferRowLength = 0;
+    copyRegion.bufferImageHeight = 0;
+    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copyRegion.imageSubresource.mipLevel = 0;
+    copyRegion.imageSubresource.baseArrayLayer = 0;
+    copyRegion.imageSubresource.layerCount = type == TEXTURE_CUBE ? 6 : 1;
+    copyRegion.imageExtent.width = width;
+    copyRegion.imageExtent.height = height;
+    copyRegion.imageExtent.depth = 1;
+
+    vkCmdCopyImageToBuffer(commandBuffer.getHandle(), handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, to, 1, &copyRegion);
+}
+
+void VulkanImage::copyPixelToBuffer(const TextureType type, const VkBuffer to, const unsigned int x, const unsigned int y, VulkanCommandBuffer &commandBuffer) {
+    VkBufferImageCopy copyRegion{};
+    copyRegion.bufferOffset = 0;
+    copyRegion.bufferRowLength = 0;
+    copyRegion.bufferImageHeight = 0;
+    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copyRegion.imageSubresource.mipLevel = 0;
+    copyRegion.imageSubresource.baseArrayLayer = 0;
+    copyRegion.imageSubresource.layerCount = type == TEXTURE_CUBE ? 6 : 1;
+    copyRegion.imageOffset.x = x;
+    copyRegion.imageOffset.y = y;
+    copyRegion.imageExtent.width = 1;
+    copyRegion.imageExtent.height = 1;
+    copyRegion.imageExtent.depth = 1;
+
+    vkCmdCopyImageToBuffer(commandBuffer.getHandle(), handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, to, 1, &copyRegion);
+}
+
 void VulkanImage::destroy(VulkanDevice &device, const VkAllocationCallbacks* allocator) {
     if (view) {
         vkDestroyImageView(device.getLogicalDevice(), view, allocator);
@@ -111,6 +145,22 @@ void VulkanImage::transitionImageLayout(VulkanCommandBuffer &commandBuffer, VkFo
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    //Transition from transfer src optimal to shader optimal.
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    //Transition from undefined to transfer source.
+    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
     //not supported
     else {

@@ -57,18 +57,6 @@ protected:
     /**
      * @brief
      * @param button The button to check
-     * @return True if the button is down.
-     */
-    [[nodiscard]] bool isButtonDown(Buttons button) const;
-    /**
-     * @brief
-     * @param button The button to check
-     * @return True if the button is up.
-     */
-    [[nodiscard]] bool isButtonUp(Buttons button) const;
-    /**
-     * @brief
-     * @param button The button to check
      * @return True if the button was down on the last frame.
      */
     [[nodiscard]] bool wasButtonDown(Buttons button) const;
@@ -79,12 +67,6 @@ protected:
      */
     [[nodiscard]] bool wasButtonUp(Buttons button) const;
 
-    /**
-     * @brief Returns the mouse position.
-     * @param x OUT the x position of the mouse.
-     * @param y OUT the y position of the mouse.
-     */
-    void getMousePosition(int& x, int& y) const;
     /**
      * @brief Returns the mouse position from the last frame.
      * @param x OUT the x position of the mouse.
@@ -133,6 +115,13 @@ public:
     void processMouseScroll(char z) const;
 
     /**
+     * @brief Returns the mouse position.
+     * @param x OUT the x position of the mouse.
+     * @param y OUT the y position of the mouse.
+     */
+    void getMousePosition(int& x, int& y) const;
+
+    /**
      * @brief
      * @param key The key to check
      * @return True if the key is down.
@@ -156,13 +145,16 @@ public:
      * @return True if the key was up on the last frame.
      */
     [[nodiscard]] bool wasKeyUp(Keys key) const;
-
     /**
-     * @brief Subscribes a listener to an engine vent
-     * @param code Engine event code to subscribe to
-     * @param function Function to be called
-     * @param id Unqiue Id of this listener
-     * @param key Key to listen for (If Applicable)
+     * @brief
+     * @param button The button to check
+     * @return True if the button is down.
      */
-    void subscribeToEngineEvent(EngineEventCode code, const std::function<void(EngineInputContext)> &function, const String &id, Keys key = MAX_KEYS) const;
+    [[nodiscard]] bool isButtonDown(Buttons button) const;
+    /**
+     * @brief
+     * @param button The button to check
+     * @return True if the button is up.
+     */
+    [[nodiscard]] bool isButtonUp(Buttons button) const;
 };

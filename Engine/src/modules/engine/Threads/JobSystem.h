@@ -49,7 +49,7 @@ struct ThreadParam : IThreadParam{
         std::construct_at(static_cast<T *>(destination), static_cast<const T&>(*this));
     }
     void destroy() override {
-        std::destroy_at(static_cast<T *>(this));
+        FF_Memory::ff_free<T>(this, JOB);
     }
     ULong getSize() override {
         return sizeof(T);
@@ -121,11 +121,11 @@ public:
         context.priority = priority;
 
         if constexpr (!std::is_void_v<P>) {
-            context.params = static_cast<P*>(FF_Memory::ff_allocate(sizeof(P), JOB, alignof(P)));
+            context.params = static_cast<P*>(FF_Memory::ff_allocate<P>(JOB));
             std::construct_at(static_cast<P*>(context.params), *params);
         }
         if constexpr (!std::is_void_v<R>) {
-            context.result = static_cast<R *>(FF_Memory::ff_allocate(sizeof(R), JOB, alignof(R)));
+            context.result = static_cast<R *>(FF_Memory::ff_allocate<R>(JOB));
             std::construct_at(static_cast<R*>(context.result));
         }
 

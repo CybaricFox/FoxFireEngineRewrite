@@ -134,7 +134,3 @@ void IInputSystem::processMouseScroll(const char z) const {
     context.mouseZ = z;
     engineEventsSystemRef->callEvent(MOUSE_WHEEL, context);
 }
-
-void IInputSystem::subscribeToEngineEvent(const EngineEventCode code, const std::function<void(EngineInputContext)>& function, const String &id, const Keys key) const {
-    engineEventsSystemRef->subscribe(code, function, id, key);
-}

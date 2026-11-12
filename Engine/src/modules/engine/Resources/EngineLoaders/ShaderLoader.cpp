@@ -4,6 +4,7 @@
 
 #include "ShaderLoader.h"
 
+#include "src/modules/engine/Library/StringUtils.h"
 #include "src/modules/engine/Renderer/Shader.h"
 
 ShaderLoader::ShaderLoader() {
@@ -14,7 +15,7 @@ ShaderLoader::ShaderLoader() {
 }
 
 bool ShaderLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters *params) {
-    if (name.empty()) return false;
+    if (name.isEmpty()) return false;
 
     String filePath = basePath + "/" + path + "/" + name + ".FoxShader";
 
@@ -25,7 +26,7 @@ bool ShaderLoader::load(const String name, Resource &outResource, const String b
     }
 
     outResource.path = filePath;
-    auto resourceData = FF_Memory::ff_allocate_class<ShaderConfig>(sizeof(ShaderConfig), RENDER);
+    auto resourceData = FF_Memory::ff_allocate<ShaderConfig>(RENDER);
     resourceData->attributes.initialize();
     resourceData->uniforms.initialize();
     resourceData->stages.initialize();
@@ -33,36 +34,33 @@ bool ShaderLoader::load(const String name, Resource &outResource, const String b
     resourceData->stageFileNames.initialize();
 
     String line{};
-    unsigned long bytesRead = 0;
+    ULong bytesRead = 0;
     unsigned int lineNumber = 0;
 
     while (file.readLine(line, 511, bytesRead)) {
         lineNumber++;
 
-        StringUtils::trim(line);
-        bytesRead = line.length();
+        line.trim();
+        bytesRead = line.getSizeInBytes();
 
         if (bytesRead < 1 || line[0] == '#') continue;
 
         unsigned int equalsIndex = line.find('=');
-        if (equalsIndex == static_cast<unsigned int>(String::npos)) {
-            Logger::logWarn("Potential formatting issue detected in " + filePath + ". Shader loader could not find '=' on line " + std::to_string(lineNumber));
+        if (equalsIndex == static_cast<unsigned int>(INVALID_ID_U64)) {
+            Logger::logWarn("Potential formatting issue detected in " + filePath + ". Shader loader could not find '=' on line " + toString(lineNumber));
             continue;
         }
 
-        String variable = line.substr(0, equalsIndex);
-        StringUtils::trim(variable);
-        String value = line.substr(equalsIndex + 1);
-        StringUtils::trim(value);
+        String variable = line.substringLeft(equalsIndex - 1);
+        variable.trim();
+        String value = line.substringRight(equalsIndex + 1);
+        value.trim();
 
-        if (StringUtils::equalsIgnoreCase(variable, "version")) {
+        if (variable.equalsIgnoreCase( "version")) {
 
-        } else if (StringUtils::equalsIgnoreCase(variable, "name")) {
+        } else if (variable.equalsIgnoreCase( "name")) {
             resourceData->name = value;
-        } else if (StringUtils::equalsIgnoreCase(variable, "renderpass")) {
-            resourceData->renderpassName = value;
-        }
-        else if (StringUtils::equalsIgnoreCase(variable, "stages")) {
+        } else if (variable.equalsIgnoreCase( "stages")) {
             const unsigned int count = StringUtils::recursiveSplit(value, ',', resourceData->stageNames);
             if (resourceData->stageCount == 0) {
                 resourceData->stageCount = count;
@@ -83,14 +81,14 @@ bool ShaderLoader::load(const String name, Resource &outResource, const String b
                     Logger::logError("Invalid shader file layout. Unrecognized stage: " + resourceData->stageNames[i]);
                 }
             }
-        } else if (StringUtils::equalsIgnoreCase(variable, "stagefiles")) {
+        } else if (variable.equalsIgnoreCase( "stagefiles")) {
             unsigned int count = StringUtils::recursiveSplit(value, ',', resourceData->stageFileNames);
             if (resourceData->stageCount == 0) {
                 resourceData->stageCount = count;
             } else if (resourceData->stageCount != count) {
                 Logger::logError("Invalid file layout. Count mismatch between stage names and file names.");
             }
-        } else if (StringUtils::equalsIgnoreCase(variable, "cull_mode")) {
+        } else if (variable.equalsIgnoreCase( "cull_mode")) {
             if (value == "front") {
                 resourceData->cullMode = CULL_MODE_FRONT;
             } else if (value == "both") {
@@ -98,7 +96,11 @@ bool ShaderLoader::load(const String name, Resource &outResource, const String b
             } else if (value == "none") {
                 resourceData->cullMode = CULL_MODE_NONE;
             }
-        } else if (StringUtils::equalsIgnoreCase(variable, "attribute")) {
+        } else if (variable.equalsIgnoreCase( "depth_test")) {
+            StringUtils::stringToBool(value, resourceData->bDepthTest);
+        } else if (variable.equalsIgnoreCase( "depth_write")) {
+            StringUtils::stringToBool(value, resourceData->bDepthWrite);
+        } else if (variable.equalsIgnoreCase( "attribute")) {
             DynamicArray<String> fields{};
             unsigned int count = StringUtils::recursiveSplit(value, ',', fields);
 
@@ -150,7 +152,7 @@ bool ShaderLoader::load(const String name, Resource &outResource, const String b
             }
 
             fields.shutdown();
-        } else if (StringUtils::equalsIgnoreCase(variable, "uniform")) {
+        } else if (variable.equalsIgnoreCase( "uniform")) {
             DynamicArray<String> fields{};
             unsigned int count = StringUtils::recursiveSplit(value, ',', fields);
             if (count != 3) {
@@ -240,5 +242,5 @@ void ShaderLoader::unload(Resource &resource) {
     data->uniforms.shutdown();
 
     std::destroy_at(data);
-    ResourceLoader::unload(resource);
+    IResourceLoader::unload(resource);
 }

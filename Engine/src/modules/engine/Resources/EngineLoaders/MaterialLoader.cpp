@@ -4,6 +4,8 @@
 
 #include "MaterialLoader.h"
 
+#include "src/modules/engine/Library/StringUtils.h"
+
 MaterialLoader::MaterialLoader() {
     type = RESOURCE_TYPE_MATERIAL;
     path = "Materials";
@@ -12,7 +14,7 @@ MaterialLoader::MaterialLoader() {
 }
 
 bool MaterialLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters *params) {
-    if (name.empty()) return false;
+    if (name.isEmpty()) return false;
 
     const String finalPath = basePath + "/" + path + "/" + name + ".FoxMaterial";
 
@@ -24,40 +26,40 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
 
     outResource.path = finalPath;
 
-    const auto resourceData = static_cast<MaterialResourceData *>(FF_Memory::ff_allocate(sizeof(MaterialResourceData), MATERIAL, alignof(MaterialResourceData)));
+    const auto resourceData = FF_Memory::ff_allocate<MaterialResourceData>(MATERIAL);
     resourceData->shaderName = "Fox_Fire_Material_Shader";
     resourceData->bAutoRelease = true;
     resourceData->diffuseColor = oneVector4f();
     resourceData->name = name;
 
     String line{};
-    unsigned long bytesRead = 0;
+    ULong bytesRead = 0;
     unsigned int lineNumber = 0;
     while (file.readLine(line, 511, bytesRead)) {
         lineNumber++;
 
-        StringUtils::trim(line);
+        line.trim();
 
         //Ignore if line is empty
-        if (line.empty()) continue;
+        if (line.isEmpty()) continue;
 
         //Ignore comments
         if (line[0] == '#') continue;
 
         //Find the equal sign on the line if it exists
-        const unsigned long equalIndex = line.find('=');
-        if (equalIndex == String::npos || equalIndex >= line.length()) {
-            Logger::logWarn("Potential format issue found in: " + path + " Failed to find '=' on line" + std::to_string(lineNumber));
+        const ULong equalIndex = line.find('=');
+        if (equalIndex == INVALID_ID_U64 || equalIndex >= line.getSizeInBytes()) {
+            Logger::logWarn("Potential format issue found in: " + path + " Failed to find '=' on line" + toString(lineNumber));
             continue;
         }
 
         //Get the name of the variable on the left and right of the =
-        String variable = line.substr(0, equalIndex);
-        String value = line.substr(equalIndex + 1);
-        StringUtils::trim(variable);
-        StringUtils::trim(value);
+        String variable = line.substringLeft(equalIndex - 1);
+        String value = line.substringRight(equalIndex + 1);
+        variable.trim();
+        value.trim();
 
-        if (value.empty()) {continue;}
+        if (value.isEmpty()) {continue;}
 
         //Parse the line
         if (variable == "version") Logger::logDebug("Version: " + value);
@@ -103,4 +105,14 @@ bool MaterialLoader::load(const String name, Resource &outResource, const String
     outResource.name = name;
 
     return true;
+}
+
+void MaterialLoader::unload(Resource &resource) {
+    if (resource.data) {
+        FF_Memory::ff_free<MaterialResourceData>(resource.data, memoryTag);
+        resource.data = nullptr;
+        resource.dataSize = 0;
+        resource.loaderId = INVALID_ID_U32;
+        resource.path.clear();
+    }
 }

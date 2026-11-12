@@ -11,9 +11,26 @@
  */
 
 #pragma once
-#include "VulkanContext.h"
 #include "VulkanSwapchain.h"
 
+
+struct VulkanPipelineConfig {
+    VulkanRenderpass* renderpass = nullptr;
+    unsigned int stride = 0;
+    unsigned int attributeCount = 0;
+    VkVertexInputAttributeDescription* attributes = nullptr;
+    unsigned int descriptorSetLayoutCount = 0;
+    VkDescriptorSetLayout *descriptorSetLayouts = nullptr;
+    unsigned int stageCount = 0;
+    VkPipelineShaderStageCreateInfo *shaderStages = nullptr;
+    VkViewport viewport{};
+    VkRect2D scissor{};
+    CullMode cullMode{};
+    bool bIsWireframe = false;
+    unsigned int shaderFlags{};
+    unsigned int pushConstantRangeCount = 0;
+    MemoryRange* pushConstantRanges = nullptr;
+};
 
 class VulkanPipeline {
 private:
@@ -25,23 +42,5 @@ public:
 
     void destroyPipeline(VulkanDevice &device, const VkAllocationCallbacks *allocator);
     void bindPipeline(VulkanCommandBuffer &commandBuffer, VkPipelineBindPoint pipelineBindPoint) const;
-
-    bool createPipeline(
-        VulkanRenderpass &renderpass,
-        unsigned int stride,
-        unsigned int attributeCount,
-        VkVertexInputAttributeDescription *attributes,
-        unsigned int descriptorSetLayoutCount,
-        VkDescriptorSetLayout *descriptorSetLayouts,
-        unsigned int stageCount,
-        VkPipelineShaderStageCreateInfo *shaderStages,
-        VkViewport viewport,
-        VkRect2D scissor,
-        bool bIsWireframe,
-        bool bDepthTestEnabled,
-        unsigned int pushConstantRangeCount,
-        MemoryRange *pushConstantRanges,
-        CullMode cullMode,
-        VulkanDevice &device, VkAllocationCallbacks *allocator
-    );
+    bool createPipeline(VulkanPipelineConfig& config, VulkanDevice &device, VkAllocationCallbacks *allocator);
 };

@@ -15,17 +15,13 @@
 
 #include "VulkanCommandBuffer.h"
 #include "src/modules/engine/Core/Engine.h"
-#include "src/modules/engine/Library/FF_Math.h"
 #include "src/modules/engine/Renderer/IRenderpass.h"
-#include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 class VulkanRenderpass : public IRenderpass{
 private:
     VkRenderPass handle{};
     float depth = 0;
     unsigned int stencil = 0;
-    bool bHasPreviousPass = false;
-    bool bHasNextPass = false;
 
     String name{};
     unsigned int id{};
@@ -41,8 +37,6 @@ public:
     [[nodiscard]] float getDepth() const { return depth; }
     [[nodiscard]] unsigned int getStencil() const { return stencil; }
 
-    void setPreviousPass(const bool hasPrevious) { bHasPreviousPass = hasPrevious; }
-    void setNextPass(const bool hasNext) { bHasNextPass = hasNext; }
     void setId(const unsigned int newId) {id = newId;}
     void setName(const String &newName) { name = newName; }
     void setDepth(const float newDepth) { depth = newDepth; }

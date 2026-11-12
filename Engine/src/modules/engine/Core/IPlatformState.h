@@ -70,14 +70,14 @@ public:
      * @param message The message to print
      * @param color Color of the message.
      */
-    virtual void printConsoleMessage(const String& message, unsigned char color) = 0;
+    virtual void printConsoleMessage(const char* message, unsigned char color) = 0;
 
     /**
      * @brief Prints a message to console via the error stream.
      * @param message The message to print.
      * @param color The color of the message.
      */
-    virtual void printConsoleError(const String& message, unsigned char color) = 0;
+    virtual void printConsoleError(const char* message, unsigned char color) = 0;
 
     virtual bool createSurface() = 0;
     virtual double getAbsoluteTime() = 0;

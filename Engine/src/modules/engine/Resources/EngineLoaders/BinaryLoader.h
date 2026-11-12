@@ -11,12 +11,12 @@
  */
 
 #pragma once
-#include "src/modules/engine/Resources/ResourceLoader.h"
+#include "src/modules/engine/Resources/IResourceLoader.h"
 
 /**
  * @brief Loads binary files.
  */
-class BinaryLoader final : public ResourceLoader{
+class BinaryLoader final : public IResourceLoader{
 public:
     BinaryLoader();
 

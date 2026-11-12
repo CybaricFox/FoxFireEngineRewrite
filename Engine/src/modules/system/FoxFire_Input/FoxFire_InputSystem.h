@@ -20,15 +20,3 @@ class FOXFIRE_API FoxFire_InputSystem final : public IInputSystem {
 public:
     FoxFire_InputSystem();
 };
-
-
-/*
-    What does this system need to do right now?
-
-    A:
-    Custom Event Creation
-    There should be a registration function to register custom events
-    Developer must define the callback and
-
-
-*/

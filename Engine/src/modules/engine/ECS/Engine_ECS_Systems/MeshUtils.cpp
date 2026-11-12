@@ -6,9 +6,9 @@
 
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
+#include "src/modules/engine/Resources/ResourceSystem.h"
 
-IGeometrySystem* MeshUtils::geometrySystemRef = nullptr;
-ResourceSystem* MeshUtils::resourceSystemRef = nullptr;
+InstanceTracker<Mesh> MeshUtils::meshIdGenerator{};
 
 unsigned int MeshUtils::loadMeshSuccess(void *params) {
     MeshParams& meshParams = *static_cast<MeshParams *>(params);
@@ -19,14 +19,14 @@ unsigned int MeshUtils::loadMeshSuccess(void *params) {
     mesh.geometryCount = meshParams.meshResource.dataSize;
     mesh.geometries.initialize(mesh.geometryCount);
     for (unsigned int i = 0; i < mesh.geometryCount; i++) {
-        mesh.geometries.push(&geometrySystemRef->acquireGeometry((*geometryConfigs)[i], true));
+        mesh.geometries.push(&GeometrySystem::acquireGeometry((*geometryConfigs)[i], true));
     }
 
     mesh.generation++;
 
     Logger::logDebug("Successfully loaded mesh " + meshParams.name);
 
-    resourceSystemRef->unload(meshParams.meshResource);
+    ResourceSystem::unload(meshParams.meshResource);
 
     return 0;
 }
@@ -34,23 +34,22 @@ unsigned int MeshUtils::loadMeshSuccess(void *params) {
 unsigned int MeshUtils::loadMeshFailed(void *params) {
     MeshParams& meshParams = *static_cast<MeshParams *>(params);
     Logger::logError("Failed to load mesh " + meshParams.name);
-    resourceSystemRef->unload(meshParams.meshResource);
+    ResourceSystem::unload(meshParams.meshResource);
     return 0;
 }
 
 bool MeshUtils::loadMeshStart(void *params, void *result) {
-    if (resourceSystemRef == nullptr) {
-        Logger::logError("MeshUtils has an invalid resource system reference!");
-        return false;
-    }
-
     MeshParams& meshParams = *static_cast<MeshParams *>(params);
 
-    const bool loadResult = resourceSystemRef->load(meshParams.name, RESOURCE_TYPE_MESH, meshParams.meshResource, nullptr);
+    const bool loadResult = ResourceSystem::load(meshParams.name, RESOURCE_TYPE_MESH, meshParams.meshResource, nullptr);
 
     meshParams.copyTo(static_cast<IThreadParam *>(result));
 
     return loadResult;
+}
+
+void MeshUtils::shutdownIdTracker() {
+    meshIdGenerator.shutdown();
 }
 
 bool MeshUtils::loadMeshFromResource(const String &name, const unsigned int meshEntity) {
@@ -73,9 +72,23 @@ void MeshUtils::unloadMesh(const unsigned int meshEntity) {
     if (!mesh) return;
 
     for (unsigned int i = 0; i < mesh->geometryCount; i++) {
-        geometrySystemRef->releaseGeometry(*mesh->geometries[i]);
+        GeometrySystem::releaseGeometry(*mesh->geometries[i]);
     }
 
     mesh->geometries.shutdown();
     mesh->generation = INVALID_ID_U8;
+}
+
+unsigned int MeshUtils::generateMeshId(Mesh *mesh) {
+    return meshIdGenerator.acquireId(mesh);
+}
+
+void MeshUtils::moveMeshLocation(const unsigned int id, Mesh *mesh) {
+    meshIdGenerator.overrideInstance(id, mesh);
+}
+
+void MeshUtils::freeMesh(const unsigned int id, const Mesh* mesh) {
+    if (mesh == nullptr || mesh != meshIdGenerator.getInstance(id)) return;
+
+    meshIdGenerator.freeId(id);
 }

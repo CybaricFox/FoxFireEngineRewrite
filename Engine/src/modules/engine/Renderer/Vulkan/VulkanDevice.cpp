@@ -157,29 +157,33 @@ bool VulkanDevice::selectPhysicalDevice(VkInstance& instance, VkSurfaceKHR& surf
             }
 
             Logger::logInfo("GPU driver version: " +
-                std::to_string(VK_VERSION_MAJOR(deviceProperties.driverVersion)) +
+                toString(VK_VERSION_MAJOR(deviceProperties.driverVersion)) +
                 "." +
-                std::to_string(VK_VERSION_MINOR(deviceProperties.driverVersion)) +
+                toString(VK_VERSION_MINOR(deviceProperties.driverVersion)) +
                 "." +
-                std::to_string(VK_VERSION_PATCH(deviceProperties.driverVersion)));
+                toString(VK_VERSION_PATCH(deviceProperties.driverVersion)));
 
             Logger::logInfo("Vulkan API version: " +
-                std::to_string(VK_VERSION_MAJOR(deviceProperties.apiVersion)) +
+                toString(VK_VERSION_MAJOR(deviceProperties.apiVersion)) +
                 "." +
-                std::to_string(VK_VERSION_MINOR(deviceProperties.apiVersion)) +
+                toString(VK_VERSION_MINOR(deviceProperties.apiVersion)) +
                 "." +
-                std::to_string(VK_VERSION_PATCH(deviceProperties.apiVersion)));
+                toString(VK_VERSION_PATCH(deviceProperties.apiVersion)));
 
             for (unsigned int i = 0; i < deviceMemoryProperties.memoryHeapCount; i++) {
                 float memorySizeGB = static_cast<float>(deviceMemoryProperties.memoryHeaps[i].size) / 1024.0f / 1024.0f / 1024.0f;
                 if (deviceMemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
                     std::ostringstream oss;
                     oss << "Local GPU memory: " << std::setprecision(2) << memorySizeGB << "GB";
-                    Logger::logInfo(oss.str());
+                    String string{};
+                    string.setString(oss.str().c_str(), oss.str().length());
+                    Logger::logInfo(string);
                 } else {
                     std::ostringstream oss;
                     oss << "Shared system memory: " << std::setprecision(2) << memorySizeGB << "GB";
-                    Logger::logInfo(oss.str());
+                    String string{};
+                    string.setString(oss.str().c_str(), oss.str().length());
+                    Logger::logInfo(string);
                 }
             }
 
@@ -234,7 +238,9 @@ bool VulkanDevice::physicalDeviceMeetsRequirements(VkPhysicalDevice vulkanPhysic
             std::setw(7) << "Compute" << std::setw(3) << " | " <<
                 std::setw(8) << "Transfer" << std::setw(3) << " | " <<
                     "Name";
-    Logger::logInfo(oss1.str());
+    String string{};
+    string.setString(oss1.str().c_str(), oss1.str().length());
+    Logger::logInfo(string);
 
     //Whether this device meets requirements
     //If the requirement is set to false, set the validity to true since we can ignore it
@@ -275,29 +281,30 @@ bool VulkanDevice::physicalDeviceMeetsRequirements(VkPhysicalDevice vulkanPhysic
     }
 
     std::ostringstream oss2;
-    oss2 << std::setw(8) << std::to_string(physicalDeviceFamilyInfo.graphicsFamily != -1) << std::setw(3) << " | " <<
-        std::setw(7) << std::to_string(physicalDeviceFamilyInfo.presentFamily != -1) << std::setw(3) << " | " <<
-            std::setw(7) << std::to_string(physicalDeviceFamilyInfo.computeFamily != -1) << std::setw(3) << " | " <<
-                std::setw(8) << std::to_string(physicalDeviceFamilyInfo.transferFamily != -1) << std::setw(3) << " | " <<
+    oss2 << std::setw(8) << toString(physicalDeviceFamilyInfo.graphicsFamily != -1).getAsCharString() << std::setw(3) << " | " <<
+        std::setw(7) << toString(physicalDeviceFamilyInfo.presentFamily != -1).getAsCharString() << std::setw(3) << " | " <<
+            std::setw(7) << toString(physicalDeviceFamilyInfo.computeFamily != -1).getAsCharString() << std::setw(3) << " | " <<
+                std::setw(8) << toString(physicalDeviceFamilyInfo.transferFamily != -1).getAsCharString() << std::setw(3) << " | " <<
                     deviceProperties.deviceName;
-    Logger::logInfo(oss2.str());
+    string.setString(oss2.str().c_str(), oss2.str().length());
+    Logger::logInfo(string);
     oss2.clear();
 
     if (validGraphics && validPresent && validTransfer && validCompute) {
         Logger::logInfo(String(deviceProperties.deviceName) + " meets requirements.");
-        Logger::logDebug("Graphics family index: " + std::to_string(physicalDeviceFamilyInfo.graphicsFamily));
-        Logger::logDebug("Present family index: " + std::to_string(physicalDeviceFamilyInfo.presentFamily));
-        Logger::logDebug("Transfer family index: " + std::to_string(physicalDeviceFamilyInfo.transferFamily));
-        Logger::logDebug("Compute family index: " + std::to_string(physicalDeviceFamilyInfo.computeFamily));
+        Logger::logDebug("Graphics family index: " + toString(physicalDeviceFamilyInfo.graphicsFamily));
+        Logger::logDebug("Present family index: " + toString(physicalDeviceFamilyInfo.presentFamily));
+        Logger::logDebug("Transfer family index: " + toString(physicalDeviceFamilyInfo.transferFamily));
+        Logger::logDebug("Compute family index: " + toString(physicalDeviceFamilyInfo.computeFamily));
 
         querySwapChainSupport(vulkanPhysicalDevice, surface, swapChainSupport);
 
         if (swapChainSupport.formatCount < 1 || swapChainSupport.presentCount < 1) {
             if (swapChainSupport.formats) {
-                FF_Memory::ff_free(swapChainSupport.formats, sizeof(VkSurfaceFormatKHR) * swapChainSupport.formatCount, RENDER);
+                FF_Memory::ff_free_recursive<VkSurfaceFormatKHR>(swapChainSupport.formats, RENDER, swapChainSupport.formatCount);
             }
             if (swapChainSupport.presentModes) {
-                FF_Memory::ff_free(swapChainSupport.presentModes, sizeof(VkPresentModeKHR) * swapChainSupport.presentCount, RENDER);
+                FF_Memory::ff_free<VkPresentModeKHR>(swapChainSupport.presentModes, RENDER, swapChainSupport.presentCount);
             }
             Logger::logInfo("Nevermind, Swap chain is not supported by this device. Skipping to next device.");
             return false;
@@ -308,7 +315,7 @@ bool VulkanDevice::physicalDeviceMeetsRequirements(VkPhysicalDevice vulkanPhysic
             VkExtensionProperties *availableExtensions = nullptr;
             VulkanUtils::vulkanCheck(vkEnumerateDeviceExtensionProperties(vulkanPhysicalDevice, nullptr, &extensionCount, nullptr));
             if (extensionCount != 0) {
-                availableExtensions = static_cast<VkExtensionProperties *>(FF_Memory::ff_allocate(sizeof(VkExtensionProperties) * extensionCount, RENDER, alignof(VkExtensionProperties)));
+                availableExtensions = FF_Memory::ff_allocate_recursive<VkExtensionProperties>(RENDER, extensionCount);
                 VulkanUtils::vulkanCheck(vkEnumerateDeviceExtensionProperties(vulkanPhysicalDevice, nullptr, &extensionCount, availableExtensions));
                 for (const char* extension : requirements.extensionNames) {
                     bool found = false;
@@ -321,12 +328,12 @@ bool VulkanDevice::physicalDeviceMeetsRequirements(VkPhysicalDevice vulkanPhysic
 
                     if (!found) {
                         Logger::logInfo(String(extension) + " not found. Skipping device.");
-                        FF_Memory::ff_free(availableExtensions, sizeof(VkExtensionProperties) * extensionCount, RENDER);
+                        FF_Memory::ff_free_recursive<VkExtensionProperties>(availableExtensions, RENDER, extensionCount);
                         return false;
                     }
                 }
             }
-            FF_Memory::ff_free(availableExtensions, sizeof(VkExtensionProperties) * extensionCount, RENDER);
+            FF_Memory::ff_free_recursive<VkExtensionProperties>(availableExtensions, RENDER, extensionCount);
         }
 
         if (requirements.samplerAnisotrophy && !deviceFeatures.samplerAnisotropy) {
@@ -344,26 +351,26 @@ void VulkanDevice::querySwapChainSupport(VkPhysicalDevice vulkanPhysicalDevice, 
     VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.capabilities));
 
     if (vulkanSwapchainSupportInfo.formats) {
-        FF_Memory::ff_free(vulkanSwapchainSupportInfo.formats,sizeof(VkSurfaceFormatKHR) * vulkanSwapchainSupportInfo.formatCount,RENDER);
+        FF_Memory::ff_free_recursive<VkSurfaceFormatKHR>(vulkanSwapchainSupportInfo.formats,RENDER, vulkanSwapchainSupportInfo.formatCount);
         vulkanSwapchainSupportInfo.formats = nullptr;
         vulkanSwapchainSupportInfo.formatCount = 0;
     }
 
     if (vulkanSwapchainSupportInfo.presentModes) {
-        FF_Memory::ff_free(vulkanSwapchainSupportInfo.presentModes,sizeof(VkPresentModeKHR) * vulkanSwapchainSupportInfo.presentCount,RENDER);
+        FF_Memory::ff_free_recursive<VkPresentModeKHR>(vulkanSwapchainSupportInfo.presentModes,RENDER, vulkanSwapchainSupportInfo.presentCount);
         vulkanSwapchainSupportInfo.presentModes = nullptr;
         vulkanSwapchainSupportInfo.presentCount = 0;
     }
 
     VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.formatCount, nullptr));
     if (vulkanSwapchainSupportInfo.formatCount > 0) {
-        vulkanSwapchainSupportInfo.formats = static_cast<VkSurfaceFormatKHR *>(FF_Memory::ff_allocate(sizeof(VkSurfaceFormatKHR) * vulkanSwapchainSupportInfo.formatCount, RENDER, alignof(VkSurfaceFormatKHR)));
+        vulkanSwapchainSupportInfo.formats = FF_Memory::ff_allocate_recursive<VkSurfaceFormatKHR>( RENDER, vulkanSwapchainSupportInfo.formatCount);
         VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfaceFormatsKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.formatCount, vulkanSwapchainSupportInfo.formats));
     }
 
     VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.presentCount, nullptr));
     if (vulkanSwapchainSupportInfo.presentCount > 0) {
-        vulkanSwapchainSupportInfo.presentModes = static_cast<VkPresentModeKHR *>(FF_Memory::ff_allocate(sizeof(VkPresentModeKHR) * vulkanSwapchainSupportInfo.presentCount, RENDER, alignof(VkPresentModeKHR)));
+        vulkanSwapchainSupportInfo.presentModes = FF_Memory::ff_allocate_recursive<VkPresentModeKHR>( RENDER, vulkanSwapchainSupportInfo.presentCount);
         VulkanUtils::vulkanCheck(vkGetPhysicalDeviceSurfacePresentModesKHR(vulkanPhysicalDevice, surface, &vulkanSwapchainSupportInfo.presentCount, vulkanSwapchainSupportInfo.presentModes));
     }
 }

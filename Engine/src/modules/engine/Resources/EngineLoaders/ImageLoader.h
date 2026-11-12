@@ -11,12 +11,12 @@
  */
 
 #pragma once
-#include "src/modules/engine/Resources/ResourceLoader.h"
+#include "src/modules/engine/Resources/IResourceLoader.h"
 
 /**
  * @brief Loads Image Files such as .png
  */
-class ImageLoader final : public ResourceLoader{
+class ImageLoader final : public IResourceLoader{
 public:
     ImageLoader();
 

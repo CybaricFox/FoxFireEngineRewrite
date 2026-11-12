@@ -13,6 +13,7 @@
 #pragma once
 #include "src/defines.h"
 #include "foxfire_export.h"
+#include "String.h"
 
 /**
  * @brief The file mode to use when messing with files.
@@ -43,6 +44,8 @@ public:
      */
     bool getFileSize(ULong &outSize) const;
 
+    String* getAllFiles(const String &filePath, const String &extension, unsigned int& outFileCount);
+
     /**
      * @brief Checks if a file exists
      * @param name path of the file
@@ -71,7 +74,7 @@ public:
      * @param outLength The number of bytes read.
      * @return True on success, False on failure.
      */
-    bool readLine(String &line, unsigned long maxLength, unsigned long &outLength) const;
+    bool readLine(String &line, unsigned long maxLength, ULong &outLength) const;
 
     /**
      * @brief Writes a String line to the file
@@ -87,7 +90,7 @@ public:
      * @param outBytesRead OUT bytes read
      * @return True on success, False on failure
      */
-    bool read(unsigned long size, void* outData, unsigned long& outBytesRead) const;
+    bool read(unsigned long size, void *outData, ULong &outBytesRead) const;
 
     /**
      * @brief Reads the entire file (Applicable to binary files)
@@ -111,5 +114,5 @@ public:
      * @param outBytesWritten OUT bytes written
      * @return Returns true on success, False on failure.
      */
-    bool write(unsigned long size, const void* inData, unsigned long& outBytesWritten) const;
+    bool write(unsigned long size, const void* inData, ULong& outBytesWritten) const;
 };

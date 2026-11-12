@@ -19,7 +19,7 @@ ImageLoader::ImageLoader() {
 }
 
 bool ImageLoader::load(const String name, Resource &outResource, const String basePath, ILoaderParameters* params) {
-    if (name.empty()) return false;
+    if (name.isEmpty()) return false;
     if (params == nullptr) return false;
 
     const auto imageParams = reinterpret_cast<ImageParameters *>(params);
@@ -33,7 +33,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     bool found = false;
     for (const auto & extension : extensions) {
         finalPath = basePath + "/" + path + "/" += name + extension;
-        if (std::filesystem::exists(finalPath)) {
+        if (std::filesystem::exists(finalPath.getAsCharString())) {
             found = true;
             break;
         }
@@ -65,7 +65,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     int height = 0;
     int channelCount = 0;
 
-    auto data = static_cast<unsigned char *>(FF_Memory::ff_allocate(fileSize, TEXTURE));
+    auto data = static_cast<unsigned char *>(FF_Memory::ff_allocate_raw(fileSize, TEXTURE));
     if (!data) {
         Logger::logError("Image Resource loader failed to allocate file: " + finalPath);
         file.closeFile();
@@ -82,7 +82,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     }
 
     if (bytesRead != fileSize) {
-        Logger::logError("Image Resource Loader read " + std::to_string(bytesRead) + " bytes but the file size is " + std::to_string(fileSize));
+        Logger::logError("Image Resource Loader read " + toString(bytesRead) + " bytes but the file size is " + toString(fileSize));
         return false;
     }
 
@@ -92,7 +92,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
         return false;
     }
 
-    const auto resourceData = static_cast<ImageResourceData *>(FF_Memory::ff_allocate(sizeof(ImageResourceData), TEXTURE, alignof(ImageResourceData)));
+    const auto resourceData = FF_Memory::ff_allocate<ImageResourceData>(TEXTURE);
     resourceData->pixels = stbData;
     resourceData->width = width;
     resourceData->height = height;
@@ -100,7 +100,7 @@ bool ImageLoader::load(const String name, Resource &outResource, const String ba
     outResource.data = resourceData;
     outResource.dataSize = sizeof(ImageResourceData);
 
-    FF_Memory::ff_free(data, fileSize, TEXTURE);
+    FF_Memory::ff_free_raw(data, fileSize, TEXTURE);
 
     return true;
 }
@@ -111,5 +111,5 @@ void ImageLoader::unload(Resource &resource) {
         stbi_image_free(resourceData->pixels);
     }
 
-    ResourceLoader::unload(resource);
+    IResourceLoader::unload(resource);
 }

@@ -15,16 +15,11 @@
 #include "RenderBuffer.h"
 #include "Renderpass.h"
 #include "Shader.h"
-#include "src/modules/engine/Core/GameInstance.h"
 #include "src/modules/engine/Core/Platform.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
-#include "src/modules/engine/Resources/ResourceSystem.h"
 
 struct RendererBackendConfig {
     String appName{};
-    unsigned short renderpassCount = 0;
-    RenderpassConfig* configs = nullptr;
-    std::function<void()> func{};
 };
 
 /**
@@ -39,7 +34,6 @@ private:
 
 protected:
     IRendererBackend() = default;
-    ResourceSystem* resourceSystemRef = nullptr;
     Texture* defaultDiffuseTexture = nullptr;
     Texture* defaultSpecularTexture = nullptr;
     Texture* defaultNormalTexture = nullptr;
@@ -51,10 +45,12 @@ public:
      * @brief Creates the specific backend.
      * @param type Type of backend to create.
      * @param newPlatformState Platform specific data.
-     * @param gameInstance Game specific data.
+     * @param majorV
+     * @param minorV
+     * @param patchV
      * @return The specific backend to use.
      */
-    static IRendererBackend* create(RendererBackendType type, IPlatformState& newPlatformState, const GameInstance& gameInstance);
+    static IRendererBackend* create(RendererBackendType type, IPlatformState& newPlatformState, int majorV, int minorV, int patchV);
 
     /**
      * @brief Gets the current frame number.
@@ -62,11 +58,11 @@ public:
      */
     virtual unsigned int getFrameNumber() {return frameNumber;}
 
-    virtual Renderpass* getRenderpass(String name) = 0;
     virtual Texture* getWindowAttachment(unsigned char index) = 0;
-    virtual Texture* getDepthAttachment() = 0;
+    virtual Texture* getDepthAttachment(unsigned char index) = 0;
     virtual unsigned char getWindowAttachmentIndex() = 0;
     virtual bool isMultithreaded() = 0;
+    virtual unsigned char getWindowAttachmentCount() = 0;
     /**
      * @brief Increments the frame number.
      */
@@ -79,10 +75,11 @@ public:
     /**
      * @brief Initializes the backend
      * @param platform A platform object reference (Will eventually be changed)
-     * @param resources Pointer to the resource system for referencing.
+     * @param config
+     * @param outRenderTargetCount
      * @return False on failure
      */
-    virtual bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount, ResourceSystem *resources) = 0;
+    virtual bool initialize(Platform &platform, const RendererBackendConfig &config, unsigned char &outRenderTargetCount) = 0;
 
     void setDefaultTextureReferences(Texture* diffuse, Texture* specular, Texture* normal);
 
@@ -110,9 +107,8 @@ public:
     /**
      * @brief Draws geometry to screen
      * @param data Geometry data
-     * @param defaultMaterial Reference to the Material Systems default material
      */
-    virtual void drawGeometry(const GeometryRenderData &data, Material &defaultMaterial) = 0;
+    virtual void drawGeometry(const GeometryRenderData &data) = 0;
 
     /**
      * @brief Creates a texture out of pixel data
@@ -290,9 +286,9 @@ public:
      * @param height
      * @param outTarget
      */
-    virtual void createRenderTarget(unsigned char attachmentCount, DynamicArray<Texture *>& attachments, Renderpass &renderpass, unsigned width, unsigned
-                                    height, RenderTarget
-                                    &outTarget) = 0;
+    virtual void createRenderTarget(unsigned char attachmentCount, RenderTargetAttachment *attachments,
+                                    Renderpass &renderpass, unsigned width, unsigned height,
+                                    RenderTarget &outTarget) = 0;
 
     /**
      * @brief Destroys a render target
@@ -303,13 +299,8 @@ public:
 
     /**
      * @brief Creates a renderpass.
-     * @param outRenderpass
-     * @param depth
-     * @param stencil
-     * @param hasPreviousPass
-     * @param hasNextPass
      */
-    virtual void createRenderpass(Renderpass& outRenderpass, float depth, unsigned int stencil, bool hasPreviousPass, bool hasNextPass) = 0;
+    virtual bool createRenderpass(RenderpassConfig &config, Renderpass &outRenderpass) = 0;
 
     /**
      * @brief Destroys a renderpass.
@@ -329,4 +320,10 @@ public:
     virtual bool loadBufferRange(RenderBuffer& buffer, ULong offset, ULong size, const void* data) = 0;
     virtual bool copyBufferRange(RenderBuffer& source, ULong sourceOffset, RenderBuffer& destination, ULong destOffset, ULong size) = 0;
     virtual bool drawBuffer(RenderBuffer& buffer, ULong offset, unsigned int elementCount, bool bindOnly) = 0;
+    virtual void setViewport(Vector4f rectangle) = 0;
+    virtual void resetViewport() = 0;
+    virtual void setScissor(Vector4f rectangle) = 0;
+    virtual void resetScissor() = 0;
+    virtual void readTextureData(Texture& texture, unsigned int offset, unsigned int size, void** outMemory) = 0;
+    virtual void readPixel(Texture& texture, unsigned int x, unsigned int y, unsigned char** outData) = 0;
 };

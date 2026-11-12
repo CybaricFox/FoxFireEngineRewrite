@@ -36,7 +36,6 @@
     #error "This platform is not supported!"
 #endif
 
-using String = std::string;
 using std::cout;
 using std::endl;
 using std::cerr;

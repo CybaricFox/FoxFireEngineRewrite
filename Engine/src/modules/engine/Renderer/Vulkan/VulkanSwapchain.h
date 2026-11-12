@@ -14,10 +14,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "VulkanImage.h"
 #include "VulkanRenderpass.h"
-#include "VulkanState.h"
-#include "src/modules/engine/Memory/FF_Memory.h"
 #include "src/modules/engine/Renderer/Vulkan/VulkanDevice.h"
 
 class VulkanSwapchain {
@@ -26,8 +23,8 @@ private:
     unsigned char maxFramesInFlight = 0;
     VkSwapchainKHR handle{};
     unsigned int imageCount = 0;
-    DynamicArray<Texture*> textures{};
-    Texture* depthTexture = nullptr;
+    Texture* textures = nullptr;
+    Texture* depthTextures = nullptr;
     bool bRecreateSwapchain = false;
     bool bIsSwapchainDirty = false;
     RenderTarget renderTargets[3]{};
@@ -40,8 +37,8 @@ public:
     [[nodiscard]] bool isRecreatingSwapchain() const {return bRecreateSwapchain;}
     [[nodiscard]] bool needsResize() const {return bIsSwapchainDirty;}
     RenderTarget& getRenderTarget(const unsigned int index) {return renderTargets[index];}
-    Texture* getTexture(const unsigned int index) {return textures[index];}
-    [[nodiscard]] Texture* getDepthTexture() const {return depthTexture;}
+    Texture& getTexture(const unsigned int index) const {return textures[index];}
+    Texture& getDepthTexture(const unsigned int index) const {return depthTextures[index];}
 
     void enableRecreateSwapchain() {bRecreateSwapchain = true;}
     void finishResize() {bIsSwapchainDirty = false;}

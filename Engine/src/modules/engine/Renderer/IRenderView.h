@@ -3,12 +3,14 @@
 //
 
 #pragma once
-#include "IMaterialSystem.h"
 #include "Renderpass.h"
 #include "src/defines.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
+#include "src/modules/engine/Memory/LinearAllocator.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 #include "src/modules/engine/Renderer/ShaderSystem.h"
+#include "src/modules/engine/Resources/Skybox.h"
+#include "src/modules/engine/UserInterface/UIText.h"
 
 /**
  *  @file IRenderView.h
@@ -25,7 +27,8 @@
 enum RenderViewType {
     RENDER_VIEW_WORLD = 0x01,
     RENDER_VIEW_UI = 0x02,
-    RENDER_VIEW_SKYBOX = 0x03
+    RENDER_VIEW_SKYBOX = 0x03,
+    RENDER_VIEW_PICK = 0x04
 };
 
 enum RenderViewMatrixSource {
@@ -50,10 +53,6 @@ struct RenderPacket {
     RenderViewPacket* views = nullptr;
 };
 
-struct RenderViewRenderpassConfig {
-    String renderpassName{};
-};
-
 struct RenderViewConfig {
     String name{};
     /** @brief Only used for custom shaders. */
@@ -63,23 +62,40 @@ struct RenderViewConfig {
     RenderViewType type{};
     RenderViewMatrixSource viewSource{};
     RenderViewProjectionMatrixSource projectionSource{};
-    unsigned char renderpassCount = 0;
-    RenderViewRenderpassConfig* renderpasses = nullptr;
+    DynamicArray<RenderpassConfig> renderpasses{};
 };
 
 struct MeshPacketData {
     unsigned int meshCount = 0;
     unsigned int* meshes = nullptr;
 };
+static_assert(std::is_trivially_copyable_v<MeshPacketData>,"Render View Packet Datas must remain trivially copyable");
+
+struct UIPacketData {
+    MeshPacketData meshData{};
+    unsigned int textCount = 0;
+    UIText** texts = nullptr;
+};
+static_assert(std::is_trivially_copyable_v<UIPacketData>,"Render View Packet Datas must remain trivially copyable");
 
 struct SkyboxPacketData {
     Skybox* skybox = nullptr;
 };
+static_assert(std::is_trivially_copyable_v<SkyboxPacketData>,"Render View Packet Datas must remain trivially copyable");
+
+struct PickPacketData {
+    MeshPacketData worldMeshData{};
+    unsigned int worldGeometryCount = 0;
+    MeshPacketData uiMeshData{};
+    unsigned int uiGeometryCount = 0;
+    unsigned int textCount = 0;
+    UIText** texts = nullptr;
+};
+static_assert(std::is_trivially_copyable_v<PickPacketData>,"Render View Packet Datas must remain trivially copyable");
 
 class IRenderView {
 private:
     unsigned short id = 0;
-    String name{};
     RenderViewType type{};
 
 protected:
@@ -87,31 +103,33 @@ protected:
     unsigned short width = 0;
     unsigned short height = 0;
     unsigned char renderpassCount = 0;
-    DynamicArray<Renderpass*> renderpasses{};
+    Renderpass* renderpasses = nullptr;
     unsigned long size = 0;
-
-    ShaderSystem* shaderSystemRef = nullptr;
+    String name{};
 
 public:
     virtual ~IRenderView() = default;
 
-    virtual bool initialize(ShaderSystem* shaderRef, unsigned long newSize);
+    virtual bool initialize(unsigned long newSize);
     virtual void shutdown();
 
     [[nodiscard]] unsigned long getSize() const {return size;}
+    [[nodiscard]] Renderpass& getRenderpass(const unsigned short index) const {return renderpasses[index];}
+    [[nodiscard]] unsigned char getRenderpassCount() const {return renderpassCount;}
+    [[nodiscard]] String getName() const {return name;}
 
     void setId(const unsigned short newId) {id = newId;}
     void setType(const RenderViewType newType) {type = newType;}
     void setCustomShader(const String &shaderName) {customShaderName = shaderName;}
     void setRenderpassCount(const unsigned short newCount) {renderpassCount = newCount;}
-    void initializeRenderpasses() {renderpasses.initialize(renderpassCount);}
-    void addRenderpass(Renderpass* renderpass) {renderpasses.push(renderpass);}
-    void setName(const String newName) {name = newName;} //Do not make it a ref!
+    void initializeRenderpasses() {renderpasses = FF_Memory::ff_allocate_recursive<Renderpass>(ARRAY, renderpassCount);}
+    void setName(const String &newName) {name = newName;}
 
     virtual void resize(unsigned int newWidth, unsigned int newHeight) = 0;
-    virtual bool buildPacket(void* data, RenderViewPacket& outPacket) = 0;
-    virtual bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef, IMaterialSystem* materialSystemRef) = 0;
-    virtual void destroyPacket(RenderViewPacket& packet) {}
+    virtual bool buildPacket(void* data, RenderViewPacket& outPacket, LinearAllocator& allocator) = 0;
+    virtual bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex) = 0;
+    virtual void destroyPacket(RenderViewPacket& packet) = 0;
+    virtual bool regenerateAttachmentTarget(unsigned int passIndex, RenderTargetAttachment& attachment) = 0;
 };
 
 struct RenderViewPacket {

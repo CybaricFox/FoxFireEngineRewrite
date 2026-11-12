@@ -4,9 +4,9 @@ name = Fox_Fire_UI_Shader
 renderpass = Fox_Fire_UI_Renderpass
 stages = vertex, fragment
 stagefiles = ../Shaders/Engine_UI_Shader.vert.spv, ../Shaders/Engine_UI_Shader.frag.spv
-use_instance = true
-use_local = true
 cull_mode = back
+depth_test = false
+depth_write = false
 
 #Attributes: Type,Name
 attribute = Vector2, in_position

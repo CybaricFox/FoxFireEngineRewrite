@@ -1,0 +1,23 @@
+# World shader for picking elements with mouse clicks
+version = 1.0.0
+name = Fox_Fire_World_Pick_Shader
+renderpass = Fox_Fire_Pick_Renderpass
+stages = vertex, fragment
+stagefiles = ../Shaders/Engine_World_Pick_Shader.vert.spv, ../Shaders/Engine_World_Pick_Shader.frag.spv
+cull_mode = none
+depth_test = true
+depth_write = true
+
+#Attributes: Type,Name
+attribute = Vector2, in_position
+attribute = Vector3, in_normal
+attribute = Vector2, in_texcoord
+attribute = Vector4, in_color
+attribute = Vector3, in_tangent
+
+#Uniforms: Type,Scope,Name
+#Scope: 0 = Global, 1 = Instance, 2 = Local
+uniform = Matrix4, 0, projection
+uniform = Matrix4, 0, view
+uniform = Vector3, 1, id_color
+uniform = Matrix4, 2, model

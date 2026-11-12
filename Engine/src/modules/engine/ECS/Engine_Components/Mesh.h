@@ -7,26 +7,15 @@
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 struct Mesh final : EntityComponentWrapper<Mesh> {
+    unsigned int id = INVALID_ID_U32;
     unsigned short geometryCount = 0;
     DynamicArray<Geometry*> geometries{};
     unsigned char generation = INVALID_ID_U8;
 
-    Mesh() = default;
-    ~Mesh() override {
-        geometries.shutdown();
-    }
+    Mesh();
+    ~Mesh() override;
 
-    Mesh(const Mesh& other)
-        : geometryCount(other.geometryCount), generation(other.generation) {
-
-        if (!other.geometries.isEmpty()) {
-            geometries.initialize(other.geometries.getLength());
-
-            for (Geometry* geometry : other.geometries) {
-                geometries.push(geometry);
-            }
-        }
-    }
+    Mesh(const Mesh& other);
 
     Mesh& operator=(const Mesh&) = delete;
 
