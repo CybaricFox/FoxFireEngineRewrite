@@ -4,7 +4,6 @@
 
 #include "MasterRenderSystem.h"
 
-#include "TextureUtils.h"
 #include "../Library/Logger.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 
@@ -68,24 +67,40 @@ void MasterRenderSystem::createWritableTexture(Texture &texture) {
     return instance->backend->createWritableTexture(texture);
 }
 
-bool MasterRenderSystem::createRenderView(const RenderViewConfig &config) {
+bool MasterRenderSystem::acquireTextureMapResources(TextureMap &textureMap) {
+    return instance->backend->acquireTextureMapResources(textureMap);
+}
+
+void MasterRenderSystem::releaseTextureMapResources(TextureMap &textureMap) {
+    instance->backend->releaseTextureMapResources(textureMap);
+}
+
+bool MasterRenderSystem::beginRenderpass(Renderpass &renderpass, RenderTarget &renderTarget) {
+    return instance->backend->beginRenderpass(renderpass, renderTarget);
+}
+
+void MasterRenderSystem::drawGeometry(const GeometryRenderData &data) {
+    instance->backend->drawGeometry(data);
+}
+
+bool MasterRenderSystem::endRenderpass(Renderpass &renderpass) {
+    return instance->backend->endRenderpass(renderpass);
+}
+
+void MasterRenderSystem::readPixel(Texture &texture, const unsigned int x, const unsigned int y, unsigned char **outData) {
+    instance->backend->readPixel(texture, x, y, outData);
+}
+
+bool MasterRenderSystem::bindShaderGlobals(Shader &shader) {
+    return instance->backend->bindShaderGlobals(shader);
+}
+
+bool MasterRenderSystem::createRenderView(RenderViewConfig &config) {
     return renderViewSystem.createRenderView(config);
 }
 
-bool MasterRenderSystem::buildPacket(IRenderView *renderView, void* meshData, RenderViewPacket &packet) {
-    return renderView->buildPacket(meshData, packet);
-}
-
-void MasterRenderSystem::buildSkybox(const RenderPacket& packet) {
-    const auto skyboxData = FF_Memory::ff_allocate<SkyboxPacketData>(RENDER);
-    skyboxData->skybox = &skybox;
-    if (!buildPacket(getRenderView("Fox_Fire_Skybox_View"), skyboxData, packet.views[0])) {
-        Logger::logError("Failed to build skybox packet.");
-    }
-}
-
-void MasterRenderSystem::cleanupSkybox(const RenderPacket &packet) {
-    FF_Memory::ff_free<SkyboxPacketData>(packet.views[0].data, RENDER);
+bool MasterRenderSystem::buildPacket(IRenderView *renderView, void* meshData, RenderViewPacket &packet, LinearAllocator& allocator) {
+    return renderView->buildPacket(meshData, packet, allocator);
 }
 
 bool MasterRenderSystem::acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, TextureMap **maps) {
@@ -100,7 +115,7 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
     bIsCurrentlyResizing = false;
     framesSinceResizeRequested = 0;
 
-    backend = IRendererBackend::create(VULKAN, platform.getPlatformState(), gameInstance);
+    backend = IRendererBackend::create(VULKAN, platform.getPlatformState(), gameInstance.config.gameVersionMajor, gameInstance.config.gameVersionMinor, gameInstance.config.gameVersionPatch);
     if (backend == nullptr) {
         Logger::logFatal("Failed to create the backend renderer!");
         return false;
@@ -150,35 +165,8 @@ bool MasterRenderSystem::initializeRenderViewSystem(const RenderViewSystemConfig
     return renderViewSystem.initialize(config, backend);
 }
 
-bool MasterRenderSystem::initializeSkybox() {
-    TextureMap& cubeMap = skybox.map;
-    cubeMap.filterMag = TEXTURE_FILTER_BILINEAR;
-    cubeMap.filterMin = TEXTURE_FILTER_BILINEAR;
-    cubeMap.repeatU = TEXTURE_CLAMP_TO_EDGE;
-    cubeMap.repeatV = TEXTURE_CLAMP_TO_EDGE;
-    cubeMap.repeatW = TEXTURE_CLAMP_TO_EDGE;
-    cubeMap.use = TEXTURE_USE_MAP_CUBE;
-    if (!backend->acquireTextureMapResources(cubeMap)) {
-        Logger::logFatal("Failed to acquire texture resources for cubemap!");
-        return false;
-    }
-    cubeMap.texture = &TextureSystem::acquireCubeTexture("Maxwell_Skybox", true);
-    GeometryConfig skyboxConfig = GeometrySystem::generateCubeConfig(10, 10, 10, 1, 1, "Maxwell_Skybox", String{});
-    skyboxConfig.materialName = String{};
-    skybox.geometry = &GeometrySystem::acquireGeometry(skyboxConfig, true);
-    skybox.frameNumber = INVALID_ID_U64;
-    const Shader& skyboxShader = *shaderSystem.getShader("Fox_Fire_Skybox_Shader");
-    TextureMap* maps[1] = {&skybox.map};
-    if (!backend->acquireInstanceResources(skyboxShader, skybox.instanceId, &maps[0])) {
-        Logger::logFatal("Failed to acquire instance resources for skybox!");
-        return false;
-    }
-
-    return true;
-}
-
-bool MasterRenderSystem::initializeFontSystem(const FontSystemConfig &config, ResourceSystem* resourceSystemRef) {
-    return fontSystem.initialize(config, resourceSystemRef, backend);
+bool MasterRenderSystem::initializeFontSystem(const FontSystemConfig &config) {
+    return fontSystem.initialize(config, backend);
 }
 
 void MasterRenderSystem::shutdown() {
@@ -189,8 +177,6 @@ void MasterRenderSystem::shutdown() {
     materialSystem.shutdown();
 
     shaderSystem.shutdown();
-
-    backend->releaseTextureMapResources(skybox.map);
 
     fontSystem.shutdown();
 
@@ -220,7 +206,7 @@ bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {
             renderViewSystem.resize(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
             backend->resize(static_cast<unsigned short>(width), static_cast<unsigned short>(height));
 
-            renderViewSystem.resize(width, height);
+            renderViewSystem.resize(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
 
             framesSinceResizeRequested = 0;
             bIsCurrentlyResizing = false;

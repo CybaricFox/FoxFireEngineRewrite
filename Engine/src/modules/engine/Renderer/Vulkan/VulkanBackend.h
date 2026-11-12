@@ -207,12 +207,12 @@ public:
     unsigned char getWindowAttachmentIndex() override;
     bool isMultithreaded() override {return vulkanContext.isMultithreaded();}
 
-    void setVersion(const GameInstance& gameInstance);
+    void setVersion(int majorV, int minorV, int patchV);
 
     void resize(unsigned short width, unsigned short height) override;
     bool beginFrame(float deltaTime) override;
     bool endFrame(float deltaTime) override;
-    void drawGeometry(const GeometryRenderData &data, Material &defaultMaterial) override;
+    void drawGeometry(const GeometryRenderData &data) override;
     void createTexture(const unsigned char *pixels, Texture &texture) override;
     void destroyTexture(Texture &texture) override;
     bool createGeometry(Geometry &geometry, unsigned int vertexSize, unsigned int vertexCount, Vertex* vertices, unsigned int indexSize, unsigned int indexCount, void *indices) override;
@@ -238,7 +238,7 @@ public:
 
     void createRenderTarget(unsigned char attachmentCount, RenderTargetAttachment *attachments, Renderpass &renderpass, unsigned width, unsigned height, RenderTarget &outTarget) override;
     void destroyRenderTarget(RenderTarget &target, bool freeMemory) override;
-    bool createRenderpass(const RenderpassConfig& config, Renderpass& outRenderpass) override;
+    bool createRenderpass(RenderpassConfig &config, Renderpass &outRenderpass) override;
     void destroyRenderpass(Renderpass &renderpass) override;
 
     bool createBuffer(RenderBuffer &buffer) override;

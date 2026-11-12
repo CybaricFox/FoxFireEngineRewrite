@@ -14,7 +14,6 @@
 
 #include <foxfire_export.h>
 #include "IRendererBackend.h"
-#include "src/modules/engine/Resources/ResourceSystem.h"
 #include "src/modules/engine/Threads/JobSystem.h"
 
 #define DEFAULT_DIFFUSE_TEXTURE_NAME "default"

@@ -4,7 +4,6 @@
 
 #pragma once
 #include "IRenderView.h"
-#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 
 /**
  *  @file RenderViewSystem.h
@@ -37,8 +36,8 @@ public:
 
     IRenderView *getRenderView(const String &name);
 
-    bool createRenderView(const RenderViewConfig &config);
-    bool createRenderpass(const RenderpassConfig &config, Renderpass &outRenderpass) const;
+    bool createRenderView(RenderViewConfig &config);
+    bool createRenderpass(RenderpassConfig &config, Renderpass &outRenderpass) const;
     void resize(unsigned int width, unsigned int height);
 
     bool render(IRenderView &renderView, RenderViewPacket &packet, unsigned long frameNumber, unsigned long targetIndex) const;

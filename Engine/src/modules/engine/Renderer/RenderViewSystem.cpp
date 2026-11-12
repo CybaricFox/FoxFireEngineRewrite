@@ -4,14 +4,13 @@
 
 #include "RenderViewSystem.h"
 
-#include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "src/modules/system/FoxFire_Renders/PickRenderView.h"
 #include "src/modules/system/FoxFire_Renders/SkyboxRenderView.h"
 #include "src/modules/system/FoxFire_Renders/UIRenderView.h"
 #include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
 
-bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
-    if (config.renderpassCount < 1) {
+bool RenderViewSystem::createRenderView(RenderViewConfig &config) {
+    if (config.renderpasses.getLength() < 1) {
         Logger::logError("Render View " + config.name + " does not have any renderpasses.");
         return false;
     }
@@ -62,11 +61,11 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
     view->setType(config.type);
     view->setName(config.name);
     view->setCustomShader(config.customShaderName);
-    view->setRenderpassCount(config.renderpassCount);
+    view->setRenderpassCount(config.renderpasses.getLength());
     view->initializeRenderpasses();
 
     //Create renderpasses based on the config
-    for (unsigned int i = 0; i < config.renderpassCount; i++) {
+    for (unsigned int i = 0; i < config.renderpasses.getLength(); i++) {
         if (!createRenderpass(config.renderpasses[i], view->getRenderpass(i))) {
             Logger::logError("Failed to create render pass " + config.renderpasses[i].name + ".");
             return false;
@@ -87,7 +86,7 @@ bool RenderViewSystem::createRenderView(const RenderViewConfig &config) {
     return true;
 }
 
-bool RenderViewSystem::createRenderpass(const RenderpassConfig& config, Renderpass& outRenderpass) const {
+bool RenderViewSystem::createRenderpass(RenderpassConfig& config, Renderpass& outRenderpass) const {
     if (config.renderTargetCount == 0) {
         Logger::logError("A renderpass cannot be created with 0 render targets.");
         return false;
@@ -101,10 +100,10 @@ bool RenderViewSystem::createRenderpass(const RenderpassConfig& config, Renderpa
 
     for (unsigned int i = 0; i < config.renderTargetCount; i++) {
         RenderTarget& target = outRenderpass.getRenderTarget(i);
-        target.attachmentCount = config.targetConfig.attachmentCount;
-        target.attachments = FF_Memory::ff_allocate_recursive<RenderTargetAttachment>(ARRAY, config.targetConfig.attachmentCount);
+        target.attachmentCount = config.targetConfig.attachments.getLength();
+        target.attachments = FF_Memory::ff_allocate_recursive<RenderTargetAttachment>(ARRAY, config.targetConfig.attachments.getLength());
 
-        for (unsigned int j = 0; j < config.targetConfig.attachmentCount; j++) {
+        for (unsigned int j = 0; j < config.targetConfig.attachments.getLength(); j++) {
             RenderTargetAttachment& attachment = target.attachments[j];
             const RenderTargetAttachmentConfig& attachmentConfig = config.targetConfig.attachments[j];
 
@@ -127,7 +126,7 @@ void RenderViewSystem::resize(const unsigned int width, const unsigned int heigh
 }
 
 bool RenderViewSystem::render(IRenderView &renderView, RenderViewPacket &packet, const unsigned long frameNumber, const unsigned long targetIndex) const {
-    return renderView.render(packet, frameNumber, targetIndex, backendRef);
+    return renderView.render(packet, frameNumber, targetIndex);
 }
 
 void RenderViewSystem::regenerateRenderTargets(IRenderView &view) const {

@@ -9,7 +9,7 @@
 #include "src/modules/engine/Renderer/TextureSystem.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 #include "src/modules/engine/Resources/FontTypes.h"
-#include "src/modules/engine/Resources/ResourceSystem.h"
+#include "foxfire_export.h"
 
 /**
  *  @file FontSystem.h
@@ -57,11 +57,10 @@ struct SystemFontVariantData {
 
 struct SystemFontData;
 
-class FontSystem {
+class FOXFIRE_API FontSystem {
 private:
     static FontSystem* instance;
 
-    ResourceSystem* resourceRef = nullptr;
     IRendererBackend* backendRef = nullptr;
 
     FontSystemConfig config{};
@@ -76,7 +75,7 @@ private:
     bool verifySystemFontVariantSize(const SystemFontData &font, FontData &variant, const String &text);
 
 public:
-    bool initialize(const FontSystemConfig &newConfig, ResourceSystem *resourceSystemRef, IRendererBackend *backendSystemRef);
+    bool initialize(const FontSystemConfig &newConfig, IRendererBackend *backendSystemRef);
     void shutdown();
 
     static bool acquireFont(const String &fontName, unsigned short fontSize, UIText& text);

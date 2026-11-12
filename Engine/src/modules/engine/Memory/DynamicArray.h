@@ -511,13 +511,13 @@ private:
 public:
     T& operator[](unsigned long index) {
         if (index >= capacity) {
-            Logger::logFatal("Subscript out of bounds!");
+            Logger::logFatal("Subscript out of bounds! Index: " + toString(index) + " Capacity: " + toString(capacity));
         }
         return memory[index];
     }
     const T& operator[](unsigned long index) const {
         if (index >= capacity) {
-            Logger::logFatal("Subscript out of bounds!");
+            Logger::logFatal("Subscript out of bounds! Index: " + toString(index)+ " Capacity: " + toString(capacity));
         }
         return memory[index];
     }

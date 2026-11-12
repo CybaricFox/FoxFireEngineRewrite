@@ -15,7 +15,6 @@
 #include "RenderBuffer.h"
 #include "Renderpass.h"
 #include "Shader.h"
-#include "src/modules/engine/Core/GameInstance.h"
 #include "src/modules/engine/Core/Platform.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
@@ -46,10 +45,12 @@ public:
      * @brief Creates the specific backend.
      * @param type Type of backend to create.
      * @param newPlatformState Platform specific data.
-     * @param gameInstance Game specific data.
+     * @param majorV
+     * @param minorV
+     * @param patchV
      * @return The specific backend to use.
      */
-    static IRendererBackend* create(RendererBackendType type, IPlatformState& newPlatformState, const GameInstance& gameInstance);
+    static IRendererBackend* create(RendererBackendType type, IPlatformState& newPlatformState, int majorV, int minorV, int patchV);
 
     /**
      * @brief Gets the current frame number.
@@ -106,9 +107,8 @@ public:
     /**
      * @brief Draws geometry to screen
      * @param data Geometry data
-     * @param defaultMaterial Reference to the Material Systems default material
      */
-    virtual void drawGeometry(const GeometryRenderData &data, Material &defaultMaterial) = 0;
+    virtual void drawGeometry(const GeometryRenderData &data) = 0;
 
     /**
      * @brief Creates a texture out of pixel data
@@ -300,7 +300,7 @@ public:
     /**
      * @brief Creates a renderpass.
      */
-    virtual bool createRenderpass(const RenderpassConfig& config, Renderpass& outRenderpass) = 0;
+    virtual bool createRenderpass(RenderpassConfig &config, Renderpass &outRenderpass) = 0;
 
     /**
      * @brief Destroys a renderpass.

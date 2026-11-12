@@ -4,6 +4,8 @@
 
 #include "TextureSystem.h"
 
+#include "src/modules/engine/Resources/ResourceSystem.h"
+
 TextureSystem* TextureSystem::instance = nullptr;
 
 Texture & TextureSystem::getDefaultByCase(const TextureUseCase useCase) {

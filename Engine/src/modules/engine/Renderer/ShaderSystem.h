@@ -7,6 +7,7 @@
 #include "src/modules/engine/Renderer/IRendererBackend.h"
 #include "src/defines.h"
 #include "src/modules/engine/Library/AssetMap.h"
+#include "foxfire_export.h"
 
 /**
  *  @file Shader.h
@@ -42,7 +43,7 @@ struct ShaderSystemConfig {
     unsigned char maxInstanceTextures = 0;
 };
 
-class ShaderSystem {
+class FOXFIRE_API ShaderSystem {
 private:
     static ShaderSystem* instance;
     /**

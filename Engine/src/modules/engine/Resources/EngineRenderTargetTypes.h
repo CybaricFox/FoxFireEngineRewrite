@@ -35,8 +35,7 @@ struct RenderTargetAttachmentConfig {
 };
 
 struct RenderTargetConfig {
-    unsigned char attachmentCount = 0;
-    RenderTargetAttachmentConfig* attachments = nullptr;
+    DynamicArray<RenderTargetAttachmentConfig> attachments{};
 };
 
 struct RenderTargetAttachment {

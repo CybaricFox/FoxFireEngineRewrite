@@ -6,6 +6,8 @@
 
 #include <filesystem>
 
+#include "src/modules/engine/Library/StringUtils.h"
+
 bool SystemFontLoader::importFoxSystemFont(FileHandler &file, const String &outName, String directoryPath, SystemFontResourceData &outResource) {
     String mainFile{};
     String directory{};
@@ -103,8 +105,8 @@ bool SystemFontLoader::importFoxSystemFont(FileHandler &file, const String &outN
 
         outResource.binaries.push(FF_Memory::ff_allocate_raw(fileSize, memoryTag));
         outResource.binarySize.emplace();
-        auto readMemory = static_cast<unsigned char *>(outResource.binaries[outResource.binaries.getLength() - 1]);
-        if (!file.readAll(readMemory, outResource.binarySize[outResource.binaries.getLength() - 1])) {
+        auto readMemory2 = static_cast<unsigned char *>(outResource.binaries[outResource.binaries.getLength() - 1]);
+        if (!file.readAll(readMemory2, outResource.binarySize[outResource.binaries.getLength() - 1])) {
             Logger::logError("Failed to read variant TTF file.");
             return false;
         }

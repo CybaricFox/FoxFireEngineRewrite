@@ -4,6 +4,7 @@
 
 #include "ShaderLoader.h"
 
+#include "src/modules/engine/Library/StringUtils.h"
 #include "src/modules/engine/Renderer/Shader.h"
 
 ShaderLoader::ShaderLoader() {

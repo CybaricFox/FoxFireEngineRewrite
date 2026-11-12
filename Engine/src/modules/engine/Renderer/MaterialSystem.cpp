@@ -4,6 +4,8 @@
 
 #include "MaterialSystem.h"
 
+#include "src/modules/engine/Resources/ResourceSystem.h"
+
 MaterialSystem* MaterialSystem::instance = nullptr;
 
 bool MaterialSystem::createDefaultMaterial() {

@@ -140,7 +140,7 @@ void PickRenderView::resize(const unsigned newWidth, const unsigned newHeight) {
     }
 }
 
-bool PickRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
+bool PickRenderView::buildPacket(void *data, RenderViewPacket &outPacket, LinearAllocator &allocator) {
     if (!data) {
         Logger::logWarn("Pick Render View packet data cannot be null!");
         return false;
@@ -152,7 +152,7 @@ bool PickRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     outPacket.renderView = this;
     Camera& camera = *EntityComponentSystem::getComponent<Camera>(CameraSystem::getDefaultCamera());
     worldShaderData.view = CameraUtils::getViewMatrix(camera);
-    outPacket.data = data;
+    outPacket.data = allocator.allocate(sizeof(PickPacketData));
 
     int highestInstanceId = 0;
     for (unsigned int i = 0; i < packetData.worldMeshData.meshCount; i++) {
@@ -168,7 +168,7 @@ bool PickRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
         }
 
         if (mesh.id > highestInstanceId) {
-            highestInstanceId = mesh.id;
+            highestInstanceId = static_cast<int>(mesh.id);
         }
     }
 
@@ -185,13 +185,13 @@ bool PickRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
         }
 
         if (mesh.id > highestInstanceId) {
-            highestInstanceId = mesh.id;
+            highestInstanceId = static_cast<int>(mesh.id);
         }
     }
 
     for (unsigned int i = 0; i < packetData.textCount; i++) {
         if (packetData.texts[i]->getId() > highestInstanceId) {
-            highestInstanceId = packetData.texts[i]->getId();
+            highestInstanceId = static_cast<int>(packetData.texts[i]->getId());
         }
     }
 
@@ -204,10 +204,12 @@ bool PickRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
         }
     }
 
+    FF_Memory::ff_copy(outPacket.data, &packetData, sizeof(PickPacketData));
+
     return true;
 }
 
-bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend *backendRef) {
+bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex) {
     unsigned int p = 0;
     Renderpass* renderpass = &renderpasses[p];
 
@@ -216,7 +218,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
             value = false;
         }
 
-        if (!backendRef->beginRenderpass(*renderpass, renderpass->getRenderTarget(renderTargetIndex))) {
+        if (!MasterRenderSystem::beginRenderpass(*renderpass, renderpass->getRenderTarget(renderTargetIndex))) {
             Logger::logError("Pick Render View failed to start renderpass at target " + toString(renderTargetIndex));
             return false;
         }
@@ -240,7 +242,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
 
         for (unsigned int i = 0; i < packetData.worldGeometryCount; i++) {
             GeometryRenderData& geometry = outPacket.geometries[i];
-            currentInstanceId = geometry.id;
+            currentInstanceId = static_cast<int>(geometry.id);
             ShaderSystem::bindInstance(currentInstanceId);
 
             Vector3f idColor{};
@@ -261,11 +263,10 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
                 Logger::logError("Failed to apply model uniform.");
             }
 
-            //TODO: Remove default material requirement from this function!
-            backendRef->drawGeometry(outPacket.geometries[i], MaterialSystem::getDefaultMaterial());
+            MasterRenderSystem::drawGeometry(outPacket.geometries[i]);
         }
 
-        if (!backendRef->endRenderpass(*renderpass)) {
+        if (!MasterRenderSystem::endRenderpass(*renderpass)) {
             Logger::logError("Failed to end world renderpass at index " + toString(p));
             return false;
         }
@@ -273,7 +274,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
         p++;
         renderpass = &renderpasses[p];
 
-        if (!backendRef->beginRenderpass(*renderpass, renderpass->getRenderTarget(renderTargetIndex))) {
+        if (!MasterRenderSystem::beginRenderpass(*renderpass, renderpass->getRenderTarget(renderTargetIndex))) {
             Logger::logError("Failed to begin renderpass at index " + toString(p));
             return false;
         }
@@ -294,7 +295,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
 
         for (unsigned int i = packetData.worldGeometryCount; i < outPacket.geometryCount; i++) {
             GeometryRenderData& geometry = outPacket.geometries[i];
-            currentInstanceId = geometry.id;
+            currentInstanceId = static_cast<int>(geometry.id);
 
             ShaderSystem::bindInstance(currentInstanceId);
 
@@ -316,13 +317,12 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
                 Logger::logError("Failed to apply model uniform.");
             }
 
-            //TODO: Remove default material requirement from this function!
-            backendRef->drawGeometry(outPacket.geometries[i], MaterialSystem::getDefaultMaterial());
+            MasterRenderSystem::drawGeometry(outPacket.geometries[i]);
         }
 
         for (unsigned int i = 0; i < packetData.textCount; i++) {
             UIText& text = *packetData.texts[i];
-            currentInstanceId = text.getId();
+            currentInstanceId = static_cast<int>(text.getId());
             ShaderSystem::bindInstance(currentInstanceId);
 
             Vector3f idColor{};
@@ -345,7 +345,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
             text.draw();
         }
 
-        if (!backendRef->endRenderpass(*renderpass)) {
+        if (!MasterRenderSystem::endRenderpass(*renderpass)) {
             Logger::logError("Failed to end ui renderpass at index " + toString(p));
             return false;
         }
@@ -354,17 +354,17 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
     unsigned char pixels[4]{};
     unsigned char* pixel = &pixels[0];
 
-    unsigned short xCoord = std::clamp<short>(mouseX, 0, static_cast<short>(width) - 1);
-    unsigned short yCoord = std::clamp<short>(mouseY, 0, static_cast<short>(width) - 1);
+    unsigned short xCoord = std::clamp<short>(mouseX, 0, static_cast<short>(static_cast<short>(width) - 1));
+    unsigned short yCoord = std::clamp<short>(mouseY, 0, static_cast<short>(static_cast<short>(width) - 1));
 
-    backendRef->readPixel(colorTargetAttachmentTexture, xCoord, yCoord, &pixel);
+    MasterRenderSystem::readPixel(colorTargetAttachmentTexture, xCoord, yCoord, &pixel);
 
     unsigned int id = rgbToUInt(pixel[0], pixel[1], pixel[2]);
     if (id == 0x00FFFFFF) {
         id = INVALID_ID_U32;
     }
 
-    EngineEvents::callMouseHover(id);
+    EngineEvents::callMouseHover(static_cast<short>(id));
 
     return true;
 }
@@ -391,8 +391,8 @@ bool PickRenderView::regenerateAttachmentTarget(const unsigned passIndex, Render
 
     const UUID textureUUID = UUIDUtils::generate();
 
-    const unsigned int width = renderpasses[passIndex].getRenderArea().z;
-    const unsigned int height = renderpasses[passIndex].getRenderArea().w;
+    const auto width = static_cast<unsigned int>(renderpasses[passIndex].getRenderArea().z);
+    const auto height = static_cast<unsigned int>(renderpasses[passIndex].getRenderArea().w);
     constexpr bool isTransparent = false;
 
     attachment.texture->id = INVALID_ID_U32;

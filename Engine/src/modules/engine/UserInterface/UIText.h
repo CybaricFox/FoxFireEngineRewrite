@@ -7,6 +7,7 @@
 #include "src/modules/engine/Library/InstanceTracker.h"
 #include "src/modules/engine/Renderer/RenderBuffer.h"
 #include "src/modules/engine/Resources/FontTypes.h"
+#include "foxfire_export.h"
 
 /**
  *  @file UIText.h
@@ -25,7 +26,7 @@ enum UITextType {
     UI_TEXT_TYPE_SYSTEM
 };
 
-class UIText {
+class FOXFIRE_API UIText {
 private:
     UITextType type{};
     FontData* data = nullptr;

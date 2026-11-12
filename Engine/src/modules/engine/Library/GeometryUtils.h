@@ -4,7 +4,9 @@
 
 #pragma once
 #include "FF_Math.h"
+#include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/Memory/LinearAllocator.h"
+#include "foxfire_export.h"
 
 /**
  *  @file GeometryUtils.h
@@ -86,7 +88,7 @@ public:
 /**
  * @brief Contains all data relate to indices in GeometryConfig. Indices are stored next to eachother in memory.
  */
-class IndexGeometryData {
+class FOXFIRE_API IndexGeometryData {
 private:
     /** @brief size of the vertex type */
     unsigned long indexSize = 0;
@@ -172,7 +174,7 @@ struct GeometryConfig {
 /**
  * @brief Collection of Geometry utility functions
  */
-class GeometryUtils {
+class FOXFIRE_API GeometryUtils {
 private:
     static void reassignIndex(unsigned int indexCount, unsigned int* indices, unsigned int from, unsigned int to);
 public:

@@ -5,6 +5,7 @@
 #include "FontSystem.h"
 
 #define STB_TRUETYPE_IMPLEMENTATION
+#include "src/modules/engine/Resources/ResourceSystem.h"
 #include "stb/stb_truetype.h"
 
 struct SystemFontData {
@@ -24,7 +25,7 @@ static AssetMap<SystemFontData> systemFonts{};
 bool FontSystem::loadSystemFont(const SystemFontConfig &newConfig) {
     Resource loadedResource{};
 
-    if (!resourceRef->load(newConfig.resourceName, RESOURCE_TYPE_SYSTEM_FONT, loadedResource)) {
+    if (!ResourceSystem::load(newConfig.resourceName, RESOURCE_TYPE_SYSTEM_FONT, loadedResource)) {
         Logger::logError("Failed to load system font " + newConfig.resourceName);
         return false;
     }
@@ -105,7 +106,7 @@ bool FontSystem::loadBitmapFont(const BitmapFontConfig &newConfig) {
 
     BitmapFontData& data = *bitmapFonts.createAsset(newConfig.name, false);
 
-    if (!resourceRef->load(newConfig.resourceName, RESOURCE_TYPE_BITMAP_FONT, data.loadedResource, nullptr)) {
+    if (!ResourceSystem::load(newConfig.resourceName, RESOURCE_TYPE_BITMAP_FONT, data.loadedResource, nullptr)) {
         Logger::logError("Failed to load font " + newConfig.name + ".");
         return false;
     }
@@ -356,10 +357,9 @@ bool FontSystem::verifySystemFontVariantSize(const SystemFontData &font, FontDat
     return true;
 }
 
-bool FontSystem::initialize(const FontSystemConfig &newConfig, ResourceSystem *resourceSystemRef, IRendererBackend* backendSystemRef) {
+bool FontSystem::initialize(const FontSystemConfig &newConfig, IRendererBackend *backendSystemRef) {
     instance = this;
 
-    resourceRef = resourceSystemRef;
     backendRef = backendSystemRef;
 
     if (newConfig.maxBitmapFonts == 0 || newConfig.maxSystemFonts == 0) {
@@ -421,7 +421,6 @@ void FontSystem::shutdown() {
 
     systemFonts.shutdown();
 
-    resourceRef = nullptr;
     backendRef = nullptr;
     instance = nullptr;
 }

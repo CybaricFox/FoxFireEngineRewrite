@@ -117,7 +117,7 @@ void WorldRenderView::resize(const unsigned int newWidth, const unsigned int new
     }
 }
 
-bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
+bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket, LinearAllocator &allocator) {
     if (!data) {
         Logger::logWarn("World packet data is null! It cannot be built!");
         return false;
@@ -133,7 +133,6 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     outPacket.ambientColor = ambientColor;
 
     DynamicArray<GeometryDistance> geometryDistances{0};
-
 
     for (unsigned int i = 0; i < meshData.meshCount; i++) {
         Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(meshData.meshes[i]);
@@ -173,12 +172,12 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     return true;
 }
 
-bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend* backendRef) {
+bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex) {
     const unsigned int shaderId = shader->getId();
 
     for (unsigned int j = 0; j < renderpassCount; j++) {
         Renderpass& renderpass = renderpasses[j];
-        if (!backendRef->beginRenderpass(renderpass, renderpass.getRenderTarget(renderTargetIndex))) {
+        if (!MasterRenderSystem::beginRenderpass(renderpass, renderpass.getRenderTarget(renderTargetIndex))) {
             Logger::logError("Failed to begin material render pass.");
             return false;
         }
@@ -216,10 +215,10 @@ bool WorldRenderView::render(RenderViewPacket &outPacket, const unsigned long fr
             }
 
             //In this case, the default material has the default texture.
-            backendRef->drawGeometry(outPacket.geometries[i], MaterialSystem::getDefaultMaterial());
+            MasterRenderSystem::drawGeometry(outPacket.geometries[i]);
         }
 
-        if (!backendRef->endRenderpass(renderpass)) {
+        if (!MasterRenderSystem::endRenderpass(renderpass)) {
             Logger::logError("Failed to end material render pass.");
             return false;
         }

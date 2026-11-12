@@ -4,6 +4,8 @@
 
 #include "MaterialLoader.h"
 
+#include "src/modules/engine/Library/StringUtils.h"
+
 MaterialLoader::MaterialLoader() {
     type = RESOURCE_TYPE_MATERIAL;
     path = "Materials";

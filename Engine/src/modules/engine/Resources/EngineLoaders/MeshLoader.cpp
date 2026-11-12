@@ -5,6 +5,7 @@
 #include "MeshLoader.h"
 
 #include "src/modules/engine/Library/JsonHandler.h"
+#include "src/modules/engine/Library/StringUtils.h"
 
 bool MeshLoader::importGLTF(FileHandler &file, String& fileName, DynamicArray<GeometryConfig> &resourceData) {
     JsonHandler json{file};
@@ -197,7 +198,7 @@ bool MeshLoader::importGLTF(FileHandler &file, String& fileName, DynamicArray<Ge
             //Vertices
             config.vertices.initialize<Vertex3d>(positionAccessor.count);
             for (unsigned int i = 0; i < positionAccessor.count; i++) {
-                Vertex3d &vertex = *static_cast<Vertex3d *>(config.vertices.getVertex(i));
+                Vertex3d &vertex = *reinterpret_cast<Vertex3d *>(config.vertices.getVertex(i));
                 unsigned char *positionAddress = positionContext.data + (positionContext.stride * i);
                 unsigned char* normalAddress = normalContext.data + (normalContext.stride * i);
                 unsigned char* texCoordAddress = texCoordContext.data + (texCoordContext.stride * i);
@@ -712,12 +713,12 @@ bool MeshLoader::load(const String name, Resource &outResource, const String bas
     supportedTypes[0] = {".FoxMesh", MESH_FILE_TYPE_FOXMESH, true};
     supportedTypes[1] = {".gltf", MESH_FILE_TYPE_GLTF, false};
 
-    for (unsigned int i = 0; i < SUPPORTED_FILE_TYPE_COUNT; i++) {
-        if (!file.exists(finalPath + supportedTypes[i].extension)) continue;
+    for (auto & supportedType : supportedTypes) {
+        if (!file.exists(finalPath + supportedType.extension)) continue;
 
-        if (file.openFile(finalPath + supportedTypes[i].extension, READ, supportedTypes[i].bIsBinary)) {
-            finalPath = finalPath + supportedTypes[i].extension;
-            type = supportedTypes[i].type;
+        if (file.openFile(finalPath + supportedType.extension, READ, supportedType.bIsBinary)) {
+            finalPath = finalPath + supportedType.extension;
+            type = supportedType.type;
             break;
         }
     }
@@ -728,7 +729,7 @@ bool MeshLoader::load(const String name, Resource &outResource, const String bas
     }
 
     outResource.path = finalPath;
-    DynamicArray<GeometryConfig>* resourceData = FF_Memory::ff_allocate<DynamicArray<GeometryConfig>>(DYNAMIC_ARRAY);
+    const auto resourceData = FF_Memory::ff_allocate<DynamicArray<GeometryConfig>>(DYNAMIC_ARRAY);
 
     bool result = false;
     switch (type) {

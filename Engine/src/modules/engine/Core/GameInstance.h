@@ -12,10 +12,10 @@
 
 #pragma once
 
-#include <string>
-#include "../../../defines.h"
 #include "foxfire_export.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
+#include "src/modules/engine/Renderer/FontSystem.h"
+#include "src/modules/engine/Renderer/IRenderView.h"
 
 struct BaseGameState {};
 
@@ -37,6 +37,29 @@ struct GameConfig {
     int gameVersionMajor = 0;
     int gameVersionMinor = 0;
     int gameVersionPatch = 0;
+
+    FontSystemConfig fontConfig{};
+    DynamicArray<RenderViewConfig> renderViews{};
+
+    GameConfig& operator= (const GameConfig& other) {
+        if (this == &other) return *this;
+
+        appName = other.appName;
+        startingX = other.startingX;
+        startingY = other.startingY;
+        startingWidth = other.startingWidth;
+        startingHeight = other.startingHeight;
+        gameVersionMajor = other.gameVersionMajor;
+        gameVersionMinor = other.gameVersionMinor;
+        gameVersionPatch = other.gameVersionPatch;
+        fontConfig = other.fontConfig;
+
+        return *this;
+    }
+
+    void shutdown() {
+        renderViews.shutdown();
+    }
 };
 
 /**
@@ -54,6 +77,7 @@ struct FOXFIRE_API GameInstance {
         if (!state) return;
         FF_Memory::ff_free<BaseGameState>(state, GAME, memoryRequirement); //Game state does not use destruction, so ff_free is valid.
         state = nullptr;
+        config.shutdown();
     }
 };
 

@@ -16,6 +16,7 @@
 #include "Platform.h"
 #include "GameInstance.h"
 #include "foxfire_export.h"
+#include "Metrics.h"
 #include "../Input/IInputSystem.h"
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
@@ -39,10 +40,6 @@ private:
     ResourceSystem resourceSystem{};
     /** @brief Handles user input handling. Input systems interface with this */
     EngineEvents engineEventsSystem{};
-    /** @brief Handles the Component system */
-    EntityComponentSystem ECSSystem{};
-    /** @brief Controls All Rendering. Do not give access to Game!*/
-    MasterRenderSystem masterRenderSystem{};
     /**
      * @brief Controls multithreading.
      */
@@ -60,27 +57,27 @@ private:
     /** @brief The amount of time the previous frame took */
     double lastTime = 0;
 
-    unsigned int hoveredObjectId = INVALID_ID_U32;
-
     /**
      * @brief Initializes FF_Memory and the Linear Allocator
      */
     bool initializeMemory();
 
 protected:
-    /** @brief Width of the screen. */
-    unsigned short width = 0;
-    /** @brief height of the screen. */
-    unsigned short height = 0;
+    //Protected Systems
+    /** @brief Handles the Component system */
+    EntityComponentSystem ECSSystem{};
+    /** @brief Controls All Rendering.*/
+    MasterRenderSystem masterRenderSystem{};
 
     //Holds config data
     /** @brief Holds Game-specific config data */
-    GameInstance gameInstance;
+    GameInstance gameInstance{};
     /** @brief Pointer to the user-defined input system */
     IInputSystem* inputSystem = nullptr;
 
-    /** @brief Gets a render view from the render system. */
-    IRenderView* getRenderView(const String &name) {return masterRenderSystem.getRenderView(name);}
+    LinearAllocator frameAllocator{};
+
+    Metrics engineMetrics{};
 
     /**
      * @brief Quits the application when called.
@@ -102,7 +99,7 @@ protected:
      * @param newWidth The new width of the window.
      * @param newHeight The new height of the window.
      */
-    void resize(unsigned short newWidth, unsigned short newHeight);
+    virtual void resize(unsigned short newWidth, unsigned short newHeight);
 
     /**
      * @brief Called once per frame.
@@ -114,38 +111,27 @@ protected:
     /**
      * @brief Tells the render system to render. Called once per frame.
      * @param deltaTime Time this frame took.
+     * @param renderPacket
      * @return False if something went wrong.
      */
-    bool render(float deltaTime);
-
-    bool createRenderView(const RenderViewConfig &config);
-
-    /**
-     * @brief Creates the derived GameState, Must be called after gameInstance is set by the Engine.
-     * @tparam T Derived struct of BaseGameState set by the user.
-     * @return Pointer to the constructed GameState.
-     */
-    template<typename T>
-    requires std::derived_from<T, BaseGameState>
-    T* createGameState() {
-        T* derivedState = reinterpret_cast<T*>(gameInstance.state);
-        std::construct_at(derivedState);
-        return derivedState;
-    }
-
-    /**
-     * @brief Interface to memory allocation. Allocates memory and constructs a class.
-     * @tparam T Class to construct
-     * @return Pointer to the new object.
-     */
-    template<typename T>
-    T* instantiateDerivedSubSystem() {
-        return FF_Memory::ff_allocate<T>( GAME);
-    }
+    virtual bool render(float deltaTime, RenderPacket &renderPacket) = 0;
 
     bool bModelsLoaded = false;
 
-    unsigned int getWindowAttachmentCount() const;
+    [[nodiscard]] unsigned int getWindowAttachmentCount() const;
+
+    /**
+     * @brief Sets up configs needed to initialize systems. Runs after memory initialization but before initialize();
+     * @return
+     */
+    virtual bool boot() {
+        if (engine == this) {
+            Logger::logFatal("Engine set to itself! Engine should be set to a derived class!");
+            return false;
+        }
+
+        return engine->boot();
+    }
 
 public:
     explicit Engine(const GameInstance& instance);
@@ -161,11 +147,4 @@ public:
      * @brief Initializes systems.
      */
     virtual void initialize();
-
-    /**
-     * @brief Returns the window size.
-     * @param bufferWidth OUT width of the window.
-     * @param bufferHeight OUT height of the window.
-     */
-    void getFramebufferSize(unsigned int& bufferWidth, unsigned int& bufferHeight) const;
 };

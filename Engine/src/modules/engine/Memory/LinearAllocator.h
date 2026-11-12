@@ -12,10 +12,12 @@
 
 #pragma once
 
+#include "foxfire_export.h"
+
 /**
  * @brief Stores data in a block of memory. The allocator can only free the entire block and does not track allocation sizes.
  */
-class LinearAllocator {
+class FOXFIRE_API LinearAllocator {
 private:
     unsigned long totalSize = 0;
     unsigned long allocated = 0;

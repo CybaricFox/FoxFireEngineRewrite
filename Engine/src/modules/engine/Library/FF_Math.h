@@ -14,7 +14,6 @@
 
 #include "foxfire_export.h"
 #include "Logger.h"
-#include "StringUtils.h"
 #include "src/defines.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 

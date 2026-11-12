@@ -22,6 +22,8 @@
 #include "src/modules/engine/Core/Platform.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "FontSystem.h"
+#include "src/modules/engine/Core/GameInstance.h"
+#include "src/modules/engine/Resources/ResourceSystem.h"
 
 enum RenderViewMode {
     RENDER_VIEW_DEFAULT,
@@ -70,8 +72,7 @@ public:
     bool initializeShaderSystem(const ShaderSystemConfig &config, ResourceSystem &resources);
     bool initializeCameraSystem(const CameraSystemConfig &config, EntityComponentSystem *ecsRef);
     bool initializeRenderViewSystem(const RenderViewSystemConfig &config);
-    bool initializeSkybox();
-    bool initializeFontSystem(const FontSystemConfig &config, ResourceSystem *resourceSystemRef);
+    bool initializeFontSystem(const FontSystemConfig &config);
     void shutdown();
     MasterRenderSystem() = default;
 
@@ -81,10 +82,8 @@ public:
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);
-    bool createRenderView(const RenderViewConfig &config);
-    bool buildPacket(IRenderView *renderView, void *meshData, RenderViewPacket &packet);
-    void buildSkybox(const RenderPacket &packet);
-    void cleanupSkybox(const RenderPacket& packet);
+    bool createRenderView(RenderViewConfig &config);
+    bool buildPacket(IRenderView *renderView, void *meshData, RenderViewPacket &packet, LinearAllocator &allocator);
 
     static bool acquireInstanceResources(const Shader &shader, unsigned int &outInstanceId, TextureMap **maps);
     static bool createRenderBuffer(RenderBufferType type, ULong size, bool useFreeList, RenderBuffer& outBuffer);
@@ -96,4 +95,11 @@ public:
     static bool loadRenderBufferRange(RenderBuffer &buffer, ULong offset, ULong size, const void *data);
     static void destroyTexture(Texture& texture);
     static void createWritableTexture(Texture& texture);
+    static bool acquireTextureMapResources(TextureMap &textureMap);
+    static void releaseTextureMapResources(TextureMap &textureMap);
+    static bool beginRenderpass(Renderpass& renderpass, RenderTarget& renderTarget);
+    static void drawGeometry(const GeometryRenderData& data);
+    static bool endRenderpass(Renderpass& renderpass);
+    static void readPixel(Texture &texture, unsigned int x, unsigned int y, unsigned char **outData);
+    static bool bindShaderGlobals(Shader& shader);
 };

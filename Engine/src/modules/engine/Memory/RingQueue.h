@@ -3,7 +3,6 @@
 //
 
 #pragma once
-#include "src/defines.h"
 #include "foxfire_export.h"
 #include "../Library/Logger.h"
 #include "src/modules/engine/Memory/FF_Memory.h"

@@ -8,6 +8,7 @@
 #include "src/modules/engine/ECS/Engine_Components/Camera.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
+#include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Renderer/MaterialSystem.h"
 
 void SkyboxRenderView::resize(const unsigned newWidth, const unsigned newHeight) {
@@ -24,7 +25,7 @@ void SkyboxRenderView::resize(const unsigned newWidth, const unsigned newHeight)
     }
 }
 
-bool SkyboxRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
+bool SkyboxRenderView::buildPacket(void *data, RenderViewPacket &outPacket, LinearAllocator &allocator) {
     if (!data) {
         Logger::logWarn("Skybox packet data is null! It cannot be built!");
         return false;
@@ -36,18 +37,21 @@ bool SkyboxRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     outPacket.projectionMatrix = projectionMatrix;
     outPacket.viewMatrix = CameraUtils::getViewMatrix(camera);
     outPacket.viewPosition = CameraUtils::getPosition(camera);
-    outPacket.data = data;
+
+    const SkyboxPacketData& packetData = *static_cast<SkyboxPacketData *>(data);
+    outPacket.data = allocator.allocate(sizeof(SkyboxPacketData));
+    FF_Memory::ff_copy(outPacket.data, &packetData, sizeof(SkyboxPacketData));
 
     return true;
 }
 
-bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend *backendRef) {
+bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex) {
     const SkyboxPacketData& boxData = *static_cast<SkyboxPacketData *>(outPacket.data);
     const unsigned int shaderId = shader->getId();
 
     for (unsigned int i = 0; i < renderpassCount; i++) {
         Renderpass& renderpass = renderpasses[i];
-        if (!backendRef->beginRenderpass(renderpass, renderpass.getRenderTarget(renderTargetIndex))) {
+        if (!MasterRenderSystem::beginRenderpass(renderpass, renderpass.getRenderTarget(renderTargetIndex))) {
             Logger::logError("Failed to begin skybox render pass.");
             return false;
         }
@@ -55,14 +59,12 @@ bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long f
             Logger::logError("Failed to use skybox shader.");
             return false;
         }
-
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(worldCamera);
         Mat4 view = CameraUtils::getViewMatrix(camera);
         view.data[12] = 0;
         view.data[13] = 0;
         view.data[14] = 0;
-
-        backendRef->bindShaderGlobals(*shader);
+        MasterRenderSystem::bindShaderGlobals(*shader);
         if (!ShaderSystem::setUniform(projectionLocation, &projectionMatrix)) {
             Logger::logError("Failed to apply skybox projection.");
             return false;
@@ -73,25 +75,22 @@ bool SkyboxRenderView::render(RenderViewPacket &outPacket, const unsigned long f
         }
         ShaderSystem::applyGlobal();
 
-        ShaderSystem::bindInstance(boxData.skybox->instanceId);
-        if (!ShaderSystem::setUniform(cubeMapLocation, &boxData.skybox->map)) {
+        ShaderSystem::bindInstance(boxData.skybox->getInstanceId());
+
+        if (!ShaderSystem::setUniform(cubeMapLocation, &boxData.skybox->getTextureMap())) {
             Logger::logError("Failed to apply skybox cube map.");
             return false;
         }
-
-        const bool needsUpdate = boxData.skybox->frameNumber != frameNumber;
+        const bool needsUpdate = boxData.skybox->getFrameNumber() != frameNumber;
         ShaderSystem::applyInstance(needsUpdate);
-
         GeometryRenderData renderData{};
-        renderData.geometry = boxData.skybox->geometry;
-        backendRef->drawGeometry(renderData,MaterialSystem::getDefaultMaterial());
-
-        if (!backendRef->endRenderpass(renderpass)) {
+        renderData.geometry = boxData.skybox->getGeometry();
+        MasterRenderSystem::drawGeometry(renderData);
+        if (!MasterRenderSystem::endRenderpass(renderpass)) {
             Logger::logError("Failed to end skybox render pass.");
             return false;
         }
     }
-
     return true;
 }
 

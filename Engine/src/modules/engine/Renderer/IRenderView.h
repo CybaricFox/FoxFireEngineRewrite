@@ -6,8 +6,10 @@
 #include "Renderpass.h"
 #include "src/defines.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
+#include "src/modules/engine/Memory/LinearAllocator.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 #include "src/modules/engine/Renderer/ShaderSystem.h"
+#include "src/modules/engine/Resources/Skybox.h"
 #include "src/modules/engine/UserInterface/UIText.h"
 
 /**
@@ -60,24 +62,26 @@ struct RenderViewConfig {
     RenderViewType type{};
     RenderViewMatrixSource viewSource{};
     RenderViewProjectionMatrixSource projectionSource{};
-    unsigned char renderpassCount = 0;
-    RenderpassConfig* renderpasses = nullptr;
+    DynamicArray<RenderpassConfig> renderpasses{};
 };
 
 struct MeshPacketData {
     unsigned int meshCount = 0;
     unsigned int* meshes = nullptr;
 };
+static_assert(std::is_trivially_copyable_v<MeshPacketData>,"Render View Packet Datas must remain trivially copyable");
 
 struct UIPacketData {
     MeshPacketData meshData{};
     unsigned int textCount = 0;
     UIText** texts = nullptr;
 };
+static_assert(std::is_trivially_copyable_v<UIPacketData>,"Render View Packet Datas must remain trivially copyable");
 
 struct SkyboxPacketData {
     Skybox* skybox = nullptr;
 };
+static_assert(std::is_trivially_copyable_v<SkyboxPacketData>,"Render View Packet Datas must remain trivially copyable");
 
 struct PickPacketData {
     MeshPacketData worldMeshData{};
@@ -87,6 +91,7 @@ struct PickPacketData {
     unsigned int textCount = 0;
     UIText** texts = nullptr;
 };
+static_assert(std::is_trivially_copyable_v<PickPacketData>,"Render View Packet Datas must remain trivially copyable");
 
 class IRenderView {
 private:
@@ -109,9 +114,9 @@ public:
     virtual void shutdown();
 
     [[nodiscard]] unsigned long getSize() const {return size;}
-    Renderpass& getRenderpass(const unsigned short index) const {return renderpasses[index];}
-    unsigned char getRenderpassCount() const {return renderpassCount;}
-    String getName() const {return name;}
+    [[nodiscard]] Renderpass& getRenderpass(const unsigned short index) const {return renderpasses[index];}
+    [[nodiscard]] unsigned char getRenderpassCount() const {return renderpassCount;}
+    [[nodiscard]] String getName() const {return name;}
 
     void setId(const unsigned short newId) {id = newId;}
     void setType(const RenderViewType newType) {type = newType;}
@@ -121,8 +126,8 @@ public:
     void setName(const String &newName) {name = newName;}
 
     virtual void resize(unsigned int newWidth, unsigned int newHeight) = 0;
-    virtual bool buildPacket(void* data, RenderViewPacket& outPacket) = 0;
-    virtual bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef) = 0;
+    virtual bool buildPacket(void* data, RenderViewPacket& outPacket, LinearAllocator& allocator) = 0;
+    virtual bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex) = 0;
     virtual void destroyPacket(RenderViewPacket& packet) = 0;
     virtual bool regenerateAttachmentTarget(unsigned int passIndex, RenderTargetAttachment& attachment) = 0;
 };

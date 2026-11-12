@@ -4,6 +4,8 @@
 
 #include "BitmapFontLoader.h"
 
+#include "src/modules/engine/Library/StringUtils.h"
+
 constexpr int REQUIRED_GLYPH_ELEMENT_COUNT = 9;
 constexpr int REQUIRED_KERNING_ELEMENT_COUNT = 3;
 
@@ -131,7 +133,7 @@ bool BitmapFontLoader::importFoxFont(const FileHandler &file, const String &name
                     return false;
                 }
 
-                String* strings = FF_Memory::ff_allocate_recursive<String>(ARRAY, substringCount);
+                const auto strings = FF_Memory::ff_allocate_recursive<String>(ARRAY, substringCount);
 
                 line.recursiveSplit(',', strings);
 
@@ -621,11 +623,11 @@ bool BitmapFontLoader::load(const String name, Resource &outResource, const Stri
     supportedFileTypes[1] = {".FoxFont", BITMAP_FONT_FILE_FOXFONT, false};
 
     BitmapFontFileType type = BITMAP_FONT_FILE_NOT_FOUND;
-    for (unsigned int i = 0; i < supportedTypeCount; i++) {
-        if (file.exists(finalPath + supportedFileTypes[i].extension)) {
-            if (file.openFile(finalPath + supportedFileTypes[i].extension, READ, supportedFileTypes[i].bIsBinary)) {
-                finalPath = finalPath + supportedFileTypes[i].extension;
-                type = supportedFileTypes[i].type;
+    for (auto & supportedFileType : supportedFileTypes) {
+        if (file.exists(finalPath + supportedFileType.extension)) {
+            if (file.openFile(finalPath + supportedFileType.extension, READ, supportedFileType.bIsBinary)) {
+                finalPath = finalPath + supportedFileType.extension;
+                type = supportedFileType.type;
                 break;
             }
         }

@@ -10,6 +10,7 @@
 #include "src/modules/engine/ECS/Engine_Components/Mesh.h"
 #include "src/modules/engine/ECS/Engine_Components/Transform.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
+#include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Renderer/ShaderSystem.h"
 
 bool UIRenderView::initialize(const unsigned long newSize) {
@@ -56,7 +57,7 @@ void UIRenderView::resize(const unsigned int newWidth, const unsigned int newHei
     }
 }
 
-bool UIRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
+bool UIRenderView::buildPacket(void *data, RenderViewPacket &outPacket, LinearAllocator &allocator) {
     if (!data) {
         Logger::logWarn("UI packet data is null! It cannot be built!");
         return false;
@@ -67,7 +68,9 @@ bool UIRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     outPacket.renderView = this;
     outPacket.projectionMatrix = projectionMatrix;
     outPacket.viewMatrix = viewMatrix;
-    outPacket.data = data;
+
+    outPacket.data = allocator.allocate(sizeof(UIPacketData));
+    FF_Memory::ff_copy(outPacket.data, &packetData, sizeof(UIPacketData));
 
     for (unsigned int i = 0; i < packetData.meshData.meshCount; i++) {
         Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(packetData.meshData.meshes[i]);
@@ -83,12 +86,12 @@ bool UIRenderView::buildPacket(void *data, RenderViewPacket &outPacket) {
     return true;
 }
 
-bool UIRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex, IRendererBackend *backendRef) {
+bool UIRenderView::render(RenderViewPacket &outPacket, const unsigned long frameNumber, const unsigned long renderTargetIndex) {
     const unsigned int shaderId = shader->getId();
 
     for (unsigned int i = 0; i < renderpassCount; i++) {
         Renderpass& renderpass = renderpasses[i];
-        if (!backendRef->beginRenderpass(renderpass, renderpass.getRenderTarget(renderTargetIndex))) {
+        if (!MasterRenderSystem::beginRenderpass(renderpass, renderpass.getRenderTarget(renderTargetIndex))) {
             Logger::logError("Failed to begin ui render pass.");
             return false;
         }
@@ -102,11 +105,11 @@ bool UIRenderView::render(RenderViewPacket &outPacket, const unsigned long frame
         }
 
         const unsigned int count = outPacket.geometryCount;
-        for (unsigned int i = 0; i < count; i++) {
+        for (unsigned int j = 0; j < count; j++) {
             Material* material = nullptr;
 
-            if (outPacket.geometries[i].geometry->material) {
-                material = outPacket.geometries[i].geometry->material;
+            if (outPacket.geometries[j].geometry->material) {
+                material = outPacket.geometries[j].geometry->material;
             } else {
                 material = &MaterialSystem::getDefaultMaterial();
             }
@@ -120,10 +123,10 @@ bool UIRenderView::render(RenderViewPacket &outPacket, const unsigned long frame
 
             material->frameNumber = frameNumber;
 
-            MaterialSystem::applyLocal(*material, &outPacket.geometries[i].model);
+            MaterialSystem::applyLocal(*material, &outPacket.geometries[j].model);
 
             //In this case, the default material has the default texture.
-            backendRef->drawGeometry(outPacket.geometries[i], MaterialSystem::getDefaultMaterial());
+            MasterRenderSystem::drawGeometry(outPacket.geometries[j]);
         }
 
         //Draw UI Text
@@ -157,7 +160,7 @@ bool UIRenderView::render(RenderViewPacket &outPacket, const unsigned long frame
             text.draw();
         }
 
-        if (!backendRef->endRenderpass(renderpass)) {
+        if (!MasterRenderSystem::endRenderpass(renderpass)) {
             Logger::logError("Failed to end ui render pass.");
             return false;
         }

@@ -6,6 +6,7 @@
 
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/Library/GeometryUtils.h"
+#include "src/modules/engine/Resources/ResourceSystem.h"
 
 InstanceTracker<Mesh> MeshUtils::meshIdGenerator{};
 

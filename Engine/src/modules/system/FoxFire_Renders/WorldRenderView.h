@@ -48,8 +48,8 @@ public:
     void onDebugEvent();
 
     void resize(unsigned newWidth, unsigned newHeight) override;
-    bool buildPacket(void *data, RenderViewPacket &outPacket) override;
-    bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex, IRendererBackend *backendRef) override;
+    bool buildPacket(void *data, RenderViewPacket &outPacket, LinearAllocator& allocator) override;
+    bool render(RenderViewPacket &outPacket, unsigned long frameNumber, unsigned long renderTargetIndex) override;
     void destroyPacket(RenderViewPacket &packet) override;
 
     bool regenerateAttachmentTarget(unsigned passIndex, RenderTargetAttachment &attachment) override {return true;}

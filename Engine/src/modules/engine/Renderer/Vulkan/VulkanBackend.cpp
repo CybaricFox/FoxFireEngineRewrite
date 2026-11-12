@@ -457,6 +457,10 @@ bool VulkanBackend::setUniform(Shader &shader, ShaderUniform &uniform, void *val
         if (uniform.scope == SHADER_SCOPE_GLOBAL) {
             shader.setTextureMap(uniform.location, static_cast<TextureMap*>(value));
         } else {
+            if (backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextureMaps.getLength() == 0) {
+                Logger::logFatal("Backend Shader instance texture maps is empty!");
+                return false;
+            }
             backendShader->getInstanceState(shader.getBoundInstanceId()).instanceTextureMaps[uniform.location] = static_cast<TextureMap*>(value);
         }
     } else {
@@ -669,7 +673,7 @@ void VulkanBackend::destroyRenderTarget(RenderTarget &target, const bool freeMem
     }
 }
 
-bool VulkanBackend::createRenderpass(const RenderpassConfig &config, Renderpass &outRenderpass) {
+bool VulkanBackend::createRenderpass(RenderpassConfig &config, Renderpass &outRenderpass) {
     auto pass = FF_Memory::ff_allocate<VulkanRenderpass>(RENDER);
     pass->setupFramebuffers(vulkanContext.getSwapchain().getImageCount());
     outRenderpass.setData(pass);
@@ -682,11 +686,11 @@ bool VulkanBackend::createRenderpass(const RenderpassConfig &config, Renderpass 
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
     //Attachments
-    DynamicArray<VkAttachmentDescription> attachmentDescriptions{config.targetConfig.attachmentCount};
-    DynamicArray<VkAttachmentDescription> colorAttachmentDescriptions{config.targetConfig.attachmentCount};
-    DynamicArray<VkAttachmentDescription> depthAttachmentDescriptions{config.targetConfig.attachmentCount};
+    DynamicArray<VkAttachmentDescription> attachmentDescriptions{config.targetConfig.attachments.getLength()};
+    DynamicArray<VkAttachmentDescription> colorAttachmentDescriptions{config.targetConfig.attachments.getLength()};
+    DynamicArray<VkAttachmentDescription> depthAttachmentDescriptions{config.targetConfig.attachments.getLength()};
 
-    for (unsigned int i = 0; i < config.targetConfig.attachmentCount; i++) {
+    for (unsigned int i = 0; i < config.targetConfig.attachments.getLength(); i++) {
         RenderTargetAttachmentConfig& attachmentConfig = config.targetConfig.attachments[i];
         VkAttachmentDescription attachmentDescription{};
         switch (attachmentConfig.type) {
@@ -1541,10 +1545,10 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
     return true;
 }
 
-void VulkanBackend::setVersion(const GameInstance& gameInstance) {
-    majorVersion = gameInstance.config.gameVersionMajor;
-    minorVersion = gameInstance.config.gameVersionMinor;
-    patchVersion = gameInstance.config.gameVersionPatch;
+void VulkanBackend::setVersion(const int majorV, const int minorV, const int patchV) {
+    majorVersion = majorV;
+    minorVersion = minorV;
+    patchVersion = patchV;
 }
 
 bool VulkanBackend::beginFrame(const float deltaTime) {
@@ -1634,7 +1638,7 @@ bool VulkanBackend::endFrame(const float deltaTime) {
     return true;
 }
 
-void VulkanBackend::drawGeometry(const GeometryRenderData &data, Material& defaultMaterial) {
+void VulkanBackend::drawGeometry(const GeometryRenderData &data) {
     //Geometry must be valid
     if (!data.geometry || data.geometry->internalId == INVALID_ID_U32) {
         return;

@@ -84,7 +84,10 @@ unsigned short ShaderSystem::getUniformIndex(Shader &shader, const String &unifo
 bool ShaderSystem::createShader(ShaderConfig &shaderConfig, Renderpass &renderpass) {
     Shader* shader = instance->assets.createAsset(shaderConfig.name, false);
 
-    if (!shader->initializeShader(shaderConfig, instance->assets.getAssetIndex(shaderConfig.name))) return false;
+    if (!shader->initializeShader(shaderConfig, instance->assets.getAssetIndex(shaderConfig.name))) {
+        Logger::logError("Shader could not be initialized.");
+        return false;
+    }
 
     shader->setState(SHADER_STATE_NOT_INITIALIZED);
 
