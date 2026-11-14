@@ -65,8 +65,8 @@ void GeometryUtils::generateNormals(unsigned int vertexCount, Vertex3d *vertices
         const Vector3f edge1 = vertices[i1].position - vertices[i0].position;
         const Vector3f edge2 = vertices[i2].position - vertices[i0].position;
 
-        Vector3f normal = getVectorCrossProduct(edge1, edge2);
-        normalize(normal);
+        Vector3f normal = VectorUtils::getVectorCrossProduct(edge1, edge2);
+        VectorUtils::normalize(normal);
 
         vertices[i0].normal = normal;
         vertices[i1].normal = normal;
@@ -100,7 +100,7 @@ void GeometryUtils::generateTangents(unsigned int vertexCount, Vertex* vertices,
             (fc * (delta2V * edge1.y - delta1V * edge2.y)),
             (fc * (delta2V * edge1.z - delta1V * edge2.z))};
 
-        normalize(tangent);
+        VectorUtils::normalize(tangent);
 
         const float sx = delta1U;
         const float sy = delta2U;

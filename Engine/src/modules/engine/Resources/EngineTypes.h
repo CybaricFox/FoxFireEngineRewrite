@@ -16,7 +16,7 @@
 #define MAX_GEOMETRY_COUNT 4096
 #include "EngineTextureTypes.h"
 #include "src/defines.h"
-#include "src/modules/engine/Library/FF_Math.h"
+#include "../Library/Math/FF_Math.h"
 
 enum RendererBackendType {
     VULKAN,

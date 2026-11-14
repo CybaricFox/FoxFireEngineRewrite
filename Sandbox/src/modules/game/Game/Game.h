@@ -18,8 +18,14 @@ struct GameState : BaseGameState {
     unsigned int hoveredId = 0;
 };
 
+struct GameFrameData {
+    GeometryRenderData* worldGeometries = nullptr;
+};
+
 class Game final : public Engine {
 private:
+    GameFrameData frameData{};
+
     void loadModels();
     bool configureRenderViews();
 public:

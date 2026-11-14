@@ -76,8 +76,8 @@ bool PickRenderView::initialize(const unsigned long newSize) {
     uiShaderData.nearClip = -100;
     uiShaderData.farClip = 100;
     uiShaderData.fov = 0;
-    uiShaderData.projection = orthographic(0, 1280, 720, 0, uiShaderData.nearClip, uiShaderData.farClip);
-    uiShaderData.view = matrixIdentity();
+    uiShaderData.projection = MatrixUtils::orthographic(0, 1280, 720, 0, uiShaderData.nearClip, uiShaderData.farClip);
+    uiShaderData.view = MatrixUtils::matrixIdentity();
 
     //World Shader
     const String worldShaderName = "Fox_Fire_World_Pick_Shader";
@@ -104,9 +104,9 @@ bool PickRenderView::initialize(const unsigned long newSize) {
 
     worldShaderData.nearClip = 0.1f;
     worldShaderData.farClip = 1000;
-    worldShaderData.fov = degreesToRadians(45);
-    worldShaderData.projection = perspective(worldShaderData.fov, 1280 / 720.0f, worldShaderData.nearClip, worldShaderData.farClip);
-    worldShaderData.view = matrixIdentity();
+    worldShaderData.fov = FF_Math::degreesToRadians(45);
+    worldShaderData.projection = MatrixUtils::perspective(worldShaderData.fov, 1280 / 720.0f, worldShaderData.nearClip, worldShaderData.farClip);
+    worldShaderData.view = MatrixUtils::matrixIdentity();
 
     //Register Events
     EngineEvents::subscribe(MOUSE_MOVED, [this](const EngineInputContext context){onMouseMoved(context);}, "Pick_Render_View");
@@ -130,10 +130,10 @@ void PickRenderView::resize(const unsigned newWidth, const unsigned newHeight) {
     width = newWidth;
     height = newHeight;
 
-    uiShaderData.projection = orthographic(0, width, height, 0, uiShaderData.nearClip, uiShaderData.farClip);
+    uiShaderData.projection = MatrixUtils::orthographic(0, width, height, 0, uiShaderData.nearClip, uiShaderData.farClip);
 
     const float aspect = static_cast<float>(width) / static_cast<float>(height);
-    worldShaderData.projection = perspective(worldShaderData.fov, aspect, worldShaderData.nearClip, worldShaderData.farClip);
+    worldShaderData.projection = MatrixUtils::perspective(worldShaderData.fov, aspect, worldShaderData.nearClip, worldShaderData.farClip);
 
     for (unsigned int i = 0; i < renderpassCount; i++) {
         renderpasses[i].setRenderArea({0, 0, static_cast<float>(width), static_cast<float>(height)});
@@ -247,7 +247,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
 
             Vector3f idColor{};
             unsigned int r, g, b = 0;
-            uIntToRGB(geometry.id, r, g, b);
+            FF_Math::uIntToRGB(geometry.id, r, g, b);
             idColor = rgbToVector3(r, g, b);
 
             if (!ShaderSystem::setUniform(worldShaderData.idColorLocation, &idColor)) {
@@ -301,7 +301,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
 
             Vector3f idColor{};
             unsigned int r, g, b = 0;
-            uIntToRGB(geometry.id, r, g, b);
+            FF_Math::uIntToRGB(geometry.id, r, g, b);
             idColor = rgbToVector3(r, g, b);
 
             if (!ShaderSystem::setUniform(uiShaderData.idColorLocation, &idColor)) {
@@ -327,7 +327,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
 
             Vector3f idColor{};
             unsigned int r, g, b = 0;
-            uIntToRGB(text.getId(), r, g, b);
+            FF_Math::uIntToRGB(text.getId(), r, g, b);
             idColor = rgbToVector3(r, g, b);
 
             if (!ShaderSystem::setUniform(uiShaderData.idColorLocation, &idColor)) {
@@ -359,7 +359,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
 
     MasterRenderSystem::readPixel(colorTargetAttachmentTexture, xCoord, yCoord, &pixel);
 
-    unsigned int id = rgbToUInt(pixel[0], pixel[1], pixel[2]);
+    unsigned int id = FF_Math::rgbToUInt(pixel[0], pixel[1], pixel[2]);
     if (id == 0x00FFFFFF) {
         id = INVALID_ID_U32;
     }

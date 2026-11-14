@@ -355,7 +355,7 @@ bool Game::update(const float deltaTime) {
     }
 
     //Rotate the cubes
-    const Quat rotation = getQuatFromAxisAngle({0, 1, 0}, 0.5f * deltaTime, false);
+    const Quat rotation = QuatUtils::getQuatFromAxisAngle({0, 1, 0}, 0.5f * deltaTime, false);
     TransformUtils::addRotation(*EntityComponentSystem::getComponent<Transform>(state.worldEntities[0]), rotation);
     TransformUtils::addRotation(*EntityComponentSystem::getComponent<Transform>(state.worldEntities[1]), rotation);
     TransformUtils::addRotation(*EntityComponentSystem::getComponent<Transform>(state.worldEntities[2]), rotation);
@@ -373,8 +373,8 @@ bool Game::update(const float deltaTime) {
             inputSystem->getMousePosition(mouseX, mouseY);
 
             //Convert to NDC
-            const float ndcMouseX = convertFloatRange(static_cast<float>(mouseX), 0, state.width, -1, 1);
-            const float ndcMouseY = convertFloatRange(static_cast<float>(mouseY), 0, state.height, -1, 1);
+            const float ndcMouseX = FF_Math::convertFloatRange(static_cast<float>(mouseX), 0, state.width, -1, 1);
+            const float ndcMouseY = FF_Math::convertFloatRange(static_cast<float>(mouseY), 0, state.height, -1, 1);
 
             //Calculate frame average
             double fps = 0;

@@ -266,6 +266,26 @@ Keys PlatformLinux::translateKeycode(const unsigned int keyCode) {
         case XK_z:
         case XK_Z:
             return KEY_Z;
+        case XK_0:
+            return KEY_0;
+        case XK_1:
+            return KEY_1;
+        case XK_2:
+            return KEY_2;
+        case XK_3:
+            return KEY_3;
+        case XK_4:
+            return KEY_4;
+        case XK_5:
+            return KEY_5;
+        case XK_6:
+            return KEY_6;
+        case XK_7:
+            return KEY_7;
+        case XK_8:
+            return KEY_8;
+        case XK_9:
+            return KEY_9;
         default:
             return MAX_KEYS;
     }

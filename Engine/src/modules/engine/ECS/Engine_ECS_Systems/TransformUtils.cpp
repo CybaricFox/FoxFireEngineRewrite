@@ -19,8 +19,8 @@ Mat4 TransformUtils::getWorldPos(Transform &transform) {
 
 Mat4 TransformUtils::getLocalPos(Transform &transform) {
     if (transform.bIsDirty) {
-        Mat4 updated = convertQuatToMatrix(transform.rotation) * createTranslationMatrix(transform.position);
-        updated = createScaleMatrix(transform.scale) * updated;
+        Mat4 updated = QuatUtils::convertQuatToMatrix(transform.rotation) * MatrixUtils::createTranslationMatrix(transform.position);
+        updated = MatrixUtils::createScaleMatrix(transform.scale) * updated;
         transform.local = updated;
         transform.bIsDirty = false;
     }
@@ -61,12 +61,12 @@ void TransformUtils::addTranslation(Transform &transform, const Vector3f transla
 }
 
 void TransformUtils::addRotation(Transform &transform, const Quat rotation) {
-    transform.rotation = multiplyQuat(transform.rotation, rotation);
+    transform.rotation = QuatUtils::multiplyQuat(transform.rotation, rotation);
     transform.bIsDirty = true;
 }
 
 void TransformUtils::addTranslationAndRotation(Transform &transform, const Vector3f translation, const Quat rotation) {
     transform.position += translation;
-    transform.rotation = multiplyQuat(transform.rotation, rotation);
+    transform.rotation = QuatUtils::multiplyQuat(transform.rotation, rotation);
     transform.bIsDirty = true;
 }

@@ -434,7 +434,7 @@ bool MeshLoader::createGLTFMaterials(FileHandler &file, JsonHandler& json, Dynam
         materialResourceData.diffuseName = name;
         materialResourceData.specularName = name + "_SPEC";
         materialResourceData.normalName = name + "_NORM";
-        materialResourceData.diffuseColor = createVector4f(0, 0, 0, 1);
+        materialResourceData.diffuseColor = {0,0,0,1};
         materialResourceData.bAutoRelease = true;
         materialResourceData.shine = 8; //GLTF does not contain this. Default it to 8.
         materialResourceData.shaderName = "Fox_Fire_Material_Shader"; //Default material shader

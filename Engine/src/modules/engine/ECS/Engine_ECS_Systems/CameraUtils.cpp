@@ -6,13 +6,15 @@
 
 #include <algorithm>
 
+#include "src/modules/engine/Library/Math/MatrixUtils.h"
+
 Mat4 CameraUtils::getViewMatrix(Camera &camera) {
     if (camera.bIsDirty) {
-        const Mat4 rotation = createEuler(camera.rotation);
-        const Mat4 translation = createTranslationMatrix(camera.position);
+        const Mat4 rotation = MatrixUtils::createEuler(camera.rotation);
+        const Mat4 translation = MatrixUtils::createTranslationMatrix(camera.position);
 
         camera.viewMatrix = rotation * translation;
-        camera.viewMatrix = invertMatrix(camera.viewMatrix);
+        camera.viewMatrix = MatrixUtils::invertMatrix(camera.viewMatrix);
         camera.bIsDirty = false;
     }
 
@@ -35,7 +37,7 @@ void CameraUtils::resetCamera(Camera &camera) {
     camera.rotation = zeroVector3f();
     camera.position = zeroVector3f();
     camera.bIsDirty = false;
-    camera.viewMatrix = matrixIdentity();
+    camera.viewMatrix = MatrixUtils::matrixIdentity();
 }
 
 void CameraUtils::moveForward(Camera &camera, const float amount) {

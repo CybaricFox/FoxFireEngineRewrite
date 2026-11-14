@@ -11,7 +11,7 @@
  */
 
 #pragma once
-#include "src/modules/engine/Library/FF_Math.h"
+#include "../../Library/Math/FF_Math.h"
 
 #define VULKAN_SHADER_MAX_BINDINGS 2
 #define VULKAN_SHADER_MAX_PUSH_CONSTANTS 32

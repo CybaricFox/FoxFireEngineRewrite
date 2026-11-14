@@ -13,7 +13,7 @@
 #pragma once
 #include "EngineTypes.h"
 #include "src/defines.h"
-#include "src/modules/engine/Library/FF_Math.h"
+#include "../Library/Math/FF_Math.h"
 
 #define FOXFIRE_BINARY_ID 0xf06ef06e
 
@@ -49,8 +49,8 @@ struct MaterialResourceData {
 };
 
 struct GeometryRenderData {
-    Mat4 model;
-    Geometry* geometry;
+    Mat4 model{};
+    Geometry* geometry = nullptr;
     unsigned int id = INVALID_ID_U32;
 };
 

@@ -17,7 +17,7 @@ void SkyboxRenderView::resize(const unsigned newWidth, const unsigned newHeight)
         width = newWidth;
         height = newHeight;
         const float aspect = static_cast<float>(width) / static_cast<float>(height);
-        projectionMatrix = perspective(fov, aspect, nearClip, farClip);
+        projectionMatrix = MatrixUtils::perspective(fov, aspect, nearClip, farClip);
 
         for (unsigned int i = 0; i < renderpassCount; i++) {
             renderpasses[i].setRenderArea({0, 0, static_cast<float>(width), static_cast<float>(height)});
@@ -115,9 +115,9 @@ bool SkyboxRenderView::initialize(const unsigned long newSize) {
     cubeMapLocation = ShaderSystem::getUniformIndex(*shader, "cube_texture");
     nearClip = 0.1f;
     farClip = 1000.0f;
-    fov = degreesToRadians(45.0f);
+    fov = FF_Math::degreesToRadians(45.0f);
 
-    projectionMatrix = perspective(fov, 1280 / 720.0f, nearClip, farClip);
+    projectionMatrix = MatrixUtils::perspective(fov, 1280 / 720.0f, nearClip, farClip);
     worldCamera = CameraSystem::getDefaultCamera();
 
     return IRenderView::initialize(newSize);

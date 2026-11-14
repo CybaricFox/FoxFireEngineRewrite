@@ -36,8 +36,8 @@ bool UIRenderView::initialize(const unsigned long newSize) {
     modelLocation = ShaderSystem::getUniformIndex(*shader, "model");
     nearClip = -100;
     farClip = 100;
-    projectionMatrix = orthographic(0, 1280, 720, 0, nearClip, farClip);
-    viewMatrix = matrixIdentity();
+    projectionMatrix = MatrixUtils::orthographic(0, 1280, 720, 0, nearClip, farClip);
+    viewMatrix = MatrixUtils::matrixIdentity();
     return true;
 }
 
@@ -49,7 +49,7 @@ void UIRenderView::resize(const unsigned int newWidth, const unsigned int newHei
     if (width != newWidth || height != newHeight) {
         width = newWidth;
         height = newHeight;
-        projectionMatrix = orthographic(0, width, height, 0, nearClip, farClip);
+        projectionMatrix = MatrixUtils::orthographic(0, width, height, 0, nearClip, farClip);
 
         for (unsigned int i = 0; i < renderpassCount; i++) {
             renderpasses[i].setRenderArea({0, 0, static_cast<float>(width), static_cast<float>(height)});

@@ -92,8 +92,8 @@ bool WorldRenderView::initialize(const unsigned long newSize) {
     shader = ShaderSystem::getShader(!customShaderName.isEmpty() ? customShaderName : shaderName);
     nearClip = 0.1f;
     farClip = 1000;
-    fov = degreesToRadians(45.0f);
-    projectionMatrix = perspective(fov, 1280.0f / 720.0f, nearClip, farClip);
+    fov = FF_Math::degreesToRadians(45.0f);
+    projectionMatrix = MatrixUtils::perspective(fov, 1280.0f / 720.0f, nearClip, farClip);
     ambientColor = {0.25f, 0.25f, 0.25f, 1};
     worldCamera = CameraSystem::getDefaultCamera();
     return true;
@@ -109,7 +109,7 @@ void WorldRenderView::resize(const unsigned int newWidth, const unsigned int new
         width = newWidth;
         height = newHeight;
         const float aspect = static_cast<float>(width) / static_cast<float>(height);
-        projectionMatrix = perspective(fov, aspect, nearClip, farClip);
+        projectionMatrix = MatrixUtils::perspective(fov, aspect, nearClip, farClip);
 
         for (unsigned int i = 0; i < renderpassCount; i++) {
             renderpasses[i].setRenderArea({0, 0, static_cast<float>(width), static_cast<float>(height)});
@@ -149,8 +149,8 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket, Linea
                 outPacket.geometries.push(renderData);
                 outPacket.geometryCount++;
             } else {
-                const Vector3f center = transformVector3(renderData.geometry->center, model);
-                float distance = getVectorDistance(center, camera.position);
+                const Vector3f center = VectorUtils::transformVector3(renderData.geometry->center, model);
+                float distance = VectorUtils::getVectorDistance(center, camera.position);
 
                 GeometryDistance& geometryDistance = *geometryDistances.emplace();
                 geometryDistance.distance = FF_Math::abs(distance);

@@ -25,37 +25,37 @@ private:
      * @param camera
      * @return
      */
-    static Vector3f getForward(Camera& camera) {return getForwardDirection(getViewMatrix(camera));}
+    static Vector3f getForward(Camera& camera) {return VectorUtils::getForwardDirection(getViewMatrix(camera));}
     /**
      * @brief Gets the backward direction of the camera
      * @param camera
      * @return
      */
-    static Vector3f getBackward(Camera& camera) {return getBackwardDirection(getViewMatrix(camera));}
+    static Vector3f getBackward(Camera& camera) {return VectorUtils::getBackwardDirection(getViewMatrix(camera));}
     /**
      * @brief Gets the right direction of the camera
      * @param camera
      * @return
      */
-    static Vector3f getRight(Camera& camera) {return getRightDirection(getViewMatrix(camera));}
+    static Vector3f getRight(Camera& camera) {return VectorUtils::getRightDirection(getViewMatrix(camera));}
     /**
      * @brief Gets the left direction of the camera
      * @param camera
      * @return
      */
-    static Vector3f getLeft(Camera& camera){return getLeftDirection(getViewMatrix(camera));}
+    static Vector3f getLeft(Camera& camera){return VectorUtils::getLeftDirection(getViewMatrix(camera));}
     /**
      * @brief Gets the upward direction of the camera
      * @param camera
      * @return
      */
-    static Vector3f getUp(Camera& camera) {return getUpDirection(getViewMatrix(camera));}
+    static Vector3f getUp(Camera& camera) {return VectorUtils::getUpDirection(getViewMatrix(camera));}
     /**
      * @brief Gets the downward direction of the camera
      * @param camera
      * @return
      */
-    static Vector3f getDown(Camera& camera) {return getDownDirection(getViewMatrix(camera));}
+    static Vector3f getDown(Camera& camera) {return VectorUtils::getDownDirection(getViewMatrix(camera));}
 
 public:
     /**

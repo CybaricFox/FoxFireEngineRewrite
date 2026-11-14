@@ -4,7 +4,7 @@
 
 #pragma once
 #include "src/modules/engine/ECS/Engine_Components/Transform.h"
-#include "src/modules/engine/Library/FF_Math.h"
+#include "../../Library/Math/FF_Math.h"
 #include "foxfire_export.h"
 
 /**

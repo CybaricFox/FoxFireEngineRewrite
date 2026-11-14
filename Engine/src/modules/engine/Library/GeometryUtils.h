@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "FF_Math.h"
+#include "Math/FF_Math.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/Memory/LinearAllocator.h"
 #include "foxfire_export.h"
