@@ -24,6 +24,7 @@
 #include "FontSystem.h"
 #include "src/modules/engine/Core/GameInstance.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
+#include "src/modules/engine/Resources/Skybox.h"
 
 enum RenderViewMode {
     RENDER_VIEW_DEFAULT,

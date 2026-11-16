@@ -9,7 +9,6 @@
 #include "src/modules/engine/Memory/LinearAllocator.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 #include "src/modules/engine/Renderer/ShaderSystem.h"
-#include "src/modules/engine/Resources/Skybox.h"
 #include "src/modules/engine/UserInterface/UIText.h"
 
 /**
@@ -64,34 +63,6 @@ struct RenderViewConfig {
     RenderViewProjectionMatrixSource projectionSource{};
     DynamicArray<RenderpassConfig> renderpasses{};
 };
-
-struct MeshPacketData {
-    unsigned int meshCount = 0;
-    unsigned int* meshes = nullptr;
-};
-static_assert(std::is_trivially_copyable_v<MeshPacketData>,"Render View Packet Datas must remain trivially copyable");
-
-struct UIPacketData {
-    MeshPacketData meshData{};
-    unsigned int textCount = 0;
-    UIText** texts = nullptr;
-};
-static_assert(std::is_trivially_copyable_v<UIPacketData>,"Render View Packet Datas must remain trivially copyable");
-
-struct SkyboxPacketData {
-    Skybox* skybox = nullptr;
-};
-static_assert(std::is_trivially_copyable_v<SkyboxPacketData>,"Render View Packet Datas must remain trivially copyable");
-
-struct PickPacketData {
-    MeshPacketData worldMeshData{};
-    unsigned int worldGeometryCount = 0;
-    MeshPacketData uiMeshData{};
-    unsigned int uiGeometryCount = 0;
-    unsigned int textCount = 0;
-    UIText** texts = nullptr;
-};
-static_assert(std::is_trivially_copyable_v<PickPacketData>,"Render View Packet Datas must remain trivially copyable");
 
 class IRenderView {
 private:

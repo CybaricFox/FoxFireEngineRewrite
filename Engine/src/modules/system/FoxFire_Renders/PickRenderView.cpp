@@ -9,6 +9,7 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Library/UUID.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
+#include "src/modules/engine/Renderer/RenderPacketTypes.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
 
 void PickRenderView::onMouseMoved(const EngineInputContext context) {
@@ -155,20 +156,11 @@ bool PickRenderView::buildPacket(void *data, RenderViewPacket &outPacket, Linear
     outPacket.data = allocator.allocate(sizeof(PickPacketData));
 
     int highestInstanceId = 0;
-    for (unsigned int i = 0; i < packetData.worldMeshData.meshCount; i++) {
-        Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(packetData.worldMeshData.meshes[i]);
-        for (unsigned int j = 0; j < mesh.geometryCount; j++) {
-            GeometryRenderData renderData{};
-            renderData.geometry = mesh.geometries[j];
-            renderData.model = TransformUtils::getWorldPos(*EntityComponentSystem::getComponent<Transform>(packetData.worldMeshData.meshes[i]));
-            renderData.id = mesh.id;
-            outPacket.geometries.push(renderData);
-            outPacket.geometryCount++;
-            packetData.worldGeometryCount++;
-        }
+    for (unsigned int i = 0; i < packetData.worldMeshData->getLength(); i++) {
+        outPacket.geometries.push(packetData.worldMeshData->getData()[i]);
 
-        if (mesh.id > highestInstanceId) {
-            highestInstanceId = static_cast<int>(mesh.id);
+        if (packetData.worldMeshData->getData()[i].id > highestInstanceId) {
+            highestInstanceId = static_cast<int>(packetData.worldMeshData->getData()[i].id);
         }
     }
 
@@ -240,7 +232,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
 
         ShaderSystem::applyGlobal();
 
-        for (unsigned int i = 0; i < packetData.worldGeometryCount; i++) {
+        for (unsigned int i = 0; i < packetData.worldMeshData->getLength(); i++) {
             GeometryRenderData& geometry = outPacket.geometries[i];
             currentInstanceId = static_cast<int>(geometry.id);
             ShaderSystem::bindInstance(currentInstanceId);
@@ -293,7 +285,7 @@ bool PickRenderView::render(RenderViewPacket &outPacket, unsigned long frameNumb
 
         ShaderSystem::applyGlobal();
 
-        for (unsigned int i = packetData.worldGeometryCount; i < outPacket.geometryCount; i++) {
+        for (unsigned int i = packetData.worldMeshData->getLength(); i < outPacket.geometryCount; i++) {
             GeometryRenderData& geometry = outPacket.geometries[i];
             currentInstanceId = static_cast<int>(geometry.id);
 

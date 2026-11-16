@@ -9,6 +9,7 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Library/Logger.h"
+#include "src/modules/engine/Renderer/RenderPacketTypes.h"
 #include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
 #include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
 
@@ -165,6 +166,9 @@ Game::~Game() {
     state.systemText.destroy();
 
     swapTextureEvent.destroyEvent();
+
+    frameData.worldGeometries->shutdown();
+    FF_Memory::ff_free<DynamicArray<GeometryRenderData>>(frameData.worldGeometries, DYNAMIC_ARRAY);
 }
 
 void Game::startup() {
@@ -183,7 +187,7 @@ void Game::startup() {
         Logger::logError("Failed to create bitmap UI text.");
         return;
     }
-    state.bitmapText.setPosition({20, static_cast<float>(gameInstance.config.startingHeight - 150), 0});
+    state.bitmapText.setPosition({20, static_cast<float>(gameInstance.config.startingHeight - 200), 0});
 
     if (!state.systemText.create(UI_TEXT_TYPE_SYSTEM, "Ubuntu-Regular", 24, "BOTTOM TEXT.")) {
         Logger::logError("Failed to create system UI text.");
@@ -238,7 +242,8 @@ void Game::startup() {
     world3->generation = 0;
     GeometryUtils::destroyConfig(&geometryConfig3);
 
-    state.maxwell = ECSSystem.createEntity("Basic_Entity");
+    state.worldEntities[3] = ECSSystem.createEntity("Basic_Entity");
+    state.maxwell = state.worldEntities[3];
 
     auto& maxwellTransform = *EntityComponentSystem::getComponent<Transform>(state.maxwell);
     maxwellTransform.position = Vector3f{15, 0, 1};
@@ -293,10 +298,18 @@ void Game::startup() {
     EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {loadModelsEvent.call();}, "Game.loadModels", KEY_2);
     loadModelsEvent.subscribe([this](){loadModels();});
 
+    //Create the dynamic array for world geometries here and reuse the allocation every frame rather than destroying it.
+    frameData.worldGeometries = FF_Memory::ff_allocate<DynamicArray<GeometryRenderData>>(DYNAMIC_ARRAY);
+    frameData.worldGeometries->initialize(512);
+
     Engine::startup();
 }
 
 bool Game::update(const float deltaTime) {
+    if (!frameData.worldGeometries->isEmpty()) {
+        frameData.worldGeometries->clear();
+    }
+
     frameAllocator.freeAll();
 
     static unsigned long allocationCount = 0;
@@ -361,9 +374,8 @@ bool Game::update(const float deltaTime) {
     TransformUtils::addRotation(*EntityComponentSystem::getComponent<Transform>(state.worldEntities[2]), rotation);
 
     //Update ui text
-            const Camera& worldCamera = *EntityComponentSystem::getComponent<Camera>(CameraSystem::getDefaultCamera());
-            const Vector3f position = CameraUtils::getPosition(worldCamera);
-            const Vector3f uiRotation = CameraUtils::getRotation(worldCamera);
+            const Vector3f position = CameraUtils::getPosition(camera);
+            const Vector3f uiRotation = CameraUtils::getRotation(camera);
 
             //Get Mouse State
             const bool leftDown = inputSystem->isButtonDown(BUTTON_LEFT);
@@ -381,16 +393,80 @@ bool Game::update(const float deltaTime) {
             double frameTime = 0;
             engineMetrics.getFrameMetrics(fps, frameTime);
 
-            //Display frame data on UI Text.
-            String display = "-----Debug Data-----\nFPS: " + toString(fps, 1) + "(" + toString(frameTime, 1) + "ms)\n" +
-                    "POS: [" + vector3fToString(position, 3) + "]\n" +
-                        "ROT: [" + vector3fToString(uiRotation, 3) + "]\n" +
-                            "Mouse: X=" + toString(mouseX, 0) + " Y=" + toString(mouseY, 0) + " L=" + toString(leftDown) + " R=" + toString(rightDown) + "\n" +
-            "NDC: X=" + toString(ndcMouseX, 6) + " Y=" + toString(ndcMouseY, 6) + "\n" +
-                "Hovered: ";
-            display += state.hoveredId == INVALID_ID_U32 ? "None" : toString(state.hoveredId) + "\n";
+    //Update Frustum
+    Vector3f forward = CameraUtils::getForward(camera);
+    Vector3f right = CameraUtils::getRight(camera);
+    Vector3f up = CameraUtils::getUp(camera);
+    state.cameraFrustum = Frustum{CameraUtils::getPosition(camera), forward, right, up, static_cast<float>(state.width) / static_cast<float>(state.height), FF_Math::degreesToRadians(45.0f), 0.1f, 1000.0f};
 
-            state.bitmapText.setText(display);
+    //Start world geometries
+    unsigned int drawCount = 0;
+    for (unsigned int worldEntity : state.worldEntities) {
+        if (worldEntity == INVALID_ID_U32) continue;
+
+        Mesh &mesh = *EntityComponentSystem::getComponent<Mesh>(worldEntity);
+
+        if (mesh.generation == INVALID_ID_U8) continue;
+
+        Transform &transform = *EntityComponentSystem::getComponent<Transform>(worldEntity);
+        Mat4 model = TransformUtils::getWorldPos(transform);
+
+         for (unsigned int j = 0; j < mesh.geometryCount; j++) {
+             Geometry &geometry = *mesh.geometries[j];
+
+             //Sphere Detection
+             //     Vector3f minExtents = geometry.extent.min * model;
+             //     Vector3f maxExtents = geometry.extent.max * model;
+             //     float min = FF_Math::min(FF_Math::min(minExtents.x, minExtents.y), minExtents.z);
+             //     float max = FF_Math::max(FF_Math::max(maxExtents.x, maxExtents.y), maxExtents.z);
+             //     float dif = FF_Math::abs(max - min);
+             //     float radius = dif * 0.5f;
+             //
+             //     Vector3f center = geometry.center * model;
+             //
+             //     if (FF_Math::frustumIntersectsSphere(state.cameraFrustum, center, radius)) {
+             //         GeometryRenderData data{};
+             //         data.model = model;
+             //         data.geometry = &geometry;
+             //         data.id = mesh.id;
+             //         frameData.worldGeometries->push(data);
+             //         drawCount++;
+             //     }
+             //
+
+             //Cube Detection
+             Vector3f maxExtents = geometry.extent.max * model;
+             Vector3f center = geometry.center * model;
+             Vector3f halfExtents = {
+                 FF_Math::abs(maxExtents.x - center.x),
+                 FF_Math::abs(maxExtents.y - center.y),
+                 FF_Math::abs(maxExtents.z - center.z)
+             };
+
+             if (FF_Math::frustumIntersectsSquare(state.cameraFrustum, center, halfExtents)) {
+                 GeometryRenderData data{};
+                 data.model = model;
+                 data.geometry = &geometry;
+                 data.id = mesh.id;
+                 frameData.worldGeometries->push(data);
+                 drawCount++;
+             }
+         }
+
+    }
+
+    //Display frame data on UI Text.
+    String display = "-----Debug Data-----\nFPS: " + toString(fps, 1) + "(" + toString(frameTime, 1) + "ms)\n" +
+                     "POS: [" + vector3fToString(position, 3) + "]\n" +
+                     "ROT: [" + vector3fToString(uiRotation, 3) + "]\n" +
+                     "Mouse: X=" + toString(mouseX, 0) + " Y=" + toString(mouseY, 0) + " L=" + toString(leftDown) +
+                     " R=" + toString(rightDown) + "\n" +
+                     "NDC: X=" + toString(ndcMouseX, 6) + " Y=" + toString(ndcMouseY, 6) + "\n" +
+                     "Hovered: ";
+    display += state.hoveredId == INVALID_ID_U32 ? "None" : toString(state.hoveredId) + "\n";
+    display += "Drawn Geometries: " + toString(drawCount) + "\n";
+
+    state.bitmapText.setText(display);
 
     return Engine::update(deltaTime);
 }
@@ -449,21 +525,7 @@ bool Game::render(float deltaTime, RenderPacket &renderPacket) {
         return false;
     }
 
-    MeshPacketData worldPacketData{};
-    unsigned int meshCount = 0;
-    constexpr unsigned int maxMeshes = 10;
-    const auto meshes = static_cast<unsigned int *>(frameAllocator.allocate(sizeof(unsigned int) * maxMeshes));
-    for (const unsigned int worldEntity : state.worldEntities) {
-        if (worldEntity != INVALID_ID_U32) {
-            meshes[meshCount] = worldEntity;
-            meshCount++;
-        }
-    }
-    meshes[meshCount] = state.maxwell;
-    meshCount++;
-    worldPacketData.meshCount = meshCount;
-    worldPacketData.meshes = meshes;
-    if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_World_View"), &worldPacketData, renderPacket.views[1], frameAllocator)) {
+    if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_World_View"), frameData.worldGeometries, renderPacket.views[1], frameAllocator)) {
         Logger::logError("Failed to build world packet.");
         return false;
     }
@@ -492,7 +554,7 @@ bool Game::render(float deltaTime, RenderPacket &renderPacket) {
 
     PickPacketData pickPacketData{};
     pickPacketData.uiMeshData = uiPacketData.meshData;
-    pickPacketData.worldMeshData = worldPacketData;
+    pickPacketData.worldMeshData = frameData.worldGeometries;
     pickPacketData.texts = uiPacketData.texts;
     pickPacketData.textCount = uiPacketData.textCount;
 
@@ -510,7 +572,7 @@ void Game::resize(const unsigned short newWidth, const unsigned short newHeight)
     state.width = newWidth;
     state.height = newHeight;
 
-    state.bitmapText.setPosition({20, static_cast<float>(state.height - 150), 0});
+    state.bitmapText.setPosition({20, static_cast<float>(state.height - 200), 0});
 
     Engine::resize(newWidth, newHeight);
 }

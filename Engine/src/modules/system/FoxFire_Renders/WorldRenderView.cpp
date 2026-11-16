@@ -9,6 +9,7 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
+#include "src/modules/engine/Renderer/RenderPacketTypes.h"
 
 void WorldRenderView::onDebugEvent() {
     static char choice = 2;
@@ -122,7 +123,7 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket, Linea
         Logger::logWarn("World packet data is null! It cannot be built!");
         return false;
     }
-    const MeshPacketData& meshData = *static_cast<MeshPacketData *>(data);
+    DynamicArray<GeometryRenderData>& geometryData = *static_cast<DynamicArray<GeometryRenderData>*>(data);
     Camera& camera = *EntityComponentSystem::getComponent<Camera>(worldCamera);
 
     outPacket.geometries.initialize();
@@ -134,28 +135,21 @@ bool WorldRenderView::buildPacket(void *data, RenderViewPacket &outPacket, Linea
 
     DynamicArray<GeometryDistance> geometryDistances{0};
 
-    for (unsigned int i = 0; i < meshData.meshCount; i++) {
-        Mesh& mesh = *EntityComponentSystem::getComponent<Mesh>(meshData.meshes[i]);
-        Transform& transform = *EntityComponentSystem::getComponent<Transform>(meshData.meshes[i]);
-        Mat4 model = TransformUtils::getWorldPos(transform);
+    for (unsigned int i = 0; i < geometryData.getLength(); i++) {
+        const GeometryRenderData& geometryRenderData = geometryData[i];
+        if (!geometryRenderData.geometry) continue;
 
-        for (unsigned int j = 0; j < mesh.geometryCount; j++) {
-            GeometryRenderData renderData{};
-            renderData.geometry = mesh.geometries[j];
-            renderData.model = model;
+        if ((geometryRenderData.geometry->material->diffuseMap.texture->flags & TEXTURE_BIT_TRANSPARENT) == 0) {
+            //Only add meshes that have no transparency
+            outPacket.geometries.push(geometryData[i]);
+            outPacket.geometryCount++;
+        } else {
+            const Vector3f center = VectorUtils::transformVector3(geometryRenderData.geometry->center, geometryRenderData.model);
+            const float distance = VectorUtils::getVectorDistance(center, camera.position);
 
-            if ((mesh.geometries[j]->material->diffuseMap.texture->flags & TEXTURE_BIT_TRANSPARENT) == 0) {
-                //Only add meshes that have no transparency
-                outPacket.geometries.push(renderData);
-                outPacket.geometryCount++;
-            } else {
-                const Vector3f center = VectorUtils::transformVector3(renderData.geometry->center, model);
-                float distance = VectorUtils::getVectorDistance(center, camera.position);
-
-                GeometryDistance& geometryDistance = *geometryDistances.emplace();
-                geometryDistance.distance = FF_Math::abs(distance);
-                geometryDistance.data = renderData;
-            }
+            GeometryDistance& geometryDistance = *geometryDistances.emplace();
+            geometryDistance.distance = FF_Math::abs(distance);
+            geometryDistance.data = geometryData[i];
         }
     }
 

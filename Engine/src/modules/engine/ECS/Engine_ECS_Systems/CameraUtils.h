@@ -19,7 +19,26 @@
  */
 
 class FOXFIRE_API CameraUtils {
-private:
+public:
+    /**
+     * @brief Gets the camera position.
+     * @param camera
+     * @return
+     */
+    static Vector3f getPosition(const Camera& camera) {return camera.position;}
+    /**
+     * @brief Gets the camera rotation.
+     * @param camera
+     * @return
+     */
+    static Vector3f getRotation(const Camera& camera) {return camera.rotation;}
+    /**
+     * @brief Gets a copy of the camera's view matrix.
+     * @param camera
+     * @return
+     */
+    static Mat4 getViewMatrix(Camera &camera);
+
     /**
      * @brief Gets the forward direction of the camera
      * @param camera
@@ -56,26 +75,6 @@ private:
      * @return
      */
     static Vector3f getDown(Camera& camera) {return VectorUtils::getDownDirection(getViewMatrix(camera));}
-
-public:
-    /**
-     * @brief Gets the camera position.
-     * @param camera
-     * @return
-     */
-    static Vector3f getPosition(const Camera& camera) {return camera.position;}
-    /**
-     * @brief Gets the camera rotation.
-     * @param camera
-     * @return
-     */
-    static Vector3f getRotation(const Camera& camera) {return camera.rotation;}
-    /**
-     * @brief Gets a copy of the camera's view matrix.
-     * @param camera
-     * @return
-     */
-    static Mat4 getViewMatrix(Camera &camera);
 
     /**
      * @brief Sets the camera position

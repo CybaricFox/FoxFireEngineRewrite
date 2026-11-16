@@ -16,10 +16,11 @@ struct GameState : BaseGameState {
     UIText bitmapText{};
     UIText systemText{};
     unsigned int hoveredId = 0;
+    Frustum cameraFrustum{};
 };
 
 struct GameFrameData {
-    GeometryRenderData* worldGeometries = nullptr;
+    DynamicArray<GeometryRenderData>* worldGeometries = nullptr;
 };
 
 class Game final : public Engine {

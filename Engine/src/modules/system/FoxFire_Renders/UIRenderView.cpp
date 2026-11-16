@@ -11,6 +11,7 @@
 #include "src/modules/engine/ECS/Engine_Components/Transform.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
+#include "src/modules/engine/Renderer/RenderPacketTypes.h"
 #include "src/modules/engine/Renderer/ShaderSystem.h"
 
 bool UIRenderView::initialize(const unsigned long newSize) {

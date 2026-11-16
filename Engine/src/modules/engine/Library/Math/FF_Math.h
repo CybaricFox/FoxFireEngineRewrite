@@ -19,6 +19,25 @@
 #include "src/defines.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 
+struct Plane3D {
+    Vector3f normal{};
+    float distance = 0;
+
+    Plane3D() = default;
+    Plane3D(const Vector3f plane, Vector3f newNormal) {
+        VectorUtils::normalize(newNormal);
+        normal = newNormal;
+        distance = VectorUtils::getVectorDotProduct(normal, plane);
+    }
+};
+
+struct FOXFIRE_API Frustum {
+    Plane3D sides[6]{};
+
+    Frustum() = default;
+    Frustum(Vector3f position, Vector3f& forward, const Vector3f& right, const Vector3f& up, float aspect, float fov, float near, float far);
+};
+
 /**
  * @brief A collection of math related functions and random numbers.
  */
@@ -143,6 +162,14 @@ public:
     template <typename T>
     requires std::is_arithmetic_v<T>
     static T max(T x, T y) {return x > y ? x : y;}
+
+    static float planeDistanceSigned(const Plane3D& plane, const Vector3f& position);
+    static bool planeIntersectsSphere(const Plane3D& plane, const Vector3f& center, const float radius) {
+        return planeDistanceSigned(plane, center) > -radius;
+    }
+    static bool frustumIntersectsSphere(const Frustum& frustum, const Vector3f& center, float radius);
+    static bool planeIntersectsSquare(const Plane3D& plane, const Vector3f& position, const Vector3f& extents);
+    static bool frustumIntersectsSquare(const Frustum& plane, const Vector3f& position, const Vector3f& extents);
 };
 
 struct Vertex {};

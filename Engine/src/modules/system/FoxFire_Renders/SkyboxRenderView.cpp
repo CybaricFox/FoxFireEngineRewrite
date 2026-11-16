@@ -10,6 +10,7 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Renderer/MaterialSystem.h"
+#include "src/modules/engine/Renderer/RenderPacketTypes.h"
 
 void SkyboxRenderView::resize(const unsigned newWidth, const unsigned newHeight) {
     if (width != newWidth || height != newHeight) {
