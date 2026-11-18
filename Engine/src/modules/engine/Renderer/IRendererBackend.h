@@ -16,10 +16,13 @@
 #include "Renderpass.h"
 #include "Shader.h"
 #include "src/modules/engine/Core/Platform.h"
+#include "src/modules/engine/Resources/EngineRendererTypes.h"
 #include "src/modules/engine/Resources/EngineResourceTypes.h"
 
 struct RendererBackendConfig {
     String appName{};
+    unsigned int flags = 0;
+
 };
 
 /**
@@ -63,6 +66,7 @@ public:
     virtual unsigned char getWindowAttachmentIndex() = 0;
     virtual bool isMultithreaded() = 0;
     virtual unsigned char getWindowAttachmentCount() = 0;
+    virtual bool hasFlag(RendererConfigFlags flag) const = 0;
     /**
      * @brief Increments the frame number.
      */
@@ -326,4 +330,5 @@ public:
     virtual void resetScissor() = 0;
     virtual void readTextureData(Texture& texture, unsigned int offset, unsigned int size, void** outMemory) = 0;
     virtual void readPixel(Texture& texture, unsigned int x, unsigned int y, unsigned char** outData) = 0;
+    virtual void setFlag(RendererConfigFlags flag, bool value) = 0;
 };

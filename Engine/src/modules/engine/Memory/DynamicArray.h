@@ -74,7 +74,7 @@ public:
     DynamicArray() = default;
     ~DynamicArray() {shutdown();}
 
-    explicit DynamicArray(const unsigned long initialCapacity) {initialize(initialCapacity);}
+    explicit DynamicArray(const ULong initialCapacity) {initialize(initialCapacity);}
 
     void initialize(const unsigned long newCapacity = 0, const MemoryTag overrideTag = DYNAMIC_ARRAY) {
         if (memory) {
@@ -139,7 +139,7 @@ public:
     /** @brief Returns the number of elements the array can currently support. */
     [[nodiscard]] unsigned long getCapacity() const {return capacity;}
     /** @brief Returns the number of elements the array currently has. */
-    [[nodiscard]] unsigned long getLength() const {return length;}
+    [[nodiscard]] ULong getLength() const {return length;}
     /** @brief Whether the array has any elements */
     [[nodiscard]] bool isEmpty() const {return length == 0;}
 

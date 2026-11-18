@@ -1,5 +1,5 @@
 /**
-*   @file IInputSystem.h
+*   @file InputSystem.h
  *  @layer Engine
  *  @module Input
  *  @author CybaricFox
@@ -28,8 +28,10 @@ enum Buttons{
 /**
  * @brief Input interface. Can be used as is if needed. Interfaces the EngineEvent system and handles user input.
  */
-class FOXFIRE_API IInputSystem {
+class FOXFIRE_API InputSystem {
 private:
+    static InputSystem* instance;
+
     /** @brief Pressed state of each key. True is pressed. False is not pressed. */
     bool keyboardState[256]{};
     /** @brief The state of the key on the last frame. */
@@ -47,9 +49,6 @@ private:
     short previousMouseY = 0;
     /** @brief Pressed state of each mouse button on the last frame */
     bool previousMouseButtons[MAX_BUTTONS]{};
-
-    bool bIsInitialized = false;
-    unsigned long memorySize = 0;
 
     EngineEvents* engineEventsSystemRef = nullptr;
 
@@ -75,17 +74,13 @@ protected:
     void getPreviousMousePosition(int& x, int& y) const;
 
 public:
-    virtual ~IInputSystem();
-    explicit IInputSystem(const unsigned long derivedSize) {memorySize = derivedSize;}
-
-    [[nodiscard]] unsigned long getMemorySize() const {return memorySize;}
-
     /**
      * @brief Called once each frame
      * @param deltaTime Time this frame took.
      */
     void update(double deltaTime);
     void initialize(EngineEvents* engineEventsRef);
+    void shutdown();
 
     /**
      * @brief Called when the platform detects keyboard input
@@ -126,7 +121,7 @@ public:
      * @param key The key to check
      * @return True if the key is down.
      */
-    [[nodiscard]] bool isKeyDown(Keys key) const;
+    static bool isKeyDown(Keys key);
     /**
      * @brief
      * @param key The key to check

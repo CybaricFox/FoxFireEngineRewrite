@@ -17,6 +17,7 @@ struct GameState : BaseGameState {
     UIText systemText{};
     unsigned int hoveredId = 0;
     Frustum cameraFrustum{};
+    DebugConsole debugConsole{};
 };
 
 struct GameFrameData {

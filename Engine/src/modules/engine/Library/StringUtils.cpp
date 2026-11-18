@@ -105,7 +105,7 @@ bool StringUtils::stringToBool(const String &string, bool &out) {
 }
 
 unsigned int StringUtils::recursiveSplit(String &string, const char regex, DynamicArray<String> &array) {
-    const unsigned int count = string.findAll(',') + 1;
+    const unsigned int count = string.findAll(regex) + 1;
     if (array.getCapacity() == 0) {
         array.initialize(count);
     }

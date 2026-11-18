@@ -12,12 +12,14 @@
 
 #pragma once
 
+#include "Consoles/DebugConsole.h"
 #include "../Library/Clock.h"
 #include "Platform.h"
 #include "GameInstance.h"
 #include "foxfire_export.h"
+#include "MasterConsole.h"
 #include "Metrics.h"
-#include "../Input/IInputSystem.h"
+#include "../Input/InputSystem.h"
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Threads/JobSystem.h"
@@ -32,8 +34,6 @@ class FOXFIRE_API Engine {
 private:
     /** @brief Handler for the log file */
     FileHandler logHandler{};
-    /** @brief Calculates system time */
-    Clock clock{};
     /** @brief Handles OS-specific variables */
     Platform platform{};
     /** @brief Handles resource loading and management */
@@ -54,8 +54,6 @@ private:
     bool bIsPaused = false;
     /** @brief Whether the engine has finished initialization. */
     bool bIsInitialized = false;
-    /** @brief The amount of time the previous frame took */
-    double lastTime = 0;
 
     /**
      * @brief Initializes FF_Memory and the Linear Allocator
@@ -63,7 +61,12 @@ private:
     bool initializeMemory();
 
 protected:
+    /** @brief The amount of time the previous frame took */
+    double lastTime = 0;
+
     //Protected Systems
+    /** @brief Calculates system time */
+    Clock clock{};
     /** @brief Handles the Component system */
     EntityComponentSystem ECSSystem{};
     /** @brief Controls All Rendering.*/
@@ -72,12 +75,14 @@ protected:
     //Holds config data
     /** @brief Holds Game-specific config data */
     GameInstance gameInstance{};
-    /** @brief Pointer to the user-defined input system */
-    IInputSystem* inputSystem = nullptr;
+
+    InputSystem inputSystem{};
 
     LinearAllocator frameAllocator{};
 
     Metrics engineMetrics{};
+
+    MasterConsole masterConsole{};
 
     /**
      * @brief Quits the application when called.

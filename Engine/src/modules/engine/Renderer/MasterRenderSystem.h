@@ -23,6 +23,7 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraSystem.h"
 #include "FontSystem.h"
 #include "src/modules/engine/Core/GameInstance.h"
+#include "src/modules/engine/Resources/EngineRendererTypes.h"
 #include "src/modules/engine/Resources/ResourceSystem.h"
 #include "src/modules/engine/Resources/Skybox.h"
 
@@ -66,7 +67,7 @@ private:
     Texture createBlankTexture();
 
 public:
-    bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance, ResourceSystem &resources);
+    bool initialize(const String &appName, Platform &platform, const GameInstance &gameInstance);
     bool initializeTextureSystem(unsigned int initialCapacity, ResourceSystem *resourceSystem);
     bool initializeMaterialSystem(MaterialSystemConfig config, ResourceSystem *resourceSystem);
     bool initializeGeometrySystem(unsigned int initialCapacity, ResourceSystem *resourceSystem);
@@ -80,6 +81,9 @@ public:
     IRenderView* getRenderView(const String &name) {return renderViewSystem.getRenderView(name);}
     [[nodiscard]] bool isRenderSystemMultithreaded() const {return backend->isMultithreaded();}
     [[nodiscard]] unsigned int getWindowAttachmentCount() const;
+    bool rendererHasFlag(RendererConfigFlags flag) const;
+
+    void setFlag(RendererConfigFlags flag, bool value) const;
 
     [[nodiscard]] bool drawFrame(const RenderPacket &packet);
     void onResize(unsigned short width, unsigned short height);

@@ -111,7 +111,7 @@ void Engine::run() {
 
             //Handle input at the end
             //Must be update -> processInputs or key state wont be tracked correctly
-            inputSystem->update(deltaTime);
+            inputSystem.update(deltaTime);
             platform.processInputs();
 
             //Update last time
@@ -181,11 +181,11 @@ void Engine::initialize() {
 
     //Initialize event and input systems
     engineEventsSystem.initialize();
-    inputSystem->initialize(&engineEventsSystem);
+    inputSystem.initialize(&engineEventsSystem);
 
     //Initialize platform class
     if (!platform.initialize(gameInstance.config.appName, gameInstance.config.startingX,
-        gameInstance.config.startingY, gameInstance.config.startingWidth, gameInstance.config.startingHeight, inputSystem)) {
+        gameInstance.config.startingY, gameInstance.config.startingWidth, gameInstance.config.startingHeight, &inputSystem)) {
 
         Logger::logFatal("The platform failed to initialize!");
         return;
@@ -198,10 +198,13 @@ void Engine::initialize() {
     }
 
     //Start renderer
-    if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance, resourceSystem)) {
+    if (!masterRenderSystem.initialize(gameInstance.config.appName, platform, gameInstance)) {
         Logger::logFatal("Failed to initialize the render system!");
         return;
     }
+
+    //Start master console
+    masterConsole.initialize();
 
     //Setup configs
     engine->boot();
@@ -312,18 +315,17 @@ Engine::~Engine() {
 
     ECSSystem.shutdown();
 
-    gameInstance.shutdown();
-
     jobSystem.shutdown();
+
+    masterConsole.shutdown();
+
+    gameInstance.shutdown();
 
     masterRenderSystem.shutdown();
 
     engineEventsSystem.shutdown();
 
-    if (inputSystem) {
-        FF_Memory::ff_free<IInputSystem>(inputSystem, GAME, inputSystem->getMemorySize());
-        inputSystem = nullptr;
-    }
+    inputSystem.shutdown();
 
     resourceSystem.shutdown();
 

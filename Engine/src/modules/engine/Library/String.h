@@ -188,6 +188,7 @@ public:
 
     /**
      * @brief Returns an array of substrings split by the given regex. If strings in null, then the strings will need to be manually deallocated later on.
+     * WARNING: This function is unsafe if strings is not nullptr. Only pass a non-null pointer if you are absolutely sure the array is large enough.
      * @param regex The char to split
      * @param strings Array of strings
      * @return Number of strings created.

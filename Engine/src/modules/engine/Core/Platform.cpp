@@ -21,7 +21,7 @@ void Platform::processInputs() const {
     platformState->processInputs(*inputSystemRef);
 }
 
-bool Platform::initialize(const String &applicationName, const int x, const int y, const int width, const int height, IInputSystem *inputSystem) {
+bool Platform::initialize(const String &applicationName, const int x, const int y, const int width, const int height, InputSystem *inputSystem) {
     if (!platformState) return false;
 
     inputSystemRef = inputSystem;

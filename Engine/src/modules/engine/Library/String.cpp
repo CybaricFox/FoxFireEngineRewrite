@@ -157,7 +157,8 @@ unsigned int String::recursiveSplit(const char regex, String* strings) const {
     const unsigned int substrings = remaining.findAll(regex) + 1;
 
     if (strings == nullptr) {
-        strings = FF_Memory::ff_allocate_recursive<String>(STRING, substrings);
+        Logger::logError("Recursive split requires a non null array of strings!");
+        return 0;
     }
 
     unsigned int stringCount = 0;
@@ -176,10 +177,26 @@ unsigned int String::recursiveSplit(const char regex, String* strings) const {
             return 0;
         }
 
-        strings[stringCount] = remaining.substringLeft(index - 1);
+        //prevents out of bounds errors
+        if (index == 0) {
+            strings[stringCount] = " ";
+        } else {
+            strings[stringCount] = remaining.substringLeft(index - 1);
+        }
+
         strings[stringCount].trim();
         stringCount++;
-        remaining = remaining.substringRight(index + 1);
+
+        //Prevents out of bounds errors
+        if (index == remaining.getSizeInBytes() - 1) {
+            if (regex == ' ') {
+                remaining = "#";
+            } else {
+                remaining = " ";
+            }
+        } else {
+            remaining = remaining.substringRight(index + 1);
+        }
     }
 
     Logger::logError("Recursive split reached the end of splitting without returning properly. " + *this + " -> is likely corrupt.");
@@ -325,11 +342,13 @@ char String::getAt(const ULong index) const {
 }
 
 unsigned int String::getSizeInUTF8() const {
+    if (!string) return 0;
+
     unsigned int size = 0;
 
     for (ULong i = 0; i < INVALID_ID_U64; ++i) {
         size++;
-        const int c = string[i];
+        const int c = static_cast<unsigned char>(string[i]);
 
         if (c == 0) break;
 

@@ -10,7 +10,6 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/engine/Renderer/RenderPacketTypes.h"
-#include "src/modules/system/FoxFire_Input/FoxFire_InputSystem.h"
 #include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
 
 void Game::loadModels() {
@@ -155,7 +154,7 @@ bool Game::configureRenderViews() {
 Game::Game(const GameInstance& instance)
     :Engine(instance)
 {
-    inputSystem = FF_Memory::ff_allocate<FoxFire_InputSystem>(GAME);
+
 }
 
 Game::~Game() {
@@ -173,6 +172,8 @@ Game::~Game() {
 
 void Game::startup() {
     GameState& state = *reinterpret_cast<GameState *>(gameInstance.state);
+
+    state.debugConsole.load();
 
     //Register events
     swapTextureEvent.registerEvent();
@@ -296,6 +297,8 @@ void Game::startup() {
     EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Game.quit", KEY_ESCAPE);
     EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {swapTextureEvent.call();}, "Game.swapTexture", KEY_1);
     EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {loadModelsEvent.call();}, "Game.loadModels", KEY_2);
+    EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {masterRenderSystem.setFlag(RENDERER_CONFIG_FLAG_VSYNC, !masterRenderSystem.rendererHasFlag(RENDERER_CONFIG_FLAG_VSYNC));}, "Game.Vsync", KEY_3);
+    EngineEvents::subscribe(KEY_PRESSED, [&state](const EngineInputContext context) {state.debugConsole.setVisibility(!state.debugConsole.isVisible());}, "Game.debugVisibility", KEY_4);
     loadModelsEvent.subscribe([this](){loadModels();});
 
     //Create the dynamic array for world geometries here and reuse the allocation every frame rather than destroying it.
@@ -315,7 +318,7 @@ bool Game::update(const float deltaTime) {
     static unsigned long allocationCount = 0;
     const unsigned long previousAllocationCount = allocationCount;
     allocationCount = FF_Memory::getAllocationCount();
-    if (inputSystem->isKeyUp(KEY_M) && inputSystem->wasKeyDown(KEY_M)) {
+    if (inputSystem.isKeyUp(KEY_M) && inputSystem.wasKeyDown(KEY_M)) {
         const String usage = FF_Memory::getMemoryUsage();
         Logger::logDebug(usage);
         Logger::logDebug("Allocations: " + toString(allocationCount) + ". " + toString(allocationCount - previousAllocationCount) + " this frame.");
@@ -324,46 +327,46 @@ bool Game::update(const float deltaTime) {
     auto& state = *reinterpret_cast<GameState*>(gameInstance.state);
     Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
 
-    if (inputSystem->isKeyDown(KEY_LEFT)) {
+    if (InputSystem::isKeyDown(KEY_LEFT)) {
         CameraUtils::adjustYaw(camera, 1.0f * deltaTime);
     }
-    if (inputSystem->isKeyDown(KEY_RIGHT)) {
+    if (InputSystem::isKeyDown(KEY_RIGHT)) {
         CameraUtils::adjustYaw(camera, -1.0f * deltaTime);
     }
 
-    if (inputSystem->isKeyDown(KEY_UP)) {
+    if (InputSystem::isKeyDown(KEY_UP)) {
         CameraUtils::adjustPitch(camera, 1.0f * deltaTime);
     }
-    if (inputSystem->isKeyDown(KEY_DOWN)) {
+    if (InputSystem::isKeyDown(KEY_DOWN)) {
         CameraUtils::adjustPitch(camera, -1.0f * deltaTime);
     }
 
     static constexpr float moveSpeed = 50.0f;
 
-    if (inputSystem->isKeyDown(KEY_W)) {
+    if (InputSystem::isKeyDown(KEY_W)) {
         CameraUtils::moveForward(camera, moveSpeed * deltaTime);
 
     }
-    if (inputSystem->isKeyDown(KEY_S)) {
+    if (InputSystem::isKeyDown(KEY_S)) {
         CameraUtils::moveBackward(camera, moveSpeed * deltaTime);
     }
 
-    if (inputSystem->isKeyDown(KEY_A)) {
+    if (InputSystem::isKeyDown(KEY_A)) {
         CameraUtils::moveLeft(camera, moveSpeed * deltaTime);
 
     }
-    if (inputSystem->isKeyDown(KEY_D)) {
+    if (InputSystem::isKeyDown(KEY_D)) {
         CameraUtils::moveRight(camera, moveSpeed * deltaTime);
     }
 
-    if (inputSystem->isKeyDown(KEY_SPACE)) {
+    if (InputSystem::isKeyDown(KEY_SPACE)) {
         CameraUtils::moveUp(camera, moveSpeed * deltaTime);
     }
-    if (inputSystem->isKeyDown(KEY_LSHIFT)) {
+    if (InputSystem::isKeyDown(KEY_LSHIFT)) {
         CameraUtils::moveDown(camera, moveSpeed * deltaTime);
     }
 
-    if (inputSystem->isKeyUp(KEY_P) && inputSystem->wasKeyDown(KEY_P)) {
+    if (inputSystem.isKeyUp(KEY_P) && inputSystem.wasKeyDown(KEY_P)) {
         Logger::logDebug("Camera Pos: " + toString(CameraUtils::getPosition(camera).x) + " " + toString(CameraUtils::getPosition(camera).y) + " " + toString(CameraUtils::getPosition(camera).z));
     }
 
@@ -378,11 +381,11 @@ bool Game::update(const float deltaTime) {
             const Vector3f uiRotation = CameraUtils::getRotation(camera);
 
             //Get Mouse State
-            const bool leftDown = inputSystem->isButtonDown(BUTTON_LEFT);
-            const bool rightDown = inputSystem->isButtonDown(BUTTON_RIGHT);
+            const bool leftDown = inputSystem.isButtonDown(BUTTON_LEFT);
+            const bool rightDown = inputSystem.isButtonDown(BUTTON_RIGHT);
             int mouseX = 0;
             int mouseY = 0;
-            inputSystem->getMousePosition(mouseX, mouseY);
+            inputSystem.getMousePosition(mouseX, mouseY);
 
             //Convert to NDC
             const float ndcMouseX = FF_Math::convertFloatRange(static_cast<float>(mouseX), 0, state.width, -1, 1);
@@ -463,10 +466,15 @@ bool Game::update(const float deltaTime) {
                      " R=" + toString(rightDown) + "\n" +
                      "NDC: X=" + toString(ndcMouseX, 6) + " Y=" + toString(ndcMouseY, 6) + "\n" +
                      "Hovered: ";
-    display += state.hoveredId == INVALID_ID_U32 ? "None" : toString(state.hoveredId) + "\n";
-    display += "Drawn Geometries: " + toString(drawCount) + "\n";
+    display += state.hoveredId == INVALID_ID_U32 ? "None" : toString(state.hoveredId);
+    display += " Drawn Geometries: " + toString(drawCount) + "\n";
+    display += "V-SYNC: ";
+    display += masterRenderSystem.rendererHasFlag(RENDERER_CONFIG_FLAG_VSYNC) ? "ON" : "OFF";
+    display += "\nUpdate Time: " + toString(0) + " Render Time: " + toString(0);
 
     state.bitmapText.setText(display);
+
+    state.debugConsole.update();
 
     return Engine::update(deltaTime);
 }
@@ -479,6 +487,10 @@ void Game::initialize() {
 
 bool Game::boot() {
     frameAllocator.initialize(MEBIBYTES(64));
+
+    GameState& state = *(reinterpret_cast<GameState *>(gameInstance.state));
+
+    state.debugConsole.initialize();
 
     //Setup font config
     gameInstance.config.fontConfig.bAutoRelease = false;
@@ -543,9 +555,15 @@ bool Game::render(float deltaTime, RenderPacket &renderPacket) {
     uiPacketData.meshData.meshCount = uiMeshCount;
     uiPacketData.meshData.meshes = uiMeshes;
     uiPacketData.textCount = 2;
+    const bool renderConsole = state.debugConsole.isVisible();
+    if (renderConsole) uiPacketData.textCount += 2;
     const auto texts = static_cast<UIText **>(frameAllocator.allocate(sizeof(UIText*) * uiPacketData.textCount));
     texts[0] = &state.bitmapText;
     texts[1] = &state.systemText;
+    if (renderConsole) {
+        texts[2] = &state.debugConsole.getText();
+        texts[3] = &state.debugConsole.getEntry();
+    }
     uiPacketData.texts = texts;
     if (!masterRenderSystem.buildPacket(masterRenderSystem.getRenderView("Fox_Fire_UI_View"), &uiPacketData, renderPacket.views[2], frameAllocator)) {
         Logger::logError("Failed to build ui packet.");

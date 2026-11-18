@@ -13,7 +13,7 @@
 #pragma once
 
 #include "IPlatformState.h"
-#include "../Input/IInputSystem.h"
+#include "../Input/InputSystem.h"
 #include "src/defines.h"
 
 /**
@@ -21,7 +21,7 @@
  */
 class Platform {
 private:
-    IInputSystem* inputSystemRef = nullptr;
+    InputSystem* inputSystemRef = nullptr;
 
     /** @brief stored platform state */
     static IPlatformState* platformState;
@@ -40,7 +40,7 @@ public:
      * @param inputSystem reference to the input system
      * @return True on success, False on failure.
      */
-    bool initialize(const String &applicationName, int x, int y, int width, int height, IInputSystem* inputSystem);
+    bool initialize(const String &applicationName, int x, int y, int width, int height, InputSystem* inputSystem);
     void setPlatform();
     void shutdown();
 

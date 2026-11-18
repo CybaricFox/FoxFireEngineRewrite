@@ -11,8 +11,13 @@
 #include "VulkanUtils.h"
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/engine/Renderer/TextureUtils.h"
+#include "src/modules/engine/Resources/EngineRendererTypes.h"
 
-bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, VulkanDevice& device, const VkSurfaceKHR& surface, unsigned int& currentFrame, IRendererBackend* backendRef, VkAllocationCallbacks* allocator) {
+void VulkanSwapchain::setFlag(const RendererConfigFlags flag, const bool value) {
+    value ? flags |= flag : flags &= ~flag;
+}
+
+bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const unsigned int frameBufferHeight, VulkanDevice& device, const VkSurfaceKHR& surface, unsigned int& currentFrame, IRendererBackend* backendRef, VkAllocationCallbacks* allocator, unsigned int newFlags) {
     VkExtent2D swapchainExtent{frameBufferWidth, frameBufferHeight};
 
     bool found = false;
@@ -31,15 +36,25 @@ bool VulkanSwapchain::createSwapchain(const unsigned int frameBufferWidth, const
         imageFormat = device.getSwapChainSupportInfo().formats[0];
     }
 
-    //FIFO is gurarnteed. Use it as the default.
-    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
-    for (unsigned int i = 0; i < device.getSwapChainSupportInfo().presentCount; i++) {
-        //Check for mailbox if available. This one is better.
-        VkPresentModeKHR mode = device.getSwapChainSupportInfo().presentModes[i];
-        if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-            presentMode = mode;
-            break;
+    //Either use V-Sync or don't use V-Sync
+    flags = newFlags;
+    VkPresentModeKHR presentMode;
+    if ((flags & RENDERER_CONFIG_FLAG_VSYNC) != 0) {
+        //FIFO is gurarnteed. Use it as the default.
+        presentMode = VK_PRESENT_MODE_FIFO_KHR;
+
+        //Only check for mailbox if not in power saving mode
+        if ((flags & RENDERER_CONFIG_FLAG_POWER_SAVING) == 0) {
+            for (unsigned int i = 0; i < device.getSwapChainSupportInfo().presentCount; i++) {
+                VkPresentModeKHR mode = device.getSwapChainSupportInfo().presentModes[i];
+                if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+                    presentMode = mode;
+                    break;
+                }
+            }
         }
+    } else {
+        presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
     }
 
     device.querySwapChainSupport(device.getPhysicalDevice(), surface, device.getSwapChainSupportInfo());

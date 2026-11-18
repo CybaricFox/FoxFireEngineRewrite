@@ -267,4 +267,8 @@ public:
     void readTextureData(Texture &texture, unsigned offset, unsigned size, void **outMemory) override;
 
     void readPixel(Texture &texture, unsigned int x, unsigned int y, unsigned char **outData) override;
+
+    bool hasFlag(RendererConfigFlags flag) const override;
+
+    void setFlag(RendererConfigFlags flag, bool value) override;
 };

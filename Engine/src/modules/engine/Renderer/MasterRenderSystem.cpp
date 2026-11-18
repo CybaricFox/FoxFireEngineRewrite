@@ -6,6 +6,7 @@
 
 #include "../Library/Logger.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
+#include "src/modules/engine/Resources/EngineRendererTypes.h"
 
 MasterRenderSystem* MasterRenderSystem::instance = nullptr;
 
@@ -55,7 +56,8 @@ bool MasterRenderSystem::resizeRenderBuffer(RenderBuffer &buffer, const ULong ne
     return result;
 }
 
-bool MasterRenderSystem::loadRenderBufferRange(RenderBuffer & buffer, const ULong offset, const ULong size, const void *data) {
+bool MasterRenderSystem::loadRenderBufferRange(RenderBuffer & buffer, const ULong offset, ULong size, const void *data) {
+    if (size == 0) size = 1;
     return instance->backend->loadBufferRange(buffer, offset, size, data);
 }
 
@@ -107,7 +109,7 @@ bool MasterRenderSystem::acquireInstanceResources(const Shader &shader, unsigned
     return instance->backend->acquireInstanceResources(shader, outInstanceId, maps);
 }
 
-bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance, ResourceSystem& resources) {
+bool MasterRenderSystem::initialize(const String &appName, Platform& platform, const GameInstance& gameInstance) {
     instance = this;
 
     framebufferWidth = 1280;
@@ -125,6 +127,7 @@ bool MasterRenderSystem::initialize(const String &appName, Platform& platform, c
 
     RendererBackendConfig config{};
     config.appName = appName;
+    config.flags = RENDERER_CONFIG_FLAG_VSYNC | RENDERER_CONFIG_FLAG_POWER_SAVING;
 
     if (!backend->initialize(platform, config, renderTargetCount)) {
         Logger::logFatal("Renderer Backend failed to initialize!");
@@ -192,6 +195,14 @@ void MasterRenderSystem::shutdown() {
 
 unsigned int MasterRenderSystem::getWindowAttachmentCount() const {
     return backend->getWindowAttachmentCount();
+}
+
+bool MasterRenderSystem::rendererHasFlag(const RendererConfigFlags flag) const {
+    return backend->hasFlag(flag);
+}
+
+void MasterRenderSystem::setFlag(const RendererConfigFlags flag, const bool value) const {
+    backend->setFlag(flag, value);
 }
 
 bool MasterRenderSystem::drawFrame(const RenderPacket& packet) {

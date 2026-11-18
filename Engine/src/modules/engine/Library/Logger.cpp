@@ -9,6 +9,7 @@
 #include "FileHandler.h"
 #include "../Core/Platform.h"
 #include "src/defines.h"
+#include "src/modules/engine/Core/MasterConsole.h"
 
 FileHandler* Logger::logFile = nullptr;
 
@@ -43,6 +44,9 @@ void Logger::cleanup() {
 
 void Logger::log(const LogLevel level, const String &message) {
     const String levelString[5] = {"[FATAL]: ", "[SEVERE]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: "};
+
+    //Send all logs to the console as well
+    MasterConsole::writeLine(level, message);
 
     if (level < WARN) {
         Platform::printConsoleError((levelString[level] + message).getAsCharString(), level);

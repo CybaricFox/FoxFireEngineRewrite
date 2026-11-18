@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "src/modules/engine/Input/IInputSystem.h"
+#include "src/modules/engine/Input/InputSystem.h"
 #include "src/modules/engine/Threads/Mutex.h"
 #include "src/modules/engine/Threads/Thread.h"
 
@@ -34,7 +34,7 @@ public:
     [[nodiscard]] ULong getSize() const { return size; }
     virtual int getProcessorCount() = 0;
 
-    void processInputs(IInputSystem& inputSystem) {
+    void processInputs(InputSystem& inputSystem) {
         for (const KeyState& input : keyInputs) {
             if (input.key == MAX_KEYS) {
                 inputSystem.processButton(input.button, input.bIsPressed);

@@ -1304,6 +1304,15 @@ void VulkanBackend::readPixel(Texture &texture, const unsigned int x, const unsi
     destroyBuffer(staging);
 }
 
+bool VulkanBackend::hasFlag(const RendererConfigFlags flag) const {
+    return (vulkanContext.getSwapchain().getFlags() & flag) != 0;
+}
+
+void VulkanBackend::setFlag(const RendererConfigFlags flag, const bool value) {
+    vulkanContext.getSwapchain().setFlag(flag, value);
+    recreateSwapchain();
+}
+
 void VulkanBackend::resize(const unsigned short width, const unsigned short height) {
     vulkanContext.setWidth(width);
     vulkanContext.setHeight(height);
@@ -1496,7 +1505,7 @@ bool VulkanBackend::initialize(Platform &platform, const RendererBackendConfig& 
         return false;
     }
 
-    vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame(), this, vulkanContext.getAllocator());
+    vulkanContext.getSwapchain().createSwapchain(vulkanContext.getFrameBufferWidth(), vulkanContext.getFrameBufferHeight(), vulkanContext.getDevice(), vulkanContext.getSurface(), vulkanContext.getCurrentFrame(), this, vulkanContext.getAllocator(), config.flags);
 
     outRenderTargetCount = vulkanContext.getSwapchain().getImageCount();
 

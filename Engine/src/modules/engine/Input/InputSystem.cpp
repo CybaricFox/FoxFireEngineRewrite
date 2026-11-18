@@ -2,90 +2,64 @@
 // Created by cmorg on 7/1/2026.
 //
 
-#include "IInputSystem.h"
+#include "InputSystem.h"
 
 #include "../Library/Logger.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 
-bool IInputSystem::isKeyDown(const Keys key) const {
-    if (!bIsInitialized) return false;
-    return keyboardState[key] == true;
+InputSystem* InputSystem::instance = nullptr;
+
+bool InputSystem::isKeyDown(const Keys key) {
+    return instance->keyboardState[key] == true;
 }
 
-bool IInputSystem::isKeyUp(const Keys key) const {
-    if (!bIsInitialized) return false;
+bool InputSystem::isKeyUp(const Keys key) const {
     return keyboardState[key] == false;
 }
 
-bool IInputSystem::wasKeyDown(const Keys key) const {
-    if (!bIsInitialized) return false;
+bool InputSystem::wasKeyDown(const Keys key) const {
     return previousKeyboardState[key] == true;
 }
 
-bool IInputSystem::wasKeyUp(const Keys key) const {
-    if (!bIsInitialized) return false;
+bool InputSystem::wasKeyUp(const Keys key) const {
     return previousKeyboardState[key] == false;
 }
 
-bool IInputSystem::isButtonDown(const Buttons button) const {
-    if (!bIsInitialized) return false;
+bool InputSystem::isButtonDown(const Buttons button) const {
     return mouseButtons[button] == true;
 }
 
-bool IInputSystem::isButtonUp(const Buttons button) const {
-    if (!bIsInitialized) return false;
+bool InputSystem::isButtonUp(const Buttons button) const {
     return mouseButtons[button] == false;
 }
 
-bool IInputSystem::wasButtonDown(const Buttons button) const {
-    if (!bIsInitialized) return false;
+bool InputSystem::wasButtonDown(const Buttons button) const {
     return previousMouseButtons[button] == true;
 }
 
-bool IInputSystem::wasButtonUp(const Buttons button) const {
-    if (!bIsInitialized) return false;
+bool InputSystem::wasButtonUp(const Buttons button) const {
     return previousMouseButtons[button] == false;
 }
 
-void IInputSystem::getMousePosition(int& x, int& y) const {
-    if (!bIsInitialized) {
-        x = 0;
-        y = 0;
-        return;
-    }
-
+void InputSystem::getMousePosition(int& x, int& y) const {
     x = mouseX;
     y = mouseY;
 }
 
-void IInputSystem::getPreviousMousePosition(int& x, int& y) const {
-    if (!bIsInitialized) {
-        x = 0;
-        y = 0;
-        return;
-    }
-
+void InputSystem::getPreviousMousePosition(int& x, int& y) const {
     x = previousMouseX;
     y = previousMouseY;
 }
 
-IInputSystem::~IInputSystem() {
-    bIsInitialized = false;
-
-    engineEventsSystemRef = nullptr;
-}
-
-void IInputSystem::update(double deltaTime) {
-    if (!bIsInitialized) {
-        return;
-    }
-
+void InputSystem::update(double deltaTime) {
     //copy current states to previous states
     FF_Memory::ff_copy(previousKeyboardState, keyboardState, sizeof(keyboardState));
     FF_Memory::ff_copy(previousMouseButtons, mouseButtons, sizeof(mouseButtons));
 }
 
-void IInputSystem::initialize(EngineEvents *engineEventsRef) {
+void InputSystem::initialize(EngineEvents *engineEventsRef) {
+    instance = this;
+
     FF_Memory::ff_clear(keyboardState, sizeof(keyboardState));
     FF_Memory::ff_clear(previousKeyboardState, sizeof(previousKeyboardState));
     FF_Memory::ff_clear(mouseButtons, sizeof(mouseButtons));
@@ -93,11 +67,15 @@ void IInputSystem::initialize(EngineEvents *engineEventsRef) {
 
     engineEventsSystemRef = engineEventsRef;
 
-    bIsInitialized = true;
     Logger::logInfo("Input subsystem initialized!");
 }
 
-void IInputSystem::processKey(const Keys key, const bool bIsPressed) {
+void InputSystem::shutdown() {
+    engineEventsSystemRef = nullptr;
+    instance = nullptr;
+}
+
+void InputSystem::processKey(const Keys key, const bool bIsPressed) {
     //Only handle this if the key changed
     if (keyboardState[key] == bIsPressed) return;
 
@@ -108,7 +86,7 @@ void IInputSystem::processKey(const Keys key, const bool bIsPressed) {
     engineEventsSystemRef->callEvent(bIsPressed ? KEY_PRESSED : KEY_RELEASED, context);
 }
 
-void IInputSystem::processButton(const Buttons button, const bool bIsPressed) {
+void InputSystem::processButton(const Buttons button, const bool bIsPressed) {
     //Only handle this if the key changed
     if (mouseButtons[button] == bIsPressed) return;
 
@@ -118,7 +96,7 @@ void IInputSystem::processButton(const Buttons button, const bool bIsPressed) {
     engineEventsSystemRef->callEvent(bIsPressed ? BUTTON_PRESSED : BUTTON_RELEASED, context);
 }
 
-void IInputSystem::processMouseMove(const short x, const short y) {
+void InputSystem::processMouseMove(const short x, const short y) {
     if (mouseX == x && mouseY == y) return;
 
     mouseX = x;
@@ -129,7 +107,7 @@ void IInputSystem::processMouseMove(const short x, const short y) {
     engineEventsSystemRef->callEvent(MOUSE_MOVED, context);
 }
 
-void IInputSystem::processMouseScroll(const char z) const {
+void InputSystem::processMouseScroll(const char z) const {
     EngineInputContext context{};
     context.mouseZ = z;
     engineEventsSystemRef->callEvent(MOUSE_WHEEL, context);
