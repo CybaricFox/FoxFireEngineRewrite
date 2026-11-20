@@ -1,10 +1,10 @@
 #include "src/modules/engine/Core/GameInstance.h"
 #include "src/modules/engine/Core/Engine.h"
 
-#include "modules/game/Game/Game.h"
+#include "modules/game/Game/Application.h"
 
 //Function that creates the game on the engine side
-void createGame(GameInstance& instance, Engine*& engine) {
+void createApplication(GameInstance& instance, Engine*& engine) {
     instance.config.startingX = 100;
     instance.config.startingY = 100;
     instance.config.startingWidth = 1280;
@@ -15,7 +15,7 @@ void createGame(GameInstance& instance, Engine*& engine) {
     instance.config.gameVersionMinor = 0;
     instance.config.gameVersionPatch = 0;
 
-    instance.memoryRequirement = sizeof(GameState);
+    instance.memoryRequirement = sizeof(ApplicationState);
 
-    engine = new Game(instance);
+    engine = new Application(instance);
 }

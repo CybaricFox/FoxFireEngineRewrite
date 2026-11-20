@@ -24,6 +24,28 @@ bool DebugConsole::write(LogLevel level, String message) {
     return true;
 }
 
+void DebugConsole::scrollUp() {
+    bIsDirty = true;
+    if (lines.getLength() <= lineDisplayCount) {
+        lineOffset = 0;
+        return;
+    }
+
+    lineOffset++;
+    lineOffset = FF_Math::min(lineOffset, static_cast<int>(lines.getLength() - lineDisplayCount));
+}
+
+void DebugConsole::scrollDown() {
+    bIsDirty = true;
+    if (lines.getLength() <= lineDisplayCount) {
+        lineOffset = 0;
+        return;
+    }
+
+    lineOffset--;
+    lineOffset = FF_Math::max(lineOffset, 0);
+}
+
 void DebugConsole::onInputRelease(EngineInputContext context) {
     //Do nothing for now
 }

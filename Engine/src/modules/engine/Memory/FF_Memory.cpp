@@ -34,6 +34,7 @@ String FF_Memory::getStringFromTag(const unsigned long tag) {
         case 17: return "STRING";
         case 18: return "BITMAP_FONT";
         case 19: return "SYSTEM_FONT";
+        case 20: return "ENGINE";
         default: return " ";
     }
 }

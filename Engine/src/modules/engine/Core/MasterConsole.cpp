@@ -53,14 +53,14 @@ bool MasterConsole::registerCommand(const String &name, const unsigned char argu
         return false;
     }
 
-    for (unsigned int i = 0; i < commands.getLength(); i++) {
-        if (name == commands[i].name) {
+    for (unsigned int i = 0; i < instance->commands.getLength(); i++) {
+        if (name == instance->commands[i].name) {
             Logger::logError("Command " + name + " already exists!");
             return false;
         }
     }
 
-    ConsoleCommand& command = *commands.emplace();
+    ConsoleCommand& command = *instance->commands.emplace();
     command.argumentCount = argumentCount;
     command.function = function;
     command.name = name;

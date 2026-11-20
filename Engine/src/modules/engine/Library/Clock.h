@@ -12,10 +12,12 @@
 
 #pragma once
 
+#include "foxfire_export.h"
+
 /**
  * @brief Handles system time calculations
  */
-class Clock {
+class FOXFIRE_API Clock {
 private:
     double startTime = 0;
     double elapsedTime = 0;

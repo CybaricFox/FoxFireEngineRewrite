@@ -91,7 +91,9 @@ public:
     void setViewportRect(const Vector4f rect) {viewportRect = rect;}
     void setScissorRect(const Vector4f rect) {scissorRect = rect;}
 
+#if ENABLE_DEBUG_LOGGING == true
     VkDebugUtilsMessengerEXT& getDebugMessenger() {return debugMessenger;}
+#endif
 
     void destroyContext();
     void createCommandBuffers();

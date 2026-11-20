@@ -65,9 +65,9 @@ public:
     }
 
     /**
-     * @brief Gets the element stored at an index
+     * @brief Gets the element stored at an index.
      * @param index The index of the element
-     * @return Reference to the element at that index
+     * @return Reference to the element at that index. If the index is in the free indexes array, nullptr will be returned.
      */
     T* get(unsigned int index) {
         if (index >= data.getLength()) return nullptr;
@@ -83,8 +83,21 @@ public:
      */
     DynamicArray<T>& getData() {return data;}
 
+    /**
+     * @brief Returns the number of assigned indexes. Only includes indexes that are currently assigned. Freed indexes are not included.
+     * @return
+     */
     unsigned int getCount() {
         return data.getLength() - freeIndexes.getLength();
+    }
+
+    /**
+     * @brief Returns the length of the data array. This includes assigned indexes and previously assigned indexes.
+     *        Indexes that were never assigned are not included.
+     * @return
+     */
+    unsigned int getAssignedSize() {
+        return data.getLength();
     }
 
     void clear() {

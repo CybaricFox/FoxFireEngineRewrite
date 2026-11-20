@@ -8,6 +8,7 @@
 #include "IConsole.h"
 #include "src/modules/engine/Library/Logger.h"
 #include "src/modules/engine/Memory/DynamicArray.h"
+#include "foxfire_export.h"
 
 /**
  *  @file MasterConsole.h
@@ -38,7 +39,7 @@ struct ConsoleCommand {
     std::function<void(ConsoleCommandContext)> function = nullptr;
 };
 
-class MasterConsole {
+class FOXFIRE_API MasterConsole {
 private:
     static MasterConsole* instance;
     unsigned char consoleCount = 0;
@@ -51,6 +52,6 @@ public:
 
     static void registerConsole(IConsole* console);
     static void writeLine(LogLevel level, const String &message);
-    bool registerCommand(const String &name, unsigned char argumentCount, const std::function<void(ConsoleCommandContext)> &function);
+    static bool registerCommand(const String &name, unsigned char argumentCount, const std::function<void(ConsoleCommandContext)> &function);
     static bool executeCommand(String commandLine);
 };

@@ -45,6 +45,8 @@ private:
 protected:
     bool execute() override;
     void exit() override;
+    void scrollUp() override;
+    void scrollDown() override;
 
 public:
     void initialize() override;

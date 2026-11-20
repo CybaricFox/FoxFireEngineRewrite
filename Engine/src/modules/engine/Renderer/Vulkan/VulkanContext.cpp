@@ -102,7 +102,7 @@ void VulkanContext::destroyContext() {
     }
 
     device.getPhysicalDevice() = nullptr;
-
+#if ENABLE_DEBUG_LOGGING == true
     Logger::logDebug("Destroying Vulkan debugger.");
     if (debugMessenger != nullptr) {
         if (const auto function = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"))) {
@@ -111,6 +111,7 @@ void VulkanContext::destroyContext() {
 
         debugMessenger = nullptr;
     }
+#endif
 
     if (surface) {
         Logger::logDebug("Destroying Vulkan surface.");

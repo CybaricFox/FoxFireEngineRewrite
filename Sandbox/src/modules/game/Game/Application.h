@@ -3,7 +3,7 @@
 #include "../../../../../Engine/src/modules/engine/Input/EventSystem.h"
 #include "src/modules/engine/Resources/Skybox.h"
 
-struct GameState : BaseGameState {
+struct ApplicationState : BaseApplicationState {
     float deltaTime = 0;
     unsigned int worldCamera = INVALID_ID_U32;
     unsigned short width = 0;
@@ -20,21 +20,25 @@ struct GameState : BaseGameState {
     DebugConsole debugConsole{};
     ULong allocationCount = 0;
     ULong previousAllocationCount = 0;
+    Clock updateClock{};
+    double lastUpdateTime = 0;
+    Clock renderClock{};
+    double lastRenderTime = 0;
 };
 
-struct GameFrameData {
+struct ApplicationFrameData {
     DynamicArray<GeometryRenderData>* worldGeometries = nullptr;
 };
 
-class Game final : public Engine {
+class Application final : public Engine {
 private:
-    GameFrameData frameData{};
+    ApplicationFrameData frameData{};
 
     void loadModels();
     bool configureRenderViews();
 public:
-    explicit Game(const GameInstance& instance);
-    ~Game() override;
+    explicit Application(const GameInstance& instance);
+    ~Application() override;
 
     Event<void> swapTextureEvent{};
     Event<void> loadModelsEvent{};

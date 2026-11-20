@@ -41,7 +41,7 @@ void IInputConsumer::onInput(const Keys key, const unsigned int modifiers) {
             return;
         }
         default: {
-            char code = key;
+            int code = key;
             if (code >= KEY_A && code <= KEY_Z) {
                 if (!shift) code += 32;
             } else if (code >= KEY_0 && code <= KEY_9) {
@@ -63,17 +63,21 @@ void IInputConsumer::onInput(const Keys key, const unsigned int modifiers) {
             } else {
                 switch (code) {
                     case KEY_SPACE: break;
+                    case KEY_MINUS: code = shift ? '_' : '-'; break;
+                    case KEY_PLUS: code = shift ? '+' : '='; break;
                     default: code = 0; break;
                 }
             }
+
+            const String stringCode = intToUTF8(code);
 
             if (code != 0) {
                 const String newText = entry.getText();
                 //If the first char is space, replace it instead of appending it.
                 if (newText.getSizeInBytes() > 0 && newText.getAt(0) == ' ') {
-                    entry.setText(toString(code));
+                    entry.setText(stringCode);
                 } else {
-                    entry.setText(entry.getText() + toString(code));
+                    entry.setText(entry.getText() + stringCode);
                 }
             }
 

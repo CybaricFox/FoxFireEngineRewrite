@@ -21,6 +21,7 @@
 #include "Metrics.h"
 #include "../Input/InputSystem.h"
 #include "src/modules/engine/ECS/EntityComponentSystem.h"
+#include "src/modules/engine/Library/FoxfireVar.h"
 #include "src/modules/engine/Renderer/MasterRenderSystem.h"
 #include "src/modules/engine/Threads/JobSystem.h"
 
@@ -44,6 +45,8 @@ private:
      * @brief Controls multithreading.
      */
     JobSystem jobSystem{};
+
+    FoxfireVar foxfireVars{};
 
     /** @brief Pointer to the derived game class set by the user. */
     Engine* engine = nullptr;

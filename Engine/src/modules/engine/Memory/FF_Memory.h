@@ -23,7 +23,7 @@
  */
 enum MemoryTag {
     UNKNOWN,
-    GAME, //Allocations tied to Engine and Game
+    GAME, //Allocations tied to the Game
     RENDER, //Allocations tied to rendering and render systems.
     ARRAY, //Allocations tied to basic arrays such as char arrays.
     LINEAR_ALLOCATOR, //Allocations tied to Linear Allocators.
@@ -42,6 +42,7 @@ enum MemoryTag {
     STRING, //Allocations tied to Strings.
     BITMAP_FONT,
     SYSTEM_FONT,
+    ENGINE, //Allocations tied to the Engine
     MAX_TAGS
 };
 

@@ -283,6 +283,43 @@ inline String toString(const char value) {
     return result;
 }
 
+inline String intToUTF8(const int codepoint) {
+    String result{};
+
+    // Reject values outside Unicode's range and UTF-16 surrogates.
+    if (codepoint < 0 ||
+        codepoint > 0x10FFFF ||
+        (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+        return result;
+        }
+
+    auto appendByte = [&result](unsigned char byte) {
+        if (result.isEmpty()) {
+            result = toString(static_cast<char>(byte));
+        } else {
+            result += toString(static_cast<char>(byte));
+        }
+    };
+
+    if (codepoint <= 0x7F) {
+        appendByte(static_cast<unsigned char>(codepoint));
+    } else if (codepoint <= 0x7FF) {
+        appendByte(static_cast<unsigned char>(0xC0 | (codepoint >> 6)));
+        appendByte(static_cast<unsigned char>(0x80 | (codepoint & 0x3F)));
+    } else if (codepoint <= 0xFFFF) {
+        appendByte(static_cast<unsigned char>(0xE0 | (codepoint >> 12)));
+        appendByte(static_cast<unsigned char>(0x80 | ((codepoint >> 6) & 0x3F)));
+        appendByte(static_cast<unsigned char>(0x80 | (codepoint & 0x3F)));
+    } else {
+        appendByte(static_cast<unsigned char>(0xF0 | (codepoint >> 18)));
+        appendByte(static_cast<unsigned char>(0x80 | ((codepoint >> 12) & 0x3F)));
+        appendByte(static_cast<unsigned char>(0x80 | ((codepoint >> 6) & 0x3F)));
+        appendByte(static_cast<unsigned char>(0x80 | (codepoint & 0x3F)));
+    }
+
+    return result;
+}
+
 template<ULong S>
 String operator+(const char (&left)[S], const String& right) {
     return String(left) + right;

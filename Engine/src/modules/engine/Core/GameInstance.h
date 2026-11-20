@@ -17,7 +17,7 @@
 #include "src/modules/engine/Renderer/FontSystem.h"
 #include "src/modules/engine/Renderer/IRenderView.h"
 
-struct BaseGameState {};
+struct BaseApplicationState {};
 
 /**
  * @brief Config data for this application set by the user
@@ -70,12 +70,12 @@ struct FOXFIRE_API GameInstance {
     GameConfig config{};
 
     /** @brief Game State struct defined by the user */
-    BaseGameState* state = nullptr;
+    BaseApplicationState* state = nullptr;
     unsigned long memoryRequirement = 0;
 
     void shutdown() {
         if (!state) return;
-        FF_Memory::ff_free<BaseGameState>(state, GAME, memoryRequirement); //Game state does not use destruction, so ff_free is valid.
+        FF_Memory::ff_free<BaseApplicationState>(state, GAME, memoryRequirement); //Game state does not use destruction, so ff_free is valid.
         state = nullptr;
         config.shutdown();
     }

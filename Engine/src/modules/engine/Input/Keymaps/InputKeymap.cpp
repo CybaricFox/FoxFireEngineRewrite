@@ -17,6 +17,12 @@ void InputKeymap::initialize() {
     for (unsigned int i = 0; i < MAX_KEYS; i++) {
         inputKeymap.addBinding(static_cast<Keys>(i), KEYMAP_BIND_PRESS, 0, nullptr, callback, "InputKeymap." + toString(i));
     }
+
+    KeymapCallback scrollUp = []KeymapLambda{inputConsumer->scrollUp();};
+    KeymapCallback scrollDown = []KeymapLambda{inputConsumer->scrollDown();};
+
+    inputKeymap.addBinding(KEY_UP, KEYMAP_BIND_HOLD, 0, nullptr, scrollUp, "InputKeymap.Up");
+    inputKeymap.addBinding(KEY_DOWN, KEYMAP_BIND_HOLD, 0, nullptr, scrollDown, "InputKeymap.Down");
 }
 
 void InputKeymap::destroy() {

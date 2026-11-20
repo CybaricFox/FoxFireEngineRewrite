@@ -2,7 +2,7 @@
 // Created by cmorg on 7/1/2026.
 //
 
-#include "Game.h"
+#include "Application.h"
 
 #include "src/modules/engine/ECS/Engine_Components/UITextContainer.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
@@ -14,12 +14,12 @@
 
 static constexpr float moveSpeed = 50.0f;
 
-void Game::loadModels() {
+void Application::loadModels() {
     if (!bModelsLoaded) {
         Logger::logDebug("Loading models");
         bModelsLoaded = true;
 
-        const GameState& state = *reinterpret_cast<GameState *>(gameInstance.state);
+        const ApplicationState& state = *reinterpret_cast<ApplicationState *>(gameInstance.state);
 
         if (!MeshUtils::loadMeshFromResource("Maxwell", state.maxwell)) {
             Logger::logError("Failed to load Maxwell.");
@@ -27,7 +27,7 @@ void Game::loadModels() {
     }
 }
 
-bool Game::configureRenderViews() {
+bool Application::configureRenderViews() {
     gameInstance.config.renderViews.initialize(4);
 
     //Load render views
@@ -153,14 +153,14 @@ bool Game::configureRenderViews() {
     return true;
 }
 
-Game::Game(const GameInstance& instance)
+Application::Application(const GameInstance& instance)
     :Engine(instance)
 {
 
 }
 
-Game::~Game() {
-    GameState& state = *reinterpret_cast<GameState *>(gameInstance.state);
+Application::~Application() {
+    ApplicationState& state = *reinterpret_cast<ApplicationState *>(gameInstance.state);
 
     state.skybox.shutdown();
     state.bitmapText.destroy();
@@ -172,8 +172,8 @@ Game::~Game() {
     FF_Memory::ff_free<DynamicArray<GeometryRenderData>>(frameData.worldGeometries, DYNAMIC_ARRAY);
 }
 
-void Game::startup() {
-    GameState& state = *reinterpret_cast<GameState *>(gameInstance.state);
+void Application::startup() {
+    ApplicationState& state = *reinterpret_cast<ApplicationState *>(gameInstance.state);
 
     state.debugConsole.load();
 
@@ -301,57 +301,57 @@ void Game::startup() {
     Keymap* basicKeymap = FF_Memory::ff_allocate<Keymap>(GAME);
 
     KeymapCallback mCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Logger::logDebug(FF_Memory::getMemoryUsage());
         Logger::logDebug("Allocations: " + toString(state.allocationCount) + ". " + toString(static_cast<long>(state.allocationCount) - static_cast<long>(state.previousAllocationCount)) + " this frame.");
     };
     KeymapCallback leftCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
         CameraUtils::adjustYaw(camera, 1.0f * state.deltaTime);
     };
     KeymapCallback rightCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
         CameraUtils::adjustYaw(camera, -1.0f * state.deltaTime);
     };
     KeymapCallback upCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
         CameraUtils::adjustPitch(camera, 1.0f * state.deltaTime);
     };
     KeymapCallback downCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
         CameraUtils::adjustPitch(camera, -1.0f * state.deltaTime);
     };
     KeymapCallback wCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
         CameraUtils::moveForward(camera, moveSpeed * state.deltaTime);
     };
     KeymapCallback aCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
         CameraUtils::moveLeft(camera, moveSpeed * state.deltaTime);
     };
     KeymapCallback dCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
         CameraUtils::moveRight(camera, moveSpeed * state.deltaTime);
     };
     KeymapCallback sCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
         CameraUtils::moveBackward(camera, moveSpeed * state.deltaTime);
     };
     KeymapCallback spaceCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
         CameraUtils::moveUp(camera, moveSpeed * state.deltaTime);
     };
     KeymapCallback shiftCallback = []KeymapLambda{
-        const GameState& state = *static_cast<GameState *>(data);
+        const ApplicationState& state = *static_cast<ApplicationState *>(data);
         Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
         CameraUtils::moveDown(camera, moveSpeed * state.deltaTime);
     };
@@ -377,6 +377,8 @@ void Game::startup() {
 
     loadModelsEvent.subscribe([this](){loadModels();});
 
+    masterConsole.registerCommand("exit", 0, [this](ConsoleCommandContext context){quit();});
+
     //Create the dynamic array for world geometries here and reuse the allocation every frame rather than destroying it.
     frameData.worldGeometries = FF_Memory::ff_allocate<DynamicArray<GeometryRenderData>>(DYNAMIC_ARRAY);
     frameData.worldGeometries->initialize(512);
@@ -384,15 +386,16 @@ void Game::startup() {
     Engine::startup();
 }
 
-bool Game::update(const float deltaTime) {
+bool Application::update(const float deltaTime) {
     if (!frameData.worldGeometries->isEmpty()) {
         frameData.worldGeometries->clear();
     }
 
     frameAllocator.freeAll();
 
-    auto& state = *reinterpret_cast<GameState*>(gameInstance.state);
+    auto& state = *reinterpret_cast<ApplicationState*>(gameInstance.state);
 
+    state.updateClock.start();
     state.deltaTime = deltaTime;
 
     //This is VERY inconsistent do to frame timing inconsistency. This should probably be changed.
@@ -501,25 +504,28 @@ bool Game::update(const float deltaTime) {
     display += " Drawn Geometries: " + toString(drawCount) + "\n";
     display += "V-SYNC: ";
     display += masterRenderSystem.rendererHasFlag(RENDERER_CONFIG_FLAG_VSYNC) ? "ON" : "OFF";
-    display += "\nUpdate Time: " + toString(0) + " Render Time: " + toString(0);
+    display += "\nUpdate Time: " + toString(state.lastUpdateTime * 1000000, 3) + "us Render Time: " + toString(state.renderClock.getElapsedTime() * 1000000, 3) + "us";
 
     state.bitmapText.setText(display);
 
     state.debugConsole.update();
 
+    state.updateClock.update();
+    state.lastUpdateTime = state.updateClock.getElapsedTime();
+
     return Engine::update(deltaTime);
 }
 
-void Game::initialize() {
-    std::construct_at(reinterpret_cast<GameState *>(gameInstance.state));
+void Application::initialize() {
+    std::construct_at(reinterpret_cast<ApplicationState *>(gameInstance.state));
 
     Engine::initialize();
 }
 
-bool Game::boot() {
+bool Application::boot() {
     frameAllocator.initialize(MEBIBYTES(64));
 
-    GameState& state = *(reinterpret_cast<GameState *>(gameInstance.state));
+    ApplicationState& state = *(reinterpret_cast<ApplicationState *>(gameInstance.state));
 
     state.debugConsole.initialize();
 
@@ -552,8 +558,10 @@ bool Game::boot() {
     return true;
 }
 
-bool Game::render(float deltaTime, RenderPacket &renderPacket) {
-    GameState& state = *reinterpret_cast<GameState *>(gameInstance.state);
+bool Application::render(float deltaTime, RenderPacket &renderPacket) {
+    ApplicationState& state = *reinterpret_cast<ApplicationState *>(gameInstance.state);
+
+    state.renderClock.start();
 
     renderPacket.viewCount = 4;
     renderPacket.views = static_cast<RenderViewPacket *>(frameAllocator.allocate(sizeof(RenderViewPacket) * renderPacket.viewCount));
@@ -612,11 +620,13 @@ bool Game::render(float deltaTime, RenderPacket &renderPacket) {
         return false;
     }
 
+    state.renderClock.update();
+
     return true;
 }
 
-void Game::resize(const unsigned short newWidth, const unsigned short newHeight) {
-    GameState& state = *reinterpret_cast<GameState *>(gameInstance.state);
+void Application::resize(const unsigned short newWidth, const unsigned short newHeight) {
+    ApplicationState& state = *reinterpret_cast<ApplicationState *>(gameInstance.state);
 
     state.width = newWidth;
     state.height = newHeight;

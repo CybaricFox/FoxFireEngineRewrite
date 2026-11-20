@@ -10,6 +10,7 @@
 #include "src/modules/engine/ECS/Engine_ECS_Systems/CameraUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/MeshUtils.h"
 #include "src/modules/engine/ECS/Engine_ECS_Systems/TransformUtils.h"
+#include "src/modules/engine/Library/FoxfireVar.h"
 #include "src/modules/engine/Library/JsonHandler.h"
 #include "src/modules/engine/Library/UUID.h"
 #include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
@@ -141,7 +142,7 @@ Engine::Engine(const GameInstance& instance)
     Logger::initializeFile(logHandler);
 
     gameInstance = instance;
-    gameInstance.state = FF_Memory::ff_allocate<BaseGameState>(GAME, instance.memoryRequirement);
+    gameInstance.state = FF_Memory::ff_allocate<BaseApplicationState>(GAME, instance.memoryRequirement);
 
     //Register components
     ComponentRegister<Transform>::registerComponent();
@@ -205,6 +206,9 @@ void Engine::initialize() {
 
     //Start master console
     masterConsole.initialize();
+
+    //Start Foxfire vars
+    foxfireVars.initialize();
 
     //Setup configs
     engine->boot();
@@ -316,6 +320,8 @@ Engine::~Engine() {
     ECSSystem.shutdown();
 
     jobSystem.shutdown();
+
+    foxfireVars.shutdown();
 
     masterConsole.shutdown();
 
