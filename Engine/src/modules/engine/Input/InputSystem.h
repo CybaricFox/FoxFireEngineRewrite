@@ -14,6 +14,8 @@
 
 #include "EngineEvents.h"
 #include "foxfire_export.h"
+#include "Keymap.h"
+#include "src/modules/engine/Library/Stack.h"
 
 /**
  * @brief Mouse buttons
@@ -50,7 +52,11 @@ private:
     /** @brief Pressed state of each mouse button on the last frame */
     bool previousMouseButtons[MAX_BUTTONS]{};
 
+    Stack<Keymap> keymaps{};
+
     EngineEvents* engineEventsSystemRef = nullptr;
+
+    unsigned int getRequiredFlags();
 
 protected:
     /**
@@ -152,4 +158,7 @@ public:
      * @return True if the button is up.
      */
     [[nodiscard]] bool isButtonUp(Buttons button) const;
+
+    static void pushKeymap(Keymap *map);
+    static void pullKeymap();
 };

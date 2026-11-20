@@ -18,6 +18,8 @@ struct GameState : BaseGameState {
     unsigned int hoveredId = 0;
     Frustum cameraFrustum{};
     DebugConsole debugConsole{};
+    ULong allocationCount = 0;
+    ULong previousAllocationCount = 0;
 };
 
 struct GameFrameData {

@@ -6,6 +6,7 @@
 
 #include "src/modules/engine/Core/MasterConsole.h"
 #include "src/modules/engine/Input/InputSystem.h"
+#include "src/modules/engine/Input/Keymaps/InputKeymap.h"
 #include "src/modules/engine/Library/StringUtils.h"
 
 bool DebugConsole::write(LogLevel level, String message) {
@@ -23,83 +24,32 @@ bool DebugConsole::write(LogLevel level, String message) {
     return true;
 }
 
-void DebugConsole::onInputPress(const EngineInputContext context) {
-    if (!bIsVisible) return;
-
-    const bool shift = InputSystem::isKeyDown(KEY_LSHIFT) || InputSystem::isKeyDown(KEY_RSHIFT) || InputSystem::isKeyDown(KEY_SHIFT);
-
-    switch (context.key) {
-        case KEY_ENTER: {
-            if (entry.getSizeOfText() > 0) {
-                if (!MasterConsole::executeCommand(entry.getText())) {
-
-                }
-
-                entry.setText("");
-            }
-            break;
-        }
-        case KEY_BACKSPACE: {
-            if (entry.getSizeOfText() > 0) {
-                String string = entry.getText();
-                if (string.getSizeInBytes() <= 1) {
-                    string = " ";
-                } else {
-                    string = string.substringLeft(string.getSizeInBytes() - 2);
-                    string.trim();
-                }
-
-                entry.setText(string);
-            }
-            break;
-        }
-        case MAX_KEYS: {
-            return;
-        }
-        default: {
-            char code = context.key;
-            if (code >= KEY_A && code <= KEY_Z) {
-                if (!shift) code += 32;
-            } else if (code >= KEY_0 && code <= KEY_9) {
-                if (shift) {
-                    switch (code) {
-                        case KEY_0: code = ')'; break;
-                        case KEY_1: code = '!'; break;
-                        case KEY_2: code = '@'; break;
-                        case KEY_3: code = '#'; break;
-                        case KEY_4: code = '$'; break;
-                        case KEY_5: code = '%'; break;
-                        case KEY_6: code = '^'; break;
-                        case KEY_7: code = '&'; break;
-                        case KEY_8: code = '*'; break;
-                        case KEY_9: code = '('; break;
-                        default: break;
-                    }
-                }
-            } else {
-                switch (code) {
-                    case KEY_SPACE: break;
-                    default: code = 0; break;
-                }
-            }
-
-            if (code != 0) {
-                const String newText = entry.getText();
-                //If the first char is space, replace it instead of appending it.
-                if (newText.getSizeInBytes() > 0 && newText.getAt(0) == ' ') {
-                    entry.setText(toString(code));
-                } else {
-                    entry.setText(entry.getText() + toString(code));
-                }
-            }
-
-            break;
-        }
-    }
-}
-
 void DebugConsole::onInputRelease(EngineInputContext context) {
     //Do nothing for now
+}
+
+bool DebugConsole::execute() {
+    if (!MasterConsole::executeCommand(entry.getText())) {
+        //Handle failure in the future
+    }
+
+    return true;
+}
+
+void DebugConsole::exit() {
+    InputSystem::pullKeymap();
+    setVisibility(false);
+}
+
+void DebugConsole::setVisibility(const bool visible) {
+    //Visibility must be changed
+    if (bIsVisible == visible) return;
+
+    bIsVisible = visible;
+
+    if (visible) {
+        InputKeymap::activate(this);
+    }
 }
 
 bool DebugConsole::load() {
@@ -115,7 +65,6 @@ bool DebugConsole::load() {
     }
     entry.setPosition({3, static_cast<float>(30 + (31 * lineDisplayCount)), 0});
 
-    EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {onInputPress(context);}, "DebugConsole.InputPressed");
     EngineEvents::subscribe(KEY_RELEASED, [this](const EngineInputContext context) {onInputRelease(context);}, "DebugConsole.InputReleased");
 
     return true;

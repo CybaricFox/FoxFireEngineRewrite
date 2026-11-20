@@ -163,6 +163,14 @@ String FF_Memory::getMemoryUsage() {
     for (unsigned int i = 0; i < MAX_TAGS; i++) {
         float amount = 1;
         String unit = getUnitForSize(memorySystem->memoryData.taggedAllocations[i], amount);
+        //Do not include the outString memory when reporting allocation sizes
+        if (i == STRING) {
+            unit = getUnitForSize(memorySystem->memoryData.taggedAllocations[i] - (sizeof(char) * outString.getSizeInBytes()), amount);
+            Logger::logDebug(toString(amount));
+        }
+
+
+        if (amount == 0) continue;
 
         std::ostringstream oss;
         oss << getStringFromTag(i).getAsCharString() << ": "<< std::fixed << std::setprecision(2) << amount << unit.getAsCharString() << "\n";
@@ -183,7 +191,6 @@ String FF_Memory::getMemoryUsage() {
 
     double percentUsed = static_cast<double>(usedSpace) / static_cast<double>(totalSpace);
 
-    outString += "Reminder: This message uses STRING memory, so elevated STRING levels are normal when reporting end of application memory usage.\n";
     outString += "Overall Memory Usage: \n";
 
     std::ostringstream oss;

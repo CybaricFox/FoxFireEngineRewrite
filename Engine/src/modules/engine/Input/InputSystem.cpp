@@ -4,7 +4,10 @@
 
 #include "InputSystem.h"
 
+#include <stack>
+
 #include "../Library/Logger.h"
+#include "Keymaps/InputKeymap.h"
 #include "src/modules/engine/Memory/FF_Memory.h"
 
 InputSystem* InputSystem::instance = nullptr;
@@ -33,6 +36,37 @@ bool InputSystem::isButtonUp(const Buttons button) const {
     return mouseButtons[button] == false;
 }
 
+void InputSystem::pushKeymap(Keymap* map) {
+    if (map == nullptr) {
+        Logger::logError("Cannot push a null keymap into the input system.");
+        return;
+    }
+    if (!instance->keymaps.push(map)) {
+        Logger::logError("Failed to push keymap");
+    }
+}
+
+void InputSystem::pullKeymap() {
+    if (!instance->keymaps.pull()) {
+        Logger::logError("Failed to pull keymap");
+    }
+}
+
+unsigned int InputSystem::getRequiredFlags() {
+    unsigned int requiredFlags = 0;
+    if (isKeyDown(KEY_SHIFT) || isKeyDown(KEY_LSHIFT) || isKeyDown(KEY_RSHIFT)) {
+        requiredFlags |= KEYMAP_MODIFIER_SHIFT;
+    }
+    if (isKeyDown(KEY_LALT) || isKeyDown(KEY_RALT)) {
+        requiredFlags |= KEYMAP_MODIFIER_ALT;
+    }
+    if (isKeyDown(KEY_CONTROL) || isKeyDown(KEY_LCONTROL) || isKeyDown(KEY_RCONTROL)) {
+        requiredFlags |= KEYMAP_MODIFIER_CONTROL;
+    }
+
+    return requiredFlags;
+}
+
 bool InputSystem::wasButtonDown(const Buttons button) const {
     return previousMouseButtons[button] == true;
 }
@@ -52,6 +86,18 @@ void InputSystem::getPreviousMousePosition(int& x, int& y) const {
 }
 
 void InputSystem::update(double deltaTime) {
+    //Handle hold bindings
+    const unsigned int requiredFlags = getRequiredFlags();
+    for (unsigned int i = 0; i < MAX_KEYS; i++) {
+        const auto key = static_cast<Keys>(i);
+
+        if (isKeyDown(key) && wasKeyDown(key)) {
+            for (int j = keymaps.getSize() - 1; j >= 0; j--) {
+                if (keymaps.getData()[j]->processHold(requiredFlags, key)) break;
+            }
+        }
+    }
+
     //copy current states to previous states
     FF_Memory::ff_copy(previousKeyboardState, keyboardState, sizeof(keyboardState));
     FF_Memory::ff_copy(previousMouseButtons, mouseButtons, sizeof(mouseButtons));
@@ -60,10 +106,8 @@ void InputSystem::update(double deltaTime) {
 void InputSystem::initialize(EngineEvents *engineEventsRef) {
     instance = this;
 
-    FF_Memory::ff_clear(keyboardState, sizeof(keyboardState));
-    FF_Memory::ff_clear(previousKeyboardState, sizeof(previousKeyboardState));
-    FF_Memory::ff_clear(mouseButtons, sizeof(mouseButtons));
-    FF_Memory::ff_clear(previousMouseButtons, sizeof(previousMouseButtons));
+    keymaps.initialize();
+    InputKeymap::initialize();
 
     engineEventsSystemRef = engineEventsRef;
 
@@ -73,6 +117,12 @@ void InputSystem::initialize(EngineEvents *engineEventsRef) {
 void InputSystem::shutdown() {
     engineEventsSystemRef = nullptr;
     instance = nullptr;
+
+    keymaps.getData()[0]->destroy();
+    FF_Memory::ff_free<Keymap>(keymaps.getData()[0], GAME);
+    InputKeymap::destroy();
+
+    keymaps.shutdown();
 }
 
 void InputSystem::processKey(const Keys key, const bool bIsPressed) {
@@ -81,6 +131,13 @@ void InputSystem::processKey(const Keys key, const bool bIsPressed) {
 
     keyboardState[key] = bIsPressed;
 
+    //Check keymaps first
+    const unsigned int requiredFlags = getRequiredFlags();
+    for (int i = keymaps.getSize() - 1; i >= 0; i--) {
+        if (keymaps.getData()[i]->processBindings(bIsPressed, requiredFlags, key)) break;
+    }
+
+    //Now fire basic input events
     EngineInputContext context{};
     context.key = key;
     engineEventsSystemRef->callEvent(bIsPressed ? KEY_PRESSED : KEY_RELEASED, context);

@@ -12,6 +12,8 @@
 #include "src/modules/engine/Renderer/RenderPacketTypes.h"
 #include "src/modules/system/FoxFire_Renders/WorldRenderView.h"
 
+static constexpr float moveSpeed = 50.0f;
+
 void Game::loadModels() {
     if (!bModelsLoaded) {
         Logger::logDebug("Loading models");
@@ -294,11 +296,85 @@ void Game::startup() {
     //Setup events
     WorldRenderView& worldRenderView = *reinterpret_cast<WorldRenderView *>(masterRenderSystem.getRenderView("Fox_Fire_World_View"));
     worldRenderView.subToEvent(swapTextureEvent);
-    EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {quit();}, "Game.quit", KEY_ESCAPE);
-    EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {swapTextureEvent.call();}, "Game.swapTexture", KEY_1);
-    EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {loadModelsEvent.call();}, "Game.loadModels", KEY_2);
-    EngineEvents::subscribe(KEY_PRESSED, [this](const EngineInputContext context) {masterRenderSystem.setFlag(RENDERER_CONFIG_FLAG_VSYNC, !masterRenderSystem.rendererHasFlag(RENDERER_CONFIG_FLAG_VSYNC));}, "Game.Vsync", KEY_3);
-    EngineEvents::subscribe(KEY_PRESSED, [&state](const EngineInputContext context) {state.debugConsole.setVisibility(!state.debugConsole.isVisible());}, "Game.debugVisibility", KEY_4);
+
+    //Setup keymaps
+    Keymap* basicKeymap = FF_Memory::ff_allocate<Keymap>(GAME);
+
+    KeymapCallback mCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Logger::logDebug(FF_Memory::getMemoryUsage());
+        Logger::logDebug("Allocations: " + toString(state.allocationCount) + ". " + toString(static_cast<long>(state.allocationCount) - static_cast<long>(state.previousAllocationCount)) + " this frame.");
+    };
+    KeymapCallback leftCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
+        CameraUtils::adjustYaw(camera, 1.0f * state.deltaTime);
+    };
+    KeymapCallback rightCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
+        CameraUtils::adjustYaw(camera, -1.0f * state.deltaTime);
+    };
+    KeymapCallback upCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
+        CameraUtils::adjustPitch(camera, 1.0f * state.deltaTime);
+    };
+    KeymapCallback downCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
+        CameraUtils::adjustPitch(camera, -1.0f * state.deltaTime);
+    };
+    KeymapCallback wCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
+        CameraUtils::moveForward(camera, moveSpeed * state.deltaTime);
+    };
+    KeymapCallback aCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
+        CameraUtils::moveLeft(camera, moveSpeed * state.deltaTime);
+    };
+    KeymapCallback dCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
+        CameraUtils::moveRight(camera, moveSpeed * state.deltaTime);
+    };
+    KeymapCallback sCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
+        CameraUtils::moveBackward(camera, moveSpeed * state.deltaTime);
+    };
+    KeymapCallback spaceCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
+        CameraUtils::moveUp(camera, moveSpeed * state.deltaTime);
+    };
+    KeymapCallback shiftCallback = []KeymapLambda{
+        const GameState& state = *static_cast<GameState *>(data);
+        Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
+        CameraUtils::moveDown(camera, moveSpeed * state.deltaTime);
+    };
+
+    basicKeymap->addBinding(KEY_M, KEYMAP_BIND_PRESS, 0, gameInstance.state, mCallback, "Game.LogAllocations");
+    basicKeymap->addBinding(KEY_LEFT, KEYMAP_BIND_HOLD, 0, gameInstance.state, leftCallback, "Game.TurnLeft");
+    basicKeymap->addBinding(KEY_RIGHT, KEYMAP_BIND_HOLD, 0, gameInstance.state, rightCallback, "Game.TurnRight");
+    basicKeymap->addBinding(KEY_UP, KEYMAP_BIND_HOLD, 0, gameInstance.state, upCallback, "Game.TurnUp");
+    basicKeymap->addBinding(KEY_DOWN, KEYMAP_BIND_HOLD, 0, gameInstance.state, downCallback, "Game.TurnDown");
+    basicKeymap->addBinding(KEY_W, KEYMAP_BIND_HOLD, 0, gameInstance.state, wCallback, "Game.MoveForward");
+    basicKeymap->addBinding(KEY_A, KEYMAP_BIND_HOLD, 0, gameInstance.state, aCallback, "Game.MoveLeft");
+    basicKeymap->addBinding(KEY_S, KEYMAP_BIND_HOLD, 0, gameInstance.state, sCallback, "Game.MoveBackward");
+    basicKeymap->addBinding(KEY_D, KEYMAP_BIND_HOLD, 0, gameInstance.state, dCallback, "Game.MoveRight");
+    basicKeymap->addBinding(KEY_SPACE, KEYMAP_BIND_HOLD, 0, gameInstance.state, spaceCallback, "Game.MoveUp");
+    basicKeymap->addBinding(KEY_LSHIFT, KEYMAP_BIND_HOLD, KEYMAP_MODIFIER_SHIFT, gameInstance.state, shiftCallback, "Game.MoveDown");
+    basicKeymap->addBinding(KEY_ESCAPE, KEYMAP_BIND_PRESS, 0, nullptr, [this]KeymapLambda{quit();}, "Game.Quit");
+    basicKeymap->addBinding(KEY_1, KEYMAP_BIND_PRESS, 0, nullptr, [this]KeymapLambda{swapTextureEvent.call();}, "Game.SwapTextures");
+    basicKeymap->addBinding(KEY_2, KEYMAP_BIND_PRESS, 0, nullptr, [this]KeymapLambda{loadModelsEvent.call();}, "Game.LoadModels");
+    basicKeymap->addBinding(KEY_3, KEYMAP_BIND_PRESS, 0, nullptr, [this]KeymapLambda{masterRenderSystem.setFlag(RENDERER_CONFIG_FLAG_VSYNC, !masterRenderSystem.rendererHasFlag(RENDERER_CONFIG_FLAG_VSYNC));}, "Game.Vsync");
+    basicKeymap->addBinding(KEY_4, KEYMAP_BIND_PRESS, 0, nullptr, [&state]KeymapLambda{state.debugConsole.setVisibility(!state.debugConsole.isVisible());}, "Game.DebugVisibility");
+
+    InputSystem::pushKeymap(basicKeymap);
+
     loadModelsEvent.subscribe([this](){loadModels();});
 
     //Create the dynamic array for world geometries here and reuse the allocation every frame rather than destroying it.
@@ -315,60 +391,15 @@ bool Game::update(const float deltaTime) {
 
     frameAllocator.freeAll();
 
-    static unsigned long allocationCount = 0;
-    const unsigned long previousAllocationCount = allocationCount;
-    allocationCount = FF_Memory::getAllocationCount();
-    if (inputSystem.isKeyUp(KEY_M) && inputSystem.wasKeyDown(KEY_M)) {
-        const String usage = FF_Memory::getMemoryUsage();
-        Logger::logDebug(usage);
-        Logger::logDebug("Allocations: " + toString(allocationCount) + ". " + toString(allocationCount - previousAllocationCount) + " this frame.");
-    }
-
     auto& state = *reinterpret_cast<GameState*>(gameInstance.state);
+
+    state.deltaTime = deltaTime;
+
+    //This is VERY inconsistent do to frame timing inconsistency. This should probably be changed.
+    state.previousAllocationCount = state.allocationCount;
+    state.allocationCount = FF_Memory::getAllocationCount();
+
     Camera& camera = *EntityComponentSystem::getComponent<Camera>(state.worldCamera);
-
-    if (InputSystem::isKeyDown(KEY_LEFT)) {
-        CameraUtils::adjustYaw(camera, 1.0f * deltaTime);
-    }
-    if (InputSystem::isKeyDown(KEY_RIGHT)) {
-        CameraUtils::adjustYaw(camera, -1.0f * deltaTime);
-    }
-
-    if (InputSystem::isKeyDown(KEY_UP)) {
-        CameraUtils::adjustPitch(camera, 1.0f * deltaTime);
-    }
-    if (InputSystem::isKeyDown(KEY_DOWN)) {
-        CameraUtils::adjustPitch(camera, -1.0f * deltaTime);
-    }
-
-    static constexpr float moveSpeed = 50.0f;
-
-    if (InputSystem::isKeyDown(KEY_W)) {
-        CameraUtils::moveForward(camera, moveSpeed * deltaTime);
-
-    }
-    if (InputSystem::isKeyDown(KEY_S)) {
-        CameraUtils::moveBackward(camera, moveSpeed * deltaTime);
-    }
-
-    if (InputSystem::isKeyDown(KEY_A)) {
-        CameraUtils::moveLeft(camera, moveSpeed * deltaTime);
-
-    }
-    if (InputSystem::isKeyDown(KEY_D)) {
-        CameraUtils::moveRight(camera, moveSpeed * deltaTime);
-    }
-
-    if (InputSystem::isKeyDown(KEY_SPACE)) {
-        CameraUtils::moveUp(camera, moveSpeed * deltaTime);
-    }
-    if (InputSystem::isKeyDown(KEY_LSHIFT)) {
-        CameraUtils::moveDown(camera, moveSpeed * deltaTime);
-    }
-
-    if (inputSystem.isKeyUp(KEY_P) && inputSystem.wasKeyDown(KEY_P)) {
-        Logger::logDebug("Camera Pos: " + toString(CameraUtils::getPosition(camera).x) + " " + toString(CameraUtils::getPosition(camera).y) + " " + toString(CameraUtils::getPosition(camera).z));
-    }
 
     //Rotate the cubes
     const Quat rotation = QuatUtils::getQuatFromAxisAngle({0, 1, 0}, 0.5f * deltaTime, false);
@@ -377,24 +408,24 @@ bool Game::update(const float deltaTime) {
     TransformUtils::addRotation(*EntityComponentSystem::getComponent<Transform>(state.worldEntities[2]), rotation);
 
     //Update ui text
-            const Vector3f position = CameraUtils::getPosition(camera);
-            const Vector3f uiRotation = CameraUtils::getRotation(camera);
+    const Vector3f position = CameraUtils::getPosition(camera);
+    const Vector3f uiRotation = CameraUtils::getRotation(camera);
 
-            //Get Mouse State
-            const bool leftDown = inputSystem.isButtonDown(BUTTON_LEFT);
-            const bool rightDown = inputSystem.isButtonDown(BUTTON_RIGHT);
-            int mouseX = 0;
-            int mouseY = 0;
-            inputSystem.getMousePosition(mouseX, mouseY);
+    //Get Mouse State
+    const bool leftDown = inputSystem.isButtonDown(BUTTON_LEFT);
+    const bool rightDown = inputSystem.isButtonDown(BUTTON_RIGHT);
+    int mouseX = 0;
+    int mouseY = 0;
+    inputSystem.getMousePosition(mouseX, mouseY);
 
-            //Convert to NDC
-            const float ndcMouseX = FF_Math::convertFloatRange(static_cast<float>(mouseX), 0, state.width, -1, 1);
-            const float ndcMouseY = FF_Math::convertFloatRange(static_cast<float>(mouseY), 0, state.height, -1, 1);
+    //Convert to NDC
+    const float ndcMouseX = FF_Math::convertFloatRange(static_cast<float>(mouseX), 0, state.width, -1, 1);
+    const float ndcMouseY = FF_Math::convertFloatRange(static_cast<float>(mouseY), 0, state.height, -1, 1);
 
-            //Calculate frame average
-            double fps = 0;
-            double frameTime = 0;
-            engineMetrics.getFrameMetrics(fps, frameTime);
+    //Calculate frame average
+    double fps = 0;
+    double frameTime = 0;
+    engineMetrics.getFrameMetrics(fps, frameTime);
 
     //Update Frustum
     Vector3f forward = CameraUtils::getForward(camera);

@@ -8,6 +8,7 @@
 #include "src/modules/engine/Memory/DynamicArray.h"
 #include "src/modules/engine/UserInterface/UIText.h"
 #include "foxfire_export.h"
+#include "src/modules/engine/Input/IInputConsumer.h"
 
 /**
  *  @file DebugConsole.h
@@ -21,7 +22,7 @@
  *  @copyright (c) 2026
  */
 
-class FOXFIRE_API DebugConsole final : public IConsole {
+class FOXFIRE_API DebugConsole final : public IConsole, IInputConsumer {
 private:
     /**
      * @brief How many lines to display
@@ -38,13 +39,12 @@ private:
      * @brief Contains the lines actively displaying
      */
     UIText text{};
-    /**
-     * @brief Contains the line for input
-     */
-    UIText entry{};
 
-    void onInputPress(EngineInputContext context);
     void onInputRelease(EngineInputContext context);
+
+protected:
+    bool execute() override;
+    void exit() override;
 
 public:
     void initialize() override;
@@ -54,7 +54,7 @@ public:
     UIText& getEntry() {return entry;}
     [[nodiscard]] bool isVisible() const {return bIsVisible;}
 
-    void setVisibility(const bool visible) {bIsVisible = visible;}
+    void setVisibility(bool visible);
 
     bool load();
     void update();
