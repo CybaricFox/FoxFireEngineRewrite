@@ -24,8 +24,13 @@ bool DebugConsole::write(LogLevel level, String message) {
     return true;
 }
 
-void DebugConsole::scrollUp() {
+void DebugConsole::scrollUp(const unsigned int modifiers) {
+    if ((modifiers & KEYMAP_MODIFIER_SHIFT) != 0) {
+        return;
+    }
+
     bIsDirty = true;
+
     if (lines.getLength() <= lineDisplayCount) {
         lineOffset = 0;
         return;
@@ -35,8 +40,13 @@ void DebugConsole::scrollUp() {
     lineOffset = FF_Math::min(lineOffset, static_cast<int>(lines.getLength() - lineDisplayCount));
 }
 
-void DebugConsole::scrollDown() {
+void DebugConsole::scrollDown(const unsigned int modifiers) {
+    if ((modifiers & KEYMAP_MODIFIER_SHIFT) != 0) {
+        return;
+    }
+
     bIsDirty = true;
+
     if (lines.getLength() <= lineDisplayCount) {
         lineOffset = 0;
         return;
@@ -50,7 +60,32 @@ void DebugConsole::onInputRelease(EngineInputContext context) {
     //Do nothing for now
 }
 
+void DebugConsole::historyUp(const unsigned int modifiers) {
+    const unsigned int length = commandHistory.getLength();
+    if (length == 0) return;
+
+    historyOffset = FF_Math::min(historyOffset + 1, static_cast<int>(length - 1));
+    entry.setText(commandHistory[length - historyOffset - 1].command);
+}
+
+void DebugConsole::historyDown(const unsigned int modifiers) {
+    const unsigned int length = commandHistory.getLength();
+    if (length == 0 || historyOffset == -1) return;
+
+    if (historyOffset == 0) {
+        historyOffset = -1;
+        entry.setText(" ");
+        return;
+    }
+
+    historyOffset = FF_Math::max(historyOffset - 1, 0);
+    entry.setText(commandHistory[length - historyOffset - 1].command);
+}
+
 bool DebugConsole::execute() {
+    CommandHistoryEntry& commandEntry = *commandHistory.emplace();
+    commandEntry.command = entry.getText();
+    historyOffset = -1;
     if (!MasterConsole::executeCommand(entry.getText())) {
         //Handle failure in the future
     }
@@ -113,13 +148,15 @@ void DebugConsole::update() {
 
 void DebugConsole::initialize() {
     lineDisplayCount = 10;
-    lines.initialize(0);
+    lines.initialize();
+    commandHistory.initialize();
 
     MasterConsole::registerConsole(this);
 }
 
 void DebugConsole::shutdown() {
     lines.shutdown();
+    commandHistory.shutdown();
     text.destroy();
     entry.destroy();
 }

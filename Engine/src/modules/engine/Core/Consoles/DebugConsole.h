@@ -22,6 +22,10 @@
  *  @copyright (c) 2026
  */
 
+struct CommandHistoryEntry {
+    String command{};
+};
+
 class FOXFIRE_API DebugConsole final : public IConsole, IInputConsumer {
 private:
     /**
@@ -39,14 +43,14 @@ private:
      * @brief Contains the lines actively displaying
      */
     UIText text{};
+    DynamicArray<CommandHistoryEntry> commandHistory{};
+    int historyOffset = -1;
 
     void onInputRelease(EngineInputContext context);
 
 protected:
     bool execute() override;
     void exit() override;
-    void scrollUp() override;
-    void scrollDown() override;
 
 public:
     void initialize() override;
@@ -61,4 +65,8 @@ public:
     bool load();
     void update();
     bool write(LogLevel level, String message) override;
+    void scrollUp(unsigned int modifiers) override;
+    void scrollDown(unsigned int modifiers) override;
+    void historyUp(unsigned int modifiers) override;
+    void historyDown(unsigned int modifiers) override;
 };

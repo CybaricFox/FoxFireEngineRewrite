@@ -31,6 +31,8 @@ public:
     virtual ~IInputConsumer() = default;
 
     virtual void onInput(Keys key, unsigned int modifiers);
-    virtual void scrollUp(){}
-    virtual void scrollDown(){}
+    virtual void scrollUp(unsigned int modifiers){}
+    virtual void scrollDown(unsigned int modifiers){}
+    virtual void historyUp(unsigned int modifiers){}
+    virtual void historyDown(unsigned int modifiers){}
 };

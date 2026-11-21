@@ -25,7 +25,7 @@ void Keymap::destroy() {
 }
 
 bool Keymap::hasModifiers(const KeymapBinding &binding, const unsigned int flags) {
-    return (binding.modifierFlags & flags) == flags;
+    return binding.modifierFlags == 0 || (flags & binding.modifierFlags) == binding.modifierFlags;
 }
 
 void Keymap::addBinding(Keys key, KeymapBindType type, unsigned int modifierFlags, void *data, std::function<void(Keys key, KeymapBindType type, unsigned int modifierFlags, void *data)> callback, const String &id) {
@@ -88,7 +88,7 @@ bool Keymap::processBindings(const bool pressed, const unsigned int modifierFlag
             unset = true;
             break;
         }
-        if (binding->callback != nullptr || hasModifiers(*binding, modifierFlags)) {
+        if (binding->callback != nullptr && hasModifiers(*binding, modifierFlags)) {
             if (pressed && binding->type == KEYMAP_BIND_PRESS) {
                 binding->callback(key, binding->type, modifierFlags, binding->data);
             } else if (!pressed && binding->type == KEYMAP_BIND_RELEASE) {
@@ -117,7 +117,7 @@ bool Keymap::processHold(const unsigned int modifierFlags, const Keys key) {
         }
         if (binding->callback != nullptr || hasModifiers(*binding, modifierFlags)) {
             if (binding->type == KEYMAP_BIND_HOLD) {
-                binding->callback(key, binding->type, binding->modifierFlags, binding->data);
+                binding->callback(key, binding->type, modifierFlags, binding->data);
             }
         }
 

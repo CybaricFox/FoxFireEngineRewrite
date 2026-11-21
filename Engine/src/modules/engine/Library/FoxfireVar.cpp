@@ -78,6 +78,15 @@ void FoxfireVar::setInt(const ConsoleCommandContext context) {
 bool FoxfireVar::createInt(const String &name, const int value) {
     if (name.isEmpty()) return false;
 
+    for (unsigned int i = 0; i < ints.getAssignedSize(); i++) {
+        const FVInt* entry = ints.get(i);
+        if (entry == nullptr) continue;
+        if (entry->name.equalsIgnoreCase(name)) {
+            Logger::logError(name + " is already an FVINT!");
+            return false;
+        }
+    }
+
     const unsigned int index = ints.assign();
 
     if (index == FVINT_MAX_COUNT) {
